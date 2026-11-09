@@ -12,7 +12,7 @@ Frankenstein's creature was assembled from unlike parts. Game environments are t
 Builds a Lovecraftian village in Unity 6 HDRP from a catalog of modular pieces, deterministic per seed. A sanity model drives dread, which drives audio and narration through a pluggable, failure-safe provider.
 
 ## How we built it with Kiro
-Specs for core rules, steering to keep logic engine-free and legal, hooks for test-on-save and a paid-asset guard, property-based tests derived from requirements. See `docs/KIRO_USAGE.md` and the `.kiro` directory. TODO: add concrete stories.
+Specs for core rules, steering to keep logic engine-free and legal, hooks for test-on-save and a paid-asset guard, property-based tests derived from requirements. See `docs/KIRO_USAGE.md` and the `.kiro` directory. See `docs/KIRO_USAGE.md` for details.
 
 ## Challenges
 Keeping a commercial asset pack out of an open-source repo; testing Unity-bound ideas without the editor.
@@ -27,17 +27,81 @@ HDRP volume blending, AI narration provider, more catalog pieces.
 Unity 6, HDRP, C#, Kiro, xunit, Python.
 
 ## Asset disclosure
-Uses the commercial "Lovecraftian Village 1.3 HDRP", licensed to the author, not distributed in the repo.
+Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Artworks, linked from the README and not committed to the repo.
 
 ## Submission checklist
 - [x] Public repo with detectable open source license (Apache-2.0)
 - [x] `/.kiro` at root with specs, hooks and steering, not gitignored
 - [ ] Demo video under 3 minutes, public (script in `docs/DEMO_SCRIPT.md`)
-- [ ] Kiro usage write-up finished (`docs/KIRO_USAGE.md`)
+- [ ] Kiro usage write-up finished (`docs/KIRO_USAGE.md`, fill the `[AUTHOR TO CONFIRM]` lines)
 - [ ] Category selected: Frankenstein
 
-## Bonus prizes checklist
-- [ ] **Social Blitz:** post about the project on social media with #KiroweenHackathon26 and tag Kiro; add link in submission
-- [ ] **Blog:** publish a post on building with Kiro (dev.to, Medium, etc.) and add the link
-- [ ] **Best Demo / video quality:** polished, narrated video within 3 minutes
-- [ ] Confirm exact bonus prize names and rules on the official Devpost page before submitting
+## Bonus prizes
+
+Prize names and rules below follow the hackathon rules as provided to us. Confirm wording on the official Devpost page before submitting.
+
+### Summary
+
+| Prize | Eligible? | Action |
+|-------|-----------|--------|
+| Best Startup Project | Only if true, author must confirm | Supply fields below |
+| Best Student Project | Only if true, author must confirm | Supply fields below |
+| Best Ghost of Kiroween Past | Only if true, author must confirm | Supply fields below |
+| Best Kiro Crew App | Only if true, author must confirm | Supply fields below |
+| Social Blitz Prize | Eligible | Post the draft below and add the link |
+| Bonus Blog Prize | Eligible | Publish `docs/BLOG_POST.md` and add the link |
+| Best Demo | Eligible | Follow the checklist below |
+
+### Best Startup Project
+- **Requirements:** a project presented as the foundation of a startup or company.
+- **Eligibility:** nothing in the repo shows a startup. The author is an individual (Michael G. Inso). **Only if true, author must confirm.** Do not claim this otherwise.
+- **Fields to supply if true:** company or startup name; one-paragraph business case (customer, problem, revenue model); public website or pitch link; stage and team size.
+
+### Best Student Project
+- **Requirements:** the entrant is a student.
+- **Eligibility:** nothing in the repo shows student status. **Only if true, author must confirm.**
+- **Fields to supply if true:** school or program name; enrollment status and expected graduation; the proof the rules ask for (for example a student email or ID statement).
+
+### Best Ghost of Kiroween Past
+- **Requirements:** a project that revives or builds on an entry from a previous Kiroween (2025).
+- **Eligibility:** nothing in the repo shows a Kiroween 2025 registration or a predecessor project. **Only if true, author must confirm.**
+- **Fields to supply if true:** link to the 2025 Devpost submission; what changed since then; what is new in this entry.
+
+### Best Kiro Crew App
+- **Requirements:** an app built with Kiro Crew, submitted as a separate Crew app.
+- **Eligibility:** the scaffold was made by an orchestrated multi-agent run in Kiro Web, but no separate Kiro Crew app repository exists. **Only if true, author must confirm.**
+- **Fields to supply if true:** link to the separate Crew app repo; description of the crew (agents and roles); how the crew is used by the app.
+
+### Social Blitz Prize
+- **Requirements:** a public social media post about the project using #KiroweenHackathon26, with the link added to the submission.
+- **Eligibility:** eligible. Publish the post and paste its URL in the submission.
+- **Post draft:**
+
+```
+#KiroweenHackathon26 I stitched a cosmic-horror village together like Frankenstein's monster: a modular Lovecraftian asset kit, a seeded procedural layout, a sanity engine that turns fear into dread, and AI narration with an offline fallback. Built in Unity 6 with @kirodotdev specs, hooks, steering and property-based tests. Repo and demo: https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village
+```
+Add the demo video link and a screenshot or clip. Check that the Kiro handle is correct for the platform you post on.
+
+### Bonus Blog Prize
+- **Requirements:** a blog post about building with Kiro that states it was written as part of the Kiroween 2026 hackathon, published publicly with the link in the submission.
+- **Eligibility:** eligible.
+- **Content:** full draft in [docs/BLOG_POST.md](BLOG_POST.md). Publish it (dev.to, Medium, Hashnode) and add the URL. Fill in the `[AUTHOR TO CONFIRM]` lines first.
+
+### Best Demo
+- **Requirements:** a clear, well-produced demo video under 3 minutes, public, showing the project working.
+- **Eligibility:** eligible.
+- **Checklist (tied to [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md)):**
+  - [ ] Total length under 3:00 (script targets 2:40)
+  - [ ] 0:00-0:15 hook with fog and title card
+  - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
+  - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`
+  - [ ] 1:10-1:35 `dotnet test` passing in the terminal
+  - [ ] 1:35-2:00 hooks and steering panels; asset guard shown
+  - [ ] 2:00-2:30 Unity: change the seed, village rebuilds; sanity drops, dread rises, narration line appears
+  - [ ] 2:30-2:50 recap slide with Kiro features, repo link and #KiroweenHackathon26
+  - [ ] 1080p, clear narration, no copyrighted music
+  - [ ] Only licensed assets on screen, with DLNK Artworks credited
+  - [ ] Uploaded public to YouTube or Vimeo and linked in the submission
+
+### Asset note for judges
+The Lovecraftian Village pack (HDRP and URP editions) is by DLNK Artworks and is linked from OneDrive in the README, not committed to the repo. `.gitattributes` on `main` marks `*.unitypackage`, `*.fbx`, `*.psd` and `*.wav` for Git LFS; `.gitignore` and `tools/validate_repo.py` still keep these files out of the repo.

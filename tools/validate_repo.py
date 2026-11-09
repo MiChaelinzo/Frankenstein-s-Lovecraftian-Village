@@ -9,7 +9,7 @@ errors = []
 for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/tasks.md",
           ".kiro/steering/product.md", ".kiro/steering/tech.md", ".kiro/steering/structure.md",
           "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
-          "docs/DEVPOST_SUBMISSION.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
+          "docs/DEVPOST_SUBMISSION.md", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
