@@ -103,5 +103,8 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
   - [ ] Only licensed assets on screen, with DLNK Artworks credited
   - [ ] Uploaded public to YouTube or Vimeo and linked in the submission
 
+### Try it without Unity
+Browser demo (no paid assets, same Core logic, parity-tested against C#): https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/ (**[AUTHOR TO CONFIRM: enable GitHub Pages with the "GitHub Actions" source and verify this URL]**).
+
 ### Asset note for judges
 The Lovecraftian Village pack (HDRP and URP editions) is by DLNK Artworks and is linked from OneDrive in the README, not committed to the repo. `.gitattributes` on `main` marks `*.unitypackage`, `*.fbx`, `*.psd` and `*.wav` for Git LFS; `.gitignore` and `tools/validate_repo.py` still keep these files out of the repo.

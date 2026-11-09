@@ -10,4 +10,6 @@
 | 2:00-2:30 | Unity: change the seed, village rebuilds; sanity drops, fog and audio intensify; narration line appears | "Change a seed, get a new village. As sanity falls, dread rises and the narrator turns on you." |
 | 2:30-2:50 | Recap slide: Kiro features used, repo link, #KiroweenHackathon26 | "Specs, steering, hooks, agents and property tests, stitched together. Thanks for watching." |
 
+Judge shortcut: if you cannot run Unity, open the browser demo (see README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
+
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only your licensed assets on screen.

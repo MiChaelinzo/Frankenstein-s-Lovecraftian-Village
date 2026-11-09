@@ -6,6 +6,19 @@ A Unity 6 cosmic-horror village environment, built for **Kiroween 2026** in the 
 
 This project combines Unity 6, AI-assisted development workflows, and a modular Lovecraftian environment to create a dark fantasy village inspired by cosmic horror and environmental storytelling.
 
+## Play it in your browser (no Unity, no download)
+A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
+
+- Live: https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/ (deployed by [`pages.yml`](.github/workflows/pages.yml) once GitHub Pages is set to the "GitHub Actions" source)
+- Change the **seed** for a new village, drag **sanity** down to watch the vignette close in, the fog thicken, the moon redden and the narrator turn on you. Click buildings for whispers. Toggle the drone for sound.
+- Share a state with the URL hash, for example `#seed=1818&sanity=35`.
+- Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
+
+Run locally (ES modules need HTTP, not `file://`):
+```bash
+python3 -m http.server -d web 8000   # then open http://localhost:8000
+```
+
 ## Downloads
 
 The original environment packages are hosted on OneDrive due to GitHub file size limitations.
@@ -40,7 +53,8 @@ Unlike parts, one creature:
 |------|------|
 | Lovecraftian Village 1.3 (HDRP or URP, third-party, not committed here) | Modular art kit |
 | Procedural stitcher (`VillageLayoutGenerator`) | Assembles pieces by id from a catalog |
-| Sanity-driven Horror Director | Turns sanity into dread, audio and (planned) volume blends |
+| Sanity-driven Horror Director | Turns sanity into dread, audio and HDRP volume blends (`DreadVolumeBlender`) |
+| Browser demo (`web/`) | JS port of Core plus canvas village, verified against C# |
 | Pluggable AI narration (`INarrationProvider`) | Optional AI text with safe offline fallback |
 | Kiro | Specs, steering, hooks and agents that built and guard the project |
 
@@ -54,6 +68,9 @@ See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in
 4. Import it: `Assets > Import Package > Custom Package...`, pick the `.unitypackage`, and import everything. Keep the default `Assets/Lovecraftian Village*` location; those folders are gitignored.
 5. Create a `Frankenstein > Village Catalog` asset, add bindings (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
 6. Add a `VillageBuilder` and a `HorrorAmbienceDirector` to a scene.
+7. Optional: create two global Volumes (calm and dread, same overrides) and assign them to a `DreadVolumeBlender`, then reference it from the director. Set `narrationEndpoint` on the director for HTTP AI narration.
+
+The Unity-side pieces (catalog binding, scene, `DreadVolumeBlender`, `HttpNarrationProvider`) have not been run in the Unity editor yet; the Core logic they wrap is tested.
 
 ### Which package do I import?
 | Your project | Package | Notes |
@@ -69,8 +86,10 @@ The Lovecraftian Village pack is third-party content by DLNK Artworks. It is **n
 ## Run the tests (no Unity needed)
 ```bash
 dotnet test tests/Frankenstein.Core.Tests
+node --test "web/test/*.test.js"      # JS port, including parity with C# output (Node 20+)
 python3 tools/validate_repo.py
 ```
+After intentionally changing Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js` to match.
 The tests are property-based: each property runs 300 seeded random cases and reports the failing seed. If your home directory is read-only, run with `HOME=/tmp/home`.
 
 ## Built with Kiro

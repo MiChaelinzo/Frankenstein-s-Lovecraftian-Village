@@ -70,6 +70,10 @@ Tests are in [`tests/Frankenstein.Core.Tests`](../tests/Frankenstein.Core.Tests)
 
 The tests compile the Core source files directly, so they run with `dotnet test` and no Unity install. Run them with `HOME=/tmp/home` if your home directory is read-only.
 
+## Web demo and parity testing
+
+The judge-runnable browser demo in `web/` was specced as R7 and built from the same Core design. The key trick is the golden file: a C# xunit test (`GoldenParity`) writes `web/test/golden.json` from the real Core classes, and `node --test` asserts the JS port reproduces it exactly (RNG sequence, layouts for several seeds and grids, narration, dread). That keeps two implementations honest without a Unity install.
+
 ## Powers
 
 The scaffold run used the **GitHub CLI power** (clone, branch, commit, and PR-related git operations through `git` and `gh`). Powers installed in the Kiro environment also include browser automation and GitLab tooling, but they were not needed for this project, so no use of them is claimed. No power was authored for this repo.

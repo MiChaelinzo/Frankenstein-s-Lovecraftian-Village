@@ -29,3 +29,12 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 1. The paid Lovecraftian Village pack SHALL NOT be committed.
 2. `.kiro/` SHALL be committed and not gitignored.
 3. The repo SHALL include an open source license (Apache-2.0).
+
+### R6 Dread blending
+1. The system SHALL map dread to a blend weight in [0,1] that never decreases as dread increases.
+2. Non-finite dread SHALL be treated as no dread.
+
+### R7 Judge-runnable web demo
+1. The repo SHALL include a browser demo that runs without Unity or paid assets.
+2. The demo's layouts, RNG output, narration and dread SHALL equal the C# Core output for the checked-in golden seeds.
+3. The demo SHALL let a user share a seed and sanity level through the URL.

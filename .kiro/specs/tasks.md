@@ -11,6 +11,11 @@
 - [x] 9. Kiro hooks and steering
 - [x] 10. README, KIRO_USAGE, DEMO_SCRIPT, DEVPOST_SUBMISSION
 - [ ] 11. In Unity: import owned pack, bind prefabs in a VillageCatalogAsset, build the demo scene
-- [ ] 12. HDRP volumes (fog, vignette, color) blended by dread
-- [ ] 13. Optional: AI narration provider via HTTP behind INarrationProvider
+- [x] 12. HDRP volumes (fog, vignette, color) blended by dread (code-complete: `DreadCurve` in Core is tested; `DreadVolumeBlender` is unverified in Unity until the author authors the two Volumes)
+- [x] 13. Optional: AI narration provider via HTTP behind INarrationProvider (code-complete: `HttpNarrationProvider` is unverified in Unity)
 - [ ] 14. Record demo video and publish
+- [x] 15. Browser demo under `web/`: dependency-free JS port of Core, procedural canvas village, sanity-driven dread, seed sharing via URL hash
+- [x] 16. Golden parity: C# test emits `web/test/golden.json`, `node --test` proves the JS port matches C# exactly
+- [x] 17. GitHub Pages workflow `.github/workflows/pages.yml` (author must enable Pages: Settings > Pages > Source: GitHub Actions)
+
+Open author-only items: 11 (needs Unity and the owned pack) and 14 (record and publish the video).
