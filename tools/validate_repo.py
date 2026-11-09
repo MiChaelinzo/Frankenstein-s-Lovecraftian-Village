@@ -8,7 +8,8 @@ errors = []
 
 for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/tasks.md",
           ".kiro/steering/product.md", ".kiro/steering/tech.md", ".kiro/steering/structure.md",
-          "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
+          "web/index.html", "web/src/core.js", "web/src/app.js", "web/test/golden.json",
+          ".github/workflows/pages.yml", "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
           "docs/DEVPOST_SUBMISSION.md", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
@@ -31,6 +32,10 @@ for f in tracked:
         errors.append(f"third party file: {f}")
     if low.startswith("assets/") and low.endswith(banned) and "thirdparty" not in low:
         errors.append(f"binary asset needs review: {f}")
+
+import filecmp
+if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Assets/Data/village_catalog.json", shallow=False):
+    errors.append("web/data/village_catalog.json differs from Assets/Data/village_catalog.json")
 
 if errors:
     print("FAIL"); [print(" -", e) for e in errors]; sys.exit(1)
