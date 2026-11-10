@@ -38,3 +38,23 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 1. The repo SHALL include a browser demo that runs without Unity or paid assets.
 2. The demo's layouts, RNG output, narration and dread SHALL equal the C# Core output for the checked-in golden seeds.
 3. The demo SHALL let a user share a seed and sanity level through the URL.
+
+### R8 Dread events
+1. WHEN dread rises past the Uneasy, Dire or Abyss threshold THEN the system SHALL emit exactly one rising event for that threshold.
+2. A rising event SHALL NOT repeat until dread has fallen below the threshold minus the hysteresis margin.
+3. Non-finite dread SHALL be treated as no dread.
+
+### R9 Village report
+1. The system SHALL produce a report of seed, sanity, dread and layout as Markdown and as JSON.
+2. The same inputs SHALL produce the same report.
+3. Non-finite dread SHALL be stored as a string ("NaN", "Infinity") so the JSON stays valid.
+
+### R10 Prefab auto-binding
+1. The matcher SHALL map a catalog id to the best-named prefab, or to none when nothing matches.
+2. The matcher SHALL be case-insensitive and deterministic.
+3. The Unity editor binder SHALL only use the matcher and SHALL NOT copy pack files into the repo.
+
+### R11 Accessibility
+1. The web demo SHALL be fully operable from the keyboard.
+2. WHEN reduced motion is requested (`prefers-reduced-motion` or `?reduced=1`) THEN the demo SHALL avoid flicker and sway.
+3. The layout SHALL remain usable on narrow screens.
