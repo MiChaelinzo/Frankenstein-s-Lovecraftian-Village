@@ -19,6 +19,15 @@ namespace Frankenstein.Core.Tests
         private static readonly (int w, int d, int n)[] Grids = { (24, 24, 40), (16, 12, 25), (8, 8, 100) };
         private static readonly float[] Dreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f };
 
+        private static readonly float[] ReportDreads = { 0f, 0.5f, 1f };
+        private static readonly float[][] EventSeqs =
+        {
+            new[] { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, 0.5f, 0.2f, 0f },
+            new[] { 0.35f, 0.33f, 0.35f, 0.3f, 0.29f, 0.289f, 0.34f },
+            new[] { 0.95f, 0.8f, 0.85f, 0.6f, 0.1f },
+            new[] { float.NaN, 0.4f, float.PositiveInfinity, 0.7f, -1f },
+        };
+
         private static string RepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -94,7 +103,36 @@ namespace Frankenstein.Core.Tests
             for (int i = 0; i < sanities.Length; i++)
                 sb.Append(i > 0 ? ", " : "").Append("[").Append(sanities[i].ToString("R", inv)).Append(", ")
                   .Append(SanityModel.DreadFor(sanities[i]).ToString("R", inv)).Append("]");
-            sb.Append("]\n}\n");
+            sb.Append("],\n  \"events\": [\n");
+            for (int i = 0; i < EventSeqs.Length; i++)
+            {
+                var t = new DreadEventTracker();
+                sb.Append("    { \"dreads\": [");
+                for (int k = 0; k < EventSeqs[i].Length; k++) sb.Append(k > 0 ? ", " : "").Append(EventSeqs[i][k].ToString("R", inv));
+                sb.Append("], \"events\": [");
+                for (int k = 0; k < EventSeqs[i].Length; k++)
+                {
+                    sb.Append(k > 0 ? ", " : "").Append('[');
+                    var evs = t.Update(EventSeqs[i][k]);
+                    for (int j = 0; j < evs.Count; j++) sb.Append(j > 0 ? ", " : "").Append('"').Append(evs[j]).Append('"');
+                    sb.Append(']');
+                }
+                sb.Append("] }").Append(i < EventSeqs.Length - 1 ? ",\n" : "\n");
+            }
+            sb.Append("  ],\n  \"reports\": [\n");
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var rd in ReportDreads)
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, 24, 24, 40, s);
+                    var rep = VillageReport.Build(cat, layout, 24, 24, s, rd);
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"dread\": ").Append(rd.ToString("R", inv))
+                      .Append(", \"markdown\": ").Append(JsonSerializer.Serialize(rep.ToMarkdown()))
+                      .Append(", \"json\": ").Append(JsonSerializer.Serialize(rep.ToJson())).Append(" }");
+                }
+            sb.Append("\n  ]\n}\n");
             return sb.ToString();
         }
 
