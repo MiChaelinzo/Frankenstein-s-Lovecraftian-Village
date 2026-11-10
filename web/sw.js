@@ -1,0 +1,28 @@
+// Offline cache for the static demo. Network first, cache fallback. Precaches only the explicit list below.
+// It never touches local-pack (licensed art stays out of caches) and never serves or stores anything for ?pack=1.
+const CACHE = 'flv-shell-v1';
+const PRECACHE = [
+  './', 'index.html', 'selftest.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
+  'data/village_catalog.json',
+  'src/app.js', 'src/building.js', 'src/casefile.js', 'src/core.js', 'src/golden-data.js', 'src/i18n.js', 'src/intro.js',
+  'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
+  'src/session.js', 'src/story.js',
+];
+const skip = (url) => url.pathname.includes('/local-pack/') || url.searchParams.get('pack') === '1';
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE.map((p) => new URL(p, self.registration.scope).href))).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request, url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin || skip(url)) return;
+  const listed = PRECACHE.some((p) => new URL(p, self.registration.scope).pathname === url.pathname);
+  if (!listed) return;
+  e.respondWith(fetch(req).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(url.origin + url.pathname, copy)); }
+    return res;
+  }).catch(() => caches.match(url.origin + url.pathname).then((hit) => hit || caches.match(new URL('index.html', self.registration.scope).href))));
+});

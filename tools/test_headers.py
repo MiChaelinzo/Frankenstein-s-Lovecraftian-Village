@@ -50,6 +50,12 @@ class HeaderParity(unittest.TestCase):
             self.assertEqual(self.n[k], self.v[k], f"netlify vs vercel differ for {k}")
             self.assertEqual(self.n[k], self.h[k], f"netlify vs _headers differ for {k}")
 
+    def test_pwa_directives(self):
+        for name, d in (("netlify", self.n), ("vercel", self.v), ("_headers", self.h)):
+            csp = d["content-security-policy"]
+            self.assertIn("worker-src 'self'", csp, name)
+            self.assertIn("manifest-src 'self'", csp, name)
+
     def test_parser_detects_drift(self):
         self.assertNotEqual(parse_headers_file("/*\n  A-B: 1\n")["a-b"], "2")
 

@@ -17,6 +17,11 @@ import {
   floorCountFor, maxFloors, visibleFloors, parseFloor, detailFeatures, DOOR_NAMES, doorMessage, buildingKey, nearestDoor,
   doorShake, DOOR_RING, CAMERA_LABELS,
 } from './building.js';
+import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
+import { minimapModel } from './minimap.js';
+import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
+import { t, parseLang } from './i18n.js';
+import { createPerf, perfWanted, perfText } from './perf.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
 const $ = (id) => document.getElementById(id);
@@ -32,6 +37,8 @@ const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
 // Camera projection state: k squashes the board vertically, hs scales building heights. Eases between modes.
 const cam = { mode: 1, k: 1, hs: 1, settled: true };
 const optParam = (name) => new URLSearchParams(String(location.hash || '').replace(/^#/, '')).get(name) ?? params.get(name);
+const lang = parseLang(optParam('lang'));
+const tr = (k, v) => t(k, lang, v);
 let dirty = true;
 const mark = () => { dirty = true; start(); };
 
@@ -157,6 +164,7 @@ function omen(e) {
   log('omen', text);
 }
 function updateDesc() {
+  drawMinimap();
   const d = state.sanity.dread;
   const f = state.landmarks[state.focus];
   $('viewDesc').textContent = describeScene({
@@ -588,7 +596,7 @@ function updateCamera(dread) {
   return !cam.settled;
 }
 function frame(now) {
-  if (document.hidden) { running = false; return; }
+  if (document.hidden) { running = false; perf.reset(); return; }
   const real = performance.now();
   for (const [k, sh] of state.shakes) if (real - sh.at > 1500) state.shakes.delete(k);
   const dread = state.sanity.dread, tier = tierFor(dread);
@@ -635,15 +643,71 @@ function frame(now) {
   drawVignette(dread, time);
   drawToast(performance.now());
   drawPackBadge();
+  tickPerf(now);
   requestAnimationFrame(frame);
 }
 function start() { if (running) return; running = true; requestAnimationFrame(frame); }
+
+// ---------- session, minimap, case file, perf HUD, i18n, offline ----------
+const storage = safeStorage();
+const perf = createPerf();
+let mapOn = false, perfOn = false, perfShownAt = 0;
+function currentSession() {
+  const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor };
+}
+function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
+function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
+function applySession(s) {
+  const v = parseSession(s); if (!v) return;
+  history.replaceState(null, '', sessionHash(v));
+  applyHash();
+  if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
+}
+function drawMinimap() {
+  if (!mapOn) return;
+  const c = $('minimap'), g = c.getContext('2d');
+  const sel = state.focus >= 0 ? state.landmarks[state.focus] : null;
+  const m = minimapModel(state.layout, GRID_W, GRID_D, c.width, sel);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0b1012'; g.fillRect(0, 0, c.width, c.height);
+  for (const k of m.cells) { g.fillStyle = k.color; g.fillRect(k.x, k.y, k.w, k.h); }
+  for (const k of m.cells) if (k.selected) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(k.x - 1, k.y - 1, k.w + 2, k.h + 2); }
+  $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
+}
+function setMap(on) { mapOn = on; $('mapPanel').hidden = !on; $('mapToggle').setAttribute?.('aria-pressed', String(on)); drawMinimap(); }
+function setPerf(on) { perfOn = on; perf.reset(); $('perfHud').hidden = !on; $('perfHud').textContent = perfText(perf.stats()); $('perfToggle').setAttribute?.('aria-pressed', String(on)); if (on) mark(); }
+function tickPerf(now) {
+  if (!perfOn) return;
+  perf.sample(now);
+  if (now - perfShownAt > 500) { perfShownAt = now; $('perfHud').textContent = perfText(perf.stats()); }
+}
+function caseMarkdown() {
+  const r = report();
+  return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, journal: [...state.journal].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
+}
+function applyI18n() {
+  document.documentElement?.setAttribute?.('lang', lang);
+  const map = { reroll: 'btn.reroll', share: 'btn.share', whisper: 'btn.whisper', church: 'btn.church', candle: 'btn.candle', postcard: 'btn.postcard', saveSession: 'btn.save', loadSession: 'btn.load', mapToggle: 'btn.map' };
+  for (const [id, key] of Object.entries(map)) $(id).textContent = tr(key);
+  $('dlCase').textContent = tr('btn.casefile'); $('mapTitle').textContent = tr('title.map'); $('journalTitle').textContent = tr('title.whispers');
+}
+const isSecureHost = (loc) => loc.protocol === 'https:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
+function registerOffline() {
+  if (pack.want || typeof navigator === 'undefined' || !navigator.serviceWorker || !isSecureHost(location)) return;
+  navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
+}
+function resumeIfBare() {
+  if (pack.want || /seed=/.test(location.hash)) return false;
+  const s = loadSession(storage); if (!s) return false;
+  history.replaceState(null, '', sessionHash(s));
+  return true;
+}
 
 // ---------- controls ----------
 function syncUi() {
   const s = state.sanity.value, d = state.sanity.dread;
   $('sanity').value = s; $('sanityOut').textContent = Math.round(s);
-  $('dreadBar').style.width = `${(d * 100).toFixed(0)}%`; $('dreadOut').textContent = `Dread ${(d * 100).toFixed(0)}%`;
+  $('dreadBar').style.width = `${(d * 100).toFixed(0)}%`; $('dreadOut').textContent = tr('label.dread', { n: (d * 100).toFixed(0) });
   updateAudio(d);
   refreshDetail();
   syncViewUi();
@@ -665,6 +729,7 @@ function syncViewUi() {
 function themeSource(t) { return t.packRole && pack.patterns[t.packRole] ? 'Using the local pack texture.' : 'Using the procedural pattern.'; }
 function pushHash() {
   const extra = (state.theme !== 'auto' ? `&theme=${state.theme}` : '') + (state.camChoice !== 'third' ? `&cam=${state.camChoice}` : '') + (state.floor ? `&floor=${state.floor}` : '') + (story.on ? `&story=1&beat=${story.idx - nightStartIndex(story.beats, state.night + 1)}` : '');
+  autosave();
   history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}${extra}`);
 }
 function setTheme(id) { state.theme = parseTheme(id); syncViewUi(); pushHash(); mark(); announce(`Texture theme: ${state.theme === 'auto' ? 'default' : state.theme}.`); }
@@ -852,7 +917,7 @@ $('theme').addEventListener('change', () => setTheme($('theme').value));
 $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
-$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(location.href); $('share').textContent = 'Link copied'; } catch { $('share').textContent = 'Copy the address bar'; } setTimeout(() => ($('share').textContent = 'Copy share link'), 1800); });
+$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
 const doWhisper = () => adjust(-8, 'the walls');
 const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
@@ -875,6 +940,13 @@ $('volume').addEventListener('input', () => setVolume(Number($('volume').value) 
 $('mute').addEventListener('click', () => setMuted(!muted));
 $('dlMd').addEventListener('click', () => download(reportFilename(state.seed, 'md'), reportToMarkdown(report()), 'text/markdown'));
 $('dlJson').addEventListener('click', () => download(reportFilename(state.seed, 'json'), reportToJson(report()), 'application/json'));
+
+$('dlCase').addEventListener('click', () => download(caseFileName(state.seed, 'md'), caseMarkdown(), 'text/markdown'));
+$('dlCaseHtml').addEventListener('click', () => download(caseFileName(state.seed, 'html'), caseFileHtml(caseMarkdown()), 'text/html'));
+$('saveSession').addEventListener('click', () => sessionNote(saveSession(storage, currentSession()) ? 'msg.saved' : 'msg.nosave'));
+$('loadSession').addEventListener('click', () => { const s = loadSession(storage); if (s) { applySession(s); sessionNote('msg.loaded'); } else sessionNote('msg.nosave'); });
+$('mapToggle').addEventListener('click', () => setMap(!mapOn));
+$('perfToggle').addEventListener('click', () => setPerf(!perfOn));
 
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -904,6 +976,8 @@ addEventListener('keydown', (e) => {
     case ',': selectNight(state.night - 1); break;
     case '.': selectNight(state.night + 1); break;
     case 'p': case 'P': postcard(); break;
+    case 'g': case 'G': setMap(!mapOn); break;
+    case 'x': case 'X': setPerf(!perfOn); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
@@ -924,5 +998,12 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   $('theme').innerHTML = '<option value="auto">Default (mixed)</option>' + THEME_GROUPS.map((g) =>
     `<optgroup label="DLNK group: ${g}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
-  applyHash(); pushHash(); start(); if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
+  const resumed = resumeIfBare();
+  applyHash(); pushHash(); start();
+  if (resumed) $('sessionNote').textContent = tr('msg.loaded') + ' (resumed)';
+  if (lang !== 'en') applyI18n();
+  if (optParam('map') === '1') setMap(true);
+  if (perfWanted(location.search, location.hash)) setPerf(true);
+  registerOffline();
+  if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
 })();

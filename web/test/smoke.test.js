@@ -125,5 +125,22 @@ test('app renders frames at several sanity levels without throwing', async () =>
   press('u'); assert.equal(els.mute.textContent, 'Unmute (U)');
   els.mute.listeners.click(); assert.equal(els.mute.textContent, 'Mute (U)');
   els.volume.value = '20'; els.volume.listeners.input();
+  // map, perf HUD, case file and session buttons (no localStorage here, so save reports unavailable)
+  press('g'); assert.equal(els.mapPanel.hidden, false);
+  assert.match(els.legend.innerHTML, /<li><i style="background:#[0-9a-f]{6}"><\/i>\w[^<]* x\d+/);
+  els.listen.value = '0'; els.listen.listeners.change(); raf(11000);
+  press('g'); assert.equal(els.mapPanel.hidden, true);
+  press('x'); assert.equal(els.perfHud.hidden, false);
+  for (let i = 0; i < 4; i++) raf(12000 + i * 700);
+  assert.match(els.perfHud.textContent, /fps|waiting/);
+  press('x'); assert.equal(els.perfHud.hidden, true);
+  const n0 = clicked.length;
+  els.dlCase.listeners.click(); els.dlCaseHtml.listeners.click();
+  assert.equal(clicked.length, n0 + 2);
+  assert.match(clicked[n0].download, /^village-casefile-seed--?\d+\.md$/);
+  assert.match(clicked[n0 + 1].download, /\.html$/);
+  els.saveSession.listeners.click();
+  assert.match(els.sessionNote.textContent, /Nothing saved/);
+  els.loadSession.listeners.click();
   globalThis.setInterval = realSetInterval;
 });
