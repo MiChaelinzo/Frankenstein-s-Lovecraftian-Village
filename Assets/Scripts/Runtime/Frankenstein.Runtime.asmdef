@@ -1,0 +1,11 @@
+{
+  "name": "Frankenstein.Runtime",
+  "rootNamespace": "Frankenstein.Runtime",
+  "references": ["Frankenstein.Core", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Run Core Tests On Save",
+  "description": "When pure C# core logic or its tests change, run the property-based tests and report failures.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["Assets/Scripts/Core/**/*.cs", "tests/**/*.cs"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A core C# file or test changed. Run `dotnet test tests/Frankenstein.Core.Tests` (set HOME to a writable dir if needed). If a property fails, report the failing case seed and fix the code or the property, whichever is wrong."
+  }
+}

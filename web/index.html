@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frankenstein's Lovecraftian Village | Kiroween 2026</title>
+  <meta name="description" content="A procedural cosmic-horror village. Change the seed, lose your sanity. Browser demo of the Unity 6 project, no paid assets.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Frankenstein's Lovecraftian Village</h1>
+      <p class="tag">Stitched from a seeded layout generator, a sanity model and a narrator. Kiroween 2026, Frankenstein category.</p>
+    </header>
+
+    <section class="stage" aria-label="Village view">
+      <canvas id="view" width="960" height="560" role="img" aria-label="Procedurally generated isometric village"></canvas>
+      <div id="narration" class="narration" aria-live="polite"></div>
+      <div id="hint" class="hint">Click a building to hear what it whispers.</div>
+    </section>
+
+    <section class="panel" aria-label="Controls">
+      <div class="row">
+        <label for="seed">Seed</label>
+        <input id="seed" type="number" step="1" value="1818">
+        <button id="reroll" type="button">Stitch a new village</button>
+        <button id="share" type="button">Copy share link</button>
+      </div>
+      <div class="row">
+        <label for="sanity">Sanity <output id="sanityOut">100</output></label>
+        <input id="sanity" type="range" min="0" max="100" step="1" value="100">
+        <span class="meter" aria-hidden="true"><i id="dreadBar"></i></span>
+        <span id="dreadOut" class="dread">Dread 0%</span>
+      </div>
+      <div class="row">
+        <button id="whisper" type="button">Hear a whisper (-8)</button>
+        <button id="church" type="button">Enter the church (-15)</button>
+        <button id="candle" type="button">Light a candle (+10)</button>
+        <label class="check"><input id="drain" type="checkbox"> Let the dark creep in</label>
+        <label class="check"><input id="sound" type="checkbox"> Drone (sound)</label>
+      </div>
+      <p id="stats" class="stats"></p>
+    </section>
+
+    <footer>
+      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes. Apache-2.0.</p>
+    </footer>
+  </main>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

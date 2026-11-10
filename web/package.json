@@ -1,0 +1,8 @@
+{
+  "name": "frankenstein-village-web",
+  "private": true,
+  "type": "module",
+  "description": "Dependency-free browser demo of the Frankenstein Lovecraftian Village Core",
+  "scripts": { "test": "node --test test/*.test.js" },
+  "license": "Apache-2.0"
+}

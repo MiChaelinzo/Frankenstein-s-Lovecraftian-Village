@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "name": "Validate Repo Before Finish",
+  "description": "Manual hook that runs the repo guardrail script (.kiro tracked, no paid assets, docs present).",
+  "version": "1",
+  "when": { "type": "userTriggered" },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run `python3 tools/validate_repo.py` and `git check-ignore -v .kiro/specs/requirements.md`. Report any failure and fix it."
+  }
+}

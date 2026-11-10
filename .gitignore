@@ -136,3 +136,16 @@ crashlytics-build.properties
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# ---- Frankenstein's Lovecraftian Village additions ----
+# Allow the pure C# test project (generic *.csproj is ignored above for Unity)
+!/tests/**/*.csproj
+# Paid third-party packs must never be committed (keep the placeholder README only)
+/Assets/[Ll]ovecraftian [Vv]illage*
+/Assets/[Ee]ssential [Tt]errain [Pp]ack*
+/Assets/ThirdParty/LovecraftianVillage/*
+!/Assets/ThirdParty/LovecraftianVillage/README.md
+# dotnet test output
+/tests/**/bin/
+/tests/**/obj/
+# NOTE: .kiro/ must NEVER be ignored (hackathon requirement)
