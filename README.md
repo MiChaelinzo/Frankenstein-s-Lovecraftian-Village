@@ -72,12 +72,12 @@ The original environment packages are hosted on OneDrive due to GitHub file size
 ### Unity 6 HDRP Package
 
 Download:
-https://onedrive.live.com/?id=%2Fpersonal%2F8d24f63b531c559f%2FDocuments%2F%5FWork%2FAssetStore%2FUnityPipeline%2F%5B21%5DLovecraftianVillage%2FLovecraftian1%2E3%20HDRP%28Unity6%29%2Eunitypackage&listurl=%2Fpersonal%2F8d24f63b531c559f%2FDocuments&e=k27oru&migratedtospo=true
+https://1drv.ms/u/c/2d20f0550256da29/IQB1mE-VisgWS4w-AoMNj6pTAQiJ_psYXKWDPJKcFUDpErQ?e=45G2wE
 
 ### Unity 6 URP Package
 
 Download:
-https://onedrive.live.com/?id=%2Fpersonal%2F8d24f63b531c559f%2FDocuments%2F%5FWork%2FAssetStore%2FUnityPipeline%2F%5B21%5DLovecraftianVillage%2FLovecraftian1%2E3%20URP%28Unity6%29%2Eunitypackage&listurl=%2Fpersonal%2F8d24f63b531c559f%2FDocuments&e=OdQZDB&migratedtospo=true
+https://1drv.ms/u/c/2d20f0550256da29/IQB9YNYXG0m2R7Z-3HOg2HmfARYqxwE4_Vvxa-Hth-dssso?e=opLROG
 
 Both packages are the same Lovecraftian Village 1.3 environment built for Unity 6, one per render pipeline. The packages are the work of DLNK Artworks (see Credits) and are linked from OneDrive, not stored in this repository. Do not commit them.
 
