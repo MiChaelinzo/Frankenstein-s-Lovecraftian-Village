@@ -149,3 +149,4 @@ crashlytics-build.properties
 /tests/**/bin/
 /tests/**/obj/
 # NOTE: .kiro/ must NEVER be ignored (hackathon requirement)
+__pycache__/
