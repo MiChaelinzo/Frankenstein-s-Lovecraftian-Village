@@ -7,6 +7,7 @@ import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
   reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash,
 } from './scene.js';
+import { validateManifest, pickRole, hintFor, badgeText, tintChannel } from './pack.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
 const $ = (id) => document.getElementById(id);
@@ -84,7 +85,7 @@ function rebuild() {
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
   renderCampaign();
   $('listen').innerHTML = '<option value="">Choose a landmark</option>' +
-    state.landmarks.map((p, i) => `<option value="${i}">${esc(prettyId(p.id))} at (${p.x}, ${p.z})</option>`).join('');
+    state.landmarks.map((p, i) => `<option value="${i}">${esc(prettyId(p.id))}${hintLabel(p.id) ? ` [${esc(hintLabel(p.id))}]` : ''} at (${p.x}, ${p.z})</option>`).join('');
   const area = state.layout.reduce((a, p) => a + p.sizeX * p.sizeZ, 0);
   $('stats').textContent = `Seed ${state.seed}: ${state.layout.length} pieces stitched onto a ${GRID_W}x${GRID_D} grid (${area} of ${GRID_W * GRID_D} cells used). Same generator as the Unity project, so the same seed and settings (set pieceCount to ${PIECES} there) give the same layout.`;
   updateDesc();
@@ -142,9 +143,46 @@ function iso(x, z) { return { x: V.ox + (x - z) * TW / 2, y: V.oy + (x + z) * TH
 const lerpPt = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
 const rise = (p, h) => ({ x: p.x, y: p.y - h });
 
+// ---------- optional local pack mode (?pack=1), textures come from the git-ignored web/local-pack/ ----------
+const pack = { want: params.get('pack') === '1', manifest: null, roles: {}, patterns: {}, notice: '' };
+const PACK_SCALE = { wall_wood: 0.3, wall_brick: 0.3, wall_plaster: 0.3, wall_stone: 0.3, roof: 0.3, trunk: 0.25, ground: 0.5, ground_stones: 0.5 };
+function loadImage(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error(`cannot load ${src}`)); im.src = src; }); }
+async function loadPack() {
+  try {
+    const res = await fetch('local-pack/manifest.json');
+    if (!res.ok) throw new Error(`no local-pack/manifest.json (HTTP ${res.status}); run python3 tools/build_local_pack.py`);
+    const json = await res.json();
+    const v = validateManifest(json);
+    if (!v.ok) throw new Error(`bad manifest: ${v.errors.join('; ')}`);
+    for (const [name, r] of Object.entries(v.roles)) {
+      const im = await loadImage(`local-pack/${r.texture}`);
+      const off = document.createElement('canvas'); off.width = im.width; off.height = im.height;
+      const o = off.getContext('2d');
+      o.fillStyle = `rgb(${r.tint.map((t) => tintChannel(255, t)).join(',')})`; o.fillRect(0, 0, off.width, off.height);
+      o.globalCompositeOperation = 'multiply'; o.drawImage(im, 0, 0);
+      const pat = ctx.createPattern(off, 'repeat');
+      if (pat.setTransform && typeof DOMMatrix !== 'undefined') pat.setTransform(new DOMMatrix().scale(PACK_SCALE[name] || 0.3));
+      pack.patterns[name] = pat;
+    }
+    pack.roles = v.roles; pack.manifest = json;
+  } catch (err) {
+    pack.patterns = {}; pack.manifest = null;
+    pack.notice = 'Pack mode requested but no local pack found. Showing the procedural demo.';
+    console.warn(`[pack] ${err.message}`);
+  }
+}
+const surf = (role, color, shade = 0) => (role && pack.patterns[role] ? { role, color, shade } : color);
+const hintLabel = (id) => (pack.manifest ? hintFor(pack.manifest, id) : '');
+function paintSurface(s) {
+  ctx.fillStyle = pack.patterns[s.role]; ctx.fill();
+  ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = s.color; ctx.fill();
+  if (s.shade) { ctx.globalAlpha = s.shade; ctx.fillStyle = '#000'; ctx.fill(); }
+  ctx.restore();
+}
+
 function poly(points, fill, stroke) {
   ctx.beginPath(); points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
-  ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  if (typeof fill === 'object') paintSurface(fill); else { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
 }
 
 function box(cx, cy, sx, sz, h, top, left, right) {
@@ -193,12 +231,16 @@ function drawPiece(p, dread, time) {
   const roofF = mix([58, 44, 48], [44, 12, 20], dread);
   const roofB = mix([40, 32, 36], [28, 8, 14], dread);
   const m = 0.05;
+  const roles = pack.roles;
+  const wallRole = p.id === 'house_b' ? pickRole(roles, v.h < 0.5 ? 'wall_brick' : 'wall_plaster', 'wall_wood') : pickRole(roles, v.h < 0.5 ? 'wall_wood' : 'wall_plaster', 'wall_wood');
+  const stoneRole = pickRole(roles, 'wall_stone', 'wall_brick');
+  const roofRole = pickRole(roles, 'roof', 'wall_wood');
   const cx = p.x + m, cz = p.z + m, sx = p.sizeX - 2 * m, sz = p.sizeZ - 2 * m;
   switch (p.id) {
     case 'house_a': case 'house_b': {
       const h = 13 + v.h * 6 + (p.id === 'house_b' ? 5 : 0);
-      const bx = box(cx, cz, sx, sz, h, null, wall, wallR);
-      const roof = gableRoof(bx, 10 + v.tilt * 4, v.tilt < 0.5, roofF, roofB, wallR);
+      const bx = box(cx, cz, sx, sz, h, null, surf(wallRole, wall, 0.05), surf(wallRole, wallR, 0.35));
+      const roof = gableRoof(bx, 10 + v.tilt * 4, v.tilt < 0.5, surf(roofRole, roofF, 0.1), surf(roofRole, roofB, 0.4), surf(wallRole, wallR, 0.35));
       if (p.id === 'house_b') { ctx.fillStyle = roofB; ctx.fillRect(roof.m1.x + (roof.m2.x - roof.m1.x) * 0.3 - 2, roof.m1.y - 7, 4, 9); }
       windowAt(lerpPt(bx.d, bx.c, 0.5), 5, 6, windowState(v.lit, dread), dread, flick);
       windowAt(lerpPt(rise(bx.b, 0), rise(bx.c, 0), 0.5), 5, 6, windowState(v.lit2, dread), dread, flick);
@@ -206,18 +248,19 @@ function drawPiece(p, dread, time) {
       break;
     }
     case 'church': {
-      const tower = box(p.x + 0.12, p.z + 0.12, 0.8, 0.8, 58, roofF, wall, wallR);
+      const sw = surf(stoneRole, wall, 0.05), swR = surf(stoneRole, wallR, 0.35), sRoofF = surf(roofRole, roofF, 0.1), sRoofB = surf(roofRole, roofB, 0.4);
+      const tower = box(p.x + 0.12, p.z + 0.12, 0.8, 0.8, 58, sRoofF, sw, swR);
       const apex = rise(lerpPt(tower.up(tower.a), tower.up(tower.c), 0.5), 30);
-      poly([tower.up(tower.d), tower.up(tower.c), apex], roofF); poly([tower.up(tower.b), tower.up(tower.c), apex], roofB);
+      poly([tower.up(tower.d), tower.up(tower.c), apex], sRoofF); poly([tower.up(tower.b), tower.up(tower.c), apex], sRoofB);
       windowAt(lerpPt(rise(tower.d, 42), rise(tower.c, 42), 0.5), 4, 9, dread > 0.85 ? 'red' : 'warm', dread, flick);
-      const bx = box(cx, cz, sx, sz, 26, null, wall, wallR);
-      gableRoof(bx, 14, true, roofF, roofB, wallR);
+      const bx = box(cx, cz, sx, sz, 26, null, sw, swR);
+      gableRoof(bx, 14, true, sRoofF, sRoofB, swR);
       windowAt(lerpPt(rise(bx.d, 6), rise(bx.c, 6), 0.3), 5, 11, dread > 0.7 ? 'red' : 'warm', dread, flick);
       windowAt(lerpPt(rise(bx.d, 6), rise(bx.c, 6), 0.7), 5, 11, dread > 0.7 ? 'red' : 'warm', dread, flick);
       break;
     }
     case 'well': {
-      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 9, mix([30, 40, 44], [20, 5, 8], dread), mix([84, 90, 92], [92, 40, 44], dread), mix([60, 66, 70], [60, 22, 28], dread));
+      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 9, mix([30, 40, 44], [20, 5, 8], dread), surf(stoneRole, mix([84, 90, 92], [92, 40, 44], dread), 0.05), surf(stoneRole, mix([60, 66, 70], [60, 22, 28], dread), 0.35));
       ctx.fillStyle = dread > 0.5 ? `rgba(170,20,30,${(0.5 + 0.4 * flick).toFixed(2)})` : 'rgba(10,20,26,.9)';
       const c = lerpPt(bx.up(bx.a), bx.up(bx.c), 0.5); ctx.beginPath(); ctx.ellipse(c.x, c.y, 7, 3.4, 0, 0, 7); ctx.fill();
       break;
@@ -225,7 +268,8 @@ function drawPiece(p, dread, time) {
     case 'dead_tree': {
       const base = iso(p.x + 0.5, p.z + 0.5);
       const sway = reduceMotion ? 0 : Math.sin(time / 900 + v.phase) * 2;
-      ctx.strokeStyle = mix([40, 32, 28], [30, 14, 14], dread); ctx.lineCap = 'round';
+      const trunkRole = pickRole(roles, 'trunk');
+      ctx.strokeStyle = trunkRole ? pack.patterns[trunkRole] : mix([40, 32, 28], [30, 14, 14], dread); ctx.lineCap = 'round';
       const branch = (x, y, len, ang, w, d) => {
         ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x, y);
         const nx = x + Math.cos(ang) * len + (d > 1 ? sway * 0.4 : 0), ny = y + Math.sin(ang) * len; ctx.lineTo(nx, ny); ctx.stroke();
@@ -235,12 +279,12 @@ function drawPiece(p, dread, time) {
       break;
     }
     case 'altar': {
-      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 10, mix([70, 72, 80], [90, 20, 30], dread), mix([40, 42, 50], [50, 12, 18], dread), mix([30, 32, 40], [36, 8, 14], dread));
+      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 10, mix([70, 72, 80], [90, 20, 30], dread), surf(stoneRole, mix([40, 42, 50], [50, 12, 18], dread), 0.1), surf(stoneRole, mix([30, 32, 40], [36, 8, 14], dread), 0.35));
       const c = lerpPt(bx.up(bx.a), bx.up(bx.c), 0.5);
       glow(c.x, c.y, 26 + 26 * dread, '160,255,200', 0.3 + 0.2 * flick);
       break;
     }
-    default: box(cx, cz, sx, sz, 12, roofF, wall, wallR);
+    default: box(cx, cz, sx, sz, 12, roofF, surf(wallRole, wall, 0.05), surf(wallRole, wallR, 0.35));
   }
 }
 
@@ -328,7 +372,7 @@ function drawTentacles(dread, time) {
 
 function drawGround(dread) {
   const corners = [iso(0, 0), iso(GRID_W, 0), iso(GRID_W, GRID_D), iso(0, GRID_D)];
-  poly(corners, mix([24, 38, 32], [42, 12, 16], dread), mix([60, 84, 72], [100, 28, 34], dread));
+  poly(corners, surf(pickRole(pack.roles, 'ground', 'ground_stones'), mix([24, 38, 32], [42, 12, 16], dread), 0.25), mix([60, 84, 72], [100, 28, 34], dread));
   ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 1; ctx.beginPath();
   for (let i = 1; i < GRID_W; i++) { const a = iso(i, 0), b = iso(i, GRID_D); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
   for (let i = 1; i < GRID_D; i++) { const a = iso(0, i), b = iso(GRID_W, i); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
@@ -391,7 +435,18 @@ function drawFocus(time) {
   poly([iso(p.x - pad, p.z - pad), iso(p.x + p.sizeX + pad, p.z - pad), iso(p.x + p.sizeX + pad, p.z + p.sizeZ + pad), iso(p.x - pad, p.z + p.sizeZ + pad)], 'rgba(160,255,200,.08)');
   ctx.strokeStyle = `rgba(160,255,200,${pulse.toFixed(2)})`; ctx.lineWidth = 2; ctx.stroke();
   const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2);
-  ctx.font = '600 20px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(prettyId(p.id), c.x + 1, c.y + 26); ctx.fillStyle = 'rgb(190,255,220)'; ctx.fillText(prettyId(p.id), c.x, c.y + 25);
+  const hint = hintLabel(p.id);
+  const label = hint ? `${prettyId(p.id)} (${hint})` : prettyId(p.id);
+  ctx.font = '600 20px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(label, c.x + 1, c.y + 26); ctx.fillStyle = 'rgb(190,255,220)'; ctx.fillText(label, c.x, c.y + 25);
+}
+
+function drawPackBadge() {
+  const text = pack.manifest ? badgeText(pack.manifest) : pack.notice;
+  if (!text) return;
+  ctx.save(); ctx.font = '13px Georgia, serif'; ctx.textAlign = 'left';
+  const w = (ctx.measureText ? ctx.measureText(text).width : 300) + 16;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(8, canvas.height - 30, w, 22);
+  ctx.fillStyle = pack.manifest ? 'rgb(190,230,210)' : 'rgb(240,200,150)'; ctx.fillText(text, 16, canvas.height - 15); ctx.restore();
 }
 
 function drawToast(now) {
@@ -444,6 +499,7 @@ function frame(now) {
   drawWeather(dread, time);
   drawVignette(dread, time);
   drawToast(performance.now());
+  drawPackBadge();
   if (performance.now() - state.narrationAt > 7000) $('narration').style.opacity = 0.35;
   requestAnimationFrame(frame);
 }
@@ -556,5 +612,6 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
 
 (async function init() {
   try { await loadCatalog(); } catch (err) { $('stats').textContent = `Could not load the catalog (${err.message}). Serve this folder over HTTP, for example: python3 -m http.server -d web`; return; }
+  if (pack.want) await loadPack();
   applyHash(); pushHash(); start(); setTimeout(() => { state.live = true; }, 800);
 })();
