@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
-  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
+  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
 } from '../src/core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -68,4 +68,22 @@ test('campaigns match C# CampaignGenerator exactly', () => {
     const actual = c.nights.map((n) => [n.number, n.title, n.dreadTargetPercent, n.sanityStart, n.sky, n.weather, n.rumor, n.lore]);
     assert.deepEqual(actual, g.nights, `seed ${g.seed} nights ${g.requested}`);
   }
+});
+
+test('prefab name matcher scores and resolves match C# exactly', () => {
+  assert.ok(golden.matcher.scores.length > 0);
+  for (const [id, name, expected] of golden.matcher.scores) {
+    assert.equal(PrefabNameMatcher.score(id, name), expected, `${id} vs ${name}`);
+  }
+  const names = [...new Set(golden.matcher.scores.map((s) => s[1]))];
+  assert.ok(golden.matcher.resolves.length > 0);
+  for (const [id, hint, expected] of golden.matcher.resolves) {
+    assert.equal(PrefabNameMatcher.resolve(id, hint, names), expected, `${id} hint ${hint}`);
+  }
+});
+
+test('house_b never matches a single-letter variant suffix', () => {
+  assert.equal(PrefabNameMatcher.score('house_b', 'CandleHolderWall00b Variant'), 0);
+  assert.equal(PrefabNameMatcher.resolve('house_b', 'CoastalHouse00', ['Barrel00b Variant', 'CoastalHouse00']), 'CoastalHouse00');
+  for (const e of catalogJson.entries) assert.ok(e.prefabHint && e.prefabHint.length > 0, e.id);
 });

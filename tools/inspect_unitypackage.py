@@ -19,7 +19,7 @@ ALIAS_GROUPS = [
     ["house", "home", "cottage", "hut", "cabin"],
     ["church", "chapel", "cathedral", "temple"],
     ["well", "fountain"],
-    ["tree", "dead", "trunk"],
+    ["tree", "dead", "trunk", "pinus"],
     ["altar", "shrine"],
 ]
 EXACT_SCORE, TOKEN_SCORE, ALIAS_SCORE = 1000, 10, 3
@@ -57,6 +57,16 @@ def _same_group(x, y):
     return any(x in g and y in g for g in ALIAS_GROUPS)
 
 
+def _scoring_tokens(tokens):
+    """Drop a leading 'sp' and a trailing 'variant' token (partial scoring only), like the C# matcher."""
+    r = list(tokens)
+    if len(r) > 1 and r[0] == "sp":
+        r.pop(0)
+    if len(r) > 1 and r[-1] == "variant":
+        r.pop()
+    return r
+
+
 def score(ident, candidate):
     a, b = tokenize(ident), tokenize(candidate)
     if not a or not b:
@@ -64,7 +74,10 @@ def score(ident, candidate):
     if a == b:
         return EXACT_SCORE
     total, seen = 0, set()
-    for t in a:
+    b = _scoring_tokens(b)
+    for t in _scoring_tokens(a):
+        if len(t) < 2:  # single-letter tokens (variant suffixes) never match on their own
+            continue
         if t in seen:
             continue
         seen.add(t)
@@ -168,6 +181,19 @@ def referenced_prefabs(scene_instances):
     return sorted(out, key=lambda r: (-r["count"], r["name"], r["guid"]))
 
 
+def resolve(ident, hint, names):
+    """Mirror of PrefabNameMatcher.Resolve: candidate equal to the normalized hint, else best score."""
+    names = [n for n in names if n is not None]
+    if hint:
+        want = "_".join(tokenize(hint))
+        hits = sorted(n for n in names if want and "_".join(tokenize(n)) == want)
+        if hits:
+            return hits[0]
+    scored = [(score(ident, n), n) for n in names]
+    scored = [x for x in scored if x[0] > 0]
+    return min(scored, key=lambda x: (-x[0], x[1]))[1] if scored else None
+
+
 def suggest(ids, candidates, top=3):
     """candidates: list of {name, guid, pathname, source}. Ties broken by ordinal name."""
     result = {}
@@ -183,7 +209,21 @@ def top_folder(p):
     return "/".join(p.split("/")[:3])
 
 
-def build_inventory(entries, ids, scene_instances=None):
+def hint_report(hints, prefabs, refs):
+    """For each catalog id with a prefabHint: is the name packaged, scene-referenced, or missing."""
+    def norm(n):
+        return "_".join(tokenize(n))
+    pk = {norm(p["name"]) for p in prefabs}
+    rf = {norm(r["name"]) for r in refs if r["name"] != "?"}
+    out = {}
+    for i, h in sorted(hints.items()):
+        n = norm(h) if h else ""
+        where = "package" if n and n in pk else "scene-reference" if n and n in rf else "missing"
+        out[i] = {"hint": h or "", "found": where}
+    return out
+
+
+def build_inventory(entries, ids, scene_instances=None, hints=None):
     ext = collections.Counter()
     folders = collections.Counter()
     prefabs, files = [], 0
@@ -221,6 +261,7 @@ def build_inventory(entries, ids, scene_instances=None):
         "prefabs": prefabs,
         "referencedPrefabs": refs,
         "suggestions": suggest(ids, candidates),
+        "hints": hint_report(hints or {}, prefabs, refs),
     }
 
 
@@ -232,9 +273,11 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     with open(args.catalog, encoding="utf-8") as f:
-        ids = [e["id"] for e in json.load(f)["entries"]]
+        cat_entries = json.load(f)["entries"]
+    ids = [e["id"] for e in cat_entries]
+    hints = {e["id"]: e.get("prefabHint", "") for e in cat_entries}
     entries, scenes = read_package(args.package)
-    inv = build_inventory(entries, ids, scenes)
+    inv = build_inventory(entries, ids, scenes, hints)
 
     print(f"{inv['assetCount']} assets")
     for e, n in inv["extensions"].items():
@@ -249,6 +292,10 @@ def main(argv=None):
     print("suggested matches")
     for i, s in inv["suggestions"].items():
         print(f"  {i}: " + (", ".join(f"{x['name']} ({x['score']}, {x['source']})" for x in s) or "no match"))
+
+    print("prefabHint check")
+    for i, h in inv["hints"].items():
+        print(f"  {i}: {h['hint'] or '(no hint)'} -> {h['found']}")
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:

@@ -126,6 +126,30 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(ip.clean_name("Tree"), "Tree")
 
 
+class MatcherPortTests(unittest.TestCase):
+    def setUp(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import inspect_unitypackage as ip
+        self.ip = ip
+
+    def test_single_letter_tokens_do_not_match(self):
+        self.assertEqual(self.ip.score("house_b", "CandleHolderWall00b Variant"), 0)
+        self.assertEqual(self.ip.score("house_b", "Barrel00b Variant"), 0)
+        self.assertEqual(self.ip.score("_Sp_TrunkDead00", "_Sp_TrunkDead00"), self.ip.EXACT_SCORE)
+        self.assertGreater(self.ip.score("dead_tree", "_Sp_TrunkDead00"), 0)
+
+    def test_resolve_and_hint_report(self):
+        names = ["BigHouse00", "CoastalHouse00", "Barrel00b Variant"]
+        self.assertEqual(self.ip.resolve("house_b", "CoastalHouse00", names), "CoastalHouse00")
+        self.assertEqual(self.ip.resolve("house_b", "", names), "BigHouse00")
+        self.assertIsNone(self.ip.resolve("altar", "Missing", names))
+        refs = [{"name": "CoastalHouse00"}]
+        rep = self.ip.hint_report({"house_b": "CoastalHouse00", "x": "Nope", "y": ""}, [], refs)
+        self.assertEqual(rep["house_b"]["found"], "scene-reference")
+        self.assertEqual(rep["x"]["found"], "missing")
+        self.assertEqual(rep["y"]["found"], "missing")
+
+
 class FetchHelperTests(unittest.TestCase):
     def test_share_id_and_verify(self):
         import fetch_pack as fp
