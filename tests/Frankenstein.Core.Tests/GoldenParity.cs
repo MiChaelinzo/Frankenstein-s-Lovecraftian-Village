@@ -19,6 +19,7 @@ namespace Frankenstein.Core.Tests
         private static readonly (int w, int d, int n)[] Grids = { (24, 24, 40), (16, 12, 25), (8, 8, 100) };
         private static readonly float[] Dreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f };
 
+        private static readonly int[] CampaignNightCounts = { 1, 3, 5, 9, 0, 40 };
         private static readonly float[] ReportDreads = { 0f, 0.5f, 1f };
         private static readonly float[][] EventSeqs =
         {
@@ -134,6 +135,26 @@ namespace Frankenstein.Core.Tests
                     sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"dread\": ").Append(rd.ToString("R", inv))
                       .Append(", \"markdown\": ").Append(JsonSerializer.Serialize(rep.ToMarkdown()))
                       .Append(", \"json\": ").Append(JsonSerializer.Serialize(rep.ToJson())).Append(" }");
+                }
+            sb.Append("\n  ],\n  \"campaigns\": [\n");
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var nights in CampaignNightCounts)
+                {
+                    var c = CampaignGenerator.Generate(s, nights);
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"requested\": ").Append(nights.ToString(inv))
+                      .Append(", \"villageName\": ").Append(JsonSerializer.Serialize(c.VillageName)).Append(", \"nights\": [");
+                    for (int i = 0; i < c.Nights.Count; i++)
+                    {
+                        var n = c.Nights[i];
+                        sb.Append(i > 0 ? ", " : "").Append("[").Append(n.Number).Append(", ").Append(JsonSerializer.Serialize(n.Title)).Append(", ")
+                          .Append(n.DreadTargetPercent).Append(", ").Append(n.SanityStart).Append(", ")
+                          .Append(JsonSerializer.Serialize(n.Sky)).Append(", ").Append(JsonSerializer.Serialize(n.Weather)).Append(", ")
+                          .Append(JsonSerializer.Serialize(n.Rumor)).Append(", ").Append(JsonSerializer.Serialize(n.Lore)).Append("]");
+                    }
+                    sb.Append("] }");
                 }
             sb.Append("\n  ]\n}\n");
             return sb.ToString();
