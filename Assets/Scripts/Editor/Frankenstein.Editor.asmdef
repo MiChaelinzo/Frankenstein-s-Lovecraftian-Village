@@ -1,0 +1,11 @@
+{
+  "name": "Frankenstein.Editor",
+  "rootNamespace": "Frankenstein.Editor",
+  "references": ["Frankenstein.Core", "Frankenstein.Runtime"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
