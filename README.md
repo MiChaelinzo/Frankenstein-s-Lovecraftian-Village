@@ -64,7 +64,7 @@ See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in
 ## Setup
 1. Install **Unity 6** (6000.0.x). Use the HDRP template modules for the HDRP package, or URP for the URP package.
 2. Clone this repo and open it as a Unity project.
-3. Download the package that matches your render pipeline from the Downloads section above (or import your own licensed copy from the Asset Store via `Window > Package Manager > My Assets`).
+3. Download the package that matches your render pipeline from the Downloads section above (the OneDrive links are the only supported source; the packages are imported locally and never committed).
 4. Import it: `Assets > Import Package > Custom Package...`, pick the `.unitypackage`, and import everything. Keep the default `Assets/Lovecraftian Village*` location; those folders are gitignored.
 5. Create a `Frankenstein > Village Catalog` asset, add bindings (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
 6. Add a `VillageBuilder` and a `HorrorAmbienceDirector` to a scene.
@@ -81,7 +81,7 @@ The Unity-side pieces (catalog binding, scene, `DreadVolumeBlender`, `HttpNarrat
 Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Assets/Scripts` do not depend on a render pipeline.
 
 ### Legal and asset-handling note
-The Lovecraftian Village pack is third-party content by DLNK Artworks. It is **not** committed to this repository: `.unitypackage` files and the imported pack folders are gitignored, and `tools/validate_repo.py` fails if pack files are added. Respect the pack's license and obtain it from the Downloads links or the Asset Store as applicable. The repo's own code and docs are Apache-2.0.
+The Lovecraftian Village pack is third-party content by DLNK Artworks. It is **not** committed to this repository: `.unitypackage` files and the imported pack folders are gitignored, and `tools/validate_repo.py` fails if pack files are added. Respect the pack's license and obtain it only from the OneDrive links in the Downloads section and import it locally. Git LFS is not used and is not needed. The repo's own code and docs are Apache-2.0.
 
 ## Run the tests (no Unity needed)
 ```bash

@@ -1,6 +1,6 @@
 # How Kiro was used
 
-This document answers the Kiroween rubric questions. Facts below come from what is in this repository (`.kiro/`, `tests/`, `tools/validate_repo.py`) and from how the scaffold was produced. Lines marked **[AUTHOR TO CONFIRM: ...]** need Michael G. Inso's own experience; a suggested sentence is included so each can be accepted or edited quickly.
+This document answers the Kiroween rubric questions. Facts below come from what is in this repository (`.kiro/`, `tests/`, `tools/validate_repo.py`) and from how the scaffold was produced. Where a statement is about personal experience, it is limited to what is true: the project was built with Kiro Web.
 
 ## How the project was produced
 
@@ -15,13 +15,13 @@ The initial scaffold (Unity 6 project skeleton, pure C# core, property tests, `.
 | **Web** | Browser-based agent that works on a GitHub repo in a sandbox without a local setup. | This is what produced the scaffold: no local Unity or IDE needed, it clones the repo, works on a branch (`feat/hackathon-scaffold`), runs `dotnet test` in the sandbox and commits. It cannot open Unity, so Unity-bound work stays testable only through the engine-free core. |
 | **Crew** | Multi-agent orchestration: several specialised agents coordinated on one goal. | The scaffold run followed this pattern: orchestrator, planner, coder and reviewer with separate roles and a shared task state. This repo is not itself a Kiro Crew app; see the bonus prize notes in `docs/DEVPOST_SUBMISSION.md`. |
 
-**[AUTHOR TO CONFIRM: which surfaces you personally used besides Web. Suggested: "I used Kiro Web to scaffold the repo, then opened it in the Kiro IDE to refine specs and trigger hooks; I did not use the CLI."]**
+This project was built with Kiro Web only. No use of the Kiro IDE or CLI is claimed; the IDE and CLI rows above describe how the committed files would fit those surfaces.
 
 ## Custom agents
 
 No custom agent configuration file is committed in this repo. What exists is a role split used during the Web run (planner, coder, reviewer), each with a narrow job: the planner produced `context.json` and feature files, the coder implemented exactly one feature and verified it, and the reviewer checked the result. The steering files and hooks give any agent the same project rules.
 
-**[AUTHOR TO CONFIRM: whether you defined a custom agent. Suggested: "I did not define a custom agent; a natural next step is a 'Cultist Reviewer' that checks tone (dread over gore) and legal hygiene of asset use."]**
+No custom agent was defined. A natural next step is a "Cultist Reviewer" that checks tone (dread over gore) and legal hygiene of asset use.
 
 ## Agent hooks
 
@@ -33,7 +33,7 @@ Three hooks live in [`.kiro/hooks`](../.kiro/hooks), all enabled and committed:
 
 The hooks encode the project's two risks: regressions in core logic and accidentally publishing third-party assets. The same asset rule is enforced a second way (`.gitignore` and `tools/validate_repo.py`), so the guard does not rely on an agent obeying a prompt.
 
-**[AUTHOR TO CONFIRM: a hook moment you saw. Suggested: "The asset guard stopped the agent from staging a pack file when I imported the package locally."] Only keep it if it happened.**
+No specific hook trigger is claimed here; the hooks are committed and documented above.
 
 ## Spec-driven development vs vibe coding
 
@@ -42,7 +42,7 @@ The hooks encode the project's two risks: regressions in core logic and accident
 
 Trade-off visible in the repo: the spec-driven part has 9 automated tests and a traceable requirement for each behavior; the vibe-coded part has no tests and depends on running Unity.
 
-**[AUTHOR TO CONFIRM: your own comparison. Suggested: "Specs made me decide edge cases (empty catalog, NaN sanity) up front, which caught design gaps early. Vibe coding was faster for atmosphere tweaks but I had to re-check behavior by hand."]**
+In practice the spec forced edge cases (empty catalog, NaN sanity) to be decided up front, and each one became a test. The Unity glue has to be re-checked by hand in the editor.
 
 ## Steering docs
 
@@ -52,7 +52,7 @@ Trade-off visible in the repo: the spec-driven part has 9 automated tests and a 
 
 No MCP server configuration is committed to this repo, and the scaffold run did not depend on one; the agents used built-in tools and the GitHub CLI power. MCP would be a good fit for a Unity editor bridge (to drive scene building and capture screenshots) and for documentation lookup, but that is a possible extension, not something this project claims to have done.
 
-**[AUTHOR TO CONFIRM: any MCP server you connected yourself. Suggested if none: "I did not connect an MCP server for this project."]**
+No MCP server was connected for this project.
 
 ## Property-based testing
 
@@ -78,7 +78,7 @@ The judge-runnable browser demo in `web/` was specced as R7 and built from the s
 
 The scaffold run used the **GitHub CLI power** (clone, branch, commit, and PR-related git operations through `git` and `gh`). Powers installed in the Kiro environment also include browser automation and GitLab tooling, but they were not needed for this project, so no use of them is claimed. No power was authored for this repo.
 
-**[AUTHOR TO CONFIRM: any power you installed or built. Suggested: "I used the GitHub power to push branches and open the pull request."]**
+The GitHub CLI power was used for branches and the pull request. No power was installed or built by the author for this project.
 
 ## Guardrail script
 

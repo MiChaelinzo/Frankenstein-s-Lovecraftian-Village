@@ -37,7 +37,7 @@ The asset rule matters because the environment pack is not mine to redistribute.
 
 I used Kiro Web with an orchestrator that delegated to planner, coder and reviewer sub-agents, using the GitHub CLI power for git work. The planner explored the repo and wrote a feature plan, the coder implemented one feature and verified it with the tests, and the reviewer checked the result.
 
-**[AUTHOR TO CONFIRM: personal reflection. Suggested: "The part that surprised me most was how much the spec forced me to decide edge cases early, like what an empty catalog should produce."]**
+The spec forced me to decide edge cases early, like what an empty catalog should produce, and each decision became a test.
 
 ## Vibe coding vs specs
 

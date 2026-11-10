@@ -1,5 +1,17 @@
 # Devpost submission draft
 
+## Before submitting
+
+Only the author can supply these. Nothing below has been filled in or guessed.
+
+- [ ] Public demo video URL (under 3 minutes), recorded by Michael G. Inso, added to the Devpost form
+- [ ] Public social post URL using #KiroweenHackathon26 (Social Blitz Prize)
+- [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)
+- [ ] GitHub Pages enabled with the "GitHub Actions" source, and the demo URL below verified
+- [ ] Confirm wording of prize rules on the official Devpost page
+
+Bonus prizes **not claimed**: Best Startup Project, Best Student Project, Best Ghost of Kiroween Past, Best Kiro Crew App. Kiro surface used: Kiro Web only (no IDE or CLI use claimed).
+
 **Project name:** Frankenstein's Lovecraftian Village
 **Category:** Frankenstein
 **Repo:** https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village (public, Apache-2.0)
@@ -33,7 +45,7 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [x] Public repo with detectable open source license (Apache-2.0)
 - [x] `/.kiro` at root with specs, hooks and steering, not gitignored
 - [ ] Demo video under 3 minutes, public (script in `docs/DEMO_SCRIPT.md`)
-- [ ] Kiro usage write-up finished (`docs/KIRO_USAGE.md`, fill the `[AUTHOR TO CONFIRM]` lines)
+- [x] Kiro usage write-up finished (`docs/KIRO_USAGE.md`)
 - [ ] Category selected: Frankenstein
 
 ## Bonus prizes
@@ -44,33 +56,33 @@ Prize names and rules below follow the hackathon rules as provided to us. Confir
 
 | Prize | Eligible? | Action |
 |-------|-----------|--------|
-| Best Startup Project | Only if true, author must confirm | Supply fields below |
-| Best Student Project | Only if true, author must confirm | Supply fields below |
-| Best Ghost of Kiroween Past | Only if true, author must confirm | Supply fields below |
-| Best Kiro Crew App | Only if true, author must confirm | Supply fields below |
+| Best Startup Project | Not claimed | None |
+| Best Student Project | Not claimed | None |
+| Best Ghost of Kiroween Past | Not claimed | None |
+| Best Kiro Crew App | Not claimed | None |
 | Social Blitz Prize | Eligible | Post the draft below and add the link |
 | Bonus Blog Prize | Eligible | Publish `docs/BLOG_POST.md` and add the link |
 | Best Demo | Eligible | Follow the checklist below |
 
 ### Best Startup Project
 - **Requirements:** a project presented as the foundation of a startup or company.
-- **Eligibility:** nothing in the repo shows a startup. The author is an individual (Michael G. Inso). **Only if true, author must confirm.** Do not claim this otherwise.
-- **Fields to supply if true:** company or startup name; one-paragraph business case (customer, problem, revenue model); public website or pitch link; stage and team size.
+- **Eligibility:** nothing in the repo shows a startup. The author is an individual (Michael G. Inso). **Not claimed.**
+- **Fields that would be needed if it were claimed:** company or startup name; one-paragraph business case (customer, problem, revenue model); public website or pitch link; stage and team size.
 
 ### Best Student Project
 - **Requirements:** the entrant is a student.
-- **Eligibility:** nothing in the repo shows student status. **Only if true, author must confirm.**
-- **Fields to supply if true:** school or program name; enrollment status and expected graduation; the proof the rules ask for (for example a student email or ID statement).
+- **Eligibility:** nothing in the repo shows student status. **Not claimed.**
+- **Fields that would be needed if it were claimed:** school or program name; enrollment status and expected graduation; the proof the rules ask for (for example a student email or ID statement).
 
 ### Best Ghost of Kiroween Past
 - **Requirements:** a project that revives or builds on an entry from a previous Kiroween (2025).
-- **Eligibility:** nothing in the repo shows a Kiroween 2025 registration or a predecessor project. **Only if true, author must confirm.**
-- **Fields to supply if true:** link to the 2025 Devpost submission; what changed since then; what is new in this entry.
+- **Eligibility:** nothing in the repo shows a Kiroween 2025 registration or a predecessor project. **Not claimed.**
+- **Fields that would be needed if it were claimed:** link to the 2025 Devpost submission; what changed since then; what is new in this entry.
 
 ### Best Kiro Crew App
 - **Requirements:** an app built with Kiro Crew, submitted as a separate Crew app.
-- **Eligibility:** the scaffold was made by an orchestrated multi-agent run in Kiro Web, but no separate Kiro Crew app repository exists. **Only if true, author must confirm.**
-- **Fields to supply if true:** link to the separate Crew app repo; description of the crew (agents and roles); how the crew is used by the app.
+- **Eligibility:** the scaffold was made by an orchestrated multi-agent run in Kiro Web, but no separate Kiro Crew app repository exists. **Not claimed.**
+- **Fields that would be needed if it were claimed:** link to the separate Crew app repo; description of the crew (agents and roles); how the crew is used by the app.
 
 ### Social Blitz Prize
 - **Requirements:** a public social media post about the project using #KiroweenHackathon26, with the link added to the submission.
@@ -85,7 +97,7 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
 ### Bonus Blog Prize
 - **Requirements:** a blog post about building with Kiro that states it was written as part of the Kiroween 2026 hackathon, published publicly with the link in the submission.
 - **Eligibility:** eligible.
-- **Content:** full draft in [docs/BLOG_POST.md](BLOG_POST.md). Publish it (dev.to, Medium, Hashnode) and add the URL. Fill in the `[AUTHOR TO CONFIRM]` lines first.
+- **Content:** full draft in [docs/BLOG_POST.md](BLOG_POST.md). Publish it (dev.to, Medium, Hashnode) and add the URL.
 
 ### Best Demo
 - **Requirements:** a clear, well-produced demo video under 3 minutes, public, showing the project working.
@@ -104,7 +116,7 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
   - [ ] Uploaded public to YouTube or Vimeo and linked in the submission
 
 ### Try it without Unity
-Browser demo (no paid assets, same Core logic, parity-tested against C#): https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/ (**[AUTHOR TO CONFIRM: enable GitHub Pages with the "GitHub Actions" source and verify this URL]**).
+Browser demo (no paid assets, same Core logic, parity-tested against C#): https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/ (requires GitHub Pages enabled with the "GitHub Actions" source; see the checklist at the top).
 
 ### Asset note for judges
-The Lovecraftian Village pack (HDRP and URP editions) is by DLNK Artworks and is linked from OneDrive in the README, not committed to the repo. `.gitattributes` on `main` marks `*.unitypackage`, `*.fbx`, `*.psd` and `*.wav` for Git LFS; `.gitignore` and `tools/validate_repo.py` still keep these files out of the repo.
+The Lovecraftian Village pack (HDRP and URP editions) is by DLNK Artworks and is linked from OneDrive in the README, not committed to the repo. Git LFS is not used. `.gitignore` and `tools/validate_repo.py` still keep these files out of the repo.
