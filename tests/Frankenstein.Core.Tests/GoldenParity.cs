@@ -184,6 +184,20 @@ namespace Frankenstein.Core.Tests
                     }
                     sb.Append("] }");
                 }
+            sb.Append("\n  ],\n  \"rituals\": [\n");
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var nights in StoryNightCounts)
+                {
+                    var ritual = RitualChain.Generate(CampaignGenerator.Generate(s, nights));
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"requested\": ").Append(nights.ToString(inv))
+                      .Append(", \"name\": ").Append(JsonSerializer.Serialize(ritual.Name)).Append(", \"stages\": [");
+                    for (int i = 0; i < ritual.Stages.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(RitualChain.Describe(ritual.Stages[i])));
+                    sb.Append("] }");
+                }
             sb.Append("\n  ],\n  \"matcher\": {\n    \"scores\": [");
             for (int i = 0; i < MatchIds.Length; i++)
                 for (int k = 0; k < MatchNames.Length; k++)

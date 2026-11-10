@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
+  generateRitual, describeRitualStage,
   stableHash, detailLevel, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
 } from '../src/core.js';
 
@@ -78,6 +79,15 @@ test('story beats match C# StorySequencer exactly', () => {
     const beats = buildStory(generateCampaign(g.seed, g.requested));
     const actual = beats.map((b) => [b.index, b.nightNumber, b.kind, b.text, b.dreadPercent, b.sky, b.weather, b.durationMs]);
     assert.deepEqual(actual, g.beats, `seed ${g.seed} nights ${g.requested}`);
+  }
+});
+
+test('ritual chains match C# RitualChain exactly', () => {
+  assert.ok(golden.rituals.length > 0);
+  for (const g of golden.rituals) {
+    const r = generateRitual(generateCampaign(g.seed, g.requested));
+    assert.equal(r.name, g.name, `name seed ${g.seed}`);
+    assert.deepEqual(r.stages.map(describeRitualStage), g.stages, `seed ${g.seed} nights ${g.requested}`);
   }
 });
 
