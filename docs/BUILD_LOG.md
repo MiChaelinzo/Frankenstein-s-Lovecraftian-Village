@@ -41,6 +41,13 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `54a978b` Docs: DEMO_SCRIPT rewrite, README, CHANGELOG, BUILD_LOG and .kiro updates for the web building features.
 - Review fixes: camera bridge keeps the requested mode apart from the allowed one and no longer evaluates against a default dread; global detail semantics documented. Bridges remain untested and uncompiled. Canvas drawing (floor peel, door rings, procedural patterns) was only checked manually in headless Chromium, not by automated tests.
 
+## Hosting round (branch feat/hosting-and-story-round7)
+- `0641715` Hosting configs: `netlify.toml`, `vercel.json`, `web/_headers`.
+- `f7ebb5b` `tools/stage_web.py` with test, validator checks for the hosting files.
+- `c4221c0` `web/test/paths.test.js` (root and sub-path mounts on a local server) and `pages.yml` uploads staged `dist`.
+- `394dc94` `docs/HOSTING.md`, honest README and Devpost checklist, CHANGELOG and .kiro updates.
+- Finding: none of the hosts were contacted; no live URL is confirmed and GitHub Actions is blocked by a billing lock.
+
 ## What is and is not verified
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).
 - Never compiled or run in the Unity editor: everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.
