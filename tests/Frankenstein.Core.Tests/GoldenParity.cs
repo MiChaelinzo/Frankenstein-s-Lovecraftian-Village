@@ -28,6 +28,9 @@ namespace Frankenstein.Core.Tests
             new[] { float.NaN, 0.4f, float.PositiveInfinity, 0.7f, -1f },
         };
 
+        private static string DreadToken(float d, CultureInfo inv) =>
+            float.IsNaN(d) ? "\"NaN\"" : float.IsPositiveInfinity(d) ? "\"Infinity\"" : float.IsNegativeInfinity(d) ? "\"-Infinity\"" : d.ToString("R", inv);
+
         private static string RepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
@@ -108,7 +111,7 @@ namespace Frankenstein.Core.Tests
             {
                 var t = new DreadEventTracker();
                 sb.Append("    { \"dreads\": [");
-                for (int k = 0; k < EventSeqs[i].Length; k++) sb.Append(k > 0 ? ", " : "").Append(EventSeqs[i][k].ToString("R", inv));
+                for (int k = 0; k < EventSeqs[i].Length; k++) sb.Append(k > 0 ? ", " : "").Append(DreadToken(EventSeqs[i][k], inv));
                 sb.Append("], \"events\": [");
                 for (int k = 0; k < EventSeqs[i].Length; k++)
                 {

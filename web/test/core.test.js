@@ -75,3 +75,33 @@ test('hash round trip and hostile hashes fall back to defaults', () => {
   assert.deepEqual(decodeHash(''), { seed: 1818, sanity: 100 });
   assert.equal(decodeHash('#sanity=999').sanity, 100);
 });
+
+import { DreadEventTracker as Tracker, eventToString as ev, tierFor, buildVillageReport as build, reportToMarkdown as md, reportToJson as js } from '../src/core.js';
+
+test('tracker: hysteresis silences jitter, falls below threshold minus 0.05', () => {
+  const t = new Tracker();
+  assert.deepEqual(t.update(0.35).map(ev), ['Uneasy+1']);
+  for (let i = 0; i < 10; i++) assert.deepEqual(t.update(i % 2 ? 0.35 : 0.33), []);
+  assert.deepEqual(t.update(0.2).map(ev), ['Uneasy-0']);
+});
+
+test('tracker: sweep emits each rising event once in order, non-finite is zero', () => {
+  const t = new Tracker();
+  const all = [];
+  for (let d = 0; d <= 1.0001; d += 0.01) all.push(...t.update(d).map(ev));
+  assert.deepEqual(all, ['Uneasy+1', 'Dire+2', 'Abyss+3']);
+  const z = new Tracker();
+  for (const d of [NaN, Infinity, -Infinity]) { assert.deepEqual(z.update(d), []); assert.equal(tierFor(d), 0); }
+});
+
+test('report: counts add up, deterministic, no em dash', () => {
+  const layout = generateLayout(cat, 10, 10, 20, 5);
+  const a = build(cat, layout, 10, 10, 5, 0.5);
+  assert.equal(a.pieces, layout.length);
+  assert.equal(a.byId.reduce((s, [, n]) => s + n, 0), layout.length);
+  assert.ok(a.cellsUsed <= 100);
+  assert.equal(md(a), md(build(cat, layout, 10, 10, 5, 0.5)));
+  assert.ok(!md(a).includes('\u2014') && !js(a).includes('\u2014'));
+  assert.doesNotThrow(() => JSON.parse(js(a)));
+  assert.ok(md(build(null, null, 4, 4, 1, NaN)).includes('- none'));
+});
