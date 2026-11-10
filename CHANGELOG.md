@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- Runtime: `VillageBuilder.pieceCount` default raised from 40 to 80 to match the web demo. Existing Unity scenes that rely on the default will generate a larger village; set it back to 40 to keep the old layout.
+- Web: changing the seed now re-applies the selected night's sanity so the night panel and scene agree.
+- Runtime: `WalkthroughController.CurrentNight` returns null before `Start` instead of throwing. The controller and `RebindSelected` are still not compiled in CI.
+
 ### Added
 - Web: `web/selftest.html` runs the JS Core against the embedded C# golden vectors in the browser (126 checks, shown pass/fail); `tools/embed_golden.mjs` regenerates `web/src/golden-data.js` and a node test fails if it drifts. Screenshot: `docs/media/selftest.png`.
 - Runtime: `WalkthroughController` steps the director through a seeded campaign (never compiled in Unity).

@@ -19,7 +19,7 @@ namespace Frankenstein.Runtime
 
         public Campaign Campaign { get; private set; }
         public int NightIndex { get; private set; }
-        public CampaignNight CurrentNight => Campaign.Nights[NightIndex];
+        public CampaignNight CurrentNight => Campaign != null ? Campaign.Nights[NightIndex] : null;
 
         /// <summary>Raised after a night is applied, with the night's rumor available on the argument.</summary>
         public event Action<CampaignNight> NightStarted;

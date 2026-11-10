@@ -137,11 +137,11 @@ export function describeScene({ seed, pieces, tierName, dreadPercent, focus }) {
   return `Village seed ${seed} with ${pieces} pieces. Dread ${dreadPercent}%, ${tierName}.` + (focus ? ` Listening to ${focus}.` : '');
 }
 
-/** Sky tint overlay per campaign sky stage. rgb is the overlay colour, alpha its strength, light scales the sun glow. */
+/** Sky tint overlay per campaign sky stage. rgb is the overlay colour, alpha its strength. */
 const SKY_TINTS = {
-  dusk: { rgb: [150, 80, 50], alpha: 0.18, light: 1 },
-  night: { rgb: [20, 30, 60], alpha: 0.14, light: 0.5 },
-  witching: { rgb: [10, 6, 20], alpha: 0.2, light: 0.15 },
+  dusk: { rgb: [150, 80, 50], alpha: 0.18 },
+  night: { rgb: [20, 30, 60], alpha: 0.14 },
+  witching: { rgb: [10, 6, 20], alpha: 0.2 },
 };
 export function skyTint(name) {
   return SKY_TINTS[name] || SKY_TINTS.night;

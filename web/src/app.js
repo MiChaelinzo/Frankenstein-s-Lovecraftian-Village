@@ -470,7 +470,7 @@ function applyHash() {
   if (state.catalog && /night=/.test(location.hash) && !/sanity=/.test(location.hash)) state.sanity = new SanityModel(currentNight().sanityStart);
   syncUi();
 }
-function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); pushHash(); }
+function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); }
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
@@ -510,7 +510,7 @@ canvas.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') setFocus(-1);
 });
 $('listen').addEventListener('change', () => { const v = $('listen').value; if (v === '') setFocus(-1); else listen(Number(v)); });
-$('seed').addEventListener('change', () => { const v = Number.parseInt($('seed').value, 10); state.seed = Number.isFinite(v) ? v | 0 : 1818; $('seed').value = state.seed; rebuild(); pushHash(); });
+$('seed').addEventListener('change', () => { const v = Number.parseInt($('seed').value, 10); state.seed = Number.isFinite(v) ? v | 0 : 1818; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); });
 $('reroll').addEventListener('click', reroll);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(location.href); $('share').textContent = 'Link copied'; } catch { $('share').textContent = 'Copy the address bar'; } setTimeout(() => ($('share').textContent = 'Copy share link'), 1800); });
 $('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
