@@ -155,3 +155,5 @@ crashlytics-build.properties
 /tests/**/obj/
 # NOTE: .kiro/ must NEVER be ignored (hackathon requirement)
 __pycache__/
+# Staged static site (tools/stage_web.py)
+/dist/
