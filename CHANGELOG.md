@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Core: `StorySequencer` (`StoryBeats.cs`) builds an ordered list of story beats per campaign night (title, rumor, lore, omen chosen by dread tier with `SeededRandom`, sky and weather note) plus navigation and reading-time helpers. JS port in `web/src/story.js` with deep link parsing (`#story=N&beat=N`). C# property tests, golden parity (`stories`), `web/test/story.test.js` and a self-test group. The story mode UI is not part of this commit.
+
 ### Changed
 - Runtime: `VillageBuilder.pieceCount` default raised from 40 to 80 to match the web demo. Existing Unity scenes that rely on the default will generate a larger village; set it back to 40 to keep the old layout.
 - Web: changing the seed now re-applies the selected night's sanity so the night panel and scene agree.

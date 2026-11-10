@@ -1,3 +1,4 @@
+import { buildStory } from '../src/story.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -68,6 +69,15 @@ test('campaigns match C# CampaignGenerator exactly', () => {
     assert.equal(c.villageName, g.villageName, `name seed ${g.seed}`);
     const actual = c.nights.map((n) => [n.number, n.title, n.dreadTargetPercent, n.sanityStart, n.sky, n.weather, n.rumor, n.lore]);
     assert.deepEqual(actual, g.nights, `seed ${g.seed} nights ${g.requested}`);
+  }
+});
+
+test('story beats match C# StorySequencer exactly', () => {
+  assert.ok(golden.stories.length > 0);
+  for (const g of golden.stories) {
+    const beats = buildStory(generateCampaign(g.seed, g.requested));
+    const actual = beats.map((b) => [b.index, b.nightNumber, b.kind, b.text, b.dreadPercent, b.sky, b.weather, b.durationMs]);
+    assert.deepEqual(actual, g.beats, `seed ${g.seed} nights ${g.requested}`);
   }
 });
 
