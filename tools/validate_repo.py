@@ -12,7 +12,8 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           ".github/workflows/pages.yml", ".github/workflows/ci.yml", "CONTRIBUTING.md", "CHANGELOG.md",
           "docs/media/calm.png", "docs/media/dread.png", "docs/media/abyss.png", "docs/media/mobile.png",
           "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
-          "docs/DEVPOST_SUBMISSION.md", "docs/BUILD_LOG.md", "web/selftest.html", "web/src/selftest.js", "web/src/golden-data.js", "docs/media/selftest.png", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
+          "docs/DEVPOST_SUBMISSION.md", "docs/BUILD_LOG.md", "web/selftest.html", "web/src/selftest.js", "web/src/golden-data.js", "docs/media/selftest.png", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt",
+          "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
@@ -40,7 +41,7 @@ for f in tracked:
         errors.append(f"pack-derived path must not be tracked: {f}")
 
 for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "probe.unitypackage",
-              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "web/local-pack/manifest.json"):
+              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "web/local-pack/manifest.json", "dist/index.html"):
     if subprocess.run(["git", "check-ignore", "-q", probe]).returncode != 0:
         errors.append(f"{probe} must be gitignored")
 for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py"):
@@ -54,10 +55,20 @@ if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data
 if os.path.isfile(".gitattributes") and "filter=lfs" in open(".gitattributes").read():
     errors.append(".gitattributes routes files to Git LFS (filter=lfs); LFS is not used")
 
+import json, re
+if os.path.isfile("netlify.toml") and not re.search(r'^\s*publish\s*=\s*"web"\s*$', open("netlify.toml").read(), re.M):
+    errors.append('netlify.toml publish must be "web"')
+if os.path.isfile("vercel.json"):
+    try:
+        if json.load(open("vercel.json")).get("outputDirectory") != "web":
+            errors.append('vercel.json outputDirectory must be "web"')
+    except ValueError:
+        errors.append("vercel.json is not valid JSON")
+
 EM_DASH = "\u2014"
-text_ext = (".md", ".js", ".cs", ".json", ".py", ".yml", ".html", ".css")
+text_ext = (".md", ".js", ".cs", ".json", ".py", ".yml", ".html", ".css", ".toml", ".txt")
 for f in tracked:
-    if f.lower().endswith(text_ext) and os.path.isfile(f):
+    if (f.lower().endswith(text_ext) or os.path.basename(f) == "_headers") and os.path.isfile(f):
         try:
             if EM_DASH in open(f, encoding="utf-8").read():
                 errors.append(f"em dash (U+2014) in {f}")
