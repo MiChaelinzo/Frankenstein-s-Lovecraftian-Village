@@ -55,7 +55,7 @@ const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvid
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
 const introWanted = shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
 function startAudio() {
-  if (ambient && ambientSeed !== state.seed) { ambient.stop(); ambient = null; }
+  if (ambient && ambientSeed !== state.seed) { ambient.dispose(); ambient = null; }
   if (!ambient) {
     ambient = createAmbient(window.AudioContext || window.webkitAudioContext, { seed: state.seed, reduced: reduceMotion, volume });
     ambientSeed = state.seed;
@@ -688,7 +688,7 @@ function applyHash() {
   syncUi();
   applyStoryHash();
 }
-function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); }
+function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio(); }
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
@@ -804,6 +804,10 @@ function closeIntro() { clearTimeout(intro.timer); $('intro').hidden = true; (in
 const introOpen = () => $('intro').hidden === false;
 $('introNext').addEventListener('click', introAdvance);
 $('introSkip').addEventListener('click', closeIntro);
+// reading time: hovering or any key press stops the auto-advance for the current slide
+$('intro').addEventListener('pointerenter', () => clearTimeout(intro.timer));
+$('intro').addEventListener('pointerleave', () => { if (introOpen()) renderSlide(); });
+$('intro').addEventListener('keydown', () => clearTimeout(intro.timer), true);
 $('intro').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeIntro(); e.preventDefault(); }
   else if (e.key === 'ArrowRight' || ((e.key === 'Enter' || e.key === ' ') && e.target !== $('introSkip'))) { introAdvance(); e.preventDefault(); }

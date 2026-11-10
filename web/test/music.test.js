@@ -51,3 +51,39 @@ test('createAmbient creates no audio until start and handles a missing AudioCont
   a.stop();
   assert.equal(made, 0);
 });
+
+function fakeAC() {
+  const made = { closed: 0, lfoTargets: [], gains: [] };
+  class P { constructor() { this.value = 0; this.sets = []; } setTargetAtTime(v) { this.sets.push(v); this.value = v; } setValueAtTime() {} linearRampToValueAtTime() {} exponentialRampToValueAtTime() {} }
+  class N { constructor(k) { this.k = k; this.gain = new P(); this.frequency = new P(); this.Q = new P(); this.to = null; }
+    connect(t) { this.to = t; return t; } start() {} stop() {} }
+  class AC {
+    constructor() { this.currentTime = 0; this.sampleRate = 100; this.destination = new N('dest'); made.ctx = this; }
+    createGain() { const n = new N('gain'); made.gains.push(n); return n; }
+    createOscillator() { return new N('osc'); } createBiquadFilter() { return new N('biquad'); }
+    createBuffer() { return { getChannelData: () => new Float32Array(200) }; } createBufferSource() { return new N('src'); }
+    resume() {} suspend() {} close() { made.closed++; }
+  }
+  return { AC, made };
+}
+
+test('muted or zero volume gates the LFO so the gain is truly silent', () => {
+  const { AC, made } = fakeAC();
+  const a = createAmbient(AC, { seed: 5, volume: 0.6 });
+  a.start();
+  const lg = made.gains.find((g) => g.to && g.to === made.gains[0].gain);
+  assert.ok(lg.gain.value > 0);
+  a.mute();
+  assert.equal(lg.gain.value, 0);
+  a.unmute(); assert.ok(lg.gain.value > 0);
+  a.setVolume(0); assert.equal(lg.gain.value, 0);
+  a.stop();
+});
+
+test('dispose closes the AudioContext', () => {
+  const { AC, made } = fakeAC();
+  const a = createAmbient(AC, { seed: 5 });
+  a.start(); a.dispose();
+  assert.equal(made.closed, 1);
+  assert.equal(a.running, false);
+});

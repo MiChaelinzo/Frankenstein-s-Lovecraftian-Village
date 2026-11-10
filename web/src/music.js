@@ -60,13 +60,16 @@ export function pulseSchedule(seed, dread, count, reduced, batch = 0) {
 /** Controller. `AC` is the AudioContext constructor. Nothing is created until start() is called from a gesture. */
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
-  let ctx = null, master = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0;
+  let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0;
   let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false;
 
   const apply = () => {
     if (!ctx) return;
     const t = ctx.currentTime;
-    master.gain.setTargetAtTime(masterGain(volume, muted, dread), t, 0.25);
+    const g = masterGain(volume, muted, dread);
+    master.gain.setTargetAtTime(g, t, 0.25);
+    // the LFO adds to the gain param, so gate it too or a muted master still swings around zero
+    if (lfoGain) lfoGain.gain.setTargetAtTime(g > 0 ? 0.02 * modulation(reduced).depth : 0, t, 0.25);
     filter.frequency.setTargetAtTime(cutoffFor(dread), t, 0.4);
     droneFrequencies(seed, dread).forEach((f, i) => voices[i].frequency.setTargetAtTime(f, t, 0.8));
     if (noiseGain) noiseGain.gain.setTargetAtTime(0.02 + 0.06 * dread, t, 0.5);
@@ -99,7 +102,7 @@ export function createAmbient(AC, opts = {}) {
     });
     const m = modulation(reduced);
     const lfo = ctx.createOscillator(); lfo.frequency.value = m.lfoHz;
-    const lg = ctx.createGain(); lg.gain.value = 0.02 * m.depth; lfo.connect(lg); lg.connect(master.gain); lfo.start();
+    const lg = lfoGain = ctx.createGain(); lg.gain.value = 0; lfo.connect(lg); lg.connect(master.gain); lfo.start();
     // filtered noise: a faint wind, from a short deterministic noise buffer
     const len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), data = buf.getChannelData(0);
     const rng = new SeededRandom(seed ^ 0x6e015e);
@@ -116,7 +119,7 @@ export function createAmbient(AC, opts = {}) {
     get volume() { return volume; },
     start() {
       if (!AC) return false;
-      if (!ctx) build();
+      if (!ctx) { try { build(); } catch { ctx = null; return false; } }
       ctx.resume?.();
       running = true; apply(); scheduleBatch();
       return true;
@@ -130,6 +133,12 @@ export function createAmbient(AC, opts = {}) {
       running = false;
       if (timer) { clearTimeout(timer); timer = null; }
       ctx?.suspend?.();
+    },
+    /** Stop and release the AudioContext. The controller cannot be restarted afterwards. */
+    dispose() {
+      this.stop();
+      const c = ctx; ctx = null; master = filter = lfoGain = noiseGain = null; voices = [];
+      c?.close?.();
     },
   };
 }
