@@ -6,6 +6,8 @@ This document answers the Kiroween rubric questions. Facts below come from what 
 
 The initial scaffold (Unity 6 project skeleton, pure C# core, property tests, `.kiro` specs, hooks and steering, docs) was produced through **Kiro Web**. An orchestrator agent delegated the work to sub-agents: a **planner** (explored the repo and wrote the task and feature plan), a **coder** (implemented the feature and committed it locally) and a **reviewer**. The agents used the **GitHub CLI power** for git and GitHub operations. The author then added the Lovecraftian Village environment, the HDRP and URP download links and the README content, and reconciled it with the scaffold.
 
+A second round of work (dread events, village report, prefab name matcher, editor auto-binder, web demo polish, CI and docs) was produced by Kiro agents in an autonomous session on the `feat/polish-and-depth` branch, again through Kiro Web. This document makes no claims about statistics such as how many requirements became tests or how often hooks fired.
+
 ## Kiro IDE, CLI, Web and Crew: what each is for
 
 | Surface | What it is | How it fits this project |
@@ -40,7 +42,7 @@ No specific hook trigger is claimed here; the hooks are committed and documented
 - **Spec-driven** ([`.kiro/specs`](../.kiro/specs): `requirements.md`, `design.md`, `tasks.md`): used for the core rules where correctness matters, namely village layout (determinism, bounds, no overlap, catalog-only ids), catalog validity, sanity and dread, and narration fallback. Requirements are written as WHEN/THEN/SHALL statements, and `design.md` maps them to testable properties, so each requirement has a test.
 - **Vibe coding**: better for Unity glue (`VillageBuilder`, `HorrorAmbienceDirector`), ambience tuning and look-dev, where feedback is visual and a spec would only slow things down.
 
-Trade-off visible in the repo: the spec-driven part has 9 automated tests and a traceable requirement for each behavior; the vibe-coded part has no tests and depends on running Unity.
+Trade-off visible in the repo: the spec-driven part has 22 automated tests and a traceable requirement for each behavior; the vibe-coded part has no tests and depends on running Unity.
 
 In practice the spec forced edge cases (empty catalog, NaN sanity) to be decided up front, and each one became a test. The Unity glue has to be re-checked by hand in the editor.
 
@@ -56,7 +58,7 @@ No MCP server was connected for this project.
 
 ## Property-based testing
 
-Tests are in [`tests/Frankenstein.Core.Tests`](../tests/Frankenstein.Core.Tests). `Property.cs` is a small hand-rolled runner (no FsCheck dependency): each property runs 300 seeded random cases and reports the failing seed so a failure is reproducible. `CoreProperties.cs` has 9 xunit tests derived from the requirements:
+Tests are in [`tests/Frankenstein.Core.Tests`](../tests/Frankenstein.Core.Tests). `Property.cs` is a small hand-rolled runner (no FsCheck dependency): each property runs 300 seeded random cases and reports the failing seed so a failure is reproducible. `CoreProperties.cs` has 9 xunit tests derived from the original requirements (`DepthProperties.cs` adds tests for dread events, the report and the prefab matcher; the suite totals 22):
 
 - same inputs always give the same layout (determinism)
 - every piece stays inside the grid (bounds)

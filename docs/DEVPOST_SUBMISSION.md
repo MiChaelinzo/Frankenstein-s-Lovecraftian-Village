@@ -7,6 +7,8 @@ Only the author can supply these. Nothing below has been filled in or guessed.
 - [ ] Public demo video URL (under 3 minutes), recorded by Michael G. Inso, added to the Devpost form
 - [ ] Public social post URL using #KiroweenHackathon26 (Social Blitz Prize)
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)
+- [ ] Confirm CI (`ci.yml`) is green on GitHub
+- [ ] Run the catalog auto-binder in Unity against the owned pack (unverified so far)
 - [ ] GitHub Pages enabled with the "GitHub Actions" source, and the demo URL below verified
 - [ ] Confirm wording of prize rules on the official Devpost page
 
@@ -26,6 +28,8 @@ Builds a Lovecraftian village in Unity 6 HDRP from a catalog of modular pieces, 
 ## How we built it with Kiro
 Specs for core rules, steering to keep logic engine-free and legal, hooks for test-on-save and a paid-asset guard, property-based tests derived from requirements. See `docs/KIRO_USAGE.md` and the `.kiro` directory. See `docs/KIRO_USAGE.md` for details.
 
+Beyond the base village, the repo adds dread threshold events (omens), a Markdown and JSON village report, a prefab name matcher with an editor auto-binder (unverified in Unity), and a browser demo with a Whispers journal, report download, keyboard control and reduced motion support.
+
 ## Challenges
 Keeping a commercial asset pack out of an open-source repo; testing Unity-bound ideas without the editor.
 
@@ -33,10 +37,10 @@ Keeping a commercial asset pack out of an open-source repo; testing Unity-bound 
 Pure-C# core with property tests that run anywhere; guardrails that make the legal boundary automatic.
 
 ## What's next
-HDRP volume blending, AI narration provider, more catalog pieces.
+Verifying the Unity-side scripts in the editor, recording the demo video, and more catalog pieces. HDRP volume blending and the AI narration provider are code-complete but unverified in Unity.
 
 ## Built with
-Unity 6, HDRP, C#, Kiro, xunit, Python.
+Unity 6, HDRP, C#, JavaScript (canvas), Kiro, xunit, Node test runner, GitHub Actions, Python.
 
 ## Asset disclosure
 Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Artworks, linked from the README and not committed to the repo.
