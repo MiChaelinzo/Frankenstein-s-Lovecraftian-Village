@@ -9,7 +9,9 @@ Only the author can supply these. Nothing below has been filled in or guessed.
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)
 - [ ] Confirm CI (`ci.yml`) is green on GitHub
 - [ ] Run the catalog auto-binder in Unity against the owned pack (unverified so far)
-- [ ] GitHub Pages enabled with the "GitHub Actions" source, and the demo URL below verified
+- [ ] Connect a static host per `docs/HOSTING.md` (Netlify, Vercel or Cloudflare Pages), then verify `/` and `/selftest.html` on it
+- [ ] Replace the `<YOUR-LIVE-URL>` placeholders in `README.md` and the Devpost form with the verified URL
+- [ ] Optional: fix the GitHub account billing lock so `pages.yml` can run
 - [ ] Confirm wording of prize rules on the official Devpost page
 
 Bonus prizes **not claimed**: Best Startup Project, Best Student Project, Best Ghost of Kiroween Past, Best Kiro Crew App. Kiro surface used: Kiro Web only (no IDE or CLI use claimed).

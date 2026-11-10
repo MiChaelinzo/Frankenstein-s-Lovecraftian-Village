@@ -8,7 +8,7 @@ Assets/Scripts/Editor  editor-only tools (CatalogAutoBinder), unverified in Unit
 Assets/Data            catalog JSON describing stitchable pieces
 Assets/ThirdParty      placeholder only; paid packs are gitignored
 Packages/ ProjectSettings/   Unity project config
-web/                   browser demo: JS port of Core + canvas UI (deployed by GitHub Pages)
+web/                   browser demo: JS port of Core + canvas UI (static; host configs in netlify.toml, vercel.json, web/_headers; see docs/HOSTING.md)
 tests/                 dotnet xunit property tests over Core, plus golden parity file for web/
 tools/validate_repo.py repo guardrails
 docs/                  Kiro usage, demo script, Devpost draft
@@ -21,3 +21,4 @@ tools/screenshot.sh    renders the web demo to docs/media with headless Chromium
 ```
 
 Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Assets/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`, `Assets/_DLNK` or `web/local-pack`.
+tools/stage_web.py     stages web/ into git-ignored dist/ without local-pack (only safe local-folder deploy)

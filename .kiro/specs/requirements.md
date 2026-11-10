@@ -66,3 +66,7 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 3. Door behavior SHALL be Normal when Calm, SHALL NOT be Slam below Dire or Refuse below Abyss, and SHALL be deterministic for the same seed, building, door and attempt.
 4. The top-down camera SHALL NOT be allowed at Abyss; other requests SHALL be honored.
 5. Runtime adapters SHALL NOT reference DLNK types (UnityEvents and interfaces only), and `docs/DLNK_INTEGRATION.md` SHALL separate confirmed from guessed facts.
+
+### Hosting
+1. The web demo SHALL use only relative paths so it works at a site root or a sub-path.
+2. Staging for deploy SHALL exclude `web/local-pack` and `docs/HOSTING.md` SHALL state that no host is confirmed live until the author verifies one.

@@ -4,7 +4,7 @@
 
 ![The village at full sanity](docs/media/calm.png)
 
-**[Play in your browser](https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/)** (no Unity, no download). The link is live once the author enables GitHub Pages with Source: GitHub Actions; until then run it locally (see below).
+**Play in your browser:** no live URL is confirmed yet (`<YOUR-LIVE-URL>`). The GitHub Pages workflow is currently blocked by an account billing lock, so the Pages site is not available. The live URL depends on the host the author connects; see [`docs/HOSTING.md`](docs/HOSTING.md). Until then run it locally (see below).
 
 | Dread | Abyss |
 |-------|-------|
@@ -20,7 +20,7 @@ This project combines Unity 6, AI-assisted development workflows, and a modular 
 ## Play it in your browser (no Unity, no download)
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
 
-- Live: https://michaelinzo.github.io/Frankenstein-s-Lovecraftian-Village/ (deployed by [`pages.yml`](.github/workflows/pages.yml) once GitHub Pages is set to the "GitHub Actions" source)
+- Live: not confirmed (`<YOUR-LIVE-URL>`). Free static hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md), untested against real hosts. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
 - Change the **seed** for a new village, drag **sanity** down to watch the vignette close in, the fog thicken, the moon redden and the narrator turn on you. Click buildings for whispers. Toggle the drone for sound.
 - Share a state with the URL hash, for example `#seed=1818&sanity=35`.
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
