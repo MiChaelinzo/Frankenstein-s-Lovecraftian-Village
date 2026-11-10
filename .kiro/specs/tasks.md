@@ -38,3 +38,6 @@
 - [x] 36. `tools/build_local_pack.py` and web `?pack=1` local pack mode (all output git-ignored)
 
 Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publish the video), 26, 27 and 28.
+
+- [x] 37. Core `DreadBuildingPolicy` (detail level, floor peel, door omens, camera policy) with property tests, JS port and golden parity
+- [x] 38. Runtime DLNK bridges (UnityEvents, unverified in Unity) and `docs/DLNK_INTEGRATION.md`

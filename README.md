@@ -54,13 +54,13 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 ### Verified vs unverified
 | Part | Status |
 |------|--------|
-| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher | Verified: property tests under `dotnet test` |
+| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher, DLNK building policy | Verified: property tests under `dotnet test` |
 | JS port in `web/src/core.js` | Verified: golden parity with C# output, `node --test` |
 | Parity self-test page (`web/selftest.html`) | Verified: 126 checks pass in headless Chromium; run it yourself in any browser over HTTP |
 | `WalkthroughController` | Code-complete, never compiled in Unity |
 | Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
 | Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
-| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`) | **Unverified**: never run in the Unity editor |
+| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | **Unverified**: never run in the Unity editor |
 | Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
 
 The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.
