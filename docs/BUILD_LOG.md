@@ -23,6 +23,18 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `2a80782` Web campaign panel, sky tint, rain, fog and postcard export (task 30).
 - The commit that adds this file also adds the in-browser parity self-test (`web/selftest.html`) and `WalkthroughController.cs` (task 31 and 32).
 
+## Real pack round (branch feat/pack-demo-round4)
+- `5db49bf` Ignore `Assets/_DLNK` and `web/local-pack`, validator probes.
+- `a9d7251` `tools/fetch_pack.py`: reproducible anonymous download of both packages.
+- `804aa64` Inspector scans scenes for prefab references, reports folders and no meshes.
+- `8af25c4` Matcher ignores single-letter tokens; catalog `prefabHint` and `Resolve`.
+- `8e12695` Matcher and hints ported to JS and the inspector, golden parity extended.
+- `9324320` Auto-binder prefers `prefabHint` (unverified in Unity).
+- `63f14df` `tools/build_local_pack.py` builds the ignored `web/local-pack/`.
+- `4d835c9` `?pack=1` pack mode in the web demo.
+- Finding: both packages are render-pipeline editions with no meshes; church, well and altar hints are stand-ins.
+
 ## What is and is not verified
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).
 - Never compiled or run in the Unity editor: everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.
+- Real packages: downloaded, inspected and used for the local `?pack=1` mode here; pack content is never committed. Still not opened in Unity.

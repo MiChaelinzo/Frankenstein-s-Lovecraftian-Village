@@ -10,7 +10,7 @@
 - [x] 8. Gitignore paid packs, keep .kiro tracked, validate_repo.py (R5)
 - [x] 9. Kiro hooks and steering
 - [x] 10. README, KIRO_USAGE, DEMO_SCRIPT, DEVPOST_SUBMISSION
-- [ ] 11. In Unity: import owned pack, bind prefabs in a VillageCatalogAsset, build the demo scene
+- [ ] 11. In Unity: import owned pack, bind prefabs in a VillageCatalogAsset, build the demo scene (packages now downloaded and inspected locally; they hold no meshes, building prefabs come from the base pack)
 - [x] 12. HDRP volumes (fog, vignette, color) blended by dread (code-complete: `DreadCurve` in Core is tested; `DreadVolumeBlender` is unverified in Unity until the author authors the two Volumes)
 - [x] 13. Optional: AI narration provider via HTTP behind INarrationProvider (code-complete: `HttpNarrationProvider` is unverified in Unity)
 - [ ] 14. Record demo video and publish
@@ -25,12 +25,16 @@
 - [x] 23. Web demo polish: omen toasts, Whispers journal, report download, keyboard, reduced motion, responsive layout (R11)
 - [x] 24. `tools/screenshot.sh` and screenshots in `docs/media`
 - [x] 25. CI workflow, CONTRIBUTING, CHANGELOG, em dash check in the validator
-- [ ] 26. In Unity: run the auto-binder against the imported pack and fix any mismatched names
+- [ ] 26. In Unity: run the auto-binder against the imported pack and fix any mismatched names (catalog `prefabHint` now preselects names; church, well and altar are stand-ins)
 - [ ] 27. In Unity: set `VillageBuilder.pieceCount` to 80 if you want the same village as the web demo
 - [ ] 28. Enable GitHub Pages (Settings > Pages > Source: GitHub Actions) and confirm CI runs on GitHub
 - [x] 29. Core: seeded `CampaignGenerator` (village name, per-night title, rising dread target, sky, weather, rumor, lore) with JS port, golden parity and tests
 - [x] 30. Web: campaign panel and night selector, dusk/night/witching tint, rain and fog, postcard PNG export
 - [x] 31. Web: in-browser parity self-test (`web/selftest.html`) with embedded golden vectors and a drift test
 - [x] 32. Runtime `WalkthroughController` for stepping campaign nights (code-complete, unverified in Unity) and `docs/BUILD_LOG.md`
+- [x] 33. `tools/fetch_pack.py`: reproducible download of the URP and HDRP packages into the ignored downloads folder
+- [x] 34. Inspector scene scan: referenced prefab GUIDs and names, folder entries, no-mesh summary
+- [x] 35. Matcher fix (single-letter tokens) and catalog `prefabHint` with `PrefabNameMatcher.Resolve`, JS and Python ports, golden parity
+- [x] 36. `tools/build_local_pack.py` and web `?pack=1` local pack mode (all output git-ignored)
 
 Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publish the video), 26, 27 and 28.

@@ -13,7 +13,10 @@ tests/                 dotnet xunit property tests over Core, plus golden parity
 tools/validate_repo.py repo guardrails
 docs/                  Kiro usage, demo script, Devpost draft
 docs/media/            screenshots used by the README (each under 1 MB)
+tools/fetch_pack.py, inspect_unitypackage.py, build_local_pack.py   local pack tooling (output git-ignored)
+web/local-pack/        ignored output of build_local_pack.py for ?pack=1 (never commit; no pack screenshots in docs/media)
+Assets/_DLNK/          Unity import location of the real packages (ignored)
 tools/screenshot.sh    renders the web demo to docs/media with headless Chromium
 ```
 
-Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Assets/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`.
+Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Assets/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`, `Assets/_DLNK` or `web/local-pack`.

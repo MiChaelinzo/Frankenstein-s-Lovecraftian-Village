@@ -81,17 +81,33 @@ https://1drv.ms/u/c/2d20f0550256da29/IQB9YNYXG0m2R7Z-3HOg2HmfARYqxwE4_Vvxa-Hth-d
 
 #### Inspecting the pack locally
 
-These OneDrive links are owner-gated: an attempt to fetch them from the automated build sandbox returned HTTP 403 or a login page, so the pack could not be downloaded there and nothing in this repo was tested against it. To map catalog ids to the real prefabs without extracting or committing anything, download a package yourself and run:
+Both packages were downloaded through these public share links (anonymous guest flow, no credentials) and inspected locally. Their sizes and checksums:
+
+| Package | Size | sha256 |
+|---|---|---|
+| URP | 106,390,596 bytes | `939bc792eeccb4779be0c5bb6d12c0ad712f7daa3711021c43a5794757df60b8` |
+| HDRP | 1,878,426,676 bytes | `8bc5c2c1be7c639340512e54c49ab118db5f7a9aeaa2d0410a273e863651b488` |
+
+What is inside (from the inspector): both are render-pipeline editions of Lovecraftian Village 1.3 and contain **no meshes** (no `.fbx` or `.obj`). URP has 405 assets (230 materials, 71 `.exr` lightmaps, 12 terrain layers, 3 scenes, 3 shaders, 7 PNGs). HDRP has 605 assets (231 materials, 270 PNGs that are HDRP MaskMap (159) and DetailMap (107) textures with no albedo/BaseColor PNGs, 11 `.exr`, 3 scenes, 5 shaders). Each has only 14 prefabs (lamps, candle holders, GameSetup Basic). Everything imports under `Assets/_DLNK/`. The three scenes (Coast Scene, MystVillage, Assets 1.0) reference 585 unique prefab GUIDs (about 317 unique instance names) for houses, walls, roofs, trees and boats; those prefabs are not in these packages and come from the base pack.
+
+Tools (Python standard library only, nothing is committed):
 
 ```
-python3 tools/inspect_unitypackage.py "Lovecraftian1.3 URP(Unity6).unitypackage"
+python3 tools/fetch_pack.py urp                 # or hdrp; saves to Assets/ThirdParty/LovecraftianVillage/downloads/
+python3 tools/inspect_unitypackage.py Assets/ThirdParty/LovecraftianVillage/downloads/Lovecraftian1.3_HDRP_Unity6.unitypackage --out Assets/ThirdParty/LovecraftianVillage/pack_inventory_hdrp.json
+python3 tools/build_local_pack.py               # builds web/local-pack/ from the HDRP package (falls back to URP)
 ```
 
-The script (Python standard library only) reads only the small `pathname` entries of the package, prints counts by extension and the prefab list with GUIDs and pathnames, and suggests a prefab for each id in `Assets/Data/village_catalog.json` using the same token and alias scoring as `PrefabNameMatcher`. It writes `Assets/ThirdParty/LovecraftianVillage/pack_inventory.json`, which is gitignored (as is `*.unitypackage`). Use `--out` or `--catalog` to change paths. It is covered by a unit test on a synthetic package (`python3 -m unittest discover -s tools -p 'test_*.py'`) but has not been run against the real pack.
+- `tools/fetch_pack.py` downloads a package from the share links above, checks HTTP 200, the gzip magic and the size, and prints the sha256. It refuses output paths that are not git-ignored.
+- `tools/inspect_unitypackage.py` reads `pathname` entries and scans the `.unity` scenes in memory for `PrefabInstance` blocks, so it reports `referencedPrefabs` (guid, name, count, scenes), a summary and whether meshes exist. It suggests a prefab for each catalog id from packaged names and scene-referenced names with the same scoring as `PrefabNameMatcher`, and checks each catalog `prefabHint`. Payloads are never written to disk.
+- Catalog `prefabHint` (names only, no GUIDs) points each id at a real name referenced by the pack scenes. `church`, `well` and `altar` are **stand-ins**, because the pack has no church, well or altar prefab: church uses `Pinnacle00c`, well uses `WoodBucket00`, altar uses `PillarStone00a`. The others are `house_a` BigHouse00, `house_b` CoastalHouse00 and `dead_tree` _Sp_TrunkDead00.
+- `tools/build_local_pack.py` extracts about 8 small grayscale textures (DetailMap R or MaskMap G, downscaled to 256 px) plus material tints into `web/local-pack/` with a `manifest.json`. Open the web demo with `?pack=1` (for example `web/index.html?pack=1` served locally) to texture the canvas ground, walls, roofs and dead trees and to label pieces with the real prefab hint names. Without the folder, or without `?pack=1`, the demo is unchanged; with `?pack=1` and no folder it shows a notice and renders normally.
 
-The URP package (about 200 MB) is enough for inspection and for URP projects; the HDRP package (about 2 GB) is only needed for HDRP builds.
+Local, git-ignored paths produced by these tools: `Assets/ThirdParty/LovecraftianVillage/downloads/*.unitypackage`, `Assets/ThirdParty/LovecraftianVillage/pack_inventory_urp.json` and `pack_inventory_hdrp.json`, `web/local-pack/` (`manifest.json`, `textures/`, `screenshots/`), `/pack-scratch/`, and the Unity import location `Assets/_DLNK/`. Pack-mode screenshots are never committed (`docs/media` holds only the demo's own procedural screenshots).
 
-Both packages are the same Lovecraftian Village 1.3 environment built for Unity 6, one per render pipeline. The packages are the work of DLNK Artworks (see Credits) and are linked from OneDrive, not stored in this repository. Do not commit them.
+Verification status: the tools and the web pack mode were run here against the real packages and are covered by Python and node tests. Nothing was imported or compiled in Unity, so `CatalogAutoBinder` and the other Editor/Runtime scripts remain unverified there.
+
+The URP package (about 100 MB) is enough for inspection and for URP projects; the HDRP package (about 1.9 GB) is only needed for HDRP builds. The packages are the work of DLNK Artworks (see Credits) and are linked from OneDrive, not stored in this repository. Do not commit them.
 
 ## Features
 

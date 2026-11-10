@@ -51,7 +51,8 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 
 ### R10 Prefab auto-binding
 1. The matcher SHALL map a catalog id to the best-named prefab, or to none when nothing matches.
-2. The matcher SHALL be case-insensitive and deterministic.
+2. The matcher SHALL be case-insensitive and deterministic, and SHALL NOT treat single-letter tokens as matches.
+2a. WHEN a catalog entry has a `prefabHint` that is among the candidates THEN the resolver SHALL return it, else it SHALL fall back to the best-named prefab.
 3. The Unity editor binder SHALL only use the matcher and SHALL NOT copy pack files into the repo.
 
 ### R11 Accessibility
