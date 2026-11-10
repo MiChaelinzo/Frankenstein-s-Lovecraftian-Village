@@ -79,6 +79,18 @@ https://onedrive.live.com/?id=%2Fpersonal%2F8d24f63b531c559f%2FDocuments%2F%5FWo
 Download:
 https://onedrive.live.com/?id=%2Fpersonal%2F8d24f63b531c559f%2FDocuments%2F%5FWork%2FAssetStore%2FUnityPipeline%2F%5B21%5DLovecraftianVillage%2FLovecraftian1%2E3%20URP%28Unity6%29%2Eunitypackage&listurl=%2Fpersonal%2F8d24f63b531c559f%2FDocuments&e=OdQZDB&migratedtospo=true
 
+#### Inspecting the pack locally
+
+These OneDrive links are owner-gated: an attempt to fetch them from the automated build sandbox returned HTTP 403 or a login page, so the pack could not be downloaded there and nothing in this repo was tested against it. To map catalog ids to the real prefabs without extracting or committing anything, download a package yourself and run:
+
+```
+python3 tools/inspect_unitypackage.py "Lovecraftian1.3 URP(Unity6).unitypackage"
+```
+
+The script (Python standard library only) reads only the small `pathname` entries of the package, prints counts by extension and the prefab list with GUIDs and pathnames, and suggests a prefab for each id in `Assets/Data/village_catalog.json` using the same token and alias scoring as `PrefabNameMatcher`. It writes `Assets/ThirdParty/LovecraftianVillage/pack_inventory.json`, which is gitignored (as is `*.unitypackage`). Use `--out` or `--catalog` to change paths. It is covered by a unit test on a synthetic package (`python3 -m unittest discover -s tools -p 'test_*.py'`) but has not been run against the real pack.
+
+The URP package (about 200 MB) is enough for inspection and for URP projects; the HDRP package (about 2 GB) is only needed for HDRP builds.
+
 Both packages are the same Lovecraftian Village 1.3 environment built for Unity 6, one per render pipeline. The packages are the work of DLNK Artworks (see Credits) and are linked from OneDrive, not stored in this repository. Do not commit them.
 
 ## Features

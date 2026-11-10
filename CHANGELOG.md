@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Runtime: `WalkthroughController.CurrentNight` returns null before `Start` instead of throwing. The controller and `RebindSelected` are still not compiled in CI.
 
 ### Added
+- Tools: `tools/inspect_unitypackage.py` inventories a local `.unitypackage` (extension counts, prefab GUIDs and pathnames) and suggests catalog id to prefab matches with `PrefabNameMatcher` scoring; output is gitignored and payloads are never extracted. Unit tested on a synthetic package only, not on the real pack.
 - Web: `web/selftest.html` runs the JS Core against the embedded C# golden vectors in the browser (126 checks, shown pass/fail); `tools/embed_golden.mjs` regenerates `web/src/golden-data.js` and a node test fails if it drifts. Screenshot: `docs/media/selftest.png`.
 - Runtime: `WalkthroughController` steps the director through a seeded campaign (never compiled in Unity).
 - Docs: `docs/BUILD_LOG.md`, a history tied to real commits.
