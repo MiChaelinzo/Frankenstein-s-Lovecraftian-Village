@@ -66,3 +66,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 ## Ritual chain
 - `cd24f48` Core `RitualChain.cs`, JS port `generateRitual`, C# property tests, golden `rituals` parity.
 - `94a4a56` Web: ritual stage in the night panel and journal, `ritualHudText`, case file `## Ritual` section, node tests. Not seen in a screenshot (the screenshot helper output was unreadable in this session).
+
+## Round 8 fixes
+- `f6ac618` Service worker offline fallback to index.html now only for navigation requests; `isNavigation` tested in pwa.test.js.
