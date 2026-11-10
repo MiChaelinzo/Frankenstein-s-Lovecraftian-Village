@@ -136,3 +136,32 @@ export const wrapIndex = (i, n, dir) => (n <= 0 ? -1 : (((i + dir) % n) + n) % n
 export function describeScene({ seed, pieces, tierName, dreadPercent, focus }) {
   return `Village seed ${seed} with ${pieces} pieces. Dread ${dreadPercent}%, ${tierName}.` + (focus ? ` Listening to ${focus}.` : '');
 }
+
+/** Sky tint overlay per campaign sky stage. rgb is the overlay colour, alpha its strength. */
+const SKY_TINTS = {
+  dusk: { rgb: [150, 80, 50], alpha: 0.18 },
+  night: { rgb: [20, 30, 60], alpha: 0.14 },
+  witching: { rgb: [10, 6, 20], alpha: 0.2 },
+};
+export function skyTint(name) {
+  return SKY_TINTS[name] || SKY_TINTS.night;
+}
+
+export function weatherFor(name) {
+  return { rain: name === 'rain', fog: name === 'fog' };
+}
+
+export function postcardFilename(seed, night) {
+  return `village-postcard-seed-${seed | 0}-night-${night | 0}.png`;
+}
+
+export function postcardCaption({ villageName, seed, night, title }) {
+  return `${villageName} | Night ${night}: ${title} | seed ${seed | 0}`;
+}
+
+/** Reads an optional night=N (1-based) from a URL hash and returns a 0-based index clamped to [0, count). */
+export function nightFromHash(hash, count) {
+  const v = Number.parseInt(new URLSearchParams(String(hash || '').replace(/^#/, '')).get('night'), 10);
+  if (!Number.isFinite(v) || count <= 0) return 0;
+  return Math.max(0, Math.min(count - 1, v - 1));
+}

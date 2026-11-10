@@ -23,6 +23,18 @@
         </section>
         <p id="viewDesc" class="sr-only"></p>
 
+        <section class="panel campaign" aria-labelledby="campaignTitle">
+          <h2 id="campaignTitle">Campaign: <span id="villageName">the village</span></h2>
+          <div class="row">
+            <label for="night">Night</label>
+            <select id="night"></select>
+            <button id="nightPrev" type="button">Previous night</button>
+            <button id="nightNext" type="button">Next night</button>
+            <button id="postcard" type="button">Save postcard (PNG)</button>
+          </div>
+          <p id="nightInfo" class="stats" aria-live="polite"></p>
+        </section>
+
         <section class="panel" aria-label="Controls">
           <div class="row">
             <label for="seed">Seed</label>
@@ -68,6 +80,8 @@
             <li><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
             <li><kbd>D</kbd> let the dark creep in</li>
             <li><kbd>M</kbd> drone on/off</li>
+            <li><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
+            <li><kbd>P</kbd> save postcard</li>
             <li><kbd>?</kbd> show or hide this list</li>
             <li>View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
           </ul>
@@ -76,7 +90,7 @@
     </div>
 
     <footer>
-      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes. Apache-2.0.</p>
+      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
   <script type="module" src="src/app.js"></script>

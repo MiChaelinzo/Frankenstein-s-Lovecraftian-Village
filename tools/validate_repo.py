@@ -12,7 +12,7 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           ".github/workflows/pages.yml", ".github/workflows/ci.yml", "CONTRIBUTING.md", "CHANGELOG.md",
           "docs/media/calm.png", "docs/media/dread.png", "docs/media/abyss.png", "docs/media/mobile.png",
           "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
-          "docs/DEVPOST_SUBMISSION.md", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
+          "docs/DEVPOST_SUBMISSION.md", "docs/BUILD_LOG.md", "web/selftest.html", "web/src/selftest.js", "web/src/golden-data.js", "docs/media/selftest.png", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 

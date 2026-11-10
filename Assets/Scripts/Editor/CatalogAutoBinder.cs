@@ -13,7 +13,7 @@ namespace Frankenstein.Editor
     /// <summary>
     /// Fills the prefab slots of the selected VillageCatalogAsset by matching catalog ids to prefab
     /// names found under a root folder (default: the imported Lovecraftian Village pack).
-    /// Only empty slots are filled; existing assignments are never overwritten.
+    /// Only empty slots are filled unless rebindAll is set; duplicate prefab names resolve to the first path in ordinal order.
     /// </summary>
     public static class CatalogAutoBinder
     {
@@ -42,7 +42,21 @@ namespace Frankenstein.Editor
             EditorPrefs.SetString(RootPrefKey, rel);
         }
 
-        public static void Bind(VillageCatalogAsset asset, string root)
+        [MenuItem("Tools/Frankenstein/Rebind All Catalog Prefabs (overwrite)")]
+        public static void RebindSelected()
+        {
+            var asset = Selection.activeObject as VillageCatalogAsset;
+            if (asset == null)
+            {
+                EditorUtility.DisplayDialog("Auto-bind", "Select a VillageCatalogAsset in the Project window first.", "OK");
+                return;
+            }
+            if (!EditorUtility.DisplayDialog("Rebind all", "This overwrites existing prefab assignments (undo is available). Continue?", "Rebind", "Cancel")) return;
+            Bind(asset, EditorPrefs.GetString(RootPrefKey, DefaultRoot), true);
+        }
+
+        /// <summary>Binds empty slots only. Pass rebindAll to overwrite existing assignments too.</summary>
+        public static void Bind(VillageCatalogAsset asset, string root, bool rebindAll = false)
         {
             if (!AssetDatabase.IsValidFolder(root))
             {
@@ -51,9 +65,13 @@ namespace Frankenstein.Editor
             }
 
             var pathByName = new Dictionary<string, string>();
+            // FindAssets order is not guaranteed, so sort paths ordinally and keep the first for duplicate names.
+            var paths = new List<string>();
             foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { root }))
+                paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+            paths.Sort(System.StringComparer.Ordinal);
+            foreach (string path in paths)
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
                 string name = Path.GetFileNameWithoutExtension(path);
                 if (!pathByName.ContainsKey(name)) pathByName[name] = path;
             }
@@ -64,7 +82,7 @@ namespace Frankenstein.Editor
             foreach (var b in asset.bindings)
             {
                 if (b == null || b.entry == null || string.IsNullOrEmpty(b.entry.id)) continue;
-                if (b.prefab != null) continue;
+                if (b.prefab != null && !rebindAll) continue;
                 string match = PrefabNameMatcher.Best(b.entry.id, pathByName.Keys);
                 if (match == null) { missed.Append("  ").Append(b.entry.id).Append('\n'); continue; }
                 b.prefab = AssetDatabase.LoadAssetAtPath<GameObject>(pathByName[match]);

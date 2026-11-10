@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Frankenstein.Core;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace Frankenstein.Runtime
         public event Action<DreadEvent> OmenCrossed;
 
         private readonly DreadEventTracker _events = new DreadEventTracker();
+        private readonly List<DreadEvent> _eventBuffer = new List<DreadEvent>(4);
 
         private void Awake()
         {
@@ -32,7 +34,8 @@ namespace Frankenstein.Runtime
             Sanity.Apply(-sanityDrainPerSecond * Time.deltaTime);
             if (ambienceLoop != null) ambienceLoop.volume = 0.2f + 0.8f * Sanity.Dread;
             if (volumeBlender != null) volumeBlender.Apply(Sanity.Dread);
-            foreach (var e in _events.Update(Sanity.Dread)) OmenCrossed?.Invoke(e);
+            _events.Update(Sanity.Dread, _eventBuffer);
+            for (int i = 0; i < _eventBuffer.Count; i++) OmenCrossed?.Invoke(_eventBuffer[i]);
         }
 
         public string Describe(string locationId) { return Narration.Narrate(locationId, Sanity.Dread); }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
-  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson,
+  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
 } from '../src/core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,5 +57,15 @@ test('village reports match C# byte for byte', () => {
     const report = buildVillageReport(catalog, layout, 24, 24, g.seed, g.dread);
     assert.equal(reportToMarkdown(report), g.markdown, `markdown seed ${g.seed} dread ${g.dread}`);
     assert.equal(reportToJson(report), g.json, `json seed ${g.seed} dread ${g.dread}`);
+  }
+});
+
+test('campaigns match C# CampaignGenerator exactly', () => {
+  assert.ok(golden.campaigns.length > 0);
+  for (const g of golden.campaigns) {
+    const c = generateCampaign(g.seed, g.requested);
+    assert.equal(c.villageName, g.villageName, `name seed ${g.seed}`);
+    const actual = c.nights.map((n) => [n.number, n.title, n.dreadTargetPercent, n.sanityStart, n.sky, n.weather, n.rumor, n.lore]);
+    assert.deepEqual(actual, g.nights, `seed ${g.seed} nights ${g.requested}`);
   }
 });

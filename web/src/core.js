@@ -309,3 +309,68 @@ export function reportToJson(r) {
     `  "landmarks": [${landmarks}],\n  "omen": ${JSON.stringify(r.omen)}\n}\n`
   );
 }
+
+// ---- Campaign generator (CampaignGenerator.cs) ----
+
+export const CAMPAIGN_MIN_NIGHTS = 1;
+export const CAMPAIGN_MAX_NIGHTS = 9;
+export const CAMPAIGN_DEFAULT_NIGHTS = 5;
+
+const NAME_PREFIX = ['Black', 'Ash', 'Gull', 'Drowned', 'Hollow', 'Marrow', 'Salt', 'Pale', 'Grey', 'Weeping', 'Tallow', 'Brine'];
+const NAME_SUFFIX = ['wick', 'moor', 'haven', 'mere', 'holm', 'ford', 'cliff', 'by', 'stead', 'combe'];
+const CAMPAIGN_TITLES = [
+  ['The Quiet Arrival', 'Lanterns on the Quay', "A Stranger's Welcome", 'Salt on the Doorstep', 'The First Bell', 'Mist Over the Marsh'],
+  ['What the Well Remembers', 'The Counting of Houses', 'Footsteps in the Nave', 'Tide Without a Moon', 'The Stitched Streets', 'Candles Gone Green'],
+  ['The Eye Opens', 'Nothing Answers the Bell', 'The Drowned Congregation', 'When the Sea Walks', 'The Last Lantern', 'Beneath the Altar'],
+];
+const RUMOR_WHO = ['The ferryman', 'An old widow', "The sexton's boy", 'A tinker passing through', 'The night watchman', 'A fisher with no catch'];
+const RUMOR_WHAT = ['swears the church bell rings itself', 'says the well has begun to hum', 'saw every window turn toward the sea', 'heard the tide counting under the floor', 'found wet footprints leading up from the harbor', 'claims the crows have started to pray'];
+const RUMOR_WHEN = ['just after dusk.', 'when the fog came in.', 'three nights running.', 'and will not say more.', 'though nobody believes it yet.', 'and has not slept since.'];
+const CAMPAIGN_LORE = [
+  ['The founders stitched the first houses from driftwood and a bargain nobody wrote down.', 'Every hearth in the village was lit from one flame, carried in a jar from the shore.', 'The lighthouse keeper stopped logging ships long before the ships stopped coming.'],
+  ['The altar predates the church. The church was built so that something would have a roof.', 'The well is deeper than the hill is tall, and the water rises when the bells are silent.', 'Those who walk the lantern route at night never agree on how many of them there were.'],
+  ['The sea is not retreating. It is waiting for the village to finish its sentence.', 'The thing under the tower has been patient since before names, and the patience is wearing thin.', 'By the final night the houses face the water, and the water faces back.'],
+];
+const WEATHERS = ['clear', 'rain', 'fog'];
+
+export function clampNights(nights) {
+  const n = Number.isFinite(nights) ? Math.trunc(nights) : CAMPAIGN_DEFAULT_NIGHTS;
+  return Math.max(CAMPAIGN_MIN_NIGHTS, Math.min(CAMPAIGN_MAX_NIGHTS, n));
+}
+
+/** Returns { seed, villageName, nights: [{ number, title, dreadTargetPercent, sanityStart, sky, weather, rumor, lore }] }. */
+export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
+  nights = clampNights(nights);
+  seed |= 0;
+  const rng = new SeededRandom(seed ^ 0x5bd1e995);
+  const villageName = NAME_PREFIX[rng.next(NAME_PREFIX.length)] + NAME_SUFFIX[rng.next(NAME_SUFFIX.length)];
+  const used = CAMPAIGN_TITLES.map((t) => t.map(() => false));
+  const out = [];
+  let prev = 0;
+  for (let i = 0; i < nights; i++) {
+    const stage = nights === 1 ? 1 : Math.floor((i * 3) / nights);
+    const baseTarget = nights === 1 ? 50 : 10 + Math.floor((80 * i) / (nights - 1));
+    let target = baseTarget + rng.next(7) - 3;
+    if (target < 5) target = 5;
+    if (target <= prev) target = prev + 1;
+    if (target > 100) target = 100;
+    prev = target;
+
+    const free = used[stage].filter((u) => !u).length;
+    let pick = rng.next(free);
+    let idx = 0;
+    for (let k = 0; k < used[stage].length; k++) {
+      if (used[stage][k]) continue;
+      if (pick === 0) { idx = k; break; }
+      pick--;
+    }
+    used[stage][idx] = true;
+
+    const sky = stage === 0 ? 'dusk' : stage === 1 ? 'night' : 'witching';
+    const weather = WEATHERS[rng.next(WEATHERS.length)];
+    const rumor = `${RUMOR_WHO[rng.next(RUMOR_WHO.length)]} ${RUMOR_WHAT[rng.next(RUMOR_WHAT.length)]} ${RUMOR_WHEN[rng.next(RUMOR_WHEN.length)]}`;
+    const lore = CAMPAIGN_LORE[stage][rng.next(CAMPAIGN_LORE[stage].length)];
+    out.push({ number: i + 1, title: CAMPAIGN_TITLES[stage][idx], dreadTargetPercent: target, sanityStart: 100 - target, sky, weather, rumor, lore });
+  }
+  return { seed, villageName, nights: out };
+}
