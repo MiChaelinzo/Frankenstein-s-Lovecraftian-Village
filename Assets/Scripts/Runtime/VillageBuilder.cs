@@ -9,7 +9,7 @@ namespace Frankenstein.Runtime
         public VillageCatalogAsset catalog;
         public int width = 24;
         public int depth = 24;
-        public int pieceCount = 40;
+        public int pieceCount = 80; // matches the web demo piece count (24x24 grid; use the same seed to compare)
         public int seed = 1818; // Frankenstein was published in 1818
         public float cellSize = 6f;
 

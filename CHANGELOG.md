@@ -15,7 +15,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Validator checks for the new files and for em dashes in tracked text files.
 
 ### Notes
-- The web demo uses 80 pieces; the Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.
+- The web demo uses 80 pieces on a 24x24 grid and `VillageBuilder` now defaults to `pieceCount` 80 on 24x24. Match the seed too for the same village (unverified in Unity).
+- `HorrorAmbienceDirector` reuses an event buffer (new `DreadEventTracker.Update(dread, buffer)` overload); `CatalogAutoBinder` gains a rebind-all menu item and ordinal tie-breaking for duplicate prefab names (unverified in Unity).
 
 ## [0.1.0]
 

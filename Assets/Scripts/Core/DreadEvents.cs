@@ -56,7 +56,13 @@ namespace Frankenstein.Core
 
         public List<DreadEvent> Update(float dread)
         {
-            var events = new List<DreadEvent>();
+            return Update(dread, new List<DreadEvent>());
+        }
+
+        /// <summary>Same as <see cref="Update(float)"/> but clears and fills a caller-owned buffer, so per-frame callers allocate nothing.</summary>
+        public List<DreadEvent> Update(float dread, List<DreadEvent> events)
+        {
+            events.Clear();
             float d = DreadThresholds.Sanitize(dread);
 
             while (Tier < DreadThresholds.Values.Length && d >= DreadThresholds.Values[Tier])
