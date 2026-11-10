@@ -122,6 +122,7 @@ The URP package (about 100 MB) is enough for inspection and for URP projects; th
 - Fantasy and horror environment design
 - First-person, third-person, and top-down compatibility
 - AI-assisted development workflow
+- Web demo extras: session save/load with auto-resume, village map and legend (`G`), case file export (Markdown or HTML), `?lang=fr` partial French, performance readout (`X` or `?perf=1`), offline shell via service worker on https/localhost (never in `?pack=1`)
 - Built for Kiroween 2026 Frankenstein challenge
 
 ## The Frankenstein pitch

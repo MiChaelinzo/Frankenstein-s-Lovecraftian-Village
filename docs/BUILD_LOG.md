@@ -59,3 +59,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 
 ## Story sequencer
 - `83bbd83` Core `StorySequencer` (`StoryBeats.cs`), JS port `web/src/story.js`, property tests, golden `stories` parity, `web/test/story.test.js`. Test counts after: node 65, dotnet 46. Story UI not yet built.
+
+## Round 8 web features
+- `5f58929` Session, minimap, case file, i18n stub, perf HUD, PWA offline shell, header and stage tests. Headless screenshot (non-pack, `?map=1&perf=1&lang=fr`) checked. Service worker not tested in a real browser or on a host.
