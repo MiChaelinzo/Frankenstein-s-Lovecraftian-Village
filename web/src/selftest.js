@@ -2,7 +2,7 @@
 // from the browser (selftest.html) and from node:test.
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
-  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
+  DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
 } from './core.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -38,5 +38,10 @@ export function runSelfTest(golden, catalogEntries) {
     return c.villageName === g.villageName &&
       same(c.nights.map((n) => [n.number, n.title, n.dreadTargetPercent, n.sanityStart, n.sky, n.weather, n.rumor, n.lore]), g.nights);
   });
+  if (golden.matcher) {
+    const names = [...new Set(golden.matcher.scores.map((s) => s[1]))];
+    golden.matcher.scores.forEach(([id, name, expected]) => check('Matcher', `${id} vs ${name}`, () => PrefabNameMatcher.score(id, name) === expected));
+    golden.matcher.resolves.forEach(([id, hint, expected]) => check('Matcher', `resolve ${id} hint ${hint}`, () => PrefabNameMatcher.resolve(id, hint, names) === expected));
+  }
   return results;
 }

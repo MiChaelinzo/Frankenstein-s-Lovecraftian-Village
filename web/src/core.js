@@ -37,7 +37,7 @@ export class PrefabCatalog {
       if (weight <= 0 || fx <= 0 || fz <= 0) continue;
       if (seen.has(e.id)) continue;
       seen.add(e.id);
-      this.entries.push({ id: e.id, category: e.category || '', weight, footprintX: fx, footprintZ: fz, horror: e.horror ?? 0 });
+      this.entries.push({ id: e.id, category: e.category || '', weight, footprintX: fx, footprintZ: fz, horror: e.horror ?? 0, prefabHint: e.prefabHint || '' });
     }
   }
   get totalWeight() {
@@ -58,6 +58,112 @@ export class PrefabCatalog {
     return this.entries.length ? this.entries[this.entries.length - 1] : null;
   }
 }
+
+const ALIAS_GROUPS = [
+  ['house', 'home', 'cottage', 'hut', 'cabin'],
+  ['church', 'chapel', 'cathedral', 'temple'],
+  ['well', 'fountain'],
+  ['tree', 'dead', 'trunk', 'pinus'],
+  ['altar', 'shrine'],
+];
+
+/** Port of PrefabNameMatcher.cs. Pure name matching used to bind catalog ids to prefab names. */
+export const PrefabNameMatcher = (() => {
+  const EXACT_SCORE = 1000;
+  const TOKEN_SCORE = 10;
+  const ALIAS_SCORE = 3;
+  const isLetterOrDigit = (c) => /[\p{L}\p{Nd}]/u.test(c);
+  const isUpper = (c) => /\p{Lu}/u.test(c);
+  const isLower = (c) => /\p{Ll}/u.test(c);
+  const isDigit = (c) => /\p{Nd}/u.test(c);
+
+  /** Lowercase word tokens: splits on non-alphanumerics and camelCase, drops pure-number tokens. */
+  function tokenize(name) {
+    const tokens = [];
+    if (!name) return tokens;
+    let cur = '';
+    let prev = ' ';
+    const flush = () => {
+      if (cur.length === 0) return;
+      const t = cur;
+      cur = '';
+      if ([...t].some((ch) => !isDigit(ch))) tokens.push(t);
+    };
+    for (const c of name) {
+      if (!isLetterOrDigit(c)) { flush(); prev = ' '; continue; }
+      if (isUpper(c) && isLower(prev)) flush();
+      else if (prev !== ' ' && isDigit(c) !== isDigit(prev)) flush();
+      cur += c.toLowerCase();
+      prev = c;
+    }
+    flush();
+    return tokens;
+  }
+
+  const normalize = (name) => tokenize(name).join('_');
+
+  /** Drops a leading 'sp' token and a trailing 'variant' token for partial scoring only. */
+  function scoringTokens(tokens) {
+    const r = tokens.slice();
+    if (r.length > 1 && r[0] === 'sp') r.shift();
+    if (r.length > 1 && r[r.length - 1] === 'variant') r.pop();
+    return r;
+  }
+
+  const sameGroup = (x, y) => ALIAS_GROUPS.some((g) => g.includes(x) && g.includes(y));
+
+  function score(id, candidate) {
+    const a = tokenize(id);
+    let b = tokenize(candidate);
+    if (a.length === 0 || b.length === 0) return 0;
+    if (a.join('_') === b.join('_')) return EXACT_SCORE;
+    let total = 0;
+    const seen = new Set();
+    b = scoringTokens(b);
+    for (const t of scoringTokens(a)) {
+      if ([...t].length < 2) continue;
+      if (seen.has(t)) continue;
+      seen.add(t);
+      if (b.includes(t)) { total += TOKEN_SCORE; continue; }
+      if (b.some((u) => sameGroup(t, u))) total += ALIAS_SCORE;
+    }
+    return total;
+  }
+
+  const ordinalLess = (x, y) => x < y;
+
+  function best(id, candidates) {
+    let bestName = null;
+    let bestScore = 0;
+    for (const c of candidates || []) {
+      if (c === null || c === undefined) continue;
+      const s = score(id, c);
+      if (s <= 0) continue;
+      if (s > bestScore || (s === bestScore && ordinalLess(c, bestName))) { bestName = c; bestScore = s; }
+    }
+    return bestName;
+  }
+
+  /** Candidate whose normalized name equals the normalized hint (ordinal-first), else best(id, candidates). */
+  function resolve(id, hint, candidates) {
+    if (!candidates) return null;
+    const list = Array.from(candidates);
+    if (hint) {
+      const want = normalize(hint);
+      let found = null;
+      if (want.length > 0) {
+        for (const c of list) {
+          if (c === null || c === undefined || normalize(c) !== want) continue;
+          if (found === null || ordinalLess(c, found)) found = c;
+        }
+      }
+      if (found !== null) return found;
+    }
+    return best(id, list);
+  }
+
+  return { EXACT_SCORE, TOKEN_SCORE, ALIAS_SCORE, tokenize, normalize, score, best, resolve };
+})();
 
 /** Returns [{id, x, z, sizeX, sizeZ}] with the same placement order as VillageLayoutGenerator.cs. */
 export function generateLayout(catalog, width, depth, targetCount, seed) {

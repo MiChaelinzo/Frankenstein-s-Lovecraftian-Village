@@ -15,7 +15,7 @@ namespace Frankenstein.Core
             new[] { "house", "home", "cottage", "hut", "cabin" },
             new[] { "church", "chapel", "cathedral", "temple" },
             new[] { "well", "fountain" },
-            new[] { "tree", "dead", "trunk" },
+            new[] { "tree", "dead", "trunk", "pinus" },
             new[] { "altar", "shrine" },
         };
 
@@ -52,7 +52,24 @@ namespace Frankenstein.Core
 
         public static string Normalize(string name) => string.Join("_", Tokenize(name));
 
-        /// <summary>0 means no relation. An exact normalized match scores far above any partial overlap.</summary>
+        /// <summary>
+        /// Tokens used for partial scoring. DLNK names carry noise that must not create matches:
+        /// a leading "sp" token (from "_Sp_TrunkDead00") and a trailing "variant" token (Unity's
+        /// " Variant" prefab suffix) are dropped. Exact matching still uses the full token list.
+        /// </summary>
+        private static List<string> ScoringTokens(List<string> tokens)
+        {
+            var r = new List<string>(tokens);
+            if (r.Count > 1 && r[0] == "sp") r.RemoveAt(0);
+            if (r.Count > 1 && r[r.Count - 1] == "variant") r.RemoveAt(r.Count - 1);
+            return r;
+        }
+
+        /// <summary>
+        /// 0 means no relation. An exact normalized match scores far above any partial overlap.
+        /// Single-letter tokens (variant suffixes such as the "b" in "CandleHolderWall00b" or in id "house_b")
+        /// never earn TokenScore or AliasScore on their own.
+        /// </summary>
         public static int Score(string id, string candidate)
         {
             var a = Tokenize(id);
@@ -62,8 +79,10 @@ namespace Frankenstein.Core
 
             int score = 0;
             var seen = new HashSet<string>();
-            foreach (var t in a)
+            b = ScoringTokens(b);
+            foreach (var t in ScoringTokens(a))
             {
+                if (t.Length < 2) continue;
                 if (!seen.Add(t)) continue;
                 if (b.Contains(t)) { score += TokenScore; continue; }
                 foreach (var u in b)
@@ -93,6 +112,28 @@ namespace Frankenstein.Core
                 if (s > bestScore || (s == bestScore && string.CompareOrdinal(c, best) < 0)) { best = c; bestScore = s; }
             }
             return best;
+        }
+
+        /// <summary>
+        /// Picks the candidate whose normalized name equals the normalized hint (ordinal-first on ties),
+        /// otherwise falls back to Best(id, candidates). A null or empty hint also falls back.
+        /// </summary>
+        public static string Resolve(string id, string hint, IEnumerable<string> candidates)
+        {
+            if (candidates == null) return null;
+            if (!string.IsNullOrEmpty(hint))
+            {
+                string want = Normalize(hint);
+                string found = null;
+                if (want.Length > 0)
+                    foreach (var c in candidates)
+                    {
+                        if (c == null || Normalize(c) != want) continue;
+                        if (found == null || string.CompareOrdinal(c, found) < 0) found = c;
+                    }
+                if (found != null) return found;
+            }
+            return Best(id, candidates);
         }
     }
 }

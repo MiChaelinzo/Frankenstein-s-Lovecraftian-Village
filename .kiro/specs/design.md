@@ -5,7 +5,7 @@ Two assemblies. `Frankenstein.Core` has no engine references and holds all rules
 
 ## Components
 - `SeededRandom`: xorshift32, identical results in Unity and .NET.
-- `PrefabCatalog` / `CatalogEntry`: validated lookup by id, weighted pick.
+- `PrefabCatalog` / `CatalogEntry`: validated lookup by id, weighted pick; optional `prefabHint` (a prefab name only).
 - `VillageLayoutGenerator`: grid occupancy stitching, deterministic.
 - `SanityModel`: clamped sanity, `DreadFor(sanity)` linear and monotonic.
 - `INarrationProvider`, `StaticNarrationProvider`, `SafeNarrationProvider`: pluggable narration with fallback.
@@ -16,7 +16,7 @@ Two assemblies. `Frankenstein.Core` has no engine references and holds all rules
 
 - `DreadEventTracker` (`DreadEvents.cs`): turns dread into one-shot threshold events (Uneasy 0.34, Dire 0.67, Abyss 0.9) with a 0.05 hysteresis margin.
 - `VillageReport`: Markdown and JSON report of a seed, sanity and layout.
-- `PrefabNameMatcher`: pure name matching used by the editor auto-binder.
+- `PrefabNameMatcher`: pure name matching used by the editor auto-binder; `Resolve(id, hint, candidates)` prefers the hint.
 - `CatalogAutoBinder` (`Assets/Scripts/Editor`, `Frankenstein.Editor` asmdef): editor-only menu that binds catalog ids to pack prefabs. Unverified in Unity.
 
 ## Web demo (`web/`)

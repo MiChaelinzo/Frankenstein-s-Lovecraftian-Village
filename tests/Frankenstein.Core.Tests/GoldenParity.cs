@@ -29,6 +29,13 @@ namespace Frankenstein.Core.Tests
             new[] { float.NaN, 0.4f, float.PositiveInfinity, 0.7f, -1f },
         };
 
+        private static readonly string[] MatchIds = { "house_a", "house_b", "church", "well", "dead_tree", "altar" };
+        private static readonly string[] MatchNames =
+        {
+            "BigHouse00", "TallHouse00", "CoastalHouse00", "_Sp_TrunkDead00", "_Sp_TrunkPinus00", "CandleHolderWall00b Variant",
+            "Barrel00b Variant", "WoodBucket00", "Pinnacle00c", "PillarStone00a", "Cottage_03", "StoneChapel", "Rock",
+        };
+
         private static string DreadToken(float d, CultureInfo inv) =>
             float.IsNaN(d) ? "\"NaN\"" : float.IsPositiveInfinity(d) ? "\"Infinity\"" : float.IsNegativeInfinity(d) ? "\"-Infinity\"" : d.ToString("R", inv);
 
@@ -53,6 +60,7 @@ namespace Frankenstein.Core.Tests
                     footprintX = e.GetProperty("footprintX").GetInt32(),
                     footprintZ = e.GetProperty("footprintZ").GetInt32(),
                     horror = e.GetProperty("horror").GetInt32(),
+                    prefabHint = e.TryGetProperty("prefabHint", out var ph) ? ph.GetString() : null,
                 });
             return new PrefabCatalog(list);
         }
@@ -156,7 +164,23 @@ namespace Frankenstein.Core.Tests
                     }
                     sb.Append("] }");
                 }
-            sb.Append("\n  ]\n}\n");
+            sb.Append("\n  ],\n  \"matcher\": {\n    \"scores\": [");
+            for (int i = 0; i < MatchIds.Length; i++)
+                for (int k = 0; k < MatchNames.Length; k++)
+                    sb.Append(i + k > 0 ? ", " : "").Append('[').Append(JsonSerializer.Serialize(MatchIds[i])).Append(", ")
+                      .Append(JsonSerializer.Serialize(MatchNames[k])).Append(", ").Append(PrefabNameMatcher.Score(MatchIds[i], MatchNames[k]).ToString(inv)).Append(']');
+            sb.Append("],\n    \"resolves\": [");
+            first = true;
+            foreach (var e in cat.Entries)
+                foreach (var hint in new[] { e.prefabHint, null, "Missing00" })
+                {
+                    if (!first) sb.Append(", ");
+                    first = false;
+                    var res = PrefabNameMatcher.Resolve(e.id, hint, MatchNames);
+                    sb.Append('[').Append(JsonSerializer.Serialize(e.id)).Append(", ").Append(hint == null ? "null" : JsonSerializer.Serialize(hint))
+                      .Append(", ").Append(res == null ? "null" : JsonSerializer.Serialize(res)).Append(']');
+                }
+            sb.Append("]\n  }\n}\n");
             return sb.ToString();
         }
 
