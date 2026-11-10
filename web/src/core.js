@@ -1,6 +1,8 @@
 // Dependency-free JS port of Assets/Scripts/Core. Keep behavior identical to the C# source;
 // test/parity.test.js checks it against test/golden.json emitted by the C# tests.
 
+import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';
+
 const MAX_SANITY = 100;
 
 /** Deterministic xorshift32, same integer math as SeededRandom.cs. */
@@ -479,6 +481,58 @@ export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
     out.push({ number: i + 1, title: CAMPAIGN_TITLES[stage][idx], dreadTargetPercent: target, sanityStart: 100 - target, sky, weather, rumor, lore });
   }
   return { seed, villageName, nights: out };
+}
+
+// ---- Ritual chain (RitualChain.cs) ----
+
+export const RITUAL_NAMES = ['The Rite of Drowned Bells', 'The Tallow Vigil', 'The Congregation of Salt', 'The Hollow Litany', 'The Unlit Procession', 'The Choir Beneath the Well'];
+export const RITUAL_STAGE_NAMES = ['Whispers', 'Gathering', 'Offering', 'Vigil', 'Invocation', 'Opening', 'Communion', 'Ascension', 'Completion'];
+export const RITUAL_SIGILS = ['eye', 'spiral', 'crown', 'tide', 'knot', 'star'];
+
+/**
+ * Returns { seed, name, stages: [{ index, nightNumber, name, sigil, dreadThresholdPercent, omenId, beatIndex }] }.
+ * Imports story.js, which imports this module back; both only use each other inside functions, so the cycle is safe.
+ */
+export function generateRitual(campaign) {
+  const ritual = { seed: 0, name: '', stages: [] };
+  if (!campaign || !Array.isArray(campaign.nights)) return ritual;
+  ritual.seed = campaign.seed | 0;
+  const rng = new SeededRandom(ritual.seed ^ 0x2f6e2b1);
+  ritual.name = RITUAL_NAMES[rng.next(RITUAL_NAMES.length)];
+  const beats = buildStory(campaign);
+  const n = campaign.nights.length;
+  let prev = 0;
+  for (let i = 0; i < n; i++) {
+    const night = campaign.nights[i];
+    let threshold = night.dreadTargetPercent - rng.next(3);
+    if (threshold <= prev) threshold = prev + 1;
+    if (threshold > 100) threshold = 100;
+    prev = threshold;
+    const nameIndex = n === 1 ? Math.floor(RITUAL_STAGE_NAMES.length / 2) : Math.floor((i * (RITUAL_STAGE_NAMES.length - 1)) / (n - 1));
+    const sigil = RITUAL_SIGILS[rng.next(RITUAL_SIGILS.length)];
+    let beatIndex = 0;
+    let omenId = '0.0';
+    for (let b = 0; b < beats.length; b++) {
+      if (beats[b].nightNumber !== night.number || beats[b].kind !== 'omen') continue;
+      beatIndex = b;
+      const tier = storyTier(night.dreadTargetPercent);
+      omenId = `${tier}.${Math.max(0, STORY_OMENS[tier].indexOf(beats[b].text))}`;
+      break;
+    }
+    ritual.stages.push({ index: i, nightNumber: night.number, name: RITUAL_STAGE_NAMES[nameIndex], sigil, dreadThresholdPercent: threshold, omenId, beatIndex });
+  }
+  return ritual;
+}
+
+export function ritualStageForDread(ritual, dreadPercent) {
+  let found = -1;
+  if (!ritual) return found;
+  for (let i = 0; i < ritual.stages.length; i++) if (ritual.stages[i].dreadThresholdPercent <= dreadPercent) found = i;
+  return found;
+}
+
+export function describeRitualStage(s) {
+  return `Night ${s.nightNumber}: ${s.name} [${s.sigil}] at ${s.dreadThresholdPercent}% omen ${s.omenId} beat ${s.beatIndex}`;
 }
 
 // ---- DLNK adapter policy (DreadBuildingPolicy.cs) ----

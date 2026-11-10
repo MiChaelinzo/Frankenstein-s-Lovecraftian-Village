@@ -69,3 +69,25 @@ test('omen text, filenames, wrapping and description', () => {
   assert.equal(wrapIndex(0, 0, 1), -1);
   assert.match(describeScene({ seed: 1, pieces: 2, tierName: 'Calm', dreadPercent: 0, focus: 'church' }), /Listening to church/);
 });
+
+test('nightClampNotice explains out-of-range nights and stays silent otherwise', async () => {
+  const { nightClampNotice } = await import('../src/scene.js');
+  assert.match(nightClampNotice('#seed=1&night=7', 5), /Night 7 does not exist.*5 nights.*night 5/);
+  assert.match(nightClampNotice('#night=0', 5), /night 1/);
+  assert.equal(nightClampNotice('#night=5', 5), '');
+  assert.equal(nightClampNotice('#seed=1', 5), '');
+  assert.equal(nightClampNotice('#night=abc', 5), '');
+});
+
+import { generateRitual, generateCampaign } from '../src/core.js';
+import { ritualHudText } from '../src/scene.js';
+test('ritualHudText reports stage, next stage and completion', () => {
+  const r = generateRitual(generateCampaign(1818, 5));
+  assert.equal(ritualHudText(null, 50), '');
+  assert.match(ritualHudText(r, 0), /not yet begun/);
+  const mid = ritualHudText(r, r.stages[1].dreadThresholdPercent);
+  assert.match(mid, /stage 2 of 5/);
+  assert.match(mid, /Next: /);
+  assert.match(ritualHudText(r, 100), /The rite is complete\./);
+  assert.ok(!ritualHudText(r, 100).includes('\u2014'));
+});

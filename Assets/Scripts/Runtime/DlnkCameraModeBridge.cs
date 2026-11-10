@@ -23,6 +23,10 @@ namespace Frankenstein.Runtime
         public CameraMode Current { get; private set; } = CameraMode.TopDown;
         /// <summary>The player's preferred mode; restored when dread falls below Abyss.</summary>
         public CameraMode Requested { get; private set; } = CameraMode.TopDown;
+        /// <summary>The last mode suggested for a dread level by ApplySuggested; never overwrites Requested.</summary>
+        public CameraMode Suggested { get; private set; } = CameraMode.TopDown;
+        /// <summary>The mode last passed through the dread policy and applied (same as Current once any dread is known).</summary>
+        public CameraMode Applied => Current;
         private bool _hasMode;
         private bool _hasDread;
         private float _lastDread;
@@ -57,10 +61,16 @@ namespace Frankenstein.Runtime
             Set(DreadBuildingPolicy.AllowedCamera(Requested, dread));
         }
 
-        /// <summary>Jump to the default mode for this dread.</summary>
+        /// <summary>
+        /// Jump to the default mode for this dread. The player's stored Requested mode is left alone,
+        /// so a later OnDread restores their preference rather than this suggestion.
+        /// </summary>
         public void ApplySuggested(float dread)
         {
-            Request(DreadBuildingPolicy.SuggestedCamera(dread), dread);
+            _lastDread = dread;
+            _hasDread = true;
+            Suggested = DreadBuildingPolicy.SuggestedCamera(dread);
+            Set(DreadBuildingPolicy.AllowedCamera(Suggested, dread));
         }
 
         private void Set(CameraMode mode)

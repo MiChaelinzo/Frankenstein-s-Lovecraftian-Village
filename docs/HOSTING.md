@@ -50,6 +50,10 @@ or drop the `dist/` folder into Netlify Drop. `dist/` is git-ignored. The script
 
 `netlify.toml`, `vercel.json` and `web/_headers` carry the same headers: `nosniff`, a referrer policy, a `Permissions-Policy`, and a Content-Security-Policy that allows same-origin scripts and styles, `data:` and `blob:` images, and `https:` fetches (for the optional `?narrator=` endpoint). There is no catch-all rewrite. The CSP has not been checked in a browser against every feature; if something is blocked on a host, check the console first.
 
+## Offline mode
+
+`web/sw.js` and `web/manifest.webmanifest` make the demo installable and usable offline. The service worker registers only on https or localhost, precaches an explicit list of core files (never `local-pack`), serves nothing for `?pack=1`, and is network first so updates are not stuck behind a cache. All paths are relative, so it works at a domain root and under `/Frankenstein-s-Lovecraftian-Village/`. The CSP adds `worker-src 'self'` and `manifest-src 'self'`. Not tested on a real host. When you add a file under `web/`, add it to `PRECACHE` in `sw.js` (`web/test/pwa.test.js` fails if a `web/src` module is missing).
+
 ## Verifying a deployment
 
 1. Open `/` and confirm the village draws and the seed controls work.

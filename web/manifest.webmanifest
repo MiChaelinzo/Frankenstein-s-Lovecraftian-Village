@@ -1,0 +1,13 @@
+{
+  "name": "Frankenstein's Lovecraftian Village",
+  "short_name": "Lovecraft Village",
+  "description": "A procedural cosmic-horror village. Change the seed, lose your sanity.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1012",
+  "theme_color": "#0b1012",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

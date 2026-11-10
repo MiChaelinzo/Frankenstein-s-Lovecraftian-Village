@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Frankenstein's Lovecraftian Village | Kiroween 2026</title>
   <meta name="description" content="A procedural cosmic-horror village. Change the seed, lose your sanity. Browser demo of the Unity 6 project, no paid assets.">
+  <meta name="theme-color" content="#0b1012">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,6 +23,7 @@
           <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" aria-describedby="viewDesc"></canvas>
           <div id="narration" class="narration" aria-live="polite"></div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
+          <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="hint" class="hint">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
         <p id="viewDesc" class="sr-only"></p>
@@ -46,6 +50,7 @@
             <button id="storyOpen" type="button" aria-controls="story">Story mode (S)</button>
             <button id="postcard" type="button">Save postcard (PNG)</button>
           </div>
+          <p id="nightClamp" class="stats" role="status" hidden></p>
           <p id="nightInfo" class="stats" aria-live="polite"></p>
         </section>
 
@@ -97,7 +102,16 @@
             <select id="listen"><option value="">Choose a landmark</option></select>
             <button id="dlMd" type="button">Download report (Markdown)</button>
             <button id="dlJson" type="button">Download report (JSON)</button>
+            <button id="dlCase" type="button">Download case file (Markdown)</button>
+            <button id="dlCaseHtml" type="button">Case file (HTML)</button>
           </div>
+          <div class="row">
+            <button id="saveSession" type="button">Save session</button>
+            <button id="loadSession" type="button">Load session</button>
+            <button id="mapToggle" type="button" aria-pressed="false" aria-controls="mapPanel">Map (G)</button>
+            <button id="perfToggle" type="button" aria-pressed="false">Perf (X)</button>
+          </div>
+          <p id="sessionNote" class="stats" role="status" aria-live="polite"></p>
           <p id="stats" class="stats"></p>
         </section>
       </div>
@@ -106,6 +120,11 @@
         <section class="panel journal" aria-labelledby="journalTitle">
           <h2 id="journalTitle">Whispers</h2>
           <ol id="whispers" class="whispers"><li class="empty">Nothing has spoken yet.</li></ol>
+        </section>
+        <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
+          <h2 id="mapTitle">Village map</h2>
+          <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds"></canvas>
+          <ul id="legend" class="legend" aria-label="Legend"></ul>
         </section>
         <details id="keys" class="panel keys" open>
           <summary>Keyboard</summary>
@@ -120,6 +139,8 @@
             <li><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
             <li><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
             <li><kbd>P</kbd> save postcard</li>
+            <li><kbd>G</kbd> village map and legend</li>
+            <li><kbd>X</kbd> performance readout (also ?perf=1)</li>
             <li><kbd>T</kbd> next texture theme</li>
             <li><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
             <li><kbd>F</kbd> peel up one floor (top-down only)</li>
@@ -132,7 +153,7 @@
     </div>
 
     <footer>
-      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
+      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro, or ?lang=fr for the partial French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
   <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" aria-describedby="introText" hidden>
