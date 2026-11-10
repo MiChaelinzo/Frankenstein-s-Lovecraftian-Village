@@ -8,6 +8,8 @@ const PRECACHE = [
   'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
   'src/session.js', 'src/story.js',
 ];
+// Only page navigations may fall back to index.html offline; scripts, styles and JSON must never receive HTML.
+const isNavigation = (req) => req.mode === 'navigate' || (req.headers && req.headers.get('accept') || '').includes('text/html');
 const skip = (url) => url.pathname.includes('/local-pack/') || url.searchParams.get('pack') === '1';
 
 self.addEventListener('install', (e) => {
@@ -24,5 +26,5 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(fetch(req).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(url.origin + url.pathname, copy)); }
     return res;
-  }).catch(() => caches.match(url.origin + url.pathname).then((hit) => hit || caches.match(new URL('index.html', self.registration.scope).href))));
+  }).catch(() => caches.match(url.origin + url.pathname).then((hit) => hit || (isNavigation(req) ? caches.match(new URL('index.html', self.registration.scope).href) : Response.error()))));
 });

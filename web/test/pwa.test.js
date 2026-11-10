@@ -37,3 +37,15 @@ test('manifest is relative and valid', () => {
   for (const i of m.icons) assert.ok(existsSync(join(web, i.src)) && !i.src.startsWith('/'));
   assert.ok(readFileSync(join(web, 'index.html'), 'utf8').includes('rel="manifest" href="manifest.webmanifest"'));
 });
+test('index.html offline fallback applies only to navigation requests', () => {
+  const isNavigation = new Function(`${/const isNavigation = (\(req\) => .*);/.exec(sw)[0]}; return isNavigation;`)();
+  const h = (accept) => ({ get: (k) => (k === 'accept' ? accept : null) });
+  assert.equal(isNavigation({ mode: 'navigate', headers: h('*/*') }), true);
+  assert.equal(isNavigation({ mode: 'cors', headers: h('text/html,application/xhtml+xml') }), true);
+  assert.equal(isNavigation({ mode: 'cors', headers: h('application/json') }), false);
+  assert.equal(isNavigation({ mode: 'no-cors', headers: h('text/css,*/*;q=0.1') }), false);
+  assert.equal(isNavigation({ mode: 'cors', headers: h('*/*') }), false);
+  assert.equal(isNavigation({ mode: 'cors', headers: { get: () => null } }), false);
+  assert.match(sw, /isNavigation\(req\) \? caches\.match\(new URL\('index\.html'/);
+  assert.match(sw, /Response\.error\(\)/);
+});
