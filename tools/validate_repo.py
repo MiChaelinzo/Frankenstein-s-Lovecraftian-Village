@@ -43,7 +43,7 @@ for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "prob
               "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "web/local-pack/manifest.json"):
     if subprocess.run(["git", "check-ignore", "-q", probe]).returncode != 0:
         errors.append(f"{probe} must be gitignored")
-for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py"):
+for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py"):
     if not os.path.isfile(f):
         errors.append(f"missing {f}")
 
