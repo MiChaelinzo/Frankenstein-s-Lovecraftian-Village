@@ -76,3 +76,8 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Beat indices are contiguous from 0, dread never decreases across beats, and omen text comes from the tier of its night's dread target.
 - Beat durations are integer reading times clamped to 2500..12000 ms; Next and Previous clamp at the ends and are inverse inside the range.
 - The JS port in `web/src/story.js` matches the C# `StorySequencer` exactly (golden `stories`).
+
+## Story mode UI, intro and soundtrack
+- Story mode steps through every beat of every night and autoplays with pause; `#story=1&night=N&beat=N` opens at that beat.
+- The intro is skippable by keyboard and button, disabled by `?intro=0`, and static under reduced motion.
+- The soundtrack is procedural, silent until a user gesture opts in, has volume and mute, uses no audio files, and removes pulses under reduced motion.

@@ -48,6 +48,10 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `394dc94` `docs/HOSTING.md`, honest README and Devpost checklist, CHANGELOG and .kiro updates.
 - Finding: none of the hosts were contacted; no live URL is confirmed and GitHub Actions is blocked by a billing lock.
 
+## Story mode UI round (branch feat/hosting-and-story-round7)
+- `d02428b` `web/src/music.js` and `web/src/intro.js` pure helpers with node tests.
+- `bef0d79` Story mode panel, intro dialog, opt-in procedural soundtrack with volume and mute, smoke test coverage. Headless screenshots of the intro and a night 3 story beat were checked; audio output was not listened to.
+
 ## What is and is not verified
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).
 - Never compiled or run in the Unity editor: everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.

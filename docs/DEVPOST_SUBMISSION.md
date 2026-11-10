@@ -111,7 +111,8 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
 - **Eligibility:** eligible.
 - **Checklist (tied to [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md)):**
   - [ ] Total length under 3:00 (script targets 2:40)
-  - [ ] 0:00-0:15 hook with fog and title card
+  - [ ] 0:00-0:15 hook with fog and title card (web demo intro, `?intro=0` skips it)
+  - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
   - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`
   - [ ] 1:10-1:35 `dotnet test` passing in the terminal

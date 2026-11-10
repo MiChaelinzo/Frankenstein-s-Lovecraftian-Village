@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Web: story mode panel (Previous, Next, Play/Pause, Exit, `S` key, `#story=1&night=N&beat=N` and `?story=1&autoplay=1` deep links), skippable intro dialog (`web/src/intro.js`, `?intro=0`, auto-skip on deep links, static under reduced motion), and an original procedural WebAudio soundtrack (`web/src/music.js`, opt-in, volume, mute `U`, reduced-motion aware) replacing the old drone. No audio files. Node tests `music.test.js`, `intro.test.js`, extended smoke test. The audio itself was not heard in this environment (headless), only its pure helpers are tested.
 - Core: `StorySequencer` (`StoryBeats.cs`) builds an ordered list of story beats per campaign night (title, rumor, lore, omen chosen by dread tier with `SeededRandom`, sky and weather note) plus navigation and reading-time helpers. JS port in `web/src/story.js` with deep link parsing (`#story=N&beat=N`). C# property tests, golden parity (`stories`), `web/test/story.test.js` and a self-test group. The story mode UI is not part of this commit.
 
 ### Changed
