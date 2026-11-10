@@ -23,7 +23,7 @@ test('app renders frames at several sanity levels without throwing', async () =>
   let raf = null;
   const clicked = [], blobs = [], keys = [];
   Object.assign(globalThis, {
-    document: { getElementById: el, hidden: false, documentElement: { classList: { add() {} } }, addEventListener() {}, createElement: () => ({ click() { clicked.push(this); }, remove() {} }), body: { appendChild() {} } },
+    document: { getElementById: el, hidden: false, documentElement: { classList: { add() {} } }, addEventListener() {}, createElement: () => ({ click() { clicked.push(this); }, remove() {}, getContext: () => ctx, toBlob(cb) { cb(new Blob(['png'])); } }), body: { appendChild() {} } },
     URL: { createObjectURL: (b) => { blobs.push(b); return 'blob:x'; }, revokeObjectURL() {} },
     matchMedia: () => ({ matches: false }),
     location: { search: '', hash: '#seed=42&sanity=10', href: 'http://x/' },
@@ -63,5 +63,23 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.match(els.whispers.innerHTML, /e-omen/);
   for (let i = 0; i < 5; i++) raf(6000 + i * 16);
   raf(5000);
+  // campaign: walk every night of several seeds so dusk/night/witching tints and rain/fog layers all draw
+  for (const seed of ['7', '42', '99', '1818']) {
+    els.seed.value = seed; els.seed.listeners.change();
+    for (let i = 0; i < 5; i++) {
+      els.night.value = String(i); els.night.listeners.change();
+      for (let k = 0; k < 2; k++) raf(7000 + k * 16);
+    }
+  }
+  assert.match(els.nightInfo.innerHTML, /Rumor: .+Lore: /);
+  assert.match(els.villageName.textContent, /^[A-Z][a-z]+[a-z]+$/);
+  els.nightPrev.listeners.click(); els.nightNext.listeners.click();
+  assert.match(globalThis.location.hash, /night=\d/);
+  assert.match(els.viewDesc.textContent, /night \d of 5/);
+  press('.'); press(',');
+  const before = clicked.length;
+  els.postcard.listeners.click();
+  assert.equal(clicked.length, before + 1);
+  assert.match(clicked[before].download, /^village-postcard-seed-\d+-night-\d+\.png$/);
   globalThis.setInterval = realSetInterval;
 });

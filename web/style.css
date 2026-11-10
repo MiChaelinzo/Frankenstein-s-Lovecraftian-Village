@@ -43,3 +43,5 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; text-align: cente
 @media (max-width: 600px) { .row { gap: 8px; } .row button { flex: 1 1 100%; } input[type=number] { flex: 1 1 6em; } .hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { .narration { transition: none; } }
 html.reduced .narration { transition: none; }
+.campaign .stats { color: var(--ink); }
+.campaign .stats em { color: var(--moss); }

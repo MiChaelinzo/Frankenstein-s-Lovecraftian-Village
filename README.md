@@ -27,6 +27,9 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 
 What the demo does:
 - **Omen events**: crossing Uneasy, Dire and Abyss thresholds (with hysteresis) raises a toast; tentacles appear at Dire and Abyss and a sky eye opens at Abyss.
+- **Campaign mode**: a seeded five-night story arc (village name, night titles, rumors, lore, rising dread targets). Pick a night to set its starting sanity, sky tint (dusk, night, witching hour) and weather (clear, rain, fog). `#night=N` in the URL shares a night. `P` saves a postcard PNG with village name, seed and night. Rain and fog are static under reduced motion.
+
+![Campaign night 5](docs/media/campaign-night5.png)
 - **Whispers journal**: every whisper is kept, so you can reread what the narrator said.
 - **Village report**: download a Markdown or JSON report of the current seed, sanity and layout.
 - **Accessibility**: full keyboard control, reduced motion (`prefers-reduced-motion` or `?reduced=1`), responsive layout.

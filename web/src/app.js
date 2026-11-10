@@ -1,11 +1,11 @@
 import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, DREAD_THRESHOLDS, tierFor,
-  buildVillageReport, reportToMarkdown, reportToJson,
+  buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   StaticNarrationProvider, SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
 } from './core.js';
 import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
-  reportFilename, wrapIndex, describeScene,
+  reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash,
 } from './scene.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
@@ -27,7 +27,7 @@ const prettyId = (id) => id.replace(/_/g, ' ');
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
-  tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
+  campaign: null, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
 };
 
 // ?narrator=https://... plugs in an AI endpoint; Safe wrapper falls back to offline text on any failure.
@@ -80,12 +80,33 @@ function rebuild() {
   state.landmarks = state.layout.filter((p) => p.id === 'church' || p.id === 'altar' || p.id === 'well');
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
   state.focus = -1;
+  state.campaign = generateCampaign(state.seed);
+  state.night = Math.min(state.night, state.campaign.nights.length - 1);
+  renderCampaign();
   $('listen').innerHTML = '<option value="">Choose a landmark</option>' +
     state.landmarks.map((p, i) => `<option value="${i}">${esc(prettyId(p.id))} at (${p.x}, ${p.z})</option>`).join('');
   const area = state.layout.reduce((a, p) => a + p.sizeX * p.sizeZ, 0);
   $('stats').textContent = `Seed ${state.seed}: ${state.layout.length} pieces stitched onto a ${GRID_W}x${GRID_D} grid (${area} of ${GRID_W * GRID_D} cells used). Same generator as the Unity project, so the same seed and settings (set pieceCount to ${PIECES} there) give the same layout.`;
   updateDesc();
   say(null);
+}
+
+// ---------- campaign ----------
+const currentNight = () => state.campaign && state.campaign.nights[state.night];
+function renderCampaign() {
+  const c = state.campaign; if (!c) return;
+  $('villageName').textContent = c.villageName;
+  $('night').innerHTML = c.nights.map((n, i) => `<option value="${i}">Night ${n.number}: ${esc(n.title)}</option>`).join('');
+  $('night').value = String(state.night);
+  const n = currentNight();
+  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> (dread target ${n.dreadTargetPercent}%, ${esc(n.sky)}, ${esc(n.weather)}).<br>Rumor: ${esc(n.rumor)}<br>Lore: ${esc(n.lore)}`;
+  updateDesc();
+}
+function selectNight(i, quiet) {
+  if (!state.campaign) return;
+  state.night = Math.max(0, Math.min(state.campaign.nights.length - 1, i));
+  renderCampaign();
+  setSanity(currentNight().sanityStart, quiet);
 }
 
 // ---------- narration + journal ----------
@@ -113,7 +134,7 @@ function updateDesc() {
   $('viewDesc').textContent = describeScene({
     seed: state.seed, pieces: state.layout.length, tierName: DREAD_THRESHOLDS.tierNames[tierFor(d)], dreadPercent: Math.round(d * 100),
     focus: f ? `${prettyId(f.id)} at ${f.x}, ${f.z}` : '',
-  });
+  }) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
 }
 
 // ---------- drawing helpers ----------
@@ -329,6 +350,29 @@ function drawFog(dread, time) {
   }
 }
 
+const raindrops = Array.from({ length: 160 }, (_, i) => { const r = new SeededRandom(i + 7777); return { x: r.next(1100), y: r.next(700), v: 380 + r.next(260), l: 8 + r.next(10) }; });
+
+/** Night tint over the whole scene, plus rain streaks or an extra fog layer. Static when reduced motion is on. */
+function drawWeather(dread, time) {
+  const night = currentNight(); if (!night) return;
+  const tint = skyTint(night.sky);
+  ctx.fillStyle = `rgba(${tint.rgb[0]},${tint.rgb[1]},${tint.rgb[2]},${tint.alpha})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const w = weatherFor(night.weather);
+  if (w.fog) {
+    const g = cachedGrad('wfog', () => { const gr = ctx.createLinearGradient(0, 0, 0, canvas.height); gr.addColorStop(0, 'rgba(150,165,165,.25)'); gr.addColorStop(0.5, 'rgba(150,165,165,.5)'); gr.addColorStop(1, 'rgba(150,165,165,.3)'); return gr; });
+    ctx.globalAlpha = 0.55; ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1;
+  }
+  if (w.rain) {
+    ctx.strokeStyle = 'rgba(170,200,220,.35)'; ctx.lineWidth = 1; ctx.beginPath();
+    const t = time / 1000;
+    for (const d of raindrops) {
+      const y = (d.y + t * d.v) % (canvas.height + 40) - 20, x = (d.x - t * d.v * 0.25 + 4000) % (canvas.width + 40) - 20;
+      ctx.moveTo(x, y); ctx.lineTo(x - d.l * 0.25, y + d.l);
+    }
+    ctx.stroke();
+  }
+}
+
 function drawVignette(dread, time) {
   const flicker = reduceMotion ? 0 : (Math.sin(time / 90) * Math.sin(time / 37)) * 0.05 * dread;
   const g = cachedGrad(`vig${q(dread)}`, () => {
@@ -397,6 +441,7 @@ function frame(now) {
   ctx.restore();
   if (state.flash > 0) { ctx.fillStyle = `rgba(210,230,255,${state.flash.toFixed(2)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); state.flash = Math.max(0, state.flash - 0.04); }
   else if (!reduceMotion && dread > 0.4 && Math.random() < 0.0015 * dread) state.flash = 0.5;
+  drawWeather(dread, time);
   drawVignette(dread, time);
   drawToast(performance.now());
   if (performance.now() - state.narrationAt > 7000) $('narration').style.opacity = 0.35;
@@ -413,13 +458,17 @@ function syncUi() {
   state.tracker.update(d).forEach(omen);
   updateDesc();
 }
-function pushHash() { history.replaceState(null, '', encodeHash({ seed: state.seed, sanity: state.sanity.value })); }
+function pushHash() { history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}`); }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
 function adjust(delta, location) { state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
 function applyHash() {
   const h = decodeHash(location.hash);
   state.seed = h.seed; $('seed').value = h.seed; state.sanity = new SanityModel(h.sanity);
-  if (state.catalog) rebuild(); syncUi();
+  state.night = nightFromHash(location.hash, 9);
+  if (state.catalog) rebuild();
+  // a shared night link without an explicit sanity starts at that night's sanity
+  if (state.catalog && /night=/.test(location.hash) && !/sanity=/.test(location.hash)) state.sanity = new SanityModel(currentNight().sanityStart);
+  syncUi();
 }
 function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); pushHash(); }
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); }
@@ -428,11 +477,22 @@ function listen(i) {
   setFocus(i); adjust(-2, p.id);
 }
 function download(name, text, mime) {
-  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function report() { return buildVillageReport(state.catalog, state.layout, GRID_W, GRID_D, state.seed, state.sanity.dread); }
+function postcard() {
+  const n = currentNight(); if (!n) return;
+  const out = document.createElement('canvas'); out.width = canvas.width; out.height = canvas.height + 56;
+  const c2 = out.getContext('2d');
+  c2.fillStyle = '#05080a'; c2.fillRect(0, 0, out.width, out.height);
+  c2.drawImage(canvas, 0, 0);
+  c2.fillStyle = '#0c1214'; c2.fillRect(0, canvas.height, out.width, 56);
+  c2.textAlign = 'center'; c2.fillStyle = '#cfd8d3'; c2.font = 'italic 24px Georgia, serif';
+  c2.fillText(postcardCaption({ villageName: state.campaign.villageName, seed: state.seed, night: n.number, title: n.title }), out.width / 2, canvas.height + 36);
+  out.toBlob((blob) => { if (blob) download(postcardFilename(state.seed, n.number), blob, 'image/png'); }, 'image/png');
+}
 function setSound(on) { $('sound').checked = on; if (on) { startAudio(); syncUi(); } else stopAudio(); }
 
 canvas.addEventListener('click', (e) => {
@@ -462,6 +522,10 @@ $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
 $('drain').addEventListener('change', (e) => { state.drain = e.target.checked; });
 $('sound').addEventListener('change', (e) => setSound(e.target.checked));
+$('night').addEventListener('change', () => selectNight(Number($('night').value)));
+$('nightPrev').addEventListener('click', () => selectNight(state.night - 1));
+$('nightNext').addEventListener('click', () => selectNight(state.night + 1));
+$('postcard').addEventListener('click', postcard);
 $('dlMd').addEventListener('click', () => download(reportFilename(state.seed, 'md'), reportToMarkdown(report()), 'text/markdown'));
 $('dlJson').addEventListener('click', () => download(reportFilename(state.seed, 'json'), reportToJson(report()), 'application/json'));
 
@@ -478,6 +542,9 @@ addEventListener('keydown', (e) => {
     case ']': setSanity(state.sanity.value + 5); break;
     case 'd': case 'D': $('drain').checked = !$('drain').checked; state.drain = $('drain').checked; break;
     case 'm': case 'M': setSound(!$('sound').checked); break;
+    case ',': selectNight(state.night - 1); break;
+    case '.': selectNight(state.night + 1); break;
+    case 'p': case 'P': postcard(); break;
     case '?': $('keys').open = !$('keys').open; break;
     default:
   }

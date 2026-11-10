@@ -28,5 +28,7 @@
 - [ ] 26. In Unity: run the auto-binder against the imported pack and fix any mismatched names
 - [ ] 27. In Unity: set `VillageBuilder.pieceCount` to 80 if you want the same village as the web demo
 - [ ] 28. Enable GitHub Pages (Settings > Pages > Source: GitHub Actions) and confirm CI runs on GitHub
+- [x] 29. Core: seeded `CampaignGenerator` (village name, per-night title, rising dread target, sky, weather, rumor, lore) with JS port, golden parity and tests
+- [x] 30. Web: campaign panel and night selector, dusk/night/witching tint, rain and fog, postcard PNG export
 
 Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publish the video), 26, 27 and 28.

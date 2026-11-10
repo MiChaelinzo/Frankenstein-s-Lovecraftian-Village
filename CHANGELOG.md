@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Core: `CampaignGenerator` (seeded multi-night arc with village name, titles, strictly rising dread targets, sky, weather, rumors and lore), with C# property tests, golden parity and a JS port in `web/src/core.js`.
+- Web demo: campaign panel with night selector (`,` `.`), `#night=N` share links, dusk/night/witching tint, rain and fog weather (static under reduced motion), and postcard PNG export (`P`). Screenshot: `docs/media/campaign-night5.png`.
 - Core: `DreadEvents` (Uneasy, Dire and Abyss thresholds with hysteresis), `VillageReport` (Markdown and JSON), `PrefabNameMatcher`, each with property tests.
 - Golden parity extended to cover dread events and reports; the JS port in `web/src/core.js` matches C# exactly.
 - Editor: `CatalogAutoBinder` binds catalog ids to imported pack prefabs by name (unverified in the Unity editor).
