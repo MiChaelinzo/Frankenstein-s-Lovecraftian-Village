@@ -12,6 +12,8 @@ namespace Frankenstein.Core
         public int footprintX = 1;
         public int footprintZ = 1;
         public int horror;
+        /// <summary>Optional real prefab name (names only) this id should bind to. Empty when absent.</summary>
+        public string prefabHint;
     }
 
     /// <summary>Pure C# catalog of stitchable village pieces, looked up by string id.</summary>

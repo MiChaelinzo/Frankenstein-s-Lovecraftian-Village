@@ -1,10 +1,10 @@
 {
   "entries": [
-    { "id": "house_a", "category": "House", "weight": 5, "footprintX": 1, "footprintZ": 1, "horror": 2 },
-    { "id": "house_b", "category": "House", "weight": 4, "footprintX": 1, "footprintZ": 1, "horror": 3 },
-    { "id": "church", "category": "Landmark", "weight": 1, "footprintX": 2, "footprintZ": 2, "horror": 5 },
-    { "id": "well", "category": "Prop", "weight": 3, "footprintX": 1, "footprintZ": 1, "horror": 4 },
-    { "id": "dead_tree", "category": "Prop", "weight": 6, "footprintX": 1, "footprintZ": 1, "horror": 3 },
-    { "id": "altar", "category": "Landmark", "weight": 1, "footprintX": 1, "footprintZ": 1, "horror": 8 }
+    { "id": "house_a", "category": "House", "weight": 5, "footprintX": 1, "footprintZ": 1, "horror": 2, "prefabHint": "BigHouse00" },
+    { "id": "house_b", "category": "House", "weight": 4, "footprintX": 1, "footprintZ": 1, "horror": 3, "prefabHint": "CoastalHouse00" },
+    { "id": "church", "category": "Landmark", "weight": 1, "footprintX": 2, "footprintZ": 2, "horror": 5, "prefabHint": "Pinnacle00c" },
+    { "id": "well", "category": "Prop", "weight": 3, "footprintX": 1, "footprintZ": 1, "horror": 4, "prefabHint": "WoodBucket00" },
+    { "id": "dead_tree", "category": "Prop", "weight": 6, "footprintX": 1, "footprintZ": 1, "horror": 3, "prefabHint": "_Sp_TrunkDead00" },
+    { "id": "altar", "category": "Landmark", "weight": 1, "footprintX": 1, "footprintZ": 1, "horror": 8, "prefabHint": "PillarStone00a" }
   ]
 }
