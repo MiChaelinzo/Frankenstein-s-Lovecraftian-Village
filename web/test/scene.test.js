@@ -69,3 +69,12 @@ test('omen text, filenames, wrapping and description', () => {
   assert.equal(wrapIndex(0, 0, 1), -1);
   assert.match(describeScene({ seed: 1, pieces: 2, tierName: 'Calm', dreadPercent: 0, focus: 'church' }), /Listening to church/);
 });
+
+test('nightClampNotice explains out-of-range nights and stays silent otherwise', async () => {
+  const { nightClampNotice } = await import('../src/scene.js');
+  assert.match(nightClampNotice('#seed=1&night=7', 5), /Night 7 does not exist.*5 nights.*night 5/);
+  assert.match(nightClampNotice('#night=0', 5), /night 1/);
+  assert.equal(nightClampNotice('#night=5', 5), '');
+  assert.equal(nightClampNotice('#seed=1', 5), '');
+  assert.equal(nightClampNotice('#night=abc', 5), '');
+});

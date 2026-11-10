@@ -159,6 +159,13 @@ export function postcardCaption({ villageName, seed, night, title }) {
   return `${villageName} | Night ${night}: ${title} | seed ${seed | 0}`;
 }
 
+/** Returns a visible notice when night=N in the hash is outside 1..count and gets clamped, else an empty string. */
+export function nightClampNotice(hash, count) {
+  const v = Number.parseInt(new URLSearchParams(String(hash || '').replace(/^#/, '')).get('night'), 10);
+  if (!Number.isFinite(v) || count <= 0 || (v >= 1 && v <= count)) return '';
+  return `Night ${v} does not exist: this campaign has ${count} nights, so showing night ${Math.max(1, Math.min(count, v))}.`;
+}
+
 /** Reads an optional night=N (1-based) from a URL hash and returns a 0-based index clamped to [0, count). */
 export function nightFromHash(hash, count) {
   const v = Number.parseInt(new URLSearchParams(String(hash || '').replace(/^#/, '')).get('night'), 10);

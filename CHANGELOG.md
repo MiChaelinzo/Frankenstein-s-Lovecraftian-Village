@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - Web: story mode panel (Previous, Next, Play/Pause, Exit, `S` key, `#story=1&night=N&beat=N` and `?story=1&autoplay=1` deep links), skippable intro dialog (`web/src/intro.js`, `?intro=0`, auto-skip on deep links, static under reduced motion), and an original procedural WebAudio soundtrack (`web/src/music.js`, opt-in, volume, mute `U`, reduced-motion aware) replacing the old drone. No audio files. Node tests `music.test.js`, `intro.test.js`, extended smoke test. The audio itself was not heard in this environment (headless), only its pure helpers are tested.
 - Core: `StorySequencer` (`StoryBeats.cs`) builds an ordered list of story beats per campaign night (title, rumor, lore, omen chosen by dread tier with `SeededRandom`, sky and weather note) plus navigation and reading-time helpers. JS port in `web/src/story.js` with deep link parsing (`#story=N&beat=N`). C# property tests, golden parity (`stories`), `web/test/story.test.js` and a self-test group. The story mode UI is not part of this commit.
 
+### Fixed
+- Web: the top hint is hidden while an omen banner shows, so they no longer overlap. A visible notice appears when `night=N` exceeds the campaign length and is clamped (`nightClampNotice`, tested).
+- `DlnkCameraModeBridge.ApplySuggested` no longer overwrites the player's `Requested` mode (new `Suggested` field). `DlnkTownManagerBridge` adds `onAggregateChanged(mean, counts)`, `MeanLevel` and `LevelCounts`. Both Unity scripts are uncompiled.
+- Tools: `fetch_pack.py` checks pinned SHA-256 values from the README (or `--expect`) and exits non-zero on mismatch; new `tools/test_fetch_pack.py` and `tools/test_headers.py` (header parity across netlify.toml, vercel.json, web/_headers).
+
 ### Changed
 - Runtime: `VillageBuilder.pieceCount` default raised from 40 to 80 to match the web demo. Existing Unity scenes that rely on the default will generate a larger village; set it back to 40 to keep the old layout.
 - Web: changing the seed now re-applies the selected night's sanity so the night panel and scene agree.

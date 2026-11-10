@@ -6,7 +6,7 @@ import {
 } from './core.js';
 import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
-  reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash,
+  reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash, nightClampNotice,
 } from './scene.js';
 import { buildStory, clampBeat, nextBeat, prevBeat, nightStartIndex, parseStoryParam } from './story.js';
 import { createAmbient } from './music.js';
@@ -102,6 +102,7 @@ function rebuild() {
   state.campaign = generateCampaign(state.seed);
   story.beats = [];
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
+  showNightClamp();
   renderCampaign();
   $('listen').innerHTML = '<option value="">Choose a landmark</option>' +
     state.landmarks.map((p, i) => `<option value="${i}">${esc(prettyId(p.id))}${hintLabel(p.id) ? ` [${esc(hintLabel(p.id))}]` : ''} at (${p.x}, ${p.z})</option>`).join('');
@@ -553,10 +554,19 @@ function drawPackBadge() {
   ctx.fillStyle = pack.manifest ? 'rgb(190,230,210)' : 'rgb(240,200,150)'; ctx.fillText(text, 16, canvas.height - 15); ctx.restore();
 }
 
+let hintHidden = false;
+// the top hint and the omen banner share the top edge; hide the hint while a banner shows
+function setHintHidden(on) {
+  if (on === hintHidden) return;
+  hintHidden = on;
+  const h = $('hint'); if (h) h.style.visibility = on ? 'hidden' : '';
+}
 function drawToast(now) {
-  const t = state.toast; if (!t) return;
+  const t = state.toast;
+  setHintHidden(!!t);
+  if (!t) return;
   const age = now - t.at;
-  if (age > 6000) { state.toast = null; return; }
+  if (age > 6000) { state.toast = null; setHintHidden(false); return; }
   const a = reduceMotion ? 1 : Math.min(1, age / 400, (6000 - age) / 800);
   ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.font = 'italic 26px Georgia, serif'; ctx.textAlign = 'center';
   const w = Math.min(canvas.width - 20, (ctx.measureText ? ctx.measureText(t.text).width : 400) + 48);
@@ -676,6 +686,11 @@ function tryDoor(p) {
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
 function adjust(delta, location) { state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
+function showNightClamp() {
+  const el = $('nightClamp'); if (!el) return;
+  const msg = state.campaign ? nightClampNotice(location.hash, state.campaign.nights.length) : '';
+  el.textContent = msg; el.hidden = !msg;
+}
 function applyHash() {
   state.theme = parseTheme(optParam('theme')); state.camChoice = parseCamera(optParam('cam'));
   state.floor = parseFloor(optParam('floor'), Number($('floor').max) || 8);
