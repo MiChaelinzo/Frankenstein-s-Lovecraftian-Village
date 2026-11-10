@@ -2,12 +2,18 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, DREAD_THRESHOLDS, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   StaticNarrationProvider, SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
+  detailLevel, doorOmen,
 } from './core.js';
 import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
   reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash,
 } from './scene.js';
 import { validateManifest, pickRole, hintFor, badgeText, tintChannel } from './pack.js';
+import {
+  THEMES, THEME_GROUPS, parseTheme, themeRole, themeColors, parseCamera, effectiveCamera, cameraProfile, cameraOverridden,
+  floorCountFor, maxFloors, visibleFloors, parseFloor, detailFeatures, DOOR_NAMES, doorMessage, buildingKey, nearestDoor,
+  doorShake, DOOR_RING, CAMERA_LABELS,
+} from './building.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
 const $ = (id) => document.getElementById(id);
@@ -19,6 +25,12 @@ if (reduceMotion) document.documentElement?.classList?.add('reduced');
 
 const V = computeView(canvas.width, canvas.height, GRID_W, GRID_D);
 const TW = V.tw, TH = V.th;
+const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
+// Camera projection state: k squashes the board vertically, hs scales building heights. Eases between modes.
+const cam = { mode: 1, k: 1, hs: 1, settled: true };
+const optParam = (name) => new URLSearchParams(String(location.hash || '').replace(/^#/, '')).get(name) ?? params.get(name);
+let dirty = true;
+const mark = () => { dirty = true; start(); };
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const mix = (c1, c2, t) => `rgb(${lerp(c1[0], c2[0], t) | 0},${lerp(c1[1], c2[1], t) | 0},${lerp(c1[2], c2[2], t) | 0})`;
@@ -28,6 +40,7 @@ const prettyId = (id) => id.replace(/_/g, ' ');
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
+  theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
 };
 
@@ -76,7 +89,16 @@ function rebuild() {
     const r = new SeededRandom(state.seed * 31 + i * 7919 + 1); // visual-only variation, separate from layout RNG
     p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 };
     p.depth = p.x + p.sizeX + p.z + p.sizeZ;
+    p.key = buildingKey(p);
+    p.floors = floorCountFor(p.id, p.vis.h, p.vis.tilt);
   });
+  state.attempts.clear(); state.shakes.clear(); state.doorFocus = -1;
+  state.doors = state.layout.filter((p) => p.id === 'house_a' || p.id === 'house_b');
+  refreshDetail();
+  const mf = maxFloors(state.layout);
+  $('floor').max = String(mf - 1);
+  state.floor = parseFloor(state.floor, mf - 1);
+  $('floor').value = String(state.floor);
   state.drawOrder = [...state.layout].sort((a, b) => a.depth - b.depth);
   state.landmarks = state.layout.filter((p) => p.id === 'church' || p.id === 'altar' || p.id === 'well');
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
@@ -91,6 +113,9 @@ function rebuild() {
   updateDesc();
   say(null);
 }
+
+// Omen-driven detail: a building's detail level (0..3) only falls as dread rises, each on its own seeded delay.
+function refreshDetail() { for (const p of state.layout) p.detail = detailLevel(state.sanity.dread, p.key, state.seed); }
 
 // ---------- campaign ----------
 const currentNight = () => state.campaign && state.campaign.nights[state.night];
@@ -121,11 +146,14 @@ function say(locationId) {
   state.narrationAt = performance.now();
   $('narration').textContent = line;
   $('narration').style.opacity = 1;
+  const at = state.narrationAt; setTimeout(() => { if (state.narrationAt === at) $('narration').style.opacity = 0.35; }, 7000);
   log('narration', line);
 }
+function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
   const text = omenText(e);
   state.toast = { text, at: performance.now(), rising: e.rising };
+  announce(text); mark();
   if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
   log('omen', text);
 }
@@ -139,9 +167,10 @@ function updateDesc() {
 }
 
 // ---------- drawing helpers ----------
-function iso(x, z) { return { x: V.ox + (x - z) * TW / 2, y: V.oy + (x + z) * TH / 2 }; }
+function iso(x, z) { const y = V.oy + (x + z) * TH / 2; return { x: V.ox + (x - z) * TW / 2, y: BOARD_CY + (y - BOARD_CY) * cam.k }; }
 const lerpPt = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
 const rise = (p, h) => ({ x: p.x, y: p.y - h });
+const riseH = (p, h) => rise(p, h * cam.hs);
 
 // ---------- optional local pack mode (?pack=1), textures come from the git-ignored web/local-pack/ ----------
 const pack = { want: params.get('pack') === '1', manifest: null, roles: {}, patterns: {}, notice: '' };
@@ -171,10 +200,41 @@ async function loadPack() {
     console.warn(`[pack] ${err.message}`);
   }
 }
-const surf = (role, color, shade = 0) => (role && pack.patterns[role] ? { role, color, shade } : color);
+// Procedural texture library (no assets): one small seamless pattern per theme, built once on a tiny offscreen canvas.
+const procPatterns = {};
+function buildProcPattern(id) {
+  const [lit, shaded] = themeColors(id);
+  const S = 64, off = document.createElement('canvas'); off.width = S; off.height = S;
+  const o = off.getContext('2d'), r = new SeededRandom(id.length * 977 + id.charCodeAt(0));
+  const c = (a, t = 0) => `rgb(${a.map((v) => Math.max(0, Math.min(255, v + t)) | 0).join(',')})`;
+  o.fillStyle = c(lit); o.fillRect(0, 0, S, S);
+  o.lineWidth = 1;
+  if (id === 'bricks') {
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 4; col++) {
+      o.fillStyle = c(lit, r.next(30) - 15); o.fillRect(col * 16 + (row % 2) * 8, row * 8, 15, 7);
+    }
+    o.fillStyle = c(shaded, -20); for (let row = 0; row < 8; row++) o.fillRect(0, row * 8 + 7, S, 1);
+  } else if (id === 'plaster') {
+    for (let i = 0; i < 160; i++) { o.fillStyle = c(i % 2 ? shaded : lit, r.next(24) - 12); o.fillRect(r.next(S), r.next(S), 1 + r.next(3), 1 + r.next(2)); }
+  } else if (id === 'tiles') {
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) { o.fillStyle = c(lit, r.next(24) - 12); o.fillRect(col * 16 + 1, row * 16 + 1, 14, 14); }
+    o.fillStyle = c(shaded, -25); for (let i = 0; i < 4; i++) { o.fillRect(0, i * 16, S, 1); o.fillRect(i * 16, 0, 1, S); }
+  } else if (id === 'wood') {
+    for (let p = 0; p < 8; p++) { o.fillStyle = c(lit, r.next(30) - 15); o.fillRect(p * 8, 0, 8, S); o.fillStyle = c(shaded, -20); o.fillRect(p * 8, 0, 1, S); }
+    o.strokeStyle = c(shaded); for (let i = 0; i < 14; i++) { const x = r.next(S); o.beginPath(); o.moveTo(x, 0); o.lineTo(x + r.next(3) - 1, S); o.stroke(); }
+  } else if (id === 'rocks') {
+    for (let i = 0; i < 26; i++) { o.fillStyle = c(r.next(2) ? lit : shaded, r.next(30) - 15); o.beginPath(); o.ellipse(r.next(S), r.next(S), 5 + r.next(8), 4 + r.next(6), r.next(31) / 10, 0, 7); o.fill(); }
+  } else {
+    o.strokeStyle = c(shaded, 30); for (let row = 0; row < 8; row++) { o.beginPath(); for (let x = 0; x <= S; x += 4) o.lineTo(x, row * 8 + 4 + Math.sin((x / S) * 6.283 * 2 + row) * 2); o.stroke(); }
+  }
+  return ctx.createPattern(off, 'repeat');
+}
+function ensureProcPatterns() { for (const t of THEMES) if (!procPatterns[`proc_${t.id}`]) procPatterns[`proc_${t.id}`] = buildProcPattern(t.id); }
+const resolvePattern = (role) => pack.patterns[role] || procPatterns[role] || null;
+const surf = (role, color, shade = 0) => (role && resolvePattern(role) ? { role, color, shade } : color);
 const hintLabel = (id) => (pack.manifest ? hintFor(pack.manifest, id) : '');
 function paintSurface(s) {
-  ctx.fillStyle = pack.patterns[s.role]; ctx.fill();
+  ctx.fillStyle = resolvePattern(s.role); ctx.fill();
   ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = s.color; ctx.fill();
   if (s.shade) { ctx.globalAlpha = s.shade; ctx.fillStyle = '#000'; ctx.fill(); }
   ctx.restore();
@@ -187,7 +247,7 @@ function poly(points, fill, stroke) {
 
 function box(cx, cy, sx, sz, h, top, left, right) {
   const a = iso(cx, cy), b = iso(cx + sx, cy), c = iso(cx + sx, cy + sz), d = iso(cx, cy + sz);
-  const up = (p) => ({ x: p.x, y: p.y - h });
+  const up = (p) => ({ x: p.x, y: p.y - h * cam.hs });
   poly([d, c, up(c), up(d)], left); // left-facing wall (z+ edge)
   poly([b, c, up(c), up(b)], right);
   if (top) poly([up(a), up(b), up(c), up(d)], top);
@@ -206,11 +266,11 @@ function glow(x, y, r, rgb, alpha, sy = 1) {
 function gableRoof(bx, rh, alongX, front, back, gable) {
   const ua = bx.up(bx.a), ub = bx.up(bx.b), uc = bx.up(bx.c), ud = bx.up(bx.d);
   if (alongX) {
-    const m1 = rise(lerpPt(ud, ua, 0.5), rh), m2 = rise(lerpPt(uc, ub, 0.5), rh);
+    const m1 = riseH(lerpPt(ud, ua, 0.5), rh), m2 = riseH(lerpPt(uc, ub, 0.5), rh);
     poly([ua, ub, m2, m1], back); poly([ub, uc, m2], gable); poly([ud, uc, m2, m1], front);
     return { m1, m2 };
   }
-  const m1 = rise(lerpPt(ua, ub, 0.5), rh), m2 = rise(lerpPt(ud, uc, 0.5), rh);
+  const m1 = riseH(lerpPt(ua, ub, 0.5), rh), m2 = riseH(lerpPt(ud, uc, 0.5), rh);
   poly([ua, ud, m2, m1], back); poly([ud, uc, m2], gable); poly([ub, uc, m2, m1], front);
   return { m1, m2 };
 }
@@ -223,44 +283,79 @@ function windowAt(pt, w, hh, st, dread, flick) {
   ctx.fillRect(pt.x - w / 2, pt.y, w, hh);
 }
 
+const topDownNow = () => cam.mode === 2;
+function doorPoint(p) { const m = 0.05; return lerpPt(iso(p.x + m, p.z + p.sizeZ - m), iso(p.x + p.sizeX - m, p.z + p.sizeZ - m), 0.2); }
+
 function drawPiece(p, dread, time) {
   const v = p.vis;
+  const feat = detailFeatures(p.detail);
+  const topDown = topDownNow();
   const flick = reduceMotion ? 1 : 0.8 + 0.2 * Math.sin(time / (140 + v.phase % 90) + v.phase) * (0.6 + dread);
   const wall = mix([66, 74, 78], [70, 30, 36], dread);
   const wallR = mix([46, 54, 60], [48, 18, 24], dread);
   const roofF = mix([58, 44, 48], [44, 12, 20], dread);
   const roofB = mix([40, 32, 36], [28, 8, 14], dread);
+  const slab = mix([62, 56, 50], [54, 22, 26], dread);
   const m = 0.05;
   const roles = pack.roles;
-  const wallRole = p.id === 'house_b' ? pickRole(roles, v.h < 0.5 ? 'wall_brick' : 'wall_plaster', 'wall_wood') : pickRole(roles, v.h < 0.5 ? 'wall_wood' : 'wall_plaster', 'wall_wood');
-  const stoneRole = pickRole(roles, 'wall_stone', 'wall_brick');
-  const roofRole = pickRole(roles, 'roof', 'wall_wood');
+  const themed = state.theme !== 'auto' ? themeRole(state.theme, pack.patterns) : null;
+  // omen-driven detail: textures drop out first, then windows, doors and the roof as the building decays
+  const sf = (role, color, shade) => (feat.texture ? surf(role, color, shade) : color);
+  const wallRole = themed || (p.id === 'house_b' ? pickRole(roles, v.h < 0.5 ? 'wall_brick' : 'wall_plaster', 'wall_wood') : pickRole(roles, v.h < 0.5 ? 'wall_wood' : 'wall_plaster', 'wall_wood'));
+  const stoneRole = themed || pickRole(roles, 'wall_stone', 'wall_brick');
+  const roofRole = state.theme === 'tiles' ? themed : pickRole(roles, 'roof', 'wall_wood');
   const cx = p.x + m, cz = p.z + m, sx = p.sizeX - 2 * m, sz = p.sizeZ - 2 * m;
   switch (p.id) {
     case 'house_a': case 'house_b': {
-      const h = 13 + v.h * 6 + (p.id === 'house_b' ? 5 : 0);
-      const bx = box(cx, cz, sx, sz, h, null, surf(wallRole, wall, 0.05), surf(wallRole, wallR, 0.35));
-      const roof = gableRoof(bx, 10 + v.tilt * 4, v.tilt < 0.5, surf(roofRole, roofF, 0.1), surf(roofRole, roofB, 0.4), surf(wallRole, wallR, 0.35));
-      if (p.id === 'house_b') { ctx.fillStyle = roofB; ctx.fillRect(roof.m1.x + (roof.m2.x - roof.m1.x) * 0.3 - 2, roof.m1.y - 7, 4, 9); }
-      windowAt(lerpPt(bx.d, bx.c, 0.5), 5, 6, windowState(v.lit, dread), dread, flick);
-      windowAt(lerpPt(rise(bx.b, 0), rise(bx.c, 0), 0.5), 5, 6, windowState(v.lit2, dread), dread, flick);
-      ctx.fillStyle = 'rgba(8,8,10,.8)'; const door = lerpPt(bx.d, bx.c, 0.2); ctx.fillRect(door.x - 2, door.y - 7, 4, 7);
+      const fh = 11 + v.h * 3, ph = fh * cam.hs;
+      const vis = visibleFloors(p.floors, state.floor, topDown);
+      const n = Math.max(1, vis.length);
+      const flat = feat.roof ? slab : mix([30, 28, 28], [22, 8, 12], dread); // cutaway slab, or a collapsed flat top
+      const bx = box(cx, cz, sx, sz, n * fh, topDown || !feat.roof ? flat : null, sf(wallRole, wall, 0.05), sf(wallRole, wallR, 0.35));
+      if (topDown) {
+        const inset = 0.18, t = n * ph;
+        poly([iso(cx + inset, cz + inset), iso(cx + sx - inset, cz + inset), iso(cx + sx - inset, cz + sz - inset), iso(cx + inset, cz + sz - inset)].map((pt) => rise(pt, t)), mix([26, 24, 24], [30, 8, 12], dread));
+      }
+      for (let i = 1; feat.floorLines && i < n; i++) {
+        ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.beginPath();
+        const l1 = rise(bx.d, i * ph), l2 = rise(bx.c, i * ph), l3 = rise(bx.b, i * ph);
+        ctx.moveTo(l1.x, l1.y); ctx.lineTo(l2.x, l2.y); ctx.lineTo(l3.x, l3.y); ctx.stroke();
+      }
+      if (feat.trim) {
+        ctx.strokeStyle = 'rgba(200,210,205,.22)'; ctx.beginPath();
+        for (const c of [bx.d, bx.c, bx.b]) { const u = bx.up(c); ctx.moveTo(c.x, c.y); ctx.lineTo(u.x, u.y); }
+        ctx.stroke();
+      }
+      if (!topDown && feat.roof) {
+        const roof = gableRoof(bx, 10 + v.tilt * 4, v.tilt < 0.5, sf(roofRole, roofF, 0.1), sf(roofRole, roofB, 0.4), sf(wallRole, wallR, 0.35));
+        if (p.id === 'house_b' && feat.chimney) { ctx.fillStyle = roofB; ctx.fillRect(roof.m1.x + (roof.m2.x - roof.m1.x) * 0.3 - 2, roof.m1.y - 7, 4, 9); }
+      }
+      for (const f of vis) {
+        if (!feat.windows) break;
+        const r1 = f === 0 ? v.lit : (v.lit * 7 + f * 0.37) % 1, r2 = f === 0 ? v.lit2 : (v.lit2 * 5 + f * 0.53) % 1;
+        const st = (r) => (feat.lit ? windowState(r, dread) : 'off');
+        windowAt(rise(lerpPt(bx.d, bx.c, 0.55), f * ph + ph * 0.8), 5, 6, st(r1), dread, flick);
+        windowAt(rise(lerpPt(bx.b, bx.c, 0.5), f * ph + ph * 0.8), 5, 6, st(r2), dread, flick);
+      }
+      const door = lerpPt(bx.d, bx.c, 0.2);
+      if (feat.door) { ctx.fillStyle = 'rgba(8,8,10,.8)'; ctx.fillRect(door.x - 2, door.y - 7, 4, 7); }
+      else { ctx.fillStyle = 'rgba(30,22,16,.9)'; ctx.fillRect(door.x - 2, door.y - 7, 4, 7); ctx.strokeStyle = 'rgba(120,100,80,.8)'; ctx.beginPath(); ctx.moveTo(door.x - 2, door.y - 6); ctx.lineTo(door.x + 2, door.y - 1); ctx.moveTo(door.x + 2, door.y - 6); ctx.lineTo(door.x - 2, door.y - 1); ctx.stroke(); }
       break;
     }
     case 'church': {
-      const sw = surf(stoneRole, wall, 0.05), swR = surf(stoneRole, wallR, 0.35), sRoofF = surf(roofRole, roofF, 0.1), sRoofB = surf(roofRole, roofB, 0.4);
+      const sw = sf(stoneRole, wall, 0.05), swR = sf(stoneRole, wallR, 0.35), sRoofF = sf(roofRole, roofF, 0.1), sRoofB = sf(roofRole, roofB, 0.4);
       const tower = box(p.x + 0.12, p.z + 0.12, 0.8, 0.8, 58, sRoofF, sw, swR);
-      const apex = rise(lerpPt(tower.up(tower.a), tower.up(tower.c), 0.5), 30);
+      const apex = riseH(lerpPt(tower.up(tower.a), tower.up(tower.c), 0.5), 30);
       poly([tower.up(tower.d), tower.up(tower.c), apex], sRoofF); poly([tower.up(tower.b), tower.up(tower.c), apex], sRoofB);
-      windowAt(lerpPt(rise(tower.d, 42), rise(tower.c, 42), 0.5), 4, 9, dread > 0.85 ? 'red' : 'warm', dread, flick);
-      const bx = box(cx, cz, sx, sz, 26, null, sw, swR);
-      gableRoof(bx, 14, true, sRoofF, sRoofB, swR);
-      windowAt(lerpPt(rise(bx.d, 6), rise(bx.c, 6), 0.3), 5, 11, dread > 0.7 ? 'red' : 'warm', dread, flick);
-      windowAt(lerpPt(rise(bx.d, 6), rise(bx.c, 6), 0.7), 5, 11, dread > 0.7 ? 'red' : 'warm', dread, flick);
+      if (feat.windows) windowAt(lerpPt(rise(tower.d, 42 * cam.hs), rise(tower.c, 42 * cam.hs), 0.5), 4, 9, feat.lit ? (dread > 0.85 ? 'red' : 'warm') : 'off', dread, flick);
+      const nVis = Math.max(1, visibleFloors(p.floors, state.floor, topDown).length);
+      const bx = box(cx, cz, sx, sz, 13 * nVis, topDown || !feat.roof ? slab : null, sw, swR);
+      if (!topDown && feat.roof) gableRoof(bx, 14, true, sRoofF, sRoofB, swR);
+      if (feat.windows) for (const t of [0.3, 0.7]) windowAt(lerpPt(rise(bx.d, 6 * cam.hs), rise(bx.c, 6 * cam.hs), t), 5, 11, feat.lit ? (dread > 0.7 ? 'red' : 'warm') : 'off', dread, flick);
       break;
     }
     case 'well': {
-      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 9, mix([30, 40, 44], [20, 5, 8], dread), surf(stoneRole, mix([84, 90, 92], [92, 40, 44], dread), 0.05), surf(stoneRole, mix([60, 66, 70], [60, 22, 28], dread), 0.35));
+      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 9, mix([30, 40, 44], [20, 5, 8], dread), sf(stoneRole, mix([84, 90, 92], [92, 40, 44], dread), 0.05), sf(stoneRole, mix([60, 66, 70], [60, 22, 28], dread), 0.35));
       ctx.fillStyle = dread > 0.5 ? `rgba(170,20,30,${(0.5 + 0.4 * flick).toFixed(2)})` : 'rgba(10,20,26,.9)';
       const c = lerpPt(bx.up(bx.a), bx.up(bx.c), 0.5); ctx.beginPath(); ctx.ellipse(c.x, c.y, 7, 3.4, 0, 0, 7); ctx.fill();
       break;
@@ -279,12 +374,12 @@ function drawPiece(p, dread, time) {
       break;
     }
     case 'altar': {
-      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 10, mix([70, 72, 80], [90, 20, 30], dread), surf(stoneRole, mix([40, 42, 50], [50, 12, 18], dread), 0.1), surf(stoneRole, mix([30, 32, 40], [36, 8, 14], dread), 0.35));
+      const bx = box(cx + 0.1, cz + 0.1, sx - 0.2, sz - 0.2, 10, mix([70, 72, 80], [90, 20, 30], dread), sf(stoneRole, mix([40, 42, 50], [50, 12, 18], dread), 0.1), sf(stoneRole, mix([30, 32, 40], [36, 8, 14], dread), 0.35));
       const c = lerpPt(bx.up(bx.a), bx.up(bx.c), 0.5);
       glow(c.x, c.y, 26 + 26 * dread, '160,255,200', 0.3 + 0.2 * flick);
       break;
     }
-    default: box(cx, cz, sx, sz, 12, roofF, surf(wallRole, wall, 0.05), surf(wallRole, wallR, 0.35));
+    default: box(cx, cz, sx, sz, 12, roofF, sf(wallRole, wall, 0.05), sf(wallRole, wallR, 0.35));
   }
 }
 
@@ -440,6 +535,17 @@ function drawFocus(time) {
   ctx.font = '600 20px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(label, c.x + 1, c.y + 26); ctx.fillStyle = 'rgb(190,255,220)'; ctx.fillText(label, c.x, c.y + 25);
 }
 
+function drawDoorMarks(real) {
+  const f = state.doors[state.doorFocus];
+  if (f) { const pt = doorPoint(f); ctx.strokeStyle = 'rgba(160,255,200,.9)'; ctx.setLineDash?.([3, 3]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pt.x, pt.y - 3, 9, 0, 7); ctx.stroke(); ctx.setLineDash?.([]); }
+  for (const [k, sh] of state.shakes) {
+    const p = state.layout.find((q) => q.key === k); if (!p) continue;
+    const pt = doorPoint(p), age = real - sh.at;
+    ctx.strokeStyle = DOOR_RING[sh.behavior]; ctx.lineWidth = 2; ctx.globalAlpha = Math.max(0, 1 - age / 1500);
+    ctx.beginPath(); ctx.arc(pt.x, pt.y - 3, 8 + Math.min(10, age / 90), 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+}
+
 function drawPackBadge() {
   const text = pack.manifest ? badgeText(pack.manifest) : pack.notice;
   if (!text) return;
@@ -463,10 +569,28 @@ function drawToast(now) {
 
 let running = false;
 const active = [];
+// Eases the projection toward the effective camera. Returns true while still moving.
+function updateCamera(dread) {
+  cam.mode = effectiveCamera(state.camChoice, dread);
+  const prof = cameraProfile(cam.mode);
+  const step = reduceMotion || state.snap ? 1 : 0.15;
+  const nk = cam.k + (prof.k - cam.k) * step, nh = cam.hs + (prof.hs - cam.hs) * step;
+  cam.settled = Math.abs(nk - prof.k) < 0.004 && Math.abs(nh - prof.hs) < 0.004;
+  cam.k = cam.settled ? prof.k : nk; cam.hs = cam.settled ? prof.hs : nh;
+  return !cam.settled;
+}
 function frame(now) {
   if (document.hidden) { running = false; return; }
-  const time = reduceMotion ? 0 : now;
+  const real = performance.now();
+  for (const [k, sh] of state.shakes) if (real - sh.at > 1500) state.shakes.delete(k);
   const dread = state.sanity.dread, tier = tierFor(dread);
+  const moving = updateCamera(dread);
+  // Idle skip: with reduced motion nothing animates on its own, so only redraw after a change (or while a toast, flash or shake plays).
+  const busy = !reduceMotion || dirty || moving || state.flash > 0 || state.toast || state.shakes.size > 0;
+  if (!busy) { running = false; return; }
+  if (!state.visible) { requestAnimationFrame(frame); return; }
+  dirty = false;
+  const time = reduceMotion ? 0 : now;
   const eyeT = tier >= 3 ? 1 : 0, tentT = tier >= 3 ? 1 : tier >= 2 ? 0.4 : 0;
   state.eye = reduceMotion || state.snap ? eyeT : state.eye + (eyeT - state.eye) * 0.06;
   state.tentacle = reduceMotion || state.snap ? tentT : state.tentacle + (tentT - state.tentacle) * 0.06;
@@ -487,10 +611,13 @@ function frame(now) {
   let ai = 0;
   for (const p of state.drawOrder) {
     while (ai < active.length && active[ai].depth <= p.depth) drawCultist(active[ai++], dread, time);
-    drawPiece(p, dread, time);
+    const sh = state.shakes.get(p.key);
+    if (sh) { const o = doorShake(sh.behavior, real - sh.at, reduceMotion); ctx.save(); ctx.translate(o.dx, o.dy); drawPiece(p, dread, time); ctx.restore(); }
+    else drawPiece(p, dread, time);
   }
   while (ai < active.length) drawCultist(active[ai++], dread, time);
   drawFocus(time);
+  drawDoorMarks(real);
   drawTentacles(dread, time);
   drawFog(dread, time);
   ctx.restore();
@@ -500,7 +627,6 @@ function frame(now) {
   drawVignette(dread, time);
   drawToast(performance.now());
   drawPackBadge();
-  if (performance.now() - state.narrationAt > 7000) $('narration').style.opacity = 0.35;
   requestAnimationFrame(frame);
 }
 function start() { if (running) return; running = true; requestAnimationFrame(frame); }
@@ -511,13 +637,50 @@ function syncUi() {
   $('sanity').value = s; $('sanityOut').textContent = Math.round(s);
   $('dreadBar').style.width = `${(d * 100).toFixed(0)}%`; $('dreadOut').textContent = `Dread ${(d * 100).toFixed(0)}%`;
   updateAudio(d);
+  refreshDetail();
+  syncViewUi();
   state.tracker.update(d).forEach(omen);
   updateDesc();
+  mark();
 }
-function pushHash() { history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}`); }
+// Camera, floor and theme controls. The camera note explains when dread has overridden the request.
+function syncViewUi() {
+  const mode = effectiveCamera(state.camChoice, state.sanity.dread);
+  $('camera').value = state.camChoice; $('theme').value = state.theme;
+  const note = cameraOverridden(state.camChoice, state.sanity.dread) ? ' Top-down is refused at Abyss dread, so the view drops to the ground.' : '';
+  $('cameraNote').textContent = `Looking: ${CAMERA_LABELS[mode]}.${note}`;
+  const td = mode === 2;
+  $('floor').disabled = !td; $('floorOut').textContent = td ? `Floor ${state.floor + 1}` : 'Floor (top-down only)';
+  const base = THEMES.find((t) => t.id === state.theme);
+  $('themeNote').textContent = base ? `${base.label}, DLNK group ${base.group}. ${themeSource(base)}` : 'Default mixed look.';
+}
+function themeSource(t) { return t.packRole && pack.patterns[t.packRole] ? 'Using the local pack texture.' : 'Using the procedural pattern.'; }
+function pushHash() {
+  const extra = (state.theme !== 'auto' ? `&theme=${state.theme}` : '') + (state.camChoice !== 'third' ? `&cam=${state.camChoice}` : '') + (state.floor ? `&floor=${state.floor}` : '');
+  history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}${extra}`);
+}
+function setTheme(id) { state.theme = parseTheme(id); syncViewUi(); pushHash(); mark(); announce(`Texture theme: ${state.theme === 'auto' ? 'default' : state.theme}.`); }
+function setCamera(choice) { state.camChoice = parseCamera(choice); state.snap = reduceMotion; syncViewUi(); pushHash(); mark(); announce($('cameraNote').textContent); }
+function setFloor(f) { state.floor = parseFloor(f, Number($('floor').max) || 0); $('floor').value = String(state.floor); syncViewUi(); pushHash(); mark(); }
+function cycle(list, cur, dir = 1) { return list[(list.indexOf(cur) + dir + list.length) % list.length]; }
+
+function tryDoor(p) {
+  if (!p) return;
+  const attempt = state.attempts.get(p.key) || 0;
+  state.attempts.set(p.key, attempt + 1);
+  const behavior = doorOmen(state.sanity.dread, p.key, 0, attempt, state.seed);
+  const text = doorMessage(behavior, p.key);
+  state.shakes.set(p.key, { behavior, at: performance.now() });
+  state.toast = { text, at: performance.now(), rising: behavior >= 2 };
+  announce(`${text} (${DOOR_NAMES[behavior]})`);
+  log('door', text);
+  mark();
+}
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
 function adjust(delta, location) { state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
 function applyHash() {
+  state.theme = parseTheme(optParam('theme')); state.camChoice = parseCamera(optParam('cam'));
+  state.floor = parseFloor(optParam('floor'), Number($('floor').max) || 8);
   const h = decodeHash(location.hash);
   state.seed = h.seed; $('seed').value = h.seed; state.sanity = new SanityModel(h.sanity);
   state.night = nightFromHash(location.hash, 9);
@@ -527,7 +690,7 @@ function applyHash() {
   syncUi();
 }
 function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); }
-function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); }
+function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   setFocus(i); adjust(-2, p.id);
@@ -549,11 +712,18 @@ function postcard() {
   c2.fillText(postcardCaption({ villageName: state.campaign.villageName, seed: state.seed, night: n.number, title: n.title }), out.width / 2, canvas.height + 36);
   out.toBlob((blob) => { if (blob) download(postcardFilename(state.seed, n.number), blob, 'image/png'); }, 'image/png');
 }
+function tryNextDoor() {
+  if (!state.doors.length) return;
+  state.doorFocus = (state.doorFocus + 1) % state.doors.length;
+  tryDoor(state.doors[state.doorFocus]);
+}
 function setSound(on) { $('sound').checked = on; if (on) { startAudio(); syncUi(); } else stopAudio(); }
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
   const mx = (e.clientX - r.left) * canvas.width / r.width, my = (e.clientY - r.top) * canvas.height / r.height;
+  const di = nearestDoor(state.doors.map(doorPoint).map((pt) => ({ x: pt.x, y: pt.y - 3 })), mx, my, 12);
+  if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
   state.layout.forEach((p) => { const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2); const d = Math.hypot(c.x - mx, c.y - 12 - my); if (d < bd) { bd = d; best = p; } });
   if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-2, best.id); }
@@ -563,11 +733,15 @@ canvas.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { setFocus(wrapIndex(state.focus, n, 1)); e.preventDefault(); }
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); e.preventDefault(); }
   else if (e.key === 'Enter' || e.key === ' ') { if (state.focus >= 0) listen(state.focus); e.preventDefault(); }
-  else if (e.key === 'Escape') setFocus(-1);
+  else if (e.key === 'Escape') { setFocus(-1); state.doorFocus = -1; mark(); }
 });
 $('listen').addEventListener('change', () => { const v = $('listen').value; if (v === '') setFocus(-1); else listen(Number(v)); });
 $('seed').addEventListener('change', () => { const v = Number.parseInt($('seed').value, 10); state.seed = Number.isFinite(v) ? v | 0 : 1818; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); });
 $('reroll').addEventListener('click', reroll);
+$('theme').addEventListener('change', () => setTheme($('theme').value));
+$('camera').addEventListener('change', () => setCamera($('camera').value));
+$('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
+$('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(location.href); $('share').textContent = 'Link copied'; } catch { $('share').textContent = 'Copy the address bar'; } setTimeout(() => ($('share').textContent = 'Copy share link'), 1800); });
 $('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
 const doWhisper = () => adjust(-8, 'the walls');
@@ -601,17 +775,25 @@ addEventListener('keydown', (e) => {
     case ',': selectNight(state.night - 1); break;
     case '.': selectNight(state.night + 1); break;
     case 'p': case 'P': postcard(); break;
+    case 'o': case 'O': tryNextDoor(); break;
+    case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
+    case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
+    case 'f': case 'F': if (!$('floor').disabled) setFloor(state.floor >= Number($('floor').max) ? 0 : state.floor + 1); break;
     case '?': $('keys').open = !$('keys').open; break;
     default:
   }
 });
 addEventListener('hashchange', applyHash);
-document.addEventListener?.('visibilitychange', () => { if (!document.hidden) start(); });
+document.addEventListener?.('visibilitychange', () => { if (!document.hidden) mark(); });
+if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver((es) => { state.visible = es.some((e) => e.isIntersecting); if (state.visible) mark(); }).observe(canvas);
 setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-0.5); syncUi(); } }, 500);
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
 (async function init() {
   try { await loadCatalog(); } catch (err) { $('stats').textContent = `Could not load the catalog (${err.message}). Serve this folder over HTTP, for example: python3 -m http.server -d web`; return; }
+  ensureProcPatterns();
+  $('theme').innerHTML = '<option value="auto">Default (mixed)</option>' + THEME_GROUPS.map((g) =>
+    `<optgroup label="DLNK group: ${g}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
   applyHash(); pushHash(); start(); setTimeout(() => { state.live = true; }, 800);
 })();

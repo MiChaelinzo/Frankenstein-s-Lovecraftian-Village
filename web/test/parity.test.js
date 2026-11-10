@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
+  stableHash, detailLevel, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
 } from '../src/core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -86,4 +87,22 @@ test('house_b never matches a single-letter variant suffix', () => {
   assert.equal(PrefabNameMatcher.score('house_b', 'CandleHolderWall00b Variant'), 0);
   assert.equal(PrefabNameMatcher.resolve('house_b', 'CoastalHouse00', ['Barrel00b Variant', 'CoastalHouse00']), 'CoastalHouse00');
   for (const e of catalogJson.entries) assert.ok(e.prefabHint && e.prefabHint.length > 0, e.id);
+});
+
+test('DLNK building policy matches C# DreadBuildingPolicy exactly', () => {
+  const b = golden.buildings;
+  assert.ok(b.hashes.length > 0 && b.detail.length > 0 && b.doors.length > 0 && b.cameras.length > 0 && b.floors.length > 0);
+  for (const [text, h] of b.hashes) assert.equal(stableHash(text), h, `hash ${text}`);
+  for (const [seed, id, dread, level] of b.detail) assert.equal(detailLevel(dread, id, seed), level, `detail ${seed} ${id} ${dread}`);
+  for (const [seed, dread, door, list] of b.doors) {
+    assert.deepEqual(list.map((_, a) => doorOmen(dread, 'church', door, a, seed)), list, `doors ${seed} ${dread} ${door}`);
+  }
+  for (const [dread, suggested, ...allowed] of b.cameras) {
+    assert.equal(suggestedCamera(dread), suggested, `suggested ${dread}`);
+    assert.deepEqual([0, 1, 2].map((m) => allowedCamera(m, dread)), allowed, `allowed ${dread}`);
+  }
+  for (const [count, active, clamped, vis] of b.floors) {
+    assert.equal(clampFloor(active, count), clamped);
+    assert.deepEqual(vis.map((_, f) => (floorVisible(f, active, count, true) ? 1 : 0)), vis);
+  }
 });

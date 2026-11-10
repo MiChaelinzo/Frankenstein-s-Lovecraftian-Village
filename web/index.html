@@ -19,7 +19,8 @@
         <section class="stage" aria-label="Village view">
           <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" aria-describedby="viewDesc"></canvas>
           <div id="narration" class="narration" aria-live="polite"></div>
-          <div id="hint" class="hint">Click a building, or focus the view and use the arrow keys, to listen.</div>
+          <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
+          <div id="hint" class="hint">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
         <p id="viewDesc" class="sr-only"></p>
 
@@ -33,6 +34,26 @@
             <button id="postcard" type="button">Save postcard (PNG)</button>
           </div>
           <p id="nightInfo" class="stats" aria-live="polite"></p>
+        </section>
+
+        <section class="panel building" aria-labelledby="buildingTitle">
+          <h2 id="buildingTitle">Buildings</h2>
+          <div class="row">
+            <label for="theme">Texture theme</label>
+            <select id="theme" aria-describedby="themeNote"><option value="auto">Default (mixed)</option></select>
+            <label for="camera">Camera</label>
+            <select id="camera" aria-describedby="cameraNote">
+              <option value="third">Third-person</option>
+              <option value="first">First-person look</option>
+              <option value="top">Top-down cutaway</option>
+              <option value="auto">Auto (follow dread)</option>
+            </select>
+            <label for="floor"><output id="floorOut">Floor 1</output></label>
+            <input id="floor" type="range" min="0" max="2" step="1" value="0" aria-describedby="cameraNote">
+            <button id="door" type="button">Try the next door</button>
+          </div>
+          <p id="themeNote" class="stats"></p>
+          <p id="cameraNote" class="stats"></p>
         </section>
 
         <section class="panel" aria-label="Controls">
@@ -68,7 +89,7 @@
       <aside class="side">
         <section class="panel journal" aria-labelledby="journalTitle">
           <h2 id="journalTitle">Whispers</h2>
-          <ol id="whispers" class="whispers" aria-live="polite"><li class="empty">Nothing has spoken yet.</li></ol>
+          <ol id="whispers" class="whispers"><li class="empty">Nothing has spoken yet.</li></ol>
         </section>
         <details id="keys" class="panel keys" open>
           <summary>Keyboard</summary>
@@ -82,6 +103,10 @@
             <li><kbd>M</kbd> drone on/off</li>
             <li><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
             <li><kbd>P</kbd> save postcard</li>
+            <li><kbd>T</kbd> next texture theme</li>
+            <li><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
+            <li><kbd>F</kbd> peel up one floor (top-down only)</li>
+            <li><kbd>O</kbd> try the next door</li>
             <li><kbd>?</kbd> show or hide this list</li>
             <li>View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
           </ul>

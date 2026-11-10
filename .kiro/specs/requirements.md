@@ -59,3 +59,10 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 1. The web demo SHALL be fully operable from the keyboard.
 2. WHEN reduced motion is requested (`prefers-reduced-motion` or `?reduced=1`) THEN the demo SHALL avoid flicker and sway.
 3. The layout SHALL remain usable on narrow screens.
+
+### R12 DLNK adapter policy
+1. WHEN dread is Calm THEN every building SHALL have detail level 3, and detail SHALL never rise as dread rises.
+2. In top-down mode the system SHALL show exactly the floors up to the active floor (clamped); other modes SHALL show all floors.
+3. Door behavior SHALL be Normal when Calm, SHALL NOT be Slam below Dire or Refuse below Abyss, and SHALL be deterministic for the same seed, building, door and attempt.
+4. The top-down camera SHALL NOT be allowed at Abyss; other requests SHALL be honored.
+5. Runtime adapters SHALL NOT reference DLNK types (UnityEvents and interfaces only), and `docs/DLNK_INTEGRATION.md` SHALL separate confirmed from guessed facts.

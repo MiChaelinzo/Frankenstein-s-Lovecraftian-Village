@@ -26,6 +26,7 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
 
 What the demo does:
+- **Buildings panel (DLNK-style)**: texture themes Bricks, Plaster, Tiles, Wood, Rocks and Water, grouped under the DLNK groups Construction, Manmade and Nature (our own mapping; `?theme=bricks` or `#theme=bricks`). With `?pack=1` the theme uses the matching local pack texture when the manifest has one (Water has none, so it stays procedural). A camera selector (`cam=first|third|top|auto`) offers a first-person look, third-person and a top-down cutaway with a floor peel slider (`floor=N`); top-down is refused at Abyss dread, as in `DreadBuildingPolicy`. Click a door (or press `O`) to see it creak, slam or refuse, chosen by `doorOmen` and deterministic per seed and attempt. Buildings lose detail (textures, lit windows, doors, roofs) as dread rises, via `detailLevel`. Keys: `T` theme, `V` camera, `F` peel, `O` door. Not Unity footage; this is the web port of the policy.
 - **Omen events**: crossing Uneasy, Dire and Abyss thresholds (with hysteresis) raises a toast; tentacles appear at Dire and Abyss and a sky eye opens at Abyss.
 - **Campaign mode**: a seeded five-night story arc (village name, night titles, rumors, lore, rising dread targets). Pick a night to set its starting sanity, sky tint (dusk, night, witching hour) and weather (clear, rain, fog). `#night=N` in the URL shares a night. `P` saves a postcard PNG with village name, seed and night. Rain and fog are static under reduced motion.
 
@@ -54,13 +55,13 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 ### Verified vs unverified
 | Part | Status |
 |------|--------|
-| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher | Verified: property tests under `dotnet test` |
+| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher, DLNK building policy | Verified: property tests under `dotnet test` |
 | JS port in `web/src/core.js` | Verified: golden parity with C# output, `node --test` |
 | Parity self-test page (`web/selftest.html`) | Verified: 126 checks pass in headless Chromium; run it yourself in any browser over HTTP |
 | `WalkthroughController` | Code-complete, never compiled in Unity |
 | Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
 | Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
-| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`) | **Unverified**: never run in the Unity editor |
+| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | **Unverified**: never run in the Unity editor |
 | Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
 
 The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.

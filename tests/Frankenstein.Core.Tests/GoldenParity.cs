@@ -180,6 +180,57 @@ namespace Frankenstein.Core.Tests
                     sb.Append('[').Append(JsonSerializer.Serialize(e.id)).Append(", ").Append(hint == null ? "null" : JsonSerializer.Serialize(hint))
                       .Append(", ").Append(res == null ? "null" : JsonSerializer.Serialize(res)).Append(']');
                 }
+            sb.Append("]\n  },\n  \"buildings\": {\n    \"hashes\": [");
+            string[] hashIds = { "", "a", "house_a", "church", "Big House 00" };
+            for (int i = 0; i < hashIds.Length; i++)
+                sb.Append(i > 0 ? ", " : "").Append('[').Append(JsonSerializer.Serialize(hashIds[i])).Append(", ").Append(DreadBuildingPolicy.StableHash(hashIds[i]).ToString(inv)).Append(']');
+            sb.Append("],\n    \"detail\": [");
+            string[] bIds = { "house_a", "house_b", "church", "well" };
+            float[] bDreads = { 0f, 0.34f, 0.5f, 0.67f, 0.9f, 1f };
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var id in bIds)
+                    foreach (var d in bDreads)
+                    {
+                        if (!first) sb.Append(", ");
+                        first = false;
+                        sb.Append('[').Append(s.ToString(inv)).Append(", ").Append(JsonSerializer.Serialize(id)).Append(", ").Append(d.ToString("R", inv))
+                          .Append(", ").Append(DreadBuildingPolicy.DetailLevel(d, id, s).ToString(inv)).Append(']');
+                    }
+            sb.Append("],\n    \"doors\": [");
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var d in new[] { 0.2f, 0.5f, 0.8f, 1f })
+                    for (int door = 0; door < 2; door++)
+                    {
+                        if (!first) sb.Append(", ");
+                        first = false;
+                        sb.Append('[').Append(s.ToString(inv)).Append(", ").Append(d.ToString("R", inv)).Append(", ").Append(door).Append(", [");
+                        for (int a = 0; a < 12; a++)
+                            sb.Append(a > 0 ? ", " : "").Append((int)DreadBuildingPolicy.DoorOmen(d, "church", door, a, s));
+                        sb.Append("]]");
+                    }
+            sb.Append("],\n    \"cameras\": [");
+            first = true;
+            foreach (var d in new[] { 0f, 0.34f, 0.67f, 0.9f, 1f })
+            {
+                if (!first) sb.Append(", ");
+                first = false;
+                sb.Append('[').Append(d.ToString("R", inv)).Append(", ").Append((int)DreadBuildingPolicy.SuggestedCamera(d));
+                for (int m = 0; m < 3; m++) sb.Append(", ").Append((int)DreadBuildingPolicy.AllowedCamera((CameraMode)m, d));
+                sb.Append(']');
+            }
+            sb.Append("],\n    \"floors\": [");
+            first = true;
+            for (int count = 1; count <= 4; count++)
+                for (int active = -1; active <= 4; active++)
+                {
+                    if (!first) sb.Append(", ");
+                    first = false;
+                    sb.Append('[').Append(count).Append(", ").Append(active).Append(", ").Append(DreadBuildingPolicy.ClampFloor(active, count)).Append(", [");
+                    for (int f = 0; f < count; f++) sb.Append(f > 0 ? ", " : "").Append(DreadBuildingPolicy.FloorVisible(f, active, count, true) ? 1 : 0);
+                    sb.Append("]]");
+                }
             sb.Append("]\n  }\n}\n");
             return sb.ToString();
         }
