@@ -39,6 +39,10 @@ I used Kiro Web with an orchestrator that delegated to planner, coder and review
 
 The spec forced me to decide edge cases early, like what an empty catalog should produce, and each decision became a test.
 
+## Beyond the scaffold
+
+A later autonomous Kiro session on a feature branch added dread threshold events with hysteresis, a Markdown and JSON village report, and a prefab name matcher behind an editor auto-binder. Each followed the same rule: Core first, with a property test. The browser demo got an omen toast system, a Whispers journal, report download, keyboard control and reduced motion support. A golden file written by the C# tests keeps the JavaScript port honest. The Unity-side scripts (including the auto-binder) have not been run in the editor, and I say so in the README.
+
 ## Vibe coding vs specs
 
 I used specs for rules that must be correct, and looser vibe coding for the Unity glue and atmosphere where I judge the result by eye. Specs gave me tests and traceability; vibe coding gave me speed on things I could only evaluate by looking at them.

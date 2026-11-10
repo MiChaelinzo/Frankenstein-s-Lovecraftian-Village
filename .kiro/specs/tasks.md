@@ -17,5 +17,16 @@
 - [x] 15. Browser demo under `web/`: dependency-free JS port of Core, procedural canvas village, sanity-driven dread, seed sharing via URL hash
 - [x] 16. Golden parity: C# test emits `web/test/golden.json`, `node --test` proves the JS port matches C# exactly
 - [x] 17. GitHub Pages workflow `.github/workflows/pages.yml` (author must enable Pages: Settings > Pages > Source: GitHub Actions)
+- [x] 18. Core: dread threshold events with hysteresis (R8)
+- [x] 19. Core: village report in Markdown and JSON (R9)
+- [x] 20. Core: prefab name matcher with property tests (R10)
+- [x] 21. Golden parity extended and JS port updated for 18 to 20
+- [x] 22. Editor `CatalogAutoBinder` and director omen event (code-complete, unverified in Unity)
+- [x] 23. Web demo polish: omen toasts, Whispers journal, report download, keyboard, reduced motion, responsive layout (R11)
+- [x] 24. `tools/screenshot.sh` and screenshots in `docs/media`
+- [x] 25. CI workflow, CONTRIBUTING, CHANGELOG, em dash check in the validator
+- [ ] 26. In Unity: run the auto-binder against the imported pack and fix any mismatched names
+- [ ] 27. In Unity: set `VillageBuilder.pieceCount` to 80 if you want the same village as the web demo
+- [ ] 28. Enable GitHub Pages (Settings > Pages > Source: GitHub Actions) and confirm CI runs on GitHub
 
-Open author-only items: 11 (needs Unity and the owned pack) and 14 (record and publish the video).
+Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publish the video), 26, 27 and 28.

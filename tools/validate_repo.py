@@ -9,7 +9,9 @@ errors = []
 for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/tasks.md",
           ".kiro/steering/product.md", ".kiro/steering/tech.md", ".kiro/steering/structure.md",
           "web/index.html", "web/src/core.js", "web/src/app.js", "web/test/golden.json",
-          ".github/workflows/pages.yml", "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
+          ".github/workflows/pages.yml", ".github/workflows/ci.yml", "CONTRIBUTING.md", "CHANGELOG.md",
+          "docs/media/calm.png", "docs/media/dread.png", "docs/media/abyss.png", "docs/media/mobile.png",
+          "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
           "docs/DEVPOST_SUBMISSION.md", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
@@ -39,6 +41,16 @@ if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data
 
 if os.path.isfile(".gitattributes") and "filter=lfs" in open(".gitattributes").read():
     errors.append(".gitattributes routes files to Git LFS (filter=lfs); LFS is not used")
+
+EM_DASH = "\u2014"
+text_ext = (".md", ".js", ".cs", ".json", ".py", ".yml", ".html", ".css")
+for f in tracked:
+    if f.lower().endswith(text_ext) and os.path.isfile(f):
+        try:
+            if EM_DASH in open(f, encoding="utf-8").read():
+                errors.append(f"em dash (U+2014) in {f}")
+        except UnicodeDecodeError:
+            pass
 
 if errors:
     print("FAIL"); [print(" -", e) for e in errors]; sys.exit(1)

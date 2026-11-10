@@ -1,3 +1,4 @@
+using System;
 using Frankenstein.Core;
 using UnityEngine;
 
@@ -15,6 +16,11 @@ namespace Frankenstein.Runtime
         public SanityModel Sanity { get; } = new SanityModel();
         public INarrationProvider Narration { get; set; } = new StaticNarrationProvider();
 
+        /// <summary>Raised when dread crosses an omen threshold (rising, or falling past hysteresis).</summary>
+        public event Action<DreadEvent> OmenCrossed;
+
+        private readonly DreadEventTracker _events = new DreadEventTracker();
+
         private void Awake()
         {
             if (!string.IsNullOrEmpty(narrationEndpoint))
@@ -26,6 +32,7 @@ namespace Frankenstein.Runtime
             Sanity.Apply(-sanityDrainPerSecond * Time.deltaTime);
             if (ambienceLoop != null) ambienceLoop.volume = 0.2f + 0.8f * Sanity.Dread;
             if (volumeBlender != null) volumeBlender.Apply(Sanity.Dread);
+            foreach (var e in _events.Update(Sanity.Dread)) OmenCrossed?.Invoke(e);
         }
 
         public string Describe(string locationId) { return Narration.Narrate(locationId, Sanity.Dread); }

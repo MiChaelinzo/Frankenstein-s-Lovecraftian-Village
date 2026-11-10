@@ -174,3 +174,138 @@ export function decodeHash(hash, defaults = { seed: 1818, sanity: 100 }) {
   if (Number.isFinite(sanity)) out.sanity = SanityModel.clamp(sanity);
   return out;
 }
+
+// ---- Dread threshold events (DreadEvents.cs) ----
+
+const f = Math.fround;
+export const DREAD_THRESHOLDS = {
+  names: ['Uneasy', 'Dire', 'Abyss'],
+  values: [f(0.34), f(0.67), f(0.9)],
+  hysteresis: f(0.05),
+  tierNames: ['Calm', 'Uneasy', 'Dire', 'Abyss'],
+};
+
+/** NaN and infinities become 0; everything else is clamped to [0,1] as float32. */
+export function sanitizeDread(dread) {
+  const d = f(dread);
+  if (!Number.isFinite(d)) return 0;
+  return Math.max(0, Math.min(1, d));
+}
+
+export function tierFor(dread) {
+  const d = sanitizeDread(dread);
+  let tier = 0;
+  while (tier < DREAD_THRESHOLDS.values.length && d >= DREAD_THRESHOLDS.values[tier]) tier++;
+  return tier;
+}
+
+function fallingLevel(index) {
+  return f(DREAD_THRESHOLDS.values[index] - DREAD_THRESHOLDS.hysteresis);
+}
+
+/** Rising fires at the threshold, falling only below threshold minus hysteresis. Events are {name, rising, tier}. */
+export class DreadEventTracker {
+  constructor() {
+    this.tier = 0;
+  }
+  update(dread) {
+    const events = [];
+    const d = sanitizeDread(dread);
+    const { names, values } = DREAD_THRESHOLDS;
+    while (this.tier < values.length && d >= values[this.tier]) {
+      this.tier++;
+      events.push({ name: names[this.tier - 1], rising: true, tier: this.tier });
+    }
+    while (this.tier > 0 && d < fallingLevel(this.tier - 1)) {
+      this.tier--;
+      events.push({ name: names[this.tier], rising: false, tier: this.tier });
+    }
+    return events;
+  }
+}
+
+/** Stable text form, same as DreadEvent.ToString() in C#: "Uneasy+1". */
+export function eventToString(e) {
+  return `${e.name}${e.rising ? '+' : '-'}${e.tier}`;
+}
+
+// ---- Village report (VillageReport.cs) ----
+
+const OMENS = [
+  'The bells ring, though no one has climbed the tower.',
+  'Every window faces the well.',
+  'Smoke rises from chimneys that were never lit.',
+  'The crows have stopped leaving.',
+  'Something counts the houses at night.',
+  'The stitched streets remember their old shapes.',
+];
+
+/** Same inputs as VillageReport.Build: layout is the generateLayout() result. */
+export function buildVillageReport(catalog, pieces, width, depth, seed, dread) {
+  const d = sanitizeDread(dread);
+  const r = {
+    seed: seed | 0, width, depth, pieces: 0, cellsUsed: 0,
+    dreadPercent: Math.floor(f(f(d * 100) + 0.5)),
+    tier: DREAD_THRESHOLDS.tierNames[tierFor(d)],
+    totalHorror: 0, averageHorrorX100: 0,
+    byId: [], byCategory: [], landmarks: [],
+    omen: OMENS[new SeededRandom(seed).next(OMENS.length)],
+  };
+  const idCounts = new Map();
+  const catCounts = new Map();
+  for (const p of pieces || []) {
+    const e = catalog ? catalog.get(p.id) : null;
+    if (!e) continue;
+    r.pieces++;
+    r.cellsUsed += p.sizeX * p.sizeZ;
+    r.totalHorror += e.horror;
+    idCounts.set(e.id, (idCounts.get(e.id) || 0) + 1);
+    catCounts.set(e.category, (catCounts.get(e.category) || 0) + 1);
+    if (e.category === 'Landmark') r.landmarks.push({ id: e.id, x: p.x, z: p.z });
+  }
+  const seenCats = new Set();
+  for (const e of catalog ? catalog.entries : []) {
+    if (idCounts.has(e.id)) r.byId.push([e.id, idCounts.get(e.id)]);
+    if (catCounts.has(e.category) && !seenCats.has(e.category)) {
+      seenCats.add(e.category);
+      r.byCategory.push([e.category, catCounts.get(e.category)]);
+    }
+  }
+  if (r.pieces > 0) r.averageHorrorX100 = Math.floor((r.totalHorror * 100 + Math.floor(r.pieces / 2)) / r.pieces);
+  return r;
+}
+
+function avg(x100) {
+  return `${Math.floor(x100 / 100)}.${String(x100 % 100).padStart(2, '0')}`;
+}
+
+export function reportToMarkdown(r) {
+  const lines = (list, fmt) => (list.length ? list.map(fmt).join('') : '- none\n');
+  return (
+    '# Village Report\n\n' +
+    `- Seed: ${r.seed}\n- Grid: ${r.width} x ${r.depth}\n- Pieces: ${r.pieces}\n` +
+    `- Cells used: ${r.cellsUsed} of ${r.width * r.depth}\n- Dread: ${r.dreadPercent}% (${r.tier})\n` +
+    `- Total horror: ${r.totalHorror}\n- Average horror: ${avg(r.averageHorrorX100)}\n\n` +
+    '## Pieces by id\n\n' + lines(r.byId, ([k, v]) => `- ${k}: ${v}\n`) +
+    '\n## Pieces by category\n\n' + lines(r.byCategory, ([k, v]) => `- ${k}: ${v}\n`) +
+    '\n## Landmarks\n\n' + lines(r.landmarks, (l) => `- ${l.id} at (${l.x}, ${l.z})\n`) +
+    `\n> ${r.omen}\n`
+  );
+}
+
+function jsonObject(list) {
+  if (!list.length) return '{}';
+  return `{ ${list.map(([k, v]) => `${JSON.stringify(k)}: ${v}`).join(', ')} }`;
+}
+
+export function reportToJson(r) {
+  const landmarks = r.landmarks.map((l) => `{ "id": ${JSON.stringify(l.id)}, "x": ${l.x}, "z": ${l.z} }`).join(', ');
+  return (
+    '{\n' +
+    `  "seed": ${r.seed},\n  "width": ${r.width},\n  "depth": ${r.depth},\n  "pieces": ${r.pieces},\n` +
+    `  "cellsUsed": ${r.cellsUsed},\n  "dreadPercent": ${r.dreadPercent},\n  "tier": ${JSON.stringify(r.tier)},\n` +
+    `  "totalHorror": ${r.totalHorror},\n  "averageHorror": ${avg(r.averageHorrorX100)},\n` +
+    `  "byId": ${jsonObject(r.byId)},\n  "byCategory": ${jsonObject(r.byCategory)},\n` +
+    `  "landmarks": [${landmarks}],\n  "omen": ${JSON.stringify(r.omen)}\n}\n`
+  );
+}

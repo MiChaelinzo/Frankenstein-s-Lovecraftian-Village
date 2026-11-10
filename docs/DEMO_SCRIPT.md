@@ -12,4 +12,11 @@
 
 Judge shortcut: if you cannot run Unity, open the browser demo (see README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
 
+Web demo shots worth adding (all in the browser, no Unity needed):
+- Drag sanity down and let the Uneasy, Dire and Abyss omen toasts appear; show the tentacles at Dire and the sky eye at Abyss.
+- Open the Whispers journal after a few whispers.
+- Download the Markdown report and show it.
+- Drive the whole demo from the keyboard (`W C L N [ ] D M ?`, then Left/Right/Enter on the canvas).
+- Enable reduced motion with `?reduced=1` to show the calmer mode.
+
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only your licensed assets on screen.

@@ -10,23 +10,25 @@ test('app renders frames at several sanity levels without throwing', async () =>
   const catalog = readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8');
   const grad = { addColorStop() {} };
   const ctx = new Proxy({}, {
-    get: (t, k) => (k === 'createRadialGradient' || k === 'createLinearGradient' ? () => grad : k in t ? t[k] : () => {}),
+    get: (t, k) => (k === 'measureText' ? () => ({ width: 200 }) : k === 'createRadialGradient' || k === 'createLinearGradient' ? () => grad : k in t ? t[k] : () => {}),
     set: (t, k, v) => ((t[k] = v), true),
   });
   const els = {};
   const el = (id) => (els[id] ??= {
-    id, style: {}, value: '1818', textContent: '', checked: false, listeners: {},
+    id, style: {}, value: '1818', textContent: '', innerHTML: '', checked: false, open: true, listeners: {},
     addEventListener(n, f) { this.listeners[n] = f; },
     getContext: () => ctx, width: 960, height: 560,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 960, height: 560 }),
   });
   let raf = null;
+  const clicked = [], blobs = [], keys = [];
   Object.assign(globalThis, {
-    document: { getElementById: el },
+    document: { getElementById: el, hidden: false, documentElement: { classList: { add() {} } }, addEventListener() {}, createElement: () => ({ click() { clicked.push(this); }, remove() {} }), body: { appendChild() {} } },
+    URL: { createObjectURL: (b) => { blobs.push(b); return 'blob:x'; }, revokeObjectURL() {} },
     matchMedia: () => ({ matches: false }),
     location: { search: '', hash: '#seed=42&sanity=10', href: 'http://x/' },
     history: { replaceState: (a, b, h) => { globalThis.location.hash = h; } },
-    addEventListener() {},
+    addEventListener: (n, f) => { if (n === 'keydown') keys.push(f); },
     fetch: async () => ({ json: async () => JSON.parse(catalog) }),
     requestAnimationFrame: (f) => { raf = f; },
   });
@@ -47,6 +49,19 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.ok(els.narration.textContent.length > 0);
   els.seed.value = '7'; els.seed.listeners.change();
   assert.match(els.stats.textContent, /Seed 7:/);
+  assert.match(els.whispers.innerHTML, /<li class="e-/);
+  assert.ok(els.listen.innerHTML.includes('<option'));
+  const press = (key) => keys.forEach((f) => f({ key, target: { tagName: 'BODY' } }));
+  els.sanity.value = '100'; els.sanity.listeners.input();
+  press(']'); press('['); press('['); press('w'); press('l'); press('?'); press('n');
+  assert.match(els.stats.textContent, /Seed -?\d+:/);
+  els.dlMd.listeners.click(); els.dlJson.listeners.click();
+  assert.equal(clicked.length, 2);
+  assert.match(clicked[0].download, /^village-report-seed--?\d+\.md$/);
+  assert.match(clicked[1].download, /\.json$/);
+  els.sanity.value = '3'; els.sanity.listeners.input();
+  assert.match(els.whispers.innerHTML, /e-omen/);
+  for (let i = 0; i < 5; i++) raf(6000 + i * 16);
   raf(5000);
   globalThis.setInterval = realSetInterval;
 });
