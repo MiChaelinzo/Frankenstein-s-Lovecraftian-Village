@@ -34,6 +34,11 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `4d835c9` `?pack=1` pack mode in the web demo.
 - Finding: both packages are render-pipeline editions with no meshes; church, well and altar hints are stand-ins.
 
+## DLNK integration round (branch feat/dlnk-integration-round6)
+- `86de580` Core `DreadBuildingPolicy` with JS port and golden parity.
+- `f2f4c27` Runtime DLNK bridges and `docs/DLNK_INTEGRATION.md` (unverified in Unity).
+- `221290e` Web demo: texture themes, floor peel, camera modes, door omens, omen detail, accessibility and idle redraw skip; `web/src/building.js` with node tests. Pack-mode screenshots were kept only in the git-ignored `web/local-pack/screenshots/`.
+
 ## What is and is not verified
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).
 - Never compiled or run in the Unity editor: everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.

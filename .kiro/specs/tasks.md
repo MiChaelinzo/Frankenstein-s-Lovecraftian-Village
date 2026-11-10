@@ -41,3 +41,5 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 
 - [x] 37. Core `DreadBuildingPolicy` (detail level, floor peel, door omens, camera policy) with property tests, JS port and golden parity
 - [x] 38. Runtime DLNK bridges (UnityEvents, unverified in Unity) and `docs/DLNK_INTEGRATION.md`
+- [x] 39. Web demo: texture themes mapped to DLNK groups (procedural and pack), top-down floor peel, camera modes limited by `allowedCamera`, door omens, omen-driven detail, accessibility and idle redraw skip (`web/src/building.js`, node tests)
+- [x] 40. Rewrite `docs/DEMO_SCRIPT.md` (own footage only, no third-party promo trailer)

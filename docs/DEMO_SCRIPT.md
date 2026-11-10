@@ -1,22 +1,29 @@
-# Demo video script (target 2:40, hard limit under 3:00)
+# Demo video script (target 2:50, hard limit under 3:00)
+
+All footage is recorded by the author from this repo and the author's own Unity project. The DLNK Artworks promo trailer is not used, and DLNK Works is credited as the pack author.
 
 | Time | Visual | Narration |
 |------|--------|-----------|
-| 0:00-0:15 | Fog rolls over the village at dusk, title card | "What if you stitched cosmic horror, procedural design, an asset kit and AI tooling into one creature? Meet Frankenstein's Lovecraftian Village." |
-| 0:15-0:40 | Repo on GitHub, `.kiro` folder open | "Built for the Frankenstein category. Every part is a different technology, and Kiro is the lightning that animates them." |
-| 0:40-1:10 | Kiro IDE: spec requirements, design table of properties | "I started with a spec. Requirements became correctness properties: no overlaps, deterministic seeds, sanity always clamped." |
-| 1:10-1:35 | Terminal: `dotnet test` passes, property run | "Property-based tests run without Unity, hundreds of seeded cases each." |
-| 1:35-2:00 | Hooks and steering panels, asset-guard blocking a paid file | "Hooks run tests on save and guard the commercial assets so they never reach the repo." |
-| 2:00-2:30 | Unity: change the seed, village rebuilds; sanity drops, fog and audio intensify; narration line appears | "Change a seed, get a new village. As sanity falls, dread rises and the narrator turns on you." |
-| 2:30-2:50 | Recap slide: Kiro features used, repo link, #KiroweenHackathon26 | "Specs, steering, hooks, agents and property tests, stitched together. Thanks for watching." |
+| 0:00-0:20 | Open the web demo with `?pack=1` served locally (`python3 -m http.server -d web`), village with real pack textures, badge visible. Try the Texture theme select (Bricks, Rocks) | "Frankenstein's Lovecraftian Village. The textures here come from the DLNK Lovecraftian Village pack, loaded from my local copy and never committed." |
+| 0:20-1:30 | Drag the sanity slider through the Uneasy, Dire and Abyss omens (tentacles, then the sky eye). Pick a later night with weather. Show the Whispers journal, press `P` for the postcard, then click a door and try the top-down camera | "As sanity falls, dread rises: windows dim, tentacles rise, an eye opens. Doors creak, slam or refuse. Share a seed with the URL." |
+| 1:30-2:20 | Kiro in action: `.kiro` specs, hooks firing on save, `dotnet test` property tests running, the `selftest.html` page passing | "Kiro turned requirements into correctness properties. Hooks run the tests and guard the paid assets. The self-test page checks the JS port against C# output." |
+| 2:20-2:50 | Short Unity clip if available (only if you have opened the project in Unity yourself), then repo link and #KiroweenHackathon26 | "Specs, steering, hooks and property tests, stitched together. Thanks for watching." |
 
-Judge shortcut: if you cannot run Unity, open the browser demo (see README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
+If you have no Unity footage, skip that clip and say so; the Unity side is code-complete but unverified in the editor.
 
-Web demo shots worth adding (all in the browser, no Unity needed):
-- Drag sanity down and let the Uneasy, Dire and Abyss omen toasts appear; show the tentacles at Dire and the sky eye at Abyss.
-- Open the Whispers journal after a few whispers.
-- Download the Markdown report and show it.
-- Drive the whole demo from the keyboard (`W C L N [ ] D M ?`, then Left/Right/Enter on the canvas).
-- Enable reduced motion with `?reduced=1` to show the calmer mode.
+## Why third-party promo footage is not used
+- Copyright: the DLNK trailer belongs to DLNK Works; a submission cannot reuse it without permission.
+- Licensing: the pack license covers using the assets in your own project, not redistributing their marketing.
+- Hackathon rules: the video must show the project built for the hackathon.
+- Honesty: judges should see what this repo actually does, not footage that implies more.
 
-Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only your licensed assets on screen.
+## Judge shortcuts
+If you cannot run Unity, open the browser demo (README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
+
+Extra shots, all in the browser:
+- Omen toasts at Uneasy, Dire and Abyss; tentacles at Dire, sky eye at Abyss.
+- Buildings panel: `theme`, `cam=top` with the floor slider, `O` to try doors.
+- Download the Markdown report; drive the demo from the keyboard (`W C L N [ ] D M T V F O ?`).
+- Reduced motion with `?reduced=1`.
+
+Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.
