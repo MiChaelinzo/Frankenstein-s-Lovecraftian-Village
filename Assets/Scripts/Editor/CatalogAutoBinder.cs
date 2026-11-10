@@ -13,6 +13,7 @@ namespace Frankenstein.Editor
     /// <summary>
     /// Fills the prefab slots of the selected VillageCatalogAsset by matching catalog ids to prefab
     /// names found under a root folder (default: the imported Lovecraftian Village pack).
+    /// Each entry's optional prefabHint (a real prefab name) wins when present among the found prefabs, otherwise the name matcher decides.
     /// Only empty slots are filled unless rebindAll is set; duplicate prefab names resolve to the first path in ordinal order.
     /// </summary>
     public static class CatalogAutoBinder
@@ -83,7 +84,7 @@ namespace Frankenstein.Editor
             {
                 if (b == null || b.entry == null || string.IsNullOrEmpty(b.entry.id)) continue;
                 if (b.prefab != null && !rebindAll) continue;
-                string match = PrefabNameMatcher.Best(b.entry.id, pathByName.Keys);
+                string match = PrefabNameMatcher.Resolve(b.entry.id, b.entry.prefabHint, pathByName.Keys);
                 if (match == null) { missed.Append("  ").Append(b.entry.id).Append('\n'); continue; }
                 b.prefab = AssetDatabase.LoadAssetAtPath<GameObject>(pathByName[match]);
                 bound.Append("  ").Append(b.entry.id).Append(" -> ").Append(pathByName[match]).Append('\n');
