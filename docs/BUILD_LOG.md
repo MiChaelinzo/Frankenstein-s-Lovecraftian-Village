@@ -38,6 +38,8 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `86de580` Core `DreadBuildingPolicy` with JS port and golden parity.
 - `f2f4c27` Runtime DLNK bridges and `docs/DLNK_INTEGRATION.md` (unverified in Unity).
 - `221290e` Web demo: texture themes, floor peel, camera modes, door omens, omen detail, accessibility and idle redraw skip; `web/src/building.js` with node tests. Pack-mode screenshots were kept only in the git-ignored `web/local-pack/screenshots/`.
+- `54a978b` Docs: DEMO_SCRIPT rewrite, README, CHANGELOG, BUILD_LOG and .kiro updates for the web building features.
+- Review fixes: camera bridge keeps the requested mode apart from the allowed one and no longer evaluates against a default dread; global detail semantics documented. Bridges remain untested and uncompiled. Canvas drawing (floor peel, door rings, procedural patterns) was only checked manually in headless Chromium, not by automated tests.
 
 ## What is and is not verified
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).

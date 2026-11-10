@@ -19,34 +19,49 @@ namespace Frankenstein.Runtime
         public ModeEvent onModeChanged = new ModeEvent();
         public FlagEvent onTopDownChanged = new FlagEvent();
 
+        /// <summary>The mode currently allowed (what the pack camera should show).</summary>
         public CameraMode Current { get; private set; } = CameraMode.TopDown;
+        /// <summary>The player's preferred mode; restored when dread falls below Abyss.</summary>
+        public CameraMode Requested { get; private set; } = CameraMode.TopDown;
         private bool _hasMode;
+        private bool _hasDread;
+        private float _lastDread;
 
         /// <summary>Applies the player's request, subject to dread (top-down is removed at Abyss).</summary>
         public CameraMode Request(CameraMode requested, float dread)
         {
+            Requested = requested;
+            _lastDread = dread;
+            _hasDread = true;
             Set(DreadBuildingPolicy.AllowedCamera(requested, dread));
             return Current;
         }
 
-        /// <summary>UnityEvent friendly overload: 0 FirstPerson, 1 ThirdPerson, 2 TopDown.</summary>
-        public void RequestInt(int mode) { Request((CameraMode)Mathf.Clamp(mode, 0, 2), _lastDread); }
+        /// <summary>
+        /// UnityEvent friendly overload: 0 FirstPerson, 1 ThirdPerson, 2 TopDown. Uses the last dread
+        /// pushed through OnDread or ApplySuggested. Before any dread is known, the request is only
+        /// stored and applied on the first OnDread, so the Abyss ban cannot be bypassed.
+        /// </summary>
+        public void RequestInt(int mode)
+        {
+            var requested = (CameraMode)Mathf.Clamp(mode, 0, 2);
+            if (!_hasDread) { Requested = requested; return; }
+            Request(requested, _lastDread);
+        }
 
-        /// <summary>Re-evaluate when dread changes: forces the mode out of top-down at Abyss.</summary>
+        /// <summary>Re-evaluate when dread changes: forces the mode out of top-down at Abyss and restores the preference after.</summary>
         public void OnDread(float dread)
         {
             _lastDread = dread;
-            Set(DreadBuildingPolicy.AllowedCamera(Current, dread));
+            _hasDread = true;
+            Set(DreadBuildingPolicy.AllowedCamera(Requested, dread));
         }
 
         /// <summary>Jump to the default mode for this dread.</summary>
         public void ApplySuggested(float dread)
         {
-            _lastDread = dread;
-            Set(DreadBuildingPolicy.AllowedCamera(DreadBuildingPolicy.SuggestedCamera(dread), dread));
+            Request(DreadBuildingPolicy.SuggestedCamera(dread), dread);
         }
-
-        private float _lastDread;
 
         private void Set(CameraMode mode)
         {
