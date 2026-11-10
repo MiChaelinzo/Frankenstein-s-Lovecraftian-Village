@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: 22
       - run: node --test "web/test/*.test.js"
+      - run: python3 tools/test_stage_web.py
 
   deploy:
     needs: test
@@ -34,8 +35,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # web/local-pack is git-ignored and untracked, so it is never checked out here.
+      # Staging makes the exclusion explicit and drops tests and package.json.
+      - run: python3 tools/stage_web.py
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4

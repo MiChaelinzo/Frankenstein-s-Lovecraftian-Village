@@ -100,5 +100,30 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.ok(els.toastLive.textContent.length > 0);
   press('o'); press('t'); press('v'); press('f');
   assert.match(globalThis.location.hash, /theme=|cam=|floor=|night=/);
+  // story mode: open with S, step with next/prev and keys, autoplay toggle, exit
+  press('s');
+  assert.equal(els.story.hidden, false);
+  assert.match(els.storyText.textContent, /^Night \d+: /);
+  assert.match(globalThis.location.hash, /story=1&beat=0/);
+  els.storyNext.listeners.click(); els.storyNext.listeners.click();
+  assert.match(globalThis.location.hash, /beat=2/);
+  assert.match(els.storyMeta.textContent, /beat 3 of 5/);
+  press('.'); press(','); press('.');
+  for (let i = 0; i < 30; i++) els.storyNext.listeners.click();
+  assert.equal(els.storyNext.disabled, true);
+  els.storyPrev.listeners.click();
+  els.storyPlay.listeners.click();
+  assert.equal(els.storyPlay.textContent, 'Pause');
+  els.storyPlay.listeners.click();
+  assert.equal(els.storyPlay.textContent, 'Play');
+  for (let i = 0; i < 40; i++) els.storyPrev.listeners.click();
+  assert.equal(els.storyPrev.disabled, true);
+  els.storyExit.listeners.click();
+  assert.equal(els.story.hidden, true);
+  assert.doesNotMatch(globalThis.location.hash, /story=/);
+  // mute and volume work without an AudioContext (no audio is created until the sound box is ticked)
+  press('u'); assert.equal(els.mute.textContent, 'Unmute (U)');
+  els.mute.listeners.click(); assert.equal(els.mute.textContent, 'Mute (U)');
+  els.volume.value = '20'; els.volume.listeners.input();
   globalThis.setInterval = realSetInterval;
 });

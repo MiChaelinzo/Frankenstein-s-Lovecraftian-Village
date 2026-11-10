@@ -9,7 +9,9 @@ Only the author can supply these. Nothing below has been filled in or guessed.
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)
 - [ ] Confirm CI (`ci.yml`) is green on GitHub
 - [ ] Run the catalog auto-binder in Unity against the owned pack (unverified so far)
-- [ ] GitHub Pages enabled with the "GitHub Actions" source, and the demo URL below verified
+- [ ] Connect a static host per `docs/HOSTING.md` (Netlify, Vercel or Cloudflare Pages), then verify `/` and `/selftest.html` on it
+- [ ] Replace the `<YOUR-LIVE-URL>` placeholders in `README.md` and the Devpost form with the verified URL
+- [ ] Optional: fix the GitHub account billing lock so `pages.yml` can run
 - [ ] Confirm wording of prize rules on the official Devpost page
 
 Bonus prizes **not claimed**: Best Startup Project, Best Student Project, Best Ghost of Kiroween Past, Best Kiro Crew App. Kiro surface used: Kiro Web only (no IDE or CLI use claimed).
@@ -109,7 +111,8 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
 - **Eligibility:** eligible.
 - **Checklist (tied to [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md)):**
   - [ ] Total length under 3:00 (script targets 2:40)
-  - [ ] 0:00-0:15 hook with fog and title card
+  - [ ] 0:00-0:15 hook with fog and title card (web demo intro, `?intro=0` skips it)
+  - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
   - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`
   - [ ] 1:10-1:35 `dotnet test` passing in the terminal

@@ -66,3 +66,18 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 3. Door behavior SHALL be Normal when Calm, SHALL NOT be Slam below Dire or Refuse below Abyss, and SHALL be deterministic for the same seed, building, door and attempt.
 4. The top-down camera SHALL NOT be allowed at Abyss; other requests SHALL be honored.
 5. Runtime adapters SHALL NOT reference DLNK types (UnityEvents and interfaces only), and `docs/DLNK_INTEGRATION.md` SHALL separate confirmed from guessed facts.
+
+### Hosting
+1. The web demo SHALL use only relative paths so it works at a site root or a sub-path.
+2. Staging for deploy SHALL exclude `web/local-pack` and `docs/HOSTING.md` SHALL state that no host is confirmed live until the author verifies one.
+
+## Story sequencer
+- Story beats are deterministic for a given campaign: each night yields exactly five beats in the order title, rumor, lore, omen, weather.
+- Beat indices are contiguous from 0, dread never decreases across beats, and omen text comes from the tier of its night's dread target.
+- Beat durations are integer reading times clamped to 2500..12000 ms; Next and Previous clamp at the ends and are inverse inside the range.
+- The JS port in `web/src/story.js` matches the C# `StorySequencer` exactly (golden `stories`).
+
+## Story mode UI, intro and soundtrack
+- Story mode steps through every beat of every night and autoplays with pause; `#story=1&night=N&beat=N` opens at that beat.
+- The intro is skippable by keyboard and button, disabled by `?intro=0`, and static under reduced motion.
+- The soundtrack is procedural, silent until a user gesture opts in, has volume and mute, uses no audio files, and removes pulses under reduced motion.

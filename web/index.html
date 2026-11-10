@@ -24,6 +24,18 @@
         </section>
         <p id="viewDesc" class="sr-only"></p>
 
+        <section id="story" class="panel story" aria-labelledby="storyTitle" hidden>
+          <h2 id="storyTitle">Story mode</h2>
+          <p id="storyMeta" class="stats"></p>
+          <p id="storyText" class="story-text" aria-live="polite"></p>
+          <div class="row">
+            <button id="storyPrev" type="button">Previous</button>
+            <button id="storyPlay" type="button" aria-pressed="false">Play</button>
+            <button id="storyNext" type="button">Next</button>
+            <button id="storyExit" type="button">Exit story</button>
+          </div>
+        </section>
+
         <section class="panel campaign" aria-labelledby="campaignTitle">
           <h2 id="campaignTitle">Campaign: <span id="villageName">the village</span></h2>
           <div class="row">
@@ -31,6 +43,7 @@
             <select id="night"></select>
             <button id="nightPrev" type="button">Previous night</button>
             <button id="nightNext" type="button">Next night</button>
+            <button id="storyOpen" type="button" aria-controls="story">Story mode (S)</button>
             <button id="postcard" type="button">Save postcard (PNG)</button>
           </div>
           <p id="nightInfo" class="stats" aria-live="polite"></p>
@@ -74,7 +87,10 @@
             <button id="church" type="button">Enter the church (-15)</button>
             <button id="candle" type="button">Light a candle (+10)</button>
             <label class="check"><input id="drain" type="checkbox"> Let the dark creep in</label>
-            <label class="check"><input id="sound" type="checkbox"> Drone (sound)</label>
+            <label class="check"><input id="sound" type="checkbox"> Music (procedural, off until you opt in)</label>
+            <label for="volume">Volume</label>
+            <input id="volume" type="range" min="0" max="100" step="5" value="60" aria-label="Music volume">
+            <button id="mute" type="button" aria-pressed="false">Mute (U)</button>
           </div>
           <div class="row">
             <label for="listen">Listen to</label>
@@ -100,7 +116,8 @@
             <li><kbd>N</kbd> new village</li>
             <li><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
             <li><kbd>D</kbd> let the dark creep in</li>
-            <li><kbd>M</kbd> drone on/off</li>
+            <li><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
+            <li><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
             <li><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
             <li><kbd>P</kbd> save postcard</li>
             <li><kbd>T</kbd> next texture theme</li>
@@ -115,9 +132,20 @@
     </div>
 
     <footer>
-      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
+      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
+  <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" aria-describedby="introText" hidden>
+    <div class="intro-card">
+      <h2 id="introTitle"></h2>
+      <p id="introText"></p>
+      <p class="stats"><span id="introStep"></span> Enter, Space or Right arrow to continue, Escape to skip.</p>
+      <div class="row">
+        <button id="introNext" type="button">Next</button>
+        <button id="introSkip" type="button">Skip intro</button>
+      </div>
+    </div>
+  </div>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>

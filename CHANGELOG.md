@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Web: story mode panel (Previous, Next, Play/Pause, Exit, `S` key, `#story=1&night=N&beat=N` and `?story=1&autoplay=1` deep links), skippable intro dialog (`web/src/intro.js`, `?intro=0`, auto-skip on deep links, static under reduced motion), and an original procedural WebAudio soundtrack (`web/src/music.js`, opt-in, volume, mute `U`, reduced-motion aware) replacing the old drone. No audio files. Node tests `music.test.js`, `intro.test.js`, extended smoke test. The audio itself was not heard in this environment (headless), only its pure helpers are tested.
+- Core: `StorySequencer` (`StoryBeats.cs`) builds an ordered list of story beats per campaign night (title, rumor, lore, omen chosen by dread tier with `SeededRandom`, sky and weather note) plus navigation and reading-time helpers. JS port in `web/src/story.js` with deep link parsing (`#story=N&beat=N`). C# property tests, golden parity (`stories`), `web/test/story.test.js` and a self-test group. The story mode UI is not part of this commit.
+
 ### Changed
 - Runtime: `VillageBuilder.pieceCount` default raised from 40 to 80 to match the web demo. Existing Unity scenes that rely on the default will generate a larger village; set it back to 40 to keep the old layout.
 - Web: changing the seed now re-applies the selected night's sanity so the night panel and scene agree.
@@ -11,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Runtime: `DlnkCameraModeBridge` stores the requested mode separately (restored when dread falls below Abyss) and defers `RequestInt` until a dread value is known. Still never compiled in Unity.
 
 ### Added
+- Hosting: `netlify.toml`, `vercel.json` and `web/_headers` (publish `web`, no build, no rewrites, security headers), `tools/stage_web.py` (stages `web/` to git-ignored `dist/` without `local-pack`) with `tools/test_stage_web.py`, `web/test/paths.test.js` (relative paths, root and sub-path mounting), `docs/HOSTING.md`, validator checks, and `pages.yml` now uploads the staged `dist`. Untested against real hosts; no live URL is confirmed and GitHub Actions is blocked by a billing lock.
 - Web demo, DLNK-style buildings (`web/src/building.js`, node tested): texture themes (Bricks, Plaster, Tiles, Wood, Rocks, Water) mapped to the DLNK groups Construction, Manmade and Nature in procedural and `?pack=1` modes with fallback, top-down floor peel/cutaway and camera selector restricted by `allowedCamera`, clickable doors driven by `doorOmen` with toast, shake and aria-live announcements, omen-driven detail via `detailLevel`, URL params `theme`, `cam`, `floor`, keys `T V F O`, focus styles, reduced motion, and an idle redraw skip (reduced motion redraws only on change; off-screen canvas pauses). Journal no longer has its own aria-live; a dedicated status region announces toasts.
 - Docs: `docs/DEMO_SCRIPT.md` rewritten for the new outline, with a section on why third-party promo footage is not used.
 - DLNK adapter layer: Core `DreadBuildingPolicy` (per-building detail level, top-down floor peel, omen driven door behavior, camera mode policy) with property tests, JS port and golden parity; Runtime `DlnkTownManagerBridge`, `DlnkBuildingFloorBridge`, `DlnkDoorOmenBridge`, `DlnkCameraModeBridge` and `IBuildingDetailTarget` (UnityEvents only, never compiled in Unity); `docs/DLNK_INTEGRATION.md` with confirmed vs guessed. Credit: DLNK Works.

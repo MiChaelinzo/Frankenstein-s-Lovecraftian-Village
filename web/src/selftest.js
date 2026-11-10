@@ -4,6 +4,7 @@ import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
 } from './core.js';
+import { buildStory } from './story.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -33,6 +34,8 @@ export function runSelfTest(golden, catalogEntries) {
     const r = buildVillageReport(catalog, generateLayout(catalog, 24, 24, 40, g.seed), 24, 24, g.seed, g.dread);
     return reportToMarkdown(r) === g.markdown && reportToJson(r) === g.json;
   });
+  for (const g of golden.stories) check('Story', `seed ${g.seed} nights ${g.requested}`, () =>
+    same(buildStory(generateCampaign(g.seed, g.requested)).map((b) => [b.index, b.nightNumber, b.kind, b.text, b.dreadPercent, b.sky, b.weather, b.durationMs]), g.beats));
   for (const g of golden.campaigns) check('Campaign', `seed ${g.seed} nights ${g.requested}`, () => {
     const c = generateCampaign(g.seed, g.requested);
     return c.villageName === g.villageName &&

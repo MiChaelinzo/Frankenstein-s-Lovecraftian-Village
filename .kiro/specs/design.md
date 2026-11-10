@@ -44,3 +44,9 @@ Property-based: many seeded random cases per property, failing seed reported. Co
 ## DLNK adapter layer
 
 `DreadBuildingPolicy` (Core) holds per-building detail level, floor peel, door omens and camera policy, all driven by `DreadThresholds.TierFor` and `SeededRandom` seeded from a stable FNV-1a hash of the building id. The Runtime `Dlnk*Bridge` components only forward these results through UnityEvents, so no DLNK type is referenced. The JS port in `web/src/core.js` is checked by the `buildings` golden section.
+
+## Story sequencer
+`StorySequencer.Build(Campaign)` (Core, engine-free) walks the campaign nights and emits five `StoryBeat`s each. The omen line is picked with `SeededRandom(seed ^ 0x1badf00d)` from the tier of the night's integer dread percent (thresholds 34, 67, 90 mirror `DreadThresholds`). `web/src/story.js` mirrors it and adds `parseStoryParam` for `#story=N&beat=N` deep links. Parity is enforced through the `stories` section of `web/test/golden.json`.
+
+## Story UI, intro and soundtrack
+`web/src/app.js` drives story mode from `story.js` beats (sanity ramps toward `100 - dreadPercent`, autoplay uses `durationMs`). `web/src/intro.js` holds pure intro helpers and the auto-skip rule for deep links. `web/src/music.js` has deterministic pure helpers (root from seed, drone, pulse schedule, gain clamp) and a thin WebAudio controller that is created only after the user ticks Music.

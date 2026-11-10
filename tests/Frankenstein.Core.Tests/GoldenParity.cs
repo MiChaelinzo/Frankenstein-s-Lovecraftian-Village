@@ -20,6 +20,7 @@ namespace Frankenstein.Core.Tests
         private static readonly float[] Dreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f };
 
         private static readonly int[] CampaignNightCounts = { 1, 3, 5, 9, 0, 40 };
+        private static readonly int[] StoryNightCounts = { 1, 3, 5, 9, 0 };
         private static readonly float[] ReportDreads = { 0f, 0.5f, 1f };
         private static readonly float[][] EventSeqs =
         {
@@ -161,6 +162,25 @@ namespace Frankenstein.Core.Tests
                           .Append(n.DreadTargetPercent).Append(", ").Append(n.SanityStart).Append(", ")
                           .Append(JsonSerializer.Serialize(n.Sky)).Append(", ").Append(JsonSerializer.Serialize(n.Weather)).Append(", ")
                           .Append(JsonSerializer.Serialize(n.Rumor)).Append(", ").Append(JsonSerializer.Serialize(n.Lore)).Append("]");
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n  ],\n  \"stories\": [\n");
+            first = true;
+            foreach (var s in Seeds)
+                foreach (var nights in StoryNightCounts)
+                {
+                    var beats = StorySequencer.Build(CampaignGenerator.Generate(s, nights));
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"requested\": ").Append(nights.ToString(inv)).Append(", \"beats\": [");
+                    for (int i = 0; i < beats.Count; i++)
+                    {
+                        var b = beats[i];
+                        sb.Append(i > 0 ? ", " : "").Append('[').Append(b.Index).Append(", ").Append(b.NightNumber).Append(", ")
+                          .Append(JsonSerializer.Serialize(b.Kind)).Append(", ").Append(JsonSerializer.Serialize(b.Text)).Append(", ")
+                          .Append(b.DreadPercent).Append(", ").Append(JsonSerializer.Serialize(b.Sky)).Append(", ")
+                          .Append(JsonSerializer.Serialize(b.Weather)).Append(", ").Append(b.DurationMs).Append(']');
                     }
                     sb.Append("] }");
                 }
