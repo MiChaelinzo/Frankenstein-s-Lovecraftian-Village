@@ -8,6 +8,9 @@ import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
   reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash,
 } from './scene.js';
+import { buildStory, clampBeat, nextBeat, prevBeat, nightStartIndex, parseStoryParam } from './story.js';
+import { createAmbient } from './music.js';
+import { shouldShowIntro, buildIntroSlides, advanceSlide, slideDelayMs } from './intro.js';
 import { validateManifest, pickRole, hintFor, badgeText, tintChannel } from './pack.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, themeRole, themeColors, parseCamera, effectiveCamera, cameraProfile, cameraOverridden,
@@ -48,34 +51,27 @@ const state = {
 const narratorUrl = params.get('narrator');
 const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvider(narratorUrl) : null, new StaticNarrationProvider());
 
-// ---------- audio (optional, starts only after the user opts in) ----------
-let audio = null;
+// ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
+let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
+const introWanted = shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
 function startAudio() {
-  if (audio) { audio.ctx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  const ac = new AC();
-  const master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
-  const oscs = [55, 55.7, 82.4].map((f, i) => {
-    const o = ac.createOscillator(); o.type = i === 2 ? 'triangle' : 'sawtooth'; o.frequency.value = f;
-    const g = ac.createGain(); g.gain.value = i === 2 ? 0.25 : 0.4;
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 180;
-    o.connect(lp); lp.connect(g); g.connect(master); o.start(); return { o, lp };
-  });
-  const lfo = ac.createOscillator(); lfo.frequency.value = 0.15;
-  const lg = ac.createGain(); lg.gain.value = 0.02; lfo.connect(lg); lg.connect(master.gain); lfo.start();
-  audio = { ctx: ac, master, oscs };
+  if (ambient && ambientSeed !== state.seed) { ambient.stop(); ambient = null; }
+  if (!ambient) {
+    ambient = createAmbient(window.AudioContext || window.webkitAudioContext, { seed: state.seed, reduced: reduceMotion, volume });
+    ambientSeed = state.seed;
+    if (muted) ambient.mute();
+  }
+  return ambient.start();
 }
-function updateAudio(dread) {
-  if (!audio || audio.ctx.state !== 'running') return;
-  const t = audio.ctx.currentTime;
-  audio.master.gain.setTargetAtTime(0.04 + 0.2 * dread, t, 0.3);
-  audio.oscs.forEach(({ o, lp }, i) => {
-    lp.frequency.setTargetAtTime(160 + 500 * dread, t, 0.3);
-    o.frequency.setTargetAtTime([55, 55.7, 82.4][i] * (1 - 0.12 * dread * (i === 1 ? -1 : 1)), t, 0.5);
-  });
+function updateAudio(dread) { if (ambient) ambient.setDread(dread); }
+function stopAudio() { if (ambient) ambient.stop(); }
+function setMuted(m) {
+  muted = m;
+  if (ambient) (m ? ambient.mute() : ambient.unmute());
+  $('mute').textContent = m ? 'Unmute (U)' : 'Mute (U)';
+  $('mute').setAttribute?.('aria-pressed', String(m));
 }
-function stopAudio() { if (audio) audio.ctx.suspend(); }
+function setVolume(v) { volume = Math.max(0, Math.min(1, v)); if (ambient) ambient.setVolume(volume); }
 
 // ---------- data + layout ----------
 async function loadCatalog() {
@@ -104,6 +100,7 @@ function rebuild() {
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
   state.focus = -1;
   state.campaign = generateCampaign(state.seed);
+  story.beats = [];
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
   renderCampaign();
   $('listen').innerHTML = '<option value="">Choose a landmark</option>' +
@@ -112,6 +109,7 @@ function rebuild() {
   $('stats').textContent = `Seed ${state.seed}: ${state.layout.length} pieces stitched onto a ${GRID_W}x${GRID_D} grid (${area} of ${GRID_W * GRID_D} cells used). Same generator as the Unity project, so the same seed and settings (set pieceCount to ${PIECES} there) give the same layout.`;
   updateDesc();
   say(null);
+  if (story.on) showBeat(story.idx);
 }
 
 // Omen-driven detail: a building's detail level (0..3) only falls as dread rises, each on its own seeded delay.
@@ -656,7 +654,7 @@ function syncViewUi() {
 }
 function themeSource(t) { return t.packRole && pack.patterns[t.packRole] ? 'Using the local pack texture.' : 'Using the procedural pattern.'; }
 function pushHash() {
-  const extra = (state.theme !== 'auto' ? `&theme=${state.theme}` : '') + (state.camChoice !== 'third' ? `&cam=${state.camChoice}` : '') + (state.floor ? `&floor=${state.floor}` : '');
+  const extra = (state.theme !== 'auto' ? `&theme=${state.theme}` : '') + (state.camChoice !== 'third' ? `&cam=${state.camChoice}` : '') + (state.floor ? `&floor=${state.floor}` : '') + (story.on ? `&story=1&beat=${story.idx - nightStartIndex(story.beats, state.night + 1)}` : '');
   history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}${extra}`);
 }
 function setTheme(id) { state.theme = parseTheme(id); syncViewUi(); pushHash(); mark(); announce(`Texture theme: ${state.theme === 'auto' ? 'default' : state.theme}.`); }
@@ -688,6 +686,7 @@ function applyHash() {
   // a shared night link without an explicit sanity starts at that night's sanity
   if (state.catalog && /night=/.test(location.hash) && !/sanity=/.test(location.hash)) state.sanity = new SanityModel(currentNight().sanityStart);
   syncUi();
+  applyStoryHash();
 }
 function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); }
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
@@ -717,7 +716,99 @@ function tryNextDoor() {
   state.doorFocus = (state.doorFocus + 1) % state.doors.length;
   tryDoor(state.doors[state.doorFocus]);
 }
-function setSound(on) { $('sound').checked = on; if (on) { startAudio(); syncUi(); } else stopAudio(); }
+function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $('sound').checked = false; syncUi(); } else stopAudio(); }
+
+// ---------- story mode (beats from story.js; deep link #story=1&night=N&beat=N, beat is 0-based within the night) ----------
+const story = { on: false, beats: [], idx: 0, playing: false, timer: 0, ramp: 0 };
+function storyBeats() {
+  if (!story.beats.length && state.campaign) story.beats = buildStory(state.campaign);
+  return story.beats;
+}
+function rampSanity(target) {
+  clearTimeout(story.ramp);
+  const from = state.sanity.value;
+  if (reduceMotion || Math.abs(target - from) < 1) { setSanity(target, true); return; }
+  let i = 0;
+  const step = () => { i++; setSanity(i >= 8 ? target : from + ((target - from) * i) / 8, true); if (i < 8) story.ramp = setTimeout(step, 70); };
+  step();
+}
+function showBeat(idx, user) {
+  const beats = storyBeats(); if (!beats.length) return;
+  story.idx = clampBeat(idx, beats.length);
+  const b = beats[story.idx];
+  const nightIdx = b.nightNumber - 1;
+  if (nightIdx !== state.night) { state.night = nightIdx; renderCampaign(); }
+  rampSanity(100 - b.dreadPercent);
+  const start = nightStartIndex(beats, b.nightNumber);
+  $('storyText').textContent = b.text;
+  $('storyMeta').textContent = `Night ${b.nightNumber} of ${state.campaign.nights.length}, beat ${story.idx - start + 1} of ${beats.filter((x) => x.nightNumber === b.nightNumber).length} (${b.kind}). Sky ${b.sky}, weather ${b.weather}, dread target ${b.dreadPercent}%.`;
+  $('storyPrev').disabled = story.idx === 0;
+  $('storyNext').disabled = story.idx >= beats.length - 1;
+  pushHash();
+  if (user) clearTimeout(story.timer);
+  schedulePlay();
+}
+function schedulePlay() {
+  clearTimeout(story.timer);
+  if (!story.playing) return;
+  const beats = storyBeats();
+  if (story.idx >= beats.length - 1) { setPlaying(false); return; }
+  story.timer = setTimeout(() => showBeat(nextBeat(story.idx, beats.length)), beats[story.idx].durationMs);
+}
+function setPlaying(p) {
+  story.playing = p;
+  $('storyPlay').textContent = p ? 'Pause' : 'Play';
+  $('storyPlay').setAttribute?.('aria-pressed', String(p));
+  if (!p) clearTimeout(story.timer); else schedulePlay();
+}
+function openStory(idx, autoplay) {
+  story.on = true; $('story').hidden = false;
+  showBeat(idx, true);
+  if (autoplay) setPlaying(true);
+}
+function closeStory() {
+  story.on = false; setPlaying(false); clearTimeout(story.ramp); $('story').hidden = true; pushHash();
+}
+function toggleStory() { if (story.on) closeStory(); else openStory(nightStartIndex(storyBeats(), state.night + 1)); }
+function applyStoryHash() {
+  const sp = parseStoryParam(location.hash || location.search);
+  const q = parseStoryParam(location.search);
+  const on = sp.on || q.on;
+  if (!on) { if (story.on) closeStory(); return; }
+  const beats = storyBeats();
+  const hasNight = /(^|[#&?])night=/.test(location.hash);
+  const night = hasNight ? state.night + 1 : (sp.on ? sp.night : q.night);
+  const base = nightStartIndex(beats, night);
+  const n = beats.filter((x) => x.nightNumber === beats[base].nightNumber).length;
+  openStory(base + Math.min(n - 1, sp.on ? sp.beat : q.beat), optParam('autoplay') === '1');
+}
+
+// ---------- intro (skippable title sequence; ?intro=0 disables, deep links skip it) ----------
+const intro = { slides: [], i: 0, timer: 0, prevFocus: null };
+function renderSlide() {
+  const sl = intro.slides[intro.i];
+  $('introTitle').textContent = sl.title; $('introText').textContent = sl.text;
+  $('introStep').textContent = `${intro.i + 1} of ${intro.slides.length}.`;
+  $('introNext').textContent = intro.i === intro.slides.length - 1 ? 'Begin' : 'Next';
+  clearTimeout(intro.timer);
+  const delay = slideDelayMs(reduceMotion);
+  if (delay && intro.i < intro.slides.length - 1) intro.timer = setTimeout(introAdvance, delay);
+}
+function introAdvance() { const r = advanceSlide(intro.i, intro.slides.length); if (r.done) closeIntro(); else { intro.i = r.index; renderSlide(); } }
+function openIntro() {
+  intro.slides = buildIntroSlides(state.campaign); intro.i = 0;
+  intro.prevFocus = document.activeElement || null;
+  $('intro').hidden = false; renderSlide(); $('introNext').focus?.();
+}
+function closeIntro() { clearTimeout(intro.timer); $('intro').hidden = true; (intro.prevFocus && intro.prevFocus.focus ? intro.prevFocus : canvas).focus?.(); }
+const introOpen = () => $('intro').hidden === false;
+$('introNext').addEventListener('click', introAdvance);
+$('introSkip').addEventListener('click', closeIntro);
+$('intro').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeIntro(); e.preventDefault(); }
+  else if (e.key === 'ArrowRight' || ((e.key === 'Enter' || e.key === ' ') && e.target !== $('introSkip'))) { introAdvance(); e.preventDefault(); }
+  else if (e.key === 'Tab') { const to = e.shiftKey === (e.target === $('introNext')) ? $('introSkip') : $('introNext'); to.focus?.(); e.preventDefault(); }
+});
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
@@ -756,14 +847,33 @@ $('night').addEventListener('change', () => selectNight(Number($('night').value)
 $('nightPrev').addEventListener('click', () => selectNight(state.night - 1));
 $('nightNext').addEventListener('click', () => selectNight(state.night + 1));
 $('postcard').addEventListener('click', postcard);
+$('storyOpen').addEventListener('click', toggleStory);
+$('storyExit').addEventListener('click', closeStory);
+$('storyPrev').addEventListener('click', () => showBeat(prevBeat(story.idx, storyBeats().length), true));
+$('storyNext').addEventListener('click', () => showBeat(nextBeat(story.idx, storyBeats().length), true));
+$('storyPlay').addEventListener('click', () => setPlaying(!story.playing));
+$('volume').addEventListener('input', () => setVolume(Number($('volume').value) / 100));
+$('mute').addEventListener('click', () => setMuted(!muted));
 $('dlMd').addEventListener('click', () => download(reportFilename(state.seed, 'md'), reportToMarkdown(report()), 'text/markdown'));
 $('dlJson').addEventListener('click', () => download(reportFilename(state.seed, 'json'), reportToJson(report()), 'application/json'));
 
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (introOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (story.on) {
+    const n = storyBeats().length, onCanvas = e.target === canvas;
+    if (e.key === 'ArrowRight' && !onCanvas) { showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === 'ArrowLeft' && !onCanvas) { showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === '.') { showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === ',') { showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === ' ' && tag !== 'BUTTON' && !onCanvas) { setPlaying(!story.playing); e.preventDefault(); return; }
+    if (e.key === 'Escape') { closeStory(); return; }
+  }
   switch (e.key) {
+    case 's': case 'S': toggleStory(); break;
+    case 'u': case 'U': setMuted(!muted); break;
     case 'w': case 'W': doWhisper(); break;
     case 'c': case 'C': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
@@ -795,5 +905,5 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   $('theme').innerHTML = '<option value="auto">Default (mixed)</option>' + THEME_GROUPS.map((g) =>
     `<optgroup label="DLNK group: ${g}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
-  applyHash(); pushHash(); start(); setTimeout(() => { state.live = true; }, 800);
+  applyHash(); pushHash(); start(); if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
 })();
