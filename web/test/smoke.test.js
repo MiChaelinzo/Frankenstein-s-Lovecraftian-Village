@@ -81,5 +81,24 @@ test('app renders frames at several sanity levels without throwing', async () =>
   els.postcard.listeners.click();
   assert.equal(clicked.length, before + 1);
   assert.match(clicked[before].download, /^village-postcard-seed-\d+-night-\d+\.png$/);
+  // building features: themes, cameras, floor peel, doors; draw every combination at calm and abyss dread
+  assert.match(els.theme.innerHTML, /optgroup label="DLNK group: Nature"/);
+  for (const sanity of ['100', '40', '0']) {
+    els.sanity.value = sanity; els.sanity.listeners.input();
+    for (const theme of ['auto', 'bricks', 'plaster', 'tiles', 'wood', 'rocks', 'water']) {
+      els.theme.value = theme; els.theme.listeners.change();
+      for (const cam of ['first', 'third', 'top', 'auto']) {
+        els.camera.value = cam; els.camera.listeners.change();
+        els.floor.value = '1'; els.floor.listeners.input();
+        raf(9000); raf(9016);
+      }
+    }
+  }
+  assert.match(els.cameraNote.textContent, /Looking: /);
+  els.door.listeners.click();
+  assert.match(els.whispers.innerHTML, /e-door/);
+  assert.ok(els.toastLive.textContent.length > 0);
+  press('o'); press('t'); press('v'); press('f');
+  assert.match(globalThis.location.hash, /theme=|cam=|floor=|night=/);
   globalThis.setInterval = realSetInterval;
 });
