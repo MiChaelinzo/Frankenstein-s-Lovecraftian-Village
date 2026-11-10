@@ -143,6 +143,11 @@ crashlytics-build.properties
 # Paid third-party packs must never be committed (keep the placeholder README only)
 /Assets/[Ll]ovecraftian [Vv]illage*
 /Assets/[Ee]ssential [Tt]errain [Pp]ack*
+/Assets/_DLNK/
+/Assets/_DLNK.meta
+# Local demo pack data and screenshots derived from the pack
+/web/local-pack/
+/pack-scratch/
 /Assets/ThirdParty/LovecraftianVillage/*
 !/Assets/ThirdParty/LovecraftianVillage/README.md
 # dotnet test output

@@ -9,6 +9,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Asset guard: refuse to add, copy, stage or commit any file from the commercial 'Lovecraftian Village 1.3 HDRP' or 'Essential Terrain Pack' (fbx, prefab, textures, materials, audio) or anything under Assets/ThirdParty other than its README.md. Never use `git add -f` on ignored paths. If the action would violate this, stop and explain. Otherwise proceed."
+    "prompt": "Asset guard: refuse to add, copy, stage or commit any file from the commercial 'Lovecraftian Village 1.3 HDRP' or 'Essential Terrain Pack' (fbx, prefab, textures, materials, audio) or anything under Assets/ThirdParty other than its README.md, Assets/_DLNK or web/local-pack. Never use `git add -f` on ignored paths. If the action would violate this, stop and explain. Otherwise proceed."
   }
 }

@@ -35,7 +35,12 @@ for f in tracked:
     if low.startswith("assets/") and low.endswith(banned) and "thirdparty" not in low:
         errors.append(f"binary asset needs review: {f}")
 
-for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "probe.unitypackage"):
+for f in tracked:
+    if f.startswith("Assets/_DLNK") or f.startswith("web/local-pack/"):
+        errors.append(f"pack-derived path must not be tracked: {f}")
+
+for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "probe.unitypackage",
+              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "web/local-pack/manifest.json"):
     if subprocess.run(["git", "check-ignore", "-q", probe]).returncode != 0:
         errors.append(f"{probe} must be gitignored")
 for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py"):
