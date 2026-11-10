@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- Web: `web/selftest.html` runs the JS Core against the embedded C# golden vectors in the browser (126 checks, shown pass/fail); `tools/embed_golden.mjs` regenerates `web/src/golden-data.js` and a node test fails if it drifts. Screenshot: `docs/media/selftest.png`.
+- Runtime: `WalkthroughController` steps the director through a seeded campaign (never compiled in Unity).
+- Docs: `docs/BUILD_LOG.md`, a history tied to real commits.
 - Core: `CampaignGenerator` (seeded multi-night arc with village name, titles, strictly rising dread targets, sky, weather, rumors and lore), with C# property tests, golden parity and a JS port in `web/src/core.js`.
 - Web demo: campaign panel with night selector (`,` `.`), `#night=N` share links, dusk/night/witching tint, rain and fog weather (static under reduced motion), and postcard PNG export (`P`). Screenshot: `docs/media/campaign-night5.png`.
 - Core: `DreadEvents` (Uneasy, Dire and Abyss thresholds with hysteresis), `VillageReport` (Markdown and JSON), `PrefabNameMatcher`, each with property tests.

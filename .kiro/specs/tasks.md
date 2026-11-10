@@ -30,5 +30,7 @@
 - [ ] 28. Enable GitHub Pages (Settings > Pages > Source: GitHub Actions) and confirm CI runs on GitHub
 - [x] 29. Core: seeded `CampaignGenerator` (village name, per-night title, rising dread target, sky, weather, rumor, lore) with JS port, golden parity and tests
 - [x] 30. Web: campaign panel and night selector, dusk/night/witching tint, rain and fog, postcard PNG export
+- [x] 31. Web: in-browser parity self-test (`web/selftest.html`) with embedded golden vectors and a drift test
+- [x] 32. Runtime `WalkthroughController` for stepping campaign nights (code-complete, unverified in Unity) and `docs/BUILD_LOG.md`
 
 Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publish the video), 26, 27 and 28.

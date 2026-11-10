@@ -48,6 +48,7 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 ## Submission checklist
 - [x] Public repo with detectable open source license (Apache-2.0)
 - [x] `/.kiro` at root with specs, hooks and steering, not gitignored
+- [x] Verifiable claims: parity self-test at `web/selftest.html` (served by Pages) and history in `docs/BUILD_LOG.md`
 - [ ] Demo video under 3 minutes, public (script in `docs/DEMO_SCRIPT.md`)
 - [x] Kiro usage write-up finished (`docs/KIRO_USAGE.md`)
 - [ ] Category selected: Frankenstein

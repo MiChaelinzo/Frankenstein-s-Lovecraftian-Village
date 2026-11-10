@@ -56,6 +56,8 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 |------|--------|
 | Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher | Verified: property tests under `dotnet test` |
 | JS port in `web/src/core.js` | Verified: golden parity with C# output, `node --test` |
+| Parity self-test page (`web/selftest.html`) | Verified: 126 checks pass in headless Chromium; run it yourself in any browser over HTTP |
+| `WalkthroughController` | Code-complete, never compiled in Unity |
 | Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
 | Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`) | **Unverified**: never run in the Unity editor |
@@ -133,13 +135,13 @@ dotnet test tests/Frankenstein.Core.Tests
 node --test "web/test/*.test.js"      # JS port, including parity with C# output (Node 20+)
 python3 tools/validate_repo.py
 ```
-After intentionally changing Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js` to match.
+After intentionally changing Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests`, then `node tools/embed_golden.mjs` (refreshes the data used by `web/selftest.html`), and update `web/src/core.js` to match.
 The tests are property-based: each property runs 300 seeded random cases and reports the failing seed. If your home directory is read-only, run with `HOME=/tmp/home`.
 
 Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh`.
 
 ## Built with Kiro
-Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
+Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
