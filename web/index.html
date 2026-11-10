@@ -14,34 +14,66 @@
       <p class="tag">Stitched from a seeded layout generator, a sanity model and a narrator. Kiroween 2026, Frankenstein category.</p>
     </header>
 
-    <section class="stage" aria-label="Village view">
-      <canvas id="view" width="960" height="560" role="img" aria-label="Procedurally generated isometric village"></canvas>
-      <div id="narration" class="narration" aria-live="polite"></div>
-      <div id="hint" class="hint">Click a building to hear what it whispers.</div>
-    </section>
+    <div class="layout">
+      <div class="primary">
+        <section class="stage" aria-label="Village view">
+          <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" aria-describedby="viewDesc"></canvas>
+          <div id="narration" class="narration" aria-live="polite"></div>
+          <div id="hint" class="hint">Click a building, or focus the view and use the arrow keys, to listen.</div>
+        </section>
+        <p id="viewDesc" class="sr-only"></p>
 
-    <section class="panel" aria-label="Controls">
-      <div class="row">
-        <label for="seed">Seed</label>
-        <input id="seed" type="number" step="1" value="1818">
-        <button id="reroll" type="button">Stitch a new village</button>
-        <button id="share" type="button">Copy share link</button>
+        <section class="panel" aria-label="Controls">
+          <div class="row">
+            <label for="seed">Seed</label>
+            <input id="seed" type="number" step="1" value="1818">
+            <button id="reroll" type="button">Stitch a new village</button>
+            <button id="share" type="button">Copy share link</button>
+          </div>
+          <div class="row">
+            <label for="sanity">Sanity <output id="sanityOut">100</output></label>
+            <input id="sanity" type="range" min="0" max="100" step="1" value="100">
+            <span class="meter" aria-hidden="true"><i id="dreadBar"></i></span>
+            <span id="dreadOut" class="dread">Dread 0%</span>
+          </div>
+          <div class="row">
+            <button id="whisper" type="button">Hear a whisper (-8)</button>
+            <button id="church" type="button">Enter the church (-15)</button>
+            <button id="candle" type="button">Light a candle (+10)</button>
+            <label class="check"><input id="drain" type="checkbox"> Let the dark creep in</label>
+            <label class="check"><input id="sound" type="checkbox"> Drone (sound)</label>
+          </div>
+          <div class="row">
+            <label for="listen">Listen to</label>
+            <select id="listen"><option value="">Choose a landmark</option></select>
+            <button id="dlMd" type="button">Download report (Markdown)</button>
+            <button id="dlJson" type="button">Download report (JSON)</button>
+          </div>
+          <p id="stats" class="stats"></p>
+        </section>
       </div>
-      <div class="row">
-        <label for="sanity">Sanity <output id="sanityOut">100</output></label>
-        <input id="sanity" type="range" min="0" max="100" step="1" value="100">
-        <span class="meter" aria-hidden="true"><i id="dreadBar"></i></span>
-        <span id="dreadOut" class="dread">Dread 0%</span>
-      </div>
-      <div class="row">
-        <button id="whisper" type="button">Hear a whisper (-8)</button>
-        <button id="church" type="button">Enter the church (-15)</button>
-        <button id="candle" type="button">Light a candle (+10)</button>
-        <label class="check"><input id="drain" type="checkbox"> Let the dark creep in</label>
-        <label class="check"><input id="sound" type="checkbox"> Drone (sound)</label>
-      </div>
-      <p id="stats" class="stats"></p>
-    </section>
+
+      <aside class="side">
+        <section class="panel journal" aria-labelledby="journalTitle">
+          <h2 id="journalTitle">Whispers</h2>
+          <ol id="whispers" class="whispers" aria-live="polite"><li class="empty">Nothing has spoken yet.</li></ol>
+        </section>
+        <details id="keys" class="panel keys" open>
+          <summary>Keyboard</summary>
+          <ul>
+            <li><kbd>W</kbd> whisper</li>
+            <li><kbd>C</kbd> enter the church</li>
+            <li><kbd>L</kbd> light a candle</li>
+            <li><kbd>N</kbd> new village</li>
+            <li><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
+            <li><kbd>D</kbd> let the dark creep in</li>
+            <li><kbd>M</kbd> drone on/off</li>
+            <li><kbd>?</kbd> show or hide this list</li>
+            <li>View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
+          </ul>
+        </details>
+      </aside>
+    </div>
 
     <footer>
       <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes. Apache-2.0.</p>
