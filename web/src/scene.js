@@ -172,3 +172,17 @@ export function nightFromHash(hash, count) {
   if (!Number.isFinite(v) || count <= 0) return 0;
   return Math.max(0, Math.min(count - 1, v - 1));
 }
+
+/** HUD text for the current ritual stage. `ritual` comes from generateRitual; dreadPercent is 0..100. */
+export function ritualHudText(ritual, dreadPercent) {
+  if (!ritual || !Array.isArray(ritual.stages) || !ritual.stages.length) return '';
+  let found = -1;
+  for (let i = 0; i < ritual.stages.length; i++) if (ritual.stages[i].dreadThresholdPercent <= dreadPercent) found = i;
+  if (found < 0) {
+    return `${ritual.name}: not yet begun (first stage, ${ritual.stages[0].name}, at ${ritual.stages[0].dreadThresholdPercent}% dread).`;
+  }
+  const st = ritual.stages[found];
+  const next = ritual.stages[found + 1];
+  return `${ritual.name}: stage ${found + 1} of ${ritual.stages.length}, ${st.name} (sigil ${st.sigil}).` +
+    (next ? ` Next: ${next.name} at ${next.dreadThresholdPercent}% dread.` : ' The rite is complete.');
+}

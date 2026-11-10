@@ -2,11 +2,11 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, DREAD_THRESHOLDS, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   StaticNarrationProvider, SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
-  detailLevel, doorOmen,
+  detailLevel, doorOmen, generateRitual, ritualStageForDread,
 } from './core.js';
 import {
   computeView, buildWalkers, walkerPos, cultistCount, windowState, omenText, addEntry, entryLabel,
-  reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash, nightClampNotice,
+  reportFilename, wrapIndex, describeScene, skyTint, weatherFor, postcardFilename, postcardCaption, nightFromHash, nightClampNotice, ritualHudText,
 } from './scene.js';
 import { buildStory, clampBeat, nextBeat, prevBeat, nightStartIndex, parseStoryParam } from './story.js';
 import { createAmbient } from './music.js';
@@ -51,7 +51,7 @@ const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
-  campaign: null, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
+  campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
 };
 
 // ?narrator=https://... plugs in an AI endpoint; Safe wrapper falls back to offline text on any failure.
@@ -107,6 +107,8 @@ function rebuild() {
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
   state.focus = -1;
   state.campaign = generateCampaign(state.seed);
+  state.ritual = generateRitual(state.campaign);
+  state.ritualStage = -1;
   story.beats = [];
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
   showNightClamp();
@@ -131,8 +133,23 @@ function renderCampaign() {
   $('night').innerHTML = c.nights.map((n, i) => `<option value="${i}">Night ${n.number}: ${esc(n.title)}</option>`).join('');
   $('night').value = String(state.night);
   const n = currentNight();
-  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> (dread target ${n.dreadTargetPercent}%, ${esc(n.sky)}, ${esc(n.weather)}).<br>Rumor: ${esc(n.rumor)}<br>Lore: ${esc(n.lore)}`;
+  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> (dread target ${n.dreadTargetPercent}%, ${esc(n.sky)}, ${esc(n.weather)}).<br>Rumor: ${esc(n.rumor)}<br>Lore: ${esc(n.lore)}<br>Ritual: <span id="ritualInfo"></span>`;
+  renderRitual();
   updateDesc();
+}
+function renderRitual() {
+  const el = $('ritualInfo'); if (!el) return;
+  const text = ritualHudText(state.ritual, Math.round(state.sanity.dread * 100));
+  if (el.textContent !== text) el.textContent = text;
+}
+function trackRitual() {
+  const stage = ritualStageForDread(state.ritual, Math.round(state.sanity.dread * 100));
+  if (stage > state.ritualStage && stage >= 0) {
+    const st = state.ritual.stages[stage];
+    log('omen', `The ritual advances: ${st.name} (sigil ${st.sigil}).`);
+  }
+  state.ritualStage = stage;
+  renderRitual();
 }
 function selectNight(i, quiet) {
   if (!state.campaign) return;
@@ -712,6 +729,7 @@ function syncUi() {
   refreshDetail();
   syncViewUi();
   state.tracker.update(d).forEach(omen);
+  trackRitual();
   updateDesc();
   mark();
 }

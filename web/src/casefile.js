@@ -1,5 +1,6 @@
 // Case file export: deterministic Markdown/HTML of a campaign. No timestamps, so the same inputs give identical output.
 import { buildStory } from './story.js';
+import { generateRitual } from './core.js';
 
 const one = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 export const caseFileName = (seed, ext) => `village-casefile-seed-${seed | 0}.${ext}`;
@@ -19,6 +20,9 @@ export function buildCaseFile({ campaign, seed, sanity, journal = [], report = n
         `- Dread target: ${n.dreadTargetPercent}%`, `- Sanity start: ${n.sanityStart}`, `- Sky: ${n.sky}, weather: ${n.weather}`,
         `- Rumor: ${one(n.rumor)}`, `- Lore: ${one(n.lore)}`);
     }
+    const ritual = generateRitual(campaign);
+    L.push('', `## Ritual: ${one(ritual.name)}`, '');
+    for (const st of ritual.stages) L.push(`- Night ${st.nightNumber}, ${st.name} (sigil ${st.sigil}), begins at ${st.dreadThresholdPercent}% dread, omen ${st.omenId}, story beat ${st.beatIndex + 1}`);
     L.push('', '## Story beats', '');
     for (const b of buildStory(campaign)) L.push(`- [night ${b.nightNumber}, ${b.kind}, ${b.dreadPercent}%] ${one(b.text)}`);
   }

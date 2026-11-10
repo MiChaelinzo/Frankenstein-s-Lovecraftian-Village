@@ -27,3 +27,10 @@ test('html escapes and has no scripts', () => {
   assert.match(h, /<ol>/);
 });
 test('file names', () => { assert.equal(caseFileName(5.9, 'md'), 'village-casefile-seed-5.md'); });
+
+test('case file includes the ritual chain section', () => {
+  const a = buildCaseFile(input());
+  assert.match(a, /\n## Ritual: The [^\n]+\n\n- Night 1, /);
+  assert.equal((a.match(/^- Night \d+, \w+ \(sigil /gm) || []).length, 5);
+  assert.ok(a.indexOf('## Ritual') < a.indexOf('## Story beats'));
+});
