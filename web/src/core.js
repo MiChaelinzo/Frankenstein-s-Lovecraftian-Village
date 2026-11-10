@@ -480,3 +480,60 @@ export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
   }
   return { seed, villageName, nights: out };
 }
+
+// ---- DLNK adapter policy (DreadBuildingPolicy.cs) ----
+
+export const DOOR_BEHAVIORS = ['Normal', 'Creak', 'Slam', 'Refuse'];
+export const CAMERA_MODES = ['FirstPerson', 'ThirdPerson', 'TopDown'];
+export const MAX_DETAIL = 3;
+
+/** FNV-1a over UTF-16 code units, returned as a signed int32 like the C# version. */
+export function stableHash(text) {
+  let h = 2166136261;
+  const s = text == null ? '' : String(text);
+  for (let i = 0; i < s.length; i++) {
+    h = (h ^ s.charCodeAt(i)) >>> 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h | 0;
+}
+
+/** Detail 0..3 (3 = full). Never rises as dread rises; each building decays after its own 0..2 tier delay. */
+export function detailLevel(dread, buildingId, seed) {
+  const tier = tierFor(dread);
+  const delay = new SeededRandom((seed | 0) ^ stableHash(buildingId)).next(3);
+  return Math.max(0, Math.min(MAX_DETAIL, MAX_DETAIL - Math.max(0, tier - delay)));
+}
+
+export function clampFloor(floor, floorCount) {
+  if (floorCount <= 0) return 0;
+  return Math.max(0, Math.min(floorCount - 1, floor | 0));
+}
+
+/** Top-down peel: floors up to the active one show, higher hide. Other modes show every floor. */
+export function floorVisible(floor, activeFloor, floorCount, topDown) {
+  if (floor < 0 || floor >= floorCount) return false;
+  if (!topDown) return true;
+  return floor <= clampFloor(activeFloor, floorCount);
+}
+
+/** Returns a DoorBehavior int (0 Normal, 1 Creak, 2 Slam, 3 Refuse). */
+export function doorOmen(dread, buildingId, doorIndex, attempt, seed) {
+  const tier = tierFor(dread);
+  if (tier === 0) return 0;
+  const mix = (Math.imul(seed | 0, 31) + stableHash(buildingId) + Math.imul(doorIndex | 0, 977) + Math.imul(attempt | 0, 7919)) | 0;
+  const roll = new SeededRandom(mix).next(100);
+  if (tier === 1) return roll < 30 ? 1 : 0;
+  if (tier === 2) return roll < 25 ? 1 : roll < 45 ? 2 : 0;
+  return roll < 20 ? 1 : roll < 40 ? 2 : roll < 70 ? 3 : 0;
+}
+
+/** Returns a CameraMode int (0 FirstPerson, 1 ThirdPerson, 2 TopDown). */
+export function suggestedCamera(dread) {
+  const tier = tierFor(dread);
+  return tier === 0 ? 2 : tier === 1 ? 1 : 0;
+}
+
+export function allowedCamera(requested, dread) {
+  return tierFor(dread) >= 3 && requested === 2 ? 0 : requested;
+}

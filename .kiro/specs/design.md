@@ -40,3 +40,7 @@ Two assemblies. `Frankenstein.Core` has no engine references and holds all rules
 
 ## Testing strategy
 Property-based: many seeded random cases per property, failing seed reported. Core files are compiled into an xunit project so no Unity editor is required.
+
+## DLNK adapter layer
+
+`DreadBuildingPolicy` (Core) holds per-building detail level, floor peel, door omens and camera policy, all driven by `DreadThresholds.TierFor` and `SeededRandom` seeded from a stable FNV-1a hash of the building id. The Runtime `Dlnk*Bridge` components only forward these results through UnityEvents, so no DLNK type is referenced. The JS port in `web/src/core.js` is checked by the `buildings` golden section.
