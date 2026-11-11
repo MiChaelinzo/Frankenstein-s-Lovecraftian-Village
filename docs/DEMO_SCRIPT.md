@@ -34,6 +34,9 @@ Narration, read aloud at an easy pace (about 50 seconds):
 
 Facts behind each line are in [KIRO_USAGE.md](KIRO_USAGE.md); the longer spoken pitch and the Devpost write-up are in [KIRO_PITCH.md](KIRO_PITCH.md).
 
+## 3D fly-through shot (optional, 10 to 15 seconds)
+Open `https://frankensteinlovecraftianvillage.vercel.app/?intro=0&view=3d&cinematic=1#seed=1818&night=3` (the live host gets round 15 only after a redeploy; locally use `python3 -m http.server -d web 8000`). The first-person camera flies to one stop per story beat with captions, in layered fog with the sea, dock and church hill. Same seed and night give the same path. Use it in place of the 1:10-1:20 meshes shot if you want more atmosphere, and keep the total under 3:00. With `?reduced=1` the camera holds one still viewpoint. Headless frame time is only indicative (SwiftShader, mean 23.2 ms).
+
 ## Tour and About scenes (optional, about 15 seconds)
 1. Open `http://localhost:8000/?intro=0&tour=1`. Let two or three stops play (or press Right arrow), say what each control does, then press Esc.
 2. Press `A` to show the About dialog (credits and license), then close it.

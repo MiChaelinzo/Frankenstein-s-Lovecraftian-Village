@@ -120,6 +120,7 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
   - [ ] Total length under 3:00 (script targets 2:50; live URL https://frankensteinlovecraftianvillage.vercel.app/ shown in the first and last shot)
   - [ ] 0:00-0:15 hook with fog and title card (web demo intro, `?intro=0` skips it)
   - [ ] Cinematic take recorded with `?intro=0&cinematic=1` (steps in DEMO_SCRIPT, "Cinematic mode for a clean take")
+  - [ ] Optional 3D fly-through shot with `?view=3d&cinematic=1` (DEMO_SCRIPT, "3D fly-through shot"); needs the round 15 deploy or a local server
   - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
   - [ ] 1:30-2:25 Kiro segment per `docs/DEMO_SCRIPT.md` ("How we used Kiro"): specs, steering, hooks, `dotnet test`, PR list
   - [ ] Unity segment only if you ran the package yourself (otherwise say Unverified)
