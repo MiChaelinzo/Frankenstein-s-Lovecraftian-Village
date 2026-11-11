@@ -82,3 +82,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 ## Round 9 cinematic, input and accessibility
 - `252b411` Web cinematic capture mode (`web/src/cinematic.js`, pure timeline, still camera under reduced motion), gamepad and touch mapping (`web/src/input.js`), skip link and caption live region, duplicate `applyI18n()` call removed. Test counts after: node 131, dotnet 58. Headless screenshot `docs/media/cinematic.png` checked (web demo only). Gamepad and touch not tried on real hardware.
 - `ac165d9` Docs: README, CHANGELOG, DEMO_SCRIPT clean take steps, Devpost checklist, tasks 49 to 52, steering. Offscreen terrain cache skipped (task 52): ground and sea redraw from dread, the easing camera squash and pack patterns each frame.
+
+## Round 10 pack screenshot hang
+- Root cause: headless virtual-time artifact, not an app bug (live CDP session: 118 rAF frames in 3 s with pack vs 181 without, screenshot in 194 ms; `?pack=1&reduced=1` works under virtual time, animated pack run exits 124 even with a 300 ms budget). Fix: `?capture=1` (static frame) added by `tools/screenshot.sh` for pack queries, plus a hard `timeout`. Commit hash recorded in the git log (`fix: pack screenshot hang`).

@@ -37,7 +37,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const ctx = canvas.getContext('2d');
 const params = new URLSearchParams(location.search);
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1';
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1' || params.get('capture') === '1';
 if (reduceMotion) document.documentElement?.classList?.add('reduced');
 
 const V = computeView(canvas.width, canvas.height, GRID_W, GRID_D);

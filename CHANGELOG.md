@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- Pack-mode headless screenshots (`?pack=1`) no longer hang (exit 124). Not an app bug: the same page in a live DevTools session renders about 39 frames per second and screenshots in 0.2 s, and `?pack=1&reduced=1` finishes under virtual time. The continuous animated frame loop with pattern textures stops Chrome's `--virtual-time-budget` clock from finishing. New `?capture=1` renders the static still frame (same as reduced motion); `tools/screenshot.sh` adds it for `pack=1` queries and wraps Chrome in `timeout` (`SHOT_TIMEOUT`, default 60 s).
+
 ### Added
 - Web: cinematic capture mode (`B`, the Cinematic button or `?cinematic=1`). Hides the page chrome, shows a large caption and runs a scripted camera pan and zoom through the current night's story beats on the fixed story beat timings, then returns to the normal page. The timeline is a pure function (`web/src/cinematic.js`, `cinematicFrame`) with node tests; under reduced motion the camera stays still and only the beats advance. `B` or `Esc` leaves early.
 - Web: gamepad and touch controls through a pure, tested mapping (`web/src/input.js`). The Gamepad API is polled in `requestAnimationFrame` only after a pad connects (stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic). Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. Not tried on a physical gamepad or touch device here.

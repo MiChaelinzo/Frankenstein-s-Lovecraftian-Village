@@ -38,7 +38,7 @@ What the demo does:
 ![Campaign night 5](docs/media/campaign-night5.png)
 - **Whispers journal**: every whisper is kept, so you can reread what the narrator said.
 - **Village report**: download a Markdown or JSON report of the current seed, sanity and layout.
-- **Accessibility**: full keyboard control, skip link to the village view, live regions for toasts and cinematic captions, a screen reader description of the village, reduced motion (`prefers-reduced-motion` or `?reduced=1`), responsive layout.
+- **Accessibility**: full keyboard control, skip link to the village view, live regions for toasts and cinematic captions, a screen reader description of the village, reduced motion (`prefers-reduced-motion` or `?reduced=1`; `?capture=1` is the same static rendering for screenshots), responsive layout.
 
 | Key | Action |
 |-----|--------|
@@ -178,7 +178,7 @@ python3 tools/validate_repo.py
 After intentionally changing Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests`, then `node tools/embed_golden.mjs` (refreshes the data used by `web/selftest.html`), and update `web/src/core.js` to match.
 The tests are property-based: each property runs 300 seeded random cases and reports the failing seed. If your home directory is read-only, run with `HOME=/tmp/home`.
 
-Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh`.
+Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
 ## Built with Kiro
 Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
