@@ -499,7 +499,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const onMouseMove = (e) => { if (locked) { pendingMouse = { dx: (pendingMouse ? pendingMouse.dx : 0) + e.movementX, dy: (pendingMouse ? pendingMouse.dy : 0) + e.movementY }; wake(); } };
   const onLockChange = () => { locked = document.pointerLockElement === canvas; wake(); };
   const onPointerDown = (e) => {
-    canvas.setPointerCapture?.(e.pointerId);
+    try { canvas.setPointerCapture?.(e.pointerId); } catch { /* the pointer already ended; click and drag still work without capture */ }
     const r = canvas.getBoundingClientRect();
     if (e.pointerType === 'touch') {
       const left = e.clientX - r.left < r.width * 0.4;
