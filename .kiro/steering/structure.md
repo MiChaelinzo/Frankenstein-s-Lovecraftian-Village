@@ -8,6 +8,9 @@ Packages/com.michaelinzo.frankenstein-village/Core    pure C# logic (testable wi
 Packages/com.michaelinzo.frankenstein-village/Runtime Unity glue (MonoBehaviour, ScriptableObject)
 Packages/com.michaelinzo.frankenstein-village/Editor  editor-only tools (CatalogAutoBinder), unverified in Unity
 Packages/com.michaelinzo.frankenstein-village/Data  catalog JSON describing stitchable pieces
+Packages/com.michaelinzo.frankenstein-village/package.json, Samples~   UPM package manifest and sample; Runtime also holds the playable layer (FirstPersonExplorer, InteractionRaycaster, DreadHud), Editor holds PlayableVillageSceneBuilder
+tools/gen_package_meta.py   writes and checks the package .meta files
+docs/UNITY_SETUP.md    install and play steps for HDRP and URP
 Assets/ThirdParty      placeholder only; paid packs are gitignored
 Packages/ ProjectSettings/   Unity project config
 web/                   browser demo: JS port of Core + canvas UI (static; host configs in netlify.toml, vercel.json, web/_headers; see docs/HOSTING.md)

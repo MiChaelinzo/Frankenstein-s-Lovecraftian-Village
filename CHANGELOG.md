@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Round 14
+- Unity package: `Assets/Scripts/{Core,Runtime,Editor}` and `Assets/Data/village_catalog.json` moved (git mv, one canonical copy) into `Packages/com.michaelinzo.frankenstein-village` (`package.json`, asmdefs, `Samples~/PlayableVillage`, `.meta` files from `tools/gen_package_meta.py`). All path references (tests, tools, hooks, docs, steering) updated; `web/data/village_catalog.json` still must equal the package catalog. The package depends on `com.unity.render-pipelines.core`, Input System and UGUI (not HDRP directly, so URP projects can install it).
+- Core: `InteractionRules` (reach 3 m, 0.75 s cooldown, sanity per interaction reusing `SanityModel` costs, category to kind, door messages, camera cycle that honors the Abyss ban) with property tests. Not mirrored in `web/` (Unity only so far), golden unchanged. dotnet tests 87 (was 80).
+- Runtime: `FirstPersonExplorer` (Input System; walk, look, E, V camera cycle), `InteractionRaycaster`, `InteractionTarget`, `DreadHud` (quiet UGUI readout); `VillageBuilder` gained a primitive fallback and tags pieces. Editor: Tools > Frankenstein > Create Playable Village Scene (`PlayableVillageSceneBuilder`). Compile checked against stubs only (0 errors); never run in Unity (Unverified).
+- Validator: package layout, package `.meta` freshness, no `UnityEngine` in package Core, no unexpected paths or binaries under `Packages/`, pack-like paths under `Packages/` ignored.
+- Docs: new `docs/UNITY_SETUP.md`, README "Play in Unity", MCP prompt for the package.
 - Live deployment: https://frankensteinlovecraftianvillage.vercel.app/ (Vercel). `tools/check_live.py` (offline test `tools/test_check_live.py`) checks entry pages, modules, content types, CSP, HSTS and the 404 for `/local-pack/manifest.json`; the run against the live URL passed 10/10. README row "Hosted web demo" is Verified at HTTP level only; real-browser use of the host stays Unverified.
 
 ### Round 13

@@ -75,4 +75,6 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 70. Round 13: architecture and parity audit (`docs/ARCHITECTURE_AUDIT.md`); codex, achievements, daily seed, sanity costs, floor counts moved to Core with golden parity; silent catches and dead code removed
 - [ ] 71. Wire `CodexModel`, `AchievementRules` and `DailySeed` into Unity Runtime (Core only today; Unity never run)
 - [x] 72. Round 13: horror design review. Seeded ambient lightning and shake (no `Math.random` in the render path), one capped and rate-limited flash gate, shorter and coalesced banners (`scene.js`, `web/test/notice-policy.test.js`); visual feel Partially Verified
+- [x] 74. Round 14: UPM package `com.michaelinzo.frankenstein-village` (scripts and catalog moved, paths and validator updated, `.meta` generator), Core `InteractionRules` with property tests, playable layer and scene builder (compile checked only; Unity Unverified), `docs/UNITY_SETUP.md`
+- [ ] 75. Author: install the package in Unity 6, run Tools > Frankenstein > Create Playable Village Scene, report what breaks (first real run)
 - [ ] 73. Real-browser check of the quieter banner and flash pacing (author only)

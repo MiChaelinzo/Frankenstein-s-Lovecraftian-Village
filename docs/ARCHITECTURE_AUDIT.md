@@ -109,6 +109,14 @@ Scope: omen banner, door banner, full-screen flashes, screen shake, ambient ligh
 
 Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, coalescing, no `Math.random` in `draw.js`) is **Verified**. How the quieter banner and flashes feel is **Partially Verified** (inspection and headless reasoning only; no screenshot judges motion and nobody has played it in a real browser). The policy lives in the web layer only because it is presentation timing, not a gameplay rule; if Unity needs the same pacing, move it to Core first.
 
+## Round 14: Unity package and playable layer
+
+- Layout: scripts and catalog moved into one UPM package, no copies left. The catalog is shared with `web/data` by the existing byte-identity check.
+- New rules went to Core first: `InteractionRules` (reach, cooldown, sanity per kind, category mapping, door text, camera cycle) with property tests. They are **not** mirrored in `web/src` yet because only Unity uses them; if the 3D web demo gets first-person interaction, mirror them with golden entries then (no speculative port now).
+- Runtime additions stay thin: they measure distance and time, read input, and forward to Core (`DoorOmen`, `AllowedCamera`, `SanityModel`). `VillageBuilder` block heights and `PlayableVillageSceneBuilder` fog values are presentation constants, not gameplay rules.
+- Reflection is used in the scene builder to add HDRP overrides so the Editor assembly has no render-pipeline reference. Cost: a renamed HDRP field degrades to a warning. Status: Unverified.
+- Status: compile check Partially Verified (stubs), Unity runtime Unverified, `InteractionRules` Verified.
+
 ## Round 13 review follow-up
 
 - Flash gate: a flash stronger than the one that opened the 4 s gap now passes (`applyFlash`, `web/test/notice-policy.test.js`). Status: Verified by node tests; the `app.js` wrapper is one line over the tested function.

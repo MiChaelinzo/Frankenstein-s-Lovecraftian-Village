@@ -21,6 +21,7 @@ Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, pr
 See also [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) for which logic lives in Core, which is UI-only, and why.
 
 ## Rules
+- **Unity package layout.** Unity code lives in the UPM package `Packages/com.michaelinzo.frankenstein-village` (`Core`, `Runtime`, `Editor`, `Data`, `Samples~`). After adding, renaming or deleting a file there run `python3 tools/gen_package_meta.py` (the validator fails on missing or stale `.meta` files). Never put pack data under `Packages/`.
 - **Core first.** New logic goes in `Packages/com.michaelinzo.frankenstein-village/Core` (no `UnityEngine` references) with a property test in `tests/Frankenstein.Core.Tests`. MonoBehaviours in `Packages/com.michaelinzo.frankenstein-village/Runtime` only wrap Core.
 - **Determinism.** Use `SeededRandom`, never `System.Random` or time, in Core.
 - **Golden parity.** If you change Core behavior, regenerate the contract and update the JS port to match:
