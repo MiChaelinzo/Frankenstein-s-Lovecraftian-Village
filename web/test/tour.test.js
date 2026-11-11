@@ -65,3 +65,17 @@ test('app.js starts the tour only from tourWanted and wires About', () => {
   assert.match(app, /\$\('aboutBtn'\)\.addEventListener/);
   assert.match(app, /case 'a': case 'A': setAbout\(true\)/);
 });
+
+import { tourCardPlacement } from '../src/tour.js';
+test('tour card stays inside the viewport and off the target', () => {
+  const p = tourCardPlacement({ vh: 720, cardH: 200 });
+  assert.equal(p.side, 'bottom'); assert.equal(p.top, 720 - 12 - 200);
+  // target hidden under a bottom card, room above for a top card
+  assert.equal(tourCardPlacement({ vh: 720, cardH: 200, target: { top: 600, bottom: 630 } }).side, 'top');
+  // target already clear of the card
+  assert.equal(tourCardPlacement({ vh: 720, cardH: 200, target: { top: 100, bottom: 130 } }).side, 'bottom');
+  // target at the very top and under no card stays bottom; a tall card is capped to the viewport
+  const tall = tourCardPlacement({ vh: 300, cardH: 900, target: { top: 50, bottom: 80 } });
+  assert.equal(tall.maxHeight, 276); assert.ok(tall.top >= 12);
+  assert.ok(tall.top + Math.min(900, tall.maxHeight) <= 300);
+});

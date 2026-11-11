@@ -44,3 +44,19 @@ export function tourKeyAction(key, onButton = false) {
   if ((key === 'Enter' || key === ' ') && !onButton) return 'next';
   return null;
 }
+
+/**
+ * Where the tour card sits. Pure: all numbers are CSS pixels.
+ * The card always stays fully inside the viewport (maxHeight caps it, the CSS scrolls the overflow) and moves to the
+ * top edge when the highlighted control would otherwise sit underneath it.
+ * `target` is the control's bounding rect ({top, bottom}) or null; `margin` is the gap to the viewport edge.
+ */
+export function tourCardPlacement({ vh, cardH, target = null, margin = 12 }) {
+  const maxHeight = Math.max(80, Math.floor(vh - margin * 2));
+  const h = Math.min(cardH > 0 ? cardH : maxHeight, maxHeight);
+  const bottomTop = vh - margin - h;
+  // bottom by default; top only when the control is hidden by a bottom card and the top card would not cover it too
+  const hiddenAtBottom = !!target && target.bottom > bottomTop && target.top < vh;
+  const side = hiddenAtBottom && target.top >= margin + h ? 'top' : 'bottom';
+  return { side, maxHeight, top: side === 'top' ? margin : bottomTop };
+}
