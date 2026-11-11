@@ -12,7 +12,7 @@ import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
-  stableHash, detailLevel, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
+  stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
 } from '../src/core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -187,4 +187,17 @@ test('daily key and seed match C# DailySeed', () => {
   assert.ok(golden.daily.keys.length > 0 && golden.daily.seeds.length > 0);
   for (const [iso, key] of golden.daily.keys) assert.equal(dailyKey(new Date(iso)), key, iso);
   for (const [key, seed] of golden.daily.seeds) assert.equal(seedFromKey(key), seed, JSON.stringify(key));
+});
+
+test('first-person interaction rules match C# InteractionRules exactly', () => {
+  const g = golden.interaction;
+  assert.equal(InteractionRules.RANGE, g.range);
+  assert.equal(InteractionRules.COOLDOWN, g.cooldown);
+  const num = (v) => (v === 'NaN' ? NaN : v === 'Infinity' ? Infinity : v);
+  for (const [d, ok] of g.inRange) assert.equal(InteractionRules.inRange(num(d)) ? 1 : 0, ok, `inRange ${d}`);
+  for (const [gap, ok] of g.cooldownElapsed) assert.equal(InteractionRules.cooldownElapsed(10 + gap, 10) ? 1 : 0, ok, `cooldown ${gap}`);
+  assert.deepEqual(INTERACTION_KINDS.map((k) => InteractionRules.sanityDelta(k)), g.sanityDelta);
+  for (const [category, kind] of g.kinds) assert.equal(INTERACTION_KINDS.indexOf(InteractionRules.kindForCategory(category)), kind, category);
+  assert.equal(InteractionRules.cooldownElapsed(5, NaN), true);
+  assert.equal(InteractionRules.cooldownElapsed(5, -Infinity), true);
 });

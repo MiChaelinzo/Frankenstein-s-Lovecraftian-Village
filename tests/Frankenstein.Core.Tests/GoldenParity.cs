@@ -310,9 +310,49 @@ namespace Frankenstein.Core.Tests
                           .Append(roll2.ToString("R", inv)).Append(", ").Append(DreadBuildingPolicy.FloorCountFor(id, roll, roll2)).Append(']');
                     }
             sb.Append("]\n  },\n");
+            AppendInteraction(sb, inv);
             AppendProgression(sb, inv);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>First-person interaction rules (top level key "interaction"): range, cooldown, sanity deltas and category mapping.</summary>
+        private static void AppendInteraction(StringBuilder sb, CultureInfo inv)
+        {
+            float[] distances = { 0f, 1.5f, 2.99f, 3f, 3.01f, 10f, -0.5f, float.NaN, float.PositiveInfinity };
+            float[] gaps = { 0f, 0.5f, 0.74f, 0.75f, 0.76f, 5f, -1f };
+            string[] categories = { "House", "Landmark", "Prop", "", "Unknown" };
+            sb.Append("  \"interaction\": { \"range\": ").Append(InteractionRules.Range.ToString("R", inv))
+              .Append(", \"cooldown\": ").Append(InteractionRules.Cooldown.ToString("R", inv)).Append(", \"inRange\": [");
+            bool first = true;
+            foreach (var d in distances)
+            {
+                if (!first) sb.Append(", ");
+                first = false;
+                // NaN and infinity are not JSON numbers; they are encoded as strings.
+                string text = float.IsNaN(d) ? "\"NaN\"" : float.IsInfinity(d) ? "\"Infinity\"" : d.ToString("R", inv);
+                sb.Append('[').Append(text).Append(", ").Append(InteractionRules.InRange(d) ? 1 : 0).Append(']');
+            }
+            sb.Append("], \"cooldownElapsed\": [");
+            first = true;
+            foreach (var g in gaps)
+            {
+                if (!first) sb.Append(", ");
+                first = false;
+                sb.Append('[').Append(g.ToString("R", inv)).Append(", ").Append(InteractionRules.CooldownElapsed(10f + g, 10f) ? 1 : 0).Append(']');
+            }
+            sb.Append("], \"sanityDelta\": [");
+            for (int k = 0; k < 4; k++)
+                sb.Append(k > 0 ? ", " : "").Append(InteractionRules.SanityDelta((InteractionKind)k).ToString("R", inv));
+            sb.Append("], \"kinds\": [");
+            first = true;
+            foreach (var c in categories)
+            {
+                if (!first) sb.Append(", ");
+                first = false;
+                sb.Append('[').Append(JsonSerializer.Serialize(c)).Append(", ").Append((int)InteractionRules.KindForCategory(c)).Append(']');
+            }
+            sb.Append("] },\n");
         }
 
         /// <summary>Codex, achievement and daily seed sections (top level keys "codex", "achievements", "daily").</summary>

@@ -636,6 +636,35 @@ export function allowedCamera(requested, dread) {
   return tierFor(dread) >= 3 && requested === 2 ? 0 : requested;
 }
 
+// ---- First-person interaction rules (InteractionRules.cs; the 3D view uses them, golden-checked) ----
+
+export const INTERACTION_KINDS = ['door', 'whisper', 'landmark', 'candle'];
+export const InteractionRules = {
+  RANGE: 3,
+  COOLDOWN: 0.75,
+  /** True when the distance is a finite, non-negative number within RANGE. */
+  inRange(distance) {
+    return Number.isFinite(distance) && distance >= 0 && distance <= InteractionRules.RANGE;
+  },
+  /** True once COOLDOWN seconds passed since lastUse; NaN or -Infinity lastUse means never used; a clock that went backwards is not ready. */
+  cooldownElapsed(now, lastUse) {
+    if (!Number.isFinite(now)) return false;
+    if (Number.isNaN(lastUse) || lastUse === -Infinity) return true;
+    return now - lastUse >= InteractionRules.COOLDOWN;
+  },
+  /** Doors are free, whispers and landmarks cost sanity, candles restore it. */
+  sanityDelta(kind) {
+    if (kind === 'whisper') return -SanityModel.WHISPER_COST;
+    if (kind === 'landmark') return -SanityModel.FOCUS_COST;
+    if (kind === 'candle') return SanityModel.CANDLE_RESTORE;
+    return 0;
+  },
+  /** Houses have doors, landmarks are studied, everything else whispers. */
+  kindForCategory(category) {
+    return category === 'House' ? 'door' : category === 'Landmark' ? 'landmark' : 'whisper';
+  },
+};
+
 // ---- Investigator (Investigator.cs) ----
 
 export const INVESTIGATOR_MAX_WAYPOINTS = 10;
