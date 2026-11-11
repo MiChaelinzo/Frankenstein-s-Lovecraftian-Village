@@ -113,3 +113,47 @@ test('gateAction lets only the exit action through during a take', () => {
   assert.equal(gateAction('cinematic', false), 'cinematic');
   assert.equal(gateAction(null, false), null);
 });
+
+import { cinemaExitKey, showCinemaExit, normalizeDevice } from '../src/input.js';
+import { restoreAction, shouldStepInvestigator, snapshotPlayback } from '../src/investigator-state.js';
+import { t, STRINGS } from '../src/i18n.js';
+
+test('exit hint matches the active input device', () => {
+  assert.equal(cinemaExitKey('keyboard'), 'cinema.exit');
+  assert.equal(cinemaExitKey('pad'), 'cinema.exit.pad');
+  assert.equal(cinemaExitKey('touch'), 'cinema.exit.touch');
+  assert.equal(cinemaExitKey('weird'), 'cinema.exit');
+  assert.equal(normalizeDevice(undefined), 'keyboard');
+  assert.match(t('cinema.exit.pad', 'en'), /Select/);
+  assert.doesNotMatch(t('cinema.exit.pad', 'en'), /Escape/);
+  assert.match(t('cinema.exit', 'en'), /Escape/);
+});
+test('touch users get a visible exit button, others do not', () => {
+  assert.equal(showCinemaExit('touch'), true);
+  assert.equal(showCinemaExit('pad'), false);
+  assert.equal(showCinemaExit('keyboard'), false);
+  assert.equal(showCinemaExit(null), false);
+});
+test('investigator pauses when hidden or during a take', () => {
+  const inv = {};
+  assert.equal(shouldStepInvestigator({ investigator: inv, hidden: false, cinemaOn: false }), true);
+  assert.equal(shouldStepInvestigator({ investigator: inv, hidden: true, cinemaOn: false }), false);
+  assert.equal(shouldStepInvestigator({ investigator: inv, hidden: false, cinemaOn: true }), false);
+  assert.equal(shouldStepInvestigator({ investigator: null }), false);
+  assert.equal(shouldStepInvestigator(), false);
+});
+test('playback restore after a take', () => {
+  assert.deepEqual(snapshotPlayback({ on: true, playing: true }), { hadStory: true, hadPlaying: true });
+  assert.deepEqual(snapshotPlayback(null), { hadStory: false, hadPlaying: false });
+  assert.equal(restoreAction({ hadStory: false, hadPlaying: false }), 'close');
+  assert.equal(restoreAction({ hadStory: true, hadPlaying: false }), 'keep');
+  assert.equal(restoreAction({ hadStory: true, hadPlaying: true }), 'resume');
+  assert.equal(restoreAction(null), 'close');
+});
+test('page description is translated and index.html carries the same English text', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.includes(`content="${t('page.description', 'en')}"`));
+  assert.notEqual(t('page.description', 'fr'), t('page.description', 'en'));
+  assert.ok(t('page.title', 'fr') !== t('page.title', 'en'));
+});

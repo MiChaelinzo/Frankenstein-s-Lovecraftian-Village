@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- Web: the cinematic exit hint now matches the active input device (keyboard "B or Escape", gamepad "Select", touch "Tap Exit"), touch users get a visible Exit button during a take, and the page `<title>` and meta description follow `?lang=` (en and fr). Investigator pause and cinematic playback restore moved into `web/src/investigator-state.js` with node tests. New test that every module and asset reachable from `index.html` and `selftest.html` is in the service worker precache. Spec task 52 (offscreen terrain cache) revisited and again not implemented: sea waves and reeds animate with time and ground colour varies continuously with dread, so no cache would be pixel-identical. Not tried on a real touch device or gamepad.
+
 ### Fixed
 - Pack-mode headless screenshots (`?pack=1`) no longer hang (exit 124). Not an app bug: the same page in a live DevTools session renders about 39 frames per second and screenshots in 0.2 s, and `?pack=1&reduced=1` finishes under virtual time. The continuous animated frame loop with pattern textures stops Chrome's `--virtual-time-budget` clock from finishing. New `?capture=1` renders the static still frame (same as reduced motion); `tools/screenshot.sh` adds it for `pack=1` queries and wraps Chrome in `timeout` (`SHOT_TIMEOUT`, default 60 s).
 

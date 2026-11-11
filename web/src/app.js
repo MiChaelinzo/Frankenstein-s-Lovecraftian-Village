@@ -26,7 +26,8 @@ import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
-import { gateAction, mapGamepad, mapSwipe, snapshotPad } from './input.js';
+import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
+import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
@@ -270,7 +271,7 @@ function setInvestigator(on) {
   updateDesc(); mark();
 }
 function stepInvestigator() {
-  const inv = state.investigator; if (!inv || document.hidden || cine.on) return; // paused during a cinematic take so it stays repeatable
+  const inv = state.investigator; if (!inv || !shouldStepInvestigator({ investigator: inv, hidden: document.hidden, cinemaOn: cine.on })) return; // paused during a cinematic take so it stays repeatable
   const hit = inv.step();
   if (hit) {
     state.sanity.apply(-hit.sanityLoss);
@@ -298,6 +299,7 @@ function applyI18n() {
   document.documentElement?.setAttribute?.('lang', lang);
   if (lang === 'en') return;
   document.title = `${tr('page.title')} | Kiroween 2026`;
+  document.querySelector?.('meta[name="description"]')?.setAttribute('content', tr('page.description'));
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = tr(el.getAttribute('data-i18n'));
   for (const el of document.querySelectorAll('[data-i18n-html]')) el.innerHTML = tr(el.getAttribute('data-i18n-html'));
   for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', tr(el.getAttribute('data-i18n-aria')));
@@ -470,6 +472,9 @@ $('invToggle').addEventListener('click', () => setInvestigator(!state.investigat
 $('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
 
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
+// Last input device seen, so the exit hint names the control the player actually has.
+let inputDevice = 'keyboard';
+const setDevice = (d) => { inputDevice = normalizeDevice(d); };
 const cine = { on: false, beats: [], durations: [], t0: 0, beat: -1, timer: 0, hadStory: false, hadPlaying: false };
 function cinemaStep() {
   const f = cinematicFrame(performance.now() - cine.t0, cine.durations, reduceMotion);
@@ -489,14 +494,15 @@ function setCinematic(on) {
   document.documentElement?.classList?.toggle?.('cinema', on);
   $('cinemaCaption').hidden = !on;
   clearInterval(cine.timer);
-  if (!on) { state.cinema = null; cine.beat = -1; if (!cine.hadStory) closeStory(); else if (cine.hadPlaying) setPlaying(true); mark(); return; }
+  if (!on) { state.cinema = null; cine.beat = -1; const act = restoreAction(cine); if (act === 'close') closeStory(); else if (act === 'resume') setPlaying(true); $('cinemaExit').hidden = true; mark(); return; }
   const all = storyBeats(), start = nightStartIndex(all, state.night + 1);
   cine.beats = all.filter((b) => b.nightNumber === all[start].nightNumber);
   cine.durations = cine.beats.map((b) => b.durationMs);
-  cine.hadStory = story.on; cine.hadPlaying = story.playing; cine.beat = -1; cine.t0 = performance.now();
+  Object.assign(cine, snapshotPlayback(story)); cine.beat = -1; cine.t0 = performance.now();
   if (!story.on) openStory(start);
   setPlaying(false);
-  announce(tr('cinema.exit'));
+  $('cinemaExit').hidden = !showCinemaExit(inputDevice);
+  announce(tr(cinemaExitKey(inputDevice)));
   cinemaStep();
   cine.timer = setInterval(cinemaStep, 100);
 }
@@ -525,21 +531,24 @@ function pollPad() {
   const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
   if (!pads.length) { padPolling = false; padPrev = null; return; }
   const cur = snapshotPad(pads[0]);
-  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) doAction(a);
+  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
   padPrev = cur;
   requestAnimationFrame(pollPad);
 }
 let touch0 = null;
-canvas.addEventListener('touchstart', (e) => { const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
+canvas.addEventListener('touchstart', (e) => { setDevice('touch'); const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
 canvas.addEventListener('touchcancel', () => { touch0 = null; }, { passive: true });
 canvas.addEventListener('touchend', (e) => {
   const p = e.changedTouches[0]; if (!touch0 || !p) return;
   const a = mapSwipe(p.clientX - touch0.x, p.clientY - touch0.y, performance.now() - touch0.t); touch0 = null;
   if (a) doAction(a);
 }, { passive: true });
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setDevice('touch'); else if (e.pointerType === 'mouse' || e.pointerType === 'pen') setDevice('keyboard'); }, { passive: true });
+$('cinemaExit').addEventListener('click', () => setCinematic(false));
 addEventListener('gamepadconnected', () => { if (!padPolling) { padPolling = true; padPrev = null; requestAnimationFrame(pollPad); } });
 
 addEventListener('keydown', (e) => {
+  setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (introOpen()) return;
   const tag = e.target && e.target.tagName;
