@@ -162,7 +162,7 @@ test('buildWorld is deterministic, uses every kind, and falls back to boxes with
   assert.equal(w1.heights.length, l.length); assert.ok(w1.heights.every((v) => v > 0));
   const boxes = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24 });
   assert.ok(boxes.building.length > 0 && boxes.heights.every((v) => v === 3));
-  assert.ok(w1.ground.length === 6 * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
+  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
   assert.ok(buildWorld({ layout: l, meshes, seed: 1818, gridW: 24, gridD: 24, groundTint: [100, 100, 100] }).ground[6] > 0);
 });
 test('smoke: the GL renderer runs a frame against a recording stub context', () => {
@@ -362,4 +362,27 @@ test('round 16 props: the committed prop GLBs load, are small, and replace the p
   }
   assert.deepEqual(Array.from(meshed), Array.from(buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models })));
   assert.ok(meshed.every(Number.isFinite) && meshed.length % 11 === 0);
+});
+
+test('lantern pools: lit and free are warm and bright, unlit is a dim cold glint, matched by position', () => {
+  const light = { pos: [10, 2.2, 20] }, lamps = [{ pos: [10, 2.2, 20], lit: false }, { pos: [50, 2.2, 5], lit: true }];
+  assert.equal(M.lanternState(light, lamps), 'unlit'); assert.equal(M.lanternState({ pos: [50, 2.2, 5] }, lamps), 'lit');
+  assert.equal(M.lanternState(light, []), 'free'); assert.equal(M.lanternState(light, undefined), 'free');
+  const warm = M.lanternPool('lit', 0), cold = M.lanternPool('unlit', 0);
+  assert.ok(warm.gain > 5 * cold.gain && warm.halo > cold.halo);
+  assert.ok(warm.color[0] > warm.color[2] && cold.color[2] > cold.color[0], 'warm pool versus cold glint');
+  assert.deepEqual(M.lanternPool('lit', 1).color, M.lanternColor(1), 'pool is tinted by dread');
+  assert.ok(M.haloSprites([{ pos: [0, 1, 0], haloScale: 0.5 }])[4] < M.haloSprites([{ pos: [0, 1, 0] }])[4]);
+});
+test('cool fill and moon boost keep colours in range and push toward blue', () => {
+  const f = M.coldFill([0.16, 0.19, 0.27]);
+  assert.ok(f.every((v) => v >= 0 && v <= 1) && f[2] / f[0] > 0.27 / 0.16);
+  assert.ok(M.coldFill([1, 1, 1]).every((v) => v === 1));
+  assert.deepEqual(M.moonBoost([0.1, 0.2, 0.3]).map((v) => +v.toFixed(3)), [0.19, 0.38, 0.57]);
+});
+test('contact rings: nested, darker toward the wall, drawn above the ground, deterministic', () => {
+  const lay = layout(1818), rings = M.contactRings(lay, [{ pos: [4, 3, 4], post: true }, { pos: [8, 2, 8] }]);
+  assert.equal(rings.length, lay.length * 3 + 2); assert.deepEqual(rings, M.contactRings(lay, [{ pos: [4, 3, 4], post: true }, { pos: [8, 2, 8] }]));
+  const [outer, mid, inner] = [rings[0], rings[lay.length], rings[lay.length * 2]];
+  assert.ok(outer.x0 < mid.x0 && mid.x0 < inner.x0 && outer.shade > mid.shade && mid.shade > inner.shade && inner.y > outer.y && outer.y > 0);
 });

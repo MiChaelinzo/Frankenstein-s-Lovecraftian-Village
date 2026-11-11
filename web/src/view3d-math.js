@@ -205,11 +205,11 @@ export function fogDensity({ dread = 0, weather = 'clear', timeSec = 0, reduced 
 export const fogFactor = (distance, density) => 1 - Math.exp(-Math.pow(Math.max(0, distance) * density, 2));
 
 const SKIES = {
-  dusk: { zenith: [0.1, 0.12, 0.23], horizon: [0.62, 0.38, 0.3], ambient: [0.28, 0.27, 0.34], stars: 0.35 },
-  night: { zenith: [0.025, 0.04, 0.1], horizon: [0.16, 0.2, 0.3], ambient: [0.16, 0.19, 0.27], stars: 0.9 },
-  witching: { zenith: [0.02, 0.015, 0.06], horizon: [0.14, 0.1, 0.18], ambient: [0.12, 0.12, 0.2], stars: 1 },
+  dusk: { zenith: [0.09, 0.13, 0.3], horizon: [0.9, 0.52, 0.4], ambient: [0.26, 0.27, 0.38], stars: 0.35 },
+  night: { zenith: [0.02, 0.05, 0.15], horizon: [0.2, 0.34, 0.5], ambient: [0.15, 0.21, 0.32], stars: 0.95 },
+  witching: { zenith: [0.025, 0.02, 0.1], horizon: [0.18, 0.15, 0.32], ambient: [0.12, 0.13, 0.25], stars: 1 },
 };
-const WEATHER_SKY = { clear: { grey: 0, cloud: 0.15, stars: 1 }, rain: { grey: 0.55, cloud: 0.85, stars: 0.1 }, fog: { grey: 0.7, cloud: 0.6, stars: 0.2 } };
+const WEATHER_SKY = { clear: { grey: 0, cloud: 0.15, stars: 1 }, rain: { grey: 0.35, cloud: 0.85, stars: 0.1 }, fog: { grey: 0.45, cloud: 0.6, stars: 0.2 } };
 
 /** Sky and ambient colours (0..1 rgb) for a campaign night. The fog colour matches the horizon so the world fades into the sky. */
 export function skyColors(sky, weather, dread = 0) {
@@ -252,6 +252,46 @@ export function lanternLights(layout, cell = CELL) {
     out.push({ pos: [x, 2.2, z + 0.5], radius: 9, phase: p.vis.phase || 0, post: false });
     if (p.vis.lit2 > 0.45) out.push({ pos: [(p.x + p.sizeX) * cell + 0.7, 3.1, z + 0.7], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
   }
+  return out;
+}
+
+/**
+ * Whether a lantern light is lit in the vigil: 'lit' or 'unlit' when a vigil lamp stands at the same spot, 'free' when no lamp
+ * claims it (free roam, or a lantern that is not a vigil target). lamps are [{pos, lit}] from getScene().
+ */
+export function lanternState(light, lamps) {
+  const m = (lamps || []).find((l) => Math.abs(l.pos[0] - light.pos[0]) < 0.05 && Math.abs(l.pos[1] - light.pos[1]) < 0.05 && Math.abs(l.pos[2] - light.pos[2]) < 0.05);
+  return !m ? 'free' : m.lit ? 'lit' : 'unlit';
+}
+
+export const COLD_LANTERN = [0.3, 0.5, 0.62];
+/**
+ * Pool of light a lantern throws: { color, gain, halo }. Lit and free lanterns are warm (tinted by lanternColor(dread)) and bright;
+ * an unlit vigil lantern is a dim, cold glint so the player can see which ones still need a candle.
+ */
+export function lanternPool(state, dread) {
+  if (state === 'unlit') return { color: COLD_LANTERN, gain: 0.16, halo: 0.3 };
+  return { color: lanternColor(dread), gain: 2.1, halo: 1 };
+}
+
+/** Cool fill light: the sky ambient lifted and pushed toward blue so shadows read teal against the warm pools. Moon light is boosted the same way. */
+export const coldFill = (ambient) => [ambient[0] * 1.15, ambient[1] * 1.45, ambient[2] * 1.75].map((v) => clamp(v, 0, 1));
+export const moonBoost = (color) => color.map((v) => v * 1.9);
+
+/**
+ * Fake ambient occlusion on the ground: nested darker squares around each building footprint (largest and lightest first, drawn lower),
+ * plus two small ones under every lamp post. Returns [{x0, z0, x1, z1, y, shade}] in metres; shade multiplies the ground colour.
+ * Static geometry, no shadow maps.
+ */
+export function contactRings(layout, lights = [], cell = CELL) {
+  const out = [], steps = [[1.4, 0.82], [0.8, 0.66], [0.3, 0.5]];
+  steps.forEach(([grow, shade], k) => {
+    for (const p of layout) {
+      if (!p.sizeX || !p.sizeZ) continue;
+      out.push({ x0: p.x * cell - grow, z0: p.z * cell - grow, x1: (p.x + p.sizeX) * cell + grow, z1: (p.z + p.sizeZ) * cell + grow, y: 0.03 + k * 0.01, shade });
+    }
+  });
+  for (const l of lights) if (l.post) [[0.9, 0.78], [0.4, 0.55]].forEach(([r, shade], k) => out.push({ x0: l.pos[0] - r, z0: l.pos[2] - r, x1: l.pos[0] + r, z1: l.pos[2] + r, y: 0.06 + k * 0.01, shade }));
   return out;
 }
 
@@ -328,7 +368,7 @@ export const nightHaze = (nightNumber) => NIGHT_HAZE[(((Math.floor(nightNumber) 
 
 /** skyColors with the night's haze mixed into the horizon and fog (a quarter, a little more at dread) so each night reads differently. */
 export function hazedSky(sky, weather, dread, nightNumber) {
-  const s = skyColors(sky, weather, dread), haze = nightHaze(nightNumber), k = 0.22 + 0.1 * clamp(dread, 0, 1);
+  const s = skyColors(sky, weather, dread), haze = nightHaze(nightNumber), k = 0.1 + 0.12 * clamp(dread, 0, 1);
   const horizon = mixc(s.horizon, haze, k);
   return { ...s, horizon, fog: horizon.map((v) => v * 0.85), haze };
 }
@@ -347,10 +387,10 @@ export function fogLayers({ dread = 0, weather = 'clear', timeSec = 0, reduced =
 /** Halo size in world metres. Lamp posts glow wider than door lanterns. */
 export const haloSize = (light) => (light.post ? 3.4 : 2.4);
 export const HALO_FLOATS = 5;
-/** Billboard halo per lantern: flat [x, y, z, phase, size, ...]. Every light gets one, the lit window and the lamp post alike. */
+/** Billboard halo per lantern: flat [x, y, z, phase, size, ...]. Every light gets one; light.haloScale (default 1) shrinks the halo of an unlit lantern. */
 export function haloSprites(lights) {
   const out = new Float32Array(lights.length * HALO_FLOATS);
-  lights.forEach((l, i) => out.set([l.pos[0], l.pos[1], l.pos[2], l.phase || 0, haloSize(l)], i * HALO_FLOATS));
+  lights.forEach((l, i) => out.set([l.pos[0], l.pos[1], l.pos[2], l.phase || 0, haloSize(l) * (l.haloScale ?? 1)], i * HALO_FLOATS));
   return out;
 }
 

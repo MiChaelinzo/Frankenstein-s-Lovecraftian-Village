@@ -86,8 +86,9 @@ const { iso, doorPoint } = renderer;
 
 // ---------- opt-in first-person 3D view (?view=3d or the button); 2D isometric stays the default ----------
 const packTint = (...roles) => { const r = pack.want && pack.roles && roles.map((n) => pack.roles[n]).find(Boolean); return r ? r.tint : null; };
+const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 const view3d = createView3d({
-  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion, capture: params.get('capture') === '1', camParam: optParam('cam3d'),
+  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion, capture: params.get('capture') === '1', camParam: cam3dParam,
   getScene: () => ({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },
@@ -96,7 +97,7 @@ const view3d = createView3d({
     labelFor: (p, kind) => (kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
-    fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
+    fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),

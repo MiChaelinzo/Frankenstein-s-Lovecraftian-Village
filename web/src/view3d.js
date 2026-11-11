@@ -6,7 +6,7 @@ import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
+  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
@@ -159,6 +159,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.5) : [0.16, 0.17, 0.14];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
+  for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
   return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side };
@@ -182,7 +183,9 @@ void main(){
   if (uMode > 0.5 && uMode < 1.5) { vec2 c = floor(vPos.xz * 1.5); base *= 0.88 + 0.16 * hash(c) + 0.12 * hash(floor(vPos.xz * 6.0)) + 0.08 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17); }
   if (uMode < 0.5 && uHasWall > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
   if (uMode > 0.5 && uMode < 1.5 && uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.25).rgb * 1.6, 0.85);
-  vec3 lightSum = uAmbient + uMoonColor * max(dot(n, uMoonDir), 0.0);
+  float skyUp = n.y * 0.5 + 0.5;
+  vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
+  if (uMode < 0.5 || uMode > 2.5) base *= mix(0.5, 1.0, smoothstep(0.0, 1.8, vPos.y));
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
     vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att;
@@ -213,15 +216,16 @@ void main(){
   vec3 d = normalize(uF + uR * vNdc.x * uTy * uAspect + uU * vNdc.y * uTy);
   float h = d.y; vec3 col = mix(uHorizon, uZenith, pow(clamp(h, 0.0, 1.0), 0.45));
   if (h < 0.0) col = uHorizon * 0.8;
-  vec2 uv = d.xz / (abs(h) + 0.2) * 0.8 + vec2(uTime * 0.004, 0.0);
+  vec2 uv = d.xz / (abs(h) + 0.2) * 0.8 + vec2(uTime * 0.009, uTime * 0.002);
   float cl = (vnoise(uv * 2.0) * 0.6 + vnoise(uv * 5.0) * 0.3 + vnoise(uv * 11.0) * 0.1);
   float c = smoothstep(0.42, 0.78, cl) * uCloud * clamp(h * 5.0, 0.0, 1.0);
   col = mix(col, uHorizon * 0.55 + 0.03, c * 0.7);
-  vec3 g = floor(d * 160.0); float s = step(0.9972, hash(g.xy + g.z * 7.31)) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h);
+  vec3 g = floor(d * 160.0); float sh = hash(g.xy + g.z * 7.31); float s = step(0.9972, sh) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h) * (0.65 + 0.35 * sin(uTime * 2.1 + sh * 600.0));
   col += vec3(0.8, 0.85, 1.0) * s;
   float m = dot(d, uMoonDir); float disc = smoothstep(cos(uMoonSize), cos(uMoonSize * 0.9), m);
-  float halo = pow(max(m, 0.0), 40.0) * 0.5 + pow(max(m, 0.0), 6.0) * 0.08;
-  col += (vec3(0.9, 0.93, 1.0) * disc + uMoonColor * 2.0 * halo) * (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
+  float halo = pow(max(m, 0.0), 160.0) * 0.55 + pow(max(m, 0.0), 24.0) * 0.12 + pow(max(m, 0.0), 5.0) * 0.05;
+  col += (vec3(0.82, 0.88, 1.0) * disc * (0.8 + 0.2 * vnoise(d.xz * 90.0 + d.y * 40.0)) + uMoonColor * 1.6 * halo) * (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
+  col += uHorizon * 0.35 * exp(-abs(h) * 9.0) * (0.6 + 0.4 * uMoonColor.z);
   if (uEyeOpen > 0.01 && dot(d, uEyeDir) > 0.0) {
     vec3 tR = normalize(cross(vec3(0.0, 1.0, 0.0), uEyeDir)); vec3 tU = cross(uEyeDir, tR);
     vec2 e = vec2(dot(d, tR) / uEye.x, dot(d, tU) / uEye.y);
@@ -300,6 +304,7 @@ export function createGlRenderer(gl) {
   return {
     setWorld(w) { upload('building', w.building); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos); },
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
+    setHalos(data) { upload('halo', data); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
     /** Images already cut to power of two canvases; null keeps the white stand-in. Only ever called under ?pack=1. */
     setPackTextures(wall, ground) {
@@ -337,7 +342,7 @@ export function createGlRenderer(gl) {
       gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
       gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
       for (const unit of [0, 1]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
-      gl.uniform3fv(scene.u('uMoonColor'), f.moon.color); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
+      gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
       gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
       for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3]]) {
         if (!counts[name]) continue;
@@ -392,7 +397,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  */
 export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, camParam = null, packTextures = () => null, onPerf = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
-  let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '';
+  let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null;
   let perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
@@ -405,7 +410,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const key = [s.seed, meshes ? meshes.size : 0, s.layout.map((p) => p.detail).join('')].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
+    lastHalos = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
     boxes = worldBoxes(s.layout, world.heights); bounds = worldBounds(s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = '';
     if (!cam) {
@@ -506,9 +511,14 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const eye = { ...view, y: view.y + headBob(bobPhase, 1, reduced) };
     const sk = hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon = moonParams(s.seed, s.night.number, s.night.sky, s.night.weather);
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
+    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
+    if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
+      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
+    }
     const lit = nearestLights(lights, view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
-      return { pos: l.pos, radius: l.radius, color: lc.map((v) => v * 1.3 * k) };
+      const pool = lanternPool(lanternState(l, s.lamps), s.dread);
+      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 0.62 * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
     lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0) });
@@ -519,7 +529,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
     renderer.draw({
-      vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: sk, moon, lights: lit,
+      vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
       fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, pointScale: canvas.height * 0.5,
     });
   }
