@@ -40,7 +40,7 @@ namespace Frankenstein.Core
         {
             var r = new VillageReport { Seed = seed, Width = width, Depth = depth };
             float d = DreadThresholds.Sanitize(dread);
-            r.DreadPercent = (int)Math.Floor(d * 100f + 0.5f);
+            r.DreadPercent = DreadThresholds.Percent(d);
             r.Tier = DreadThresholds.TierNames[DreadThresholds.TierFor(d)];
             r.Omen = Omens[new SeededRandom(seed).Next(Omens.Length)];
 

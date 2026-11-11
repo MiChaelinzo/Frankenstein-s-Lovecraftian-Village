@@ -1,5 +1,6 @@
-// Opt-in daily village: the seed is derived from the UTC date, so everyone who opts in on the same day gets the same village.
+// Key and seed derivation mirror Assets/Scripts/Core/DailySeed.cs (golden-checked in web/test/parity.test.js). Opt-in daily village: the seed is derived from the UTC date, so everyone who opts in on the same day gets the same village.
 // The clock is injectable for tests. Nothing here runs unless the player asks (button, Z key or ?daily=1).
+import { queryParam } from './util.js';
 const fmt = (n, w) => String(n).padStart(w, '0');
 
 /** "YYYY-MM-DD" in UTC, or null for an invalid date. */
@@ -24,6 +25,5 @@ export function dailyVillage(clock = () => new Date()) {
 
 /** True only for an explicit ?daily=1 in the query or hash. */
 export function dailyWanted(search, hash) {
-  const get = (s) => new URLSearchParams(String(s || '').replace(/^[?#]/, '')).get('daily');
-  return get(search) === '1' || get(hash) === '1';
+  return queryParam(search, 'daily') === '1' || queryParam(hash, 'daily') === '1';
 }

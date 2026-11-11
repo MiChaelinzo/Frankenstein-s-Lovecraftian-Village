@@ -71,7 +71,7 @@ export const cameraOverridden = (choice, dread) => choice !== 'auto' && effectiv
 
 // ---- floors ----
 
-/** Floors per building. Deterministic from the id and the per-piece visual rolls (0..1). */
+/** Floors per building. Deterministic from the id and the per-piece visual rolls (0..1). Mirrors DreadBuildingPolicy.FloorCountFor (golden-checked). */
 export function floorCountFor(id, roll, roll2) {
   if (id === 'house_a') return roll < 0.5 ? 1 : 2;
   if (id === 'house_b') return roll2 < 0.35 ? 2 : 3;

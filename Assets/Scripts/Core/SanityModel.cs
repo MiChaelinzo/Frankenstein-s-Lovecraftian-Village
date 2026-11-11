@@ -6,6 +6,17 @@ namespace Frankenstein.Core
     public sealed class SanityModel
     {
         public const float Max = 100f;
+
+        /// <summary>Sanity lost by studying a landmark (click or focus).</summary>
+        public const float FocusCost = 2f;
+        /// <summary>Sanity lost by listening to the walls.</summary>
+        public const float WhisperCost = 8f;
+        /// <summary>Sanity lost by entering the church.</summary>
+        public const float ChurchCost = 15f;
+        /// <summary>Sanity regained by lighting a candle.</summary>
+        public const float CandleRestore = 10f;
+        /// <summary>Sanity lost per second while the dark creeps in (Runtime and web share this rate).</summary>
+        public const float DrainPerSecond = 1f;
         public float Value { get; private set; }
 
         public SanityModel(float start = Max) { Value = Clamp(start); }

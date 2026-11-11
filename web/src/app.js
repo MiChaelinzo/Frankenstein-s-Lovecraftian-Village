@@ -422,7 +422,7 @@ function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) :
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   progress.note.listen();
-  setFocus(i); adjust(-2, p.id);
+  setFocus(i); adjust(-SanityModel.FOCUS_COST, p.id);
 }
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
@@ -474,7 +474,7 @@ canvas.addEventListener('click', (e) => {
   if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
   state.layout.forEach((p) => { const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2); const d = Math.hypot(c.x - mx, c.y - 12 - my); if (d < bd) { bd = d; best = p; } });
-  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-2, best.id); }
+  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-SanityModel.FOCUS_COST, best.id); }
 });
 canvas.addEventListener('keydown', (e) => {
   if (state.dlnk) return;
@@ -491,11 +491,11 @@ $('theme').addEventListener('change', () => setTheme($('theme').value));
 $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
-$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
+$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
-const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
-const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
-const doCandle = () => adjust(10, 'the village');
+const doWhisper = () => { progress.note.whisper(); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
+const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-SanityModel.CHURCH_COST, 'church'); };
+const doCandle = () => adjust(SanityModel.CANDLE_RESTORE, 'the village');
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
@@ -671,7 +671,8 @@ addEventListener('keydown', (e) => {
 addEventListener('hashchange', () => { progress.disarm(); applyHash(); });
 document.addEventListener?.('visibilitychange', () => { if (!document.hidden) mark(); });
 if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver((es) => { state.visible = es.some((e) => e.isIntersecting); if (state.visible) mark(); }).observe(canvas);
-setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-0.5); syncUi(); } }, 500);
+const DRAIN_TICK_MS = 500;
+setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-SanityModel.DRAIN_PER_SECOND * DRAIN_TICK_MS / 1000); syncUi(); } }, DRAIN_TICK_MS);
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
 // ---------- DLNK scene mode: ?pack=1&scene=<name>, only when local-pack/scene_layout.json exists ----------

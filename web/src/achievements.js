@@ -1,4 +1,4 @@
-// Achievements and journal-completion tracker. Pure: stats in, earned ids out. Earned ids are sticky (saved in the session).
+// Mirror of Assets/Scripts/Core/AchievementRules.cs (golden-checked in web/test/parity.test.js). Achievements and journal-completion tracker. Pure: stats in, earned ids out. Earned ids are sticky (saved in the session).
 export const JOURNAL_KINDS = ['narration', 'omen', 'door', 'investigator'];
 
 export const ACHIEVEMENTS = [
