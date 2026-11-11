@@ -2,7 +2,7 @@
 import { TOUR_STEPS, tourNext, tourPrev, tourDelayMs, tourKeyAction, tourCardPlacement } from './tour.js';
 
 export function createTourController({ $, tr, canvas, reduceMotion, announce }) {
-  const tour = { i: 0, timer: 0, prevFocus: null, hl: null };
+  const tour = { i: 0, timer: 0, stopped: false, hover: false, prevFocus: null, hl: null };
   const isOpen = () => $('tour').hidden === false;
   function highlight(id) {
     tour.hl?.classList?.remove('tour-target');
@@ -33,13 +33,14 @@ export function createTourController({ $, tr, canvas, reduceMotion, announce }) 
   }
   function startTimer() {
     clearTimeout(tour.timer);
+    if (tour.stopped || tour.hover) return;
     const delay = tourDelayMs(tour.i, reduceMotion);
     if (delay) tour.timer = setTimeout(next, delay);
   }
   function next() { const r = tourNext(tour.i); if (r.done) close(); else { tour.i = r.index; render(); } }
   function prev() { tour.i = tourPrev(tour.i); render(); }
   function open() {
-    tour.i = 0; tour.prevFocus = document.activeElement || null;
+    tour.i = 0; tour.stopped = false; tour.hover = false; tour.prevFocus = document.activeElement || null;
     $('tour').hidden = false; render(); $('tourNext').focus?.();
   }
   function close() {
@@ -52,9 +53,9 @@ export function createTourController({ $, tr, canvas, reduceMotion, announce }) 
   $('tourPrev').addEventListener('click', prev);
   $('tourSkip').addEventListener('click', close);
   // reading time: hovering or any key press stops the auto-advance
-  $('tour').addEventListener('pointerenter', () => clearTimeout(tour.timer));
-  $('tour').addEventListener('pointerleave', () => { if (isOpen()) startTimer(); });
-  $('tour').addEventListener('keydown', () => clearTimeout(tour.timer), true);
+  $('tour').addEventListener('pointerenter', () => { tour.hover = true; clearTimeout(tour.timer); });
+  $('tour').addEventListener('pointerleave', () => { tour.hover = false; if (isOpen()) startTimer(); });
+  $('tour').addEventListener('keydown', () => { tour.stopped = true; clearTimeout(tour.timer); }, true);
   $('tour').addEventListener('keydown', (e) => {
     const onButton = e.target === $('tourNext') || e.target === $('tourPrev') || e.target === $('tourSkip');
     const a = tourKeyAction(e.key, onButton);

@@ -103,6 +103,6 @@ test('keyboard sanity and story keys arm progress like their mouse equivalents',
 });
 test('tour: skip stops propagation, pointerleave only restarts the timer, About pauses it', () => {
   assert.match(tourSrc, /'skip'\) \{ e\.stopPropagation\(\); close\(\)/);
-  assert.match(tourSrc, /pointerleave', \(\) => \{ if \(isOpen\(\)\) startTimer\(\)/);
+  assert.match(tourSrc, /pointerleave', \(\) => \{ tour\.hover = false; if \(isOpen\(\)\) startTimer\(\)/);
   assert.match(appSrc, /if \(on\) pauseTour\(\); else resumeTour\(\)/);
 });
