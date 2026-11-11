@@ -43,13 +43,17 @@ Do not mix pipelines: wrong-pipeline materials render pink. Keep the default `As
 
 Controls: **WASD** walk, **mouse** look, **E** use what is under the crosshair (reach 3 m, 0.75 s cooldown, both from Core `InteractionRules`), **V** cycle first person, third person, top down. At Abyss dread the top-down view is taken away (Core `DreadBuildingPolicy.AllowedCamera`). **Esc** frees the cursor, click recaptures it.
 
-What happens on use: houses try their door through `DlnkDoorOmenBridge` (Core `DoorOmen`: creak, slam, refuse as dread rises), props whisper and landmarks are studied through `HorrorAmbienceDirector.Describe` and cost sanity (`SanityModel` costs), the candle at the start restores sanity. The candle is deliberately repeatable (limited only by the interaction cooldown), matching the 2D web view; prompts show the raw target kind and are not localised. A quiet corner readout shows sanity and dread tier; there are no flashes or jump scares.
+What happens on use: houses try their door through `DlnkDoorOmenBridge` (Core `DoorOmen`: creak, slam, refuse as dread rises), props whisper and landmarks are studied through `HorrorAmbienceDirector.Describe` and cost sanity (`SanityModel` costs), the candle at the start restores sanity. The candle is deliberately repeatable (limited only by the interaction cooldown), matching the 2D web view; prompts come from Core `PromptStrings` (English and French, wording identical to the `view3d.prompt.*` keys in `web/src/i18n.js`, drift fails a C# test); set `language` on `InteractionRaycaster` to `fr` to switch. A quiet corner readout shows sanity and dread tier; there are no flashes or jump scares.
 
-The scene contains: `VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender` with calm and dread global Volumes, `WalkthroughController`, `RitualDirector`, the player (`FirstPersonExplorer`, `InteractionRaycaster`, `DlnkCameraModeBridge`) and `DreadHud`.
+The scene contains: `VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender` with calm and dread global Volumes, `WalkthroughController`, `RitualDirector`, `ProgressionTracker` (codex, achievements, opt-in `useDailySeed`; unlocked ids kept in PlayerPrefs, event `Unlocked`), the player (`FirstPersonExplorer`, `InteractionRaycaster`, `DlnkCameraModeBridge`) and `DreadHud`.
 
 ### Fog and look
 
 The builder adds HDRP Fog and Vignette overrides to the two Volume profiles by reflection (so URP projects still compile). If an override or field is missing in your HDRP version it logs a warning and leaves the profile for you to edit. Directional light intensity is set to 2 (HDRP uses lux): raise it, add a sky and tune the Fog to taste. Getting close to the foggy dusk of the DLNK trailer is manual work in the Volume profiles and with the pack's own scenes; this repo does not reproduce that footage or those assets.
+
+### Optional: GLB meshes (decision, not implemented)
+
+The scene builder does not load GLB files. Adding a `com.unity.cloud.gltfast` path would be code that cannot be exercised without Unity and the package, so it stays out until someone can run it. If you want the committed Blender meshes in Unity, install glTFast yourself and assign them to the catalog by hand. Status: Unverified, deliberately deferred.
 
 ## 4. Troubleshooting
 

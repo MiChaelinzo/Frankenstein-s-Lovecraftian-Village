@@ -118,10 +118,16 @@ Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, c
 - Reflection is used in the scene builder to add HDRP overrides so the Editor assembly has no render-pipeline reference. Cost: a renamed HDRP field degrades to a warning. Status: Unverified.
 - Status: compile check Partially Verified (stubs), Unity runtime Unverified, `InteractionRules` Verified.
 
+## Round 15: Unity depth (task 71)
+
+- `CodexModel`, `AchievementRules` and `DailySeed` now have a Runtime consumer: `ProgressionTracker` (thin) over new Core `ProgressionSession` (counts, highest tier and stage, codex and achievement unlocks, id persistence text). Core tests: 94 dotnet tests Verified. The MonoBehaviour is compile checked only; Unity behavior Unverified.
+- Prompts: Core `PromptStrings` replaces the raw kind text. Single source of truth is `web/src/i18n.js` wording; a C# test parses that file and fails when en or fr differ. No JS change, so no golden entry. Adding a language needs the row in both places.
+- GLB fallback via glTFast: decided against (see `docs/UNITY_SETUP.md`); untestable here, no vendored package, no speculative code.
+
 ## Round 13 review follow-up
 
 - Flash gate: a flash stronger than the one that opened the 4 s gap now passes (`applyFlash`, `web/test/notice-policy.test.js`). Status: Verified by node tests; the `app.js` wrapper is one line over the tested function.
 - Parity wording: `DreadCurve.AmbienceVolume` and `DreadThresholds.Percent` have Core property tests only. No golden entry or JS mirror, because `music.js` is independent presentation. Status: Verified (C# tests).
-- `CodexModel`, `AchievementRules`, `DailySeed` stay in Core: their JS mirrors are golden-checked against them, so they are the source of truth, but Runtime has no consumer yet. Deferred, not wired.
+- `CodexModel`, `AchievementRules`, `DailySeed` stay in Core: their JS mirrors are golden-checked against them, so they are the source of truth, but Runtime consumer added in round 15 (`ProgressionTracker`).
 - Unity drain default 0.5 to 1.0: no serialized `sanityDrainPerSecond` found in the repo by grep; Unity itself was not opened. Status: Unverified in Unity.
 - Classifier keywords such as "tea", "web", "log": not spot-checked against real pack names, because packs are gitignored and absent here. Status: Unverified; the unclassified percentage in the scene label is the runtime check.
