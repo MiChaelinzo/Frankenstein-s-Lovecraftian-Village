@@ -1,5 +1,6 @@
 // Canvas renderer for the isometric village. All drawing lives here; app.js only decides when to draw.
 import { SeededRandom } from './core.js';
+import { cameraTransform } from './cinematic.js';
 import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
@@ -391,6 +392,7 @@ export function createRenderer(env) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     drawSky(dread, time);
     ctx.save();
+    if (state.cinema) { const ct = cameraTransform(state.cinema, canvas.width, canvas.height); ctx.translate(ct.tx, ct.ty); ctx.scale(ct.scale, ct.scale); }
     if (!reduceMotion && dread > 0.5) ctx.translate((Math.random() - 0.5) * (dread - 0.5) * 3, (Math.random() - 0.5) * (dread - 0.5) * 3);
     drawSea(dread, time);
     drawGround(dread);

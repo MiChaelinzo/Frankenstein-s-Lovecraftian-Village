@@ -25,6 +25,8 @@ import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
+import { cinematicFrame, cinematicWanted } from './cinematic.js';
+import { mapGamepad, mapSwipe, snapshotPad } from './input.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
@@ -53,7 +55,7 @@ const state = {
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
-  investigatorOn: false, investigator: null,
+  investigatorOn: false, investigator: null, cinema: null,
 };
 
 // ?narrator=https://... plugs in an AI endpoint; Safe wrapper falls back to offline text on any failure.
@@ -68,6 +70,7 @@ const { iso, doorPoint } = renderer;
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
 const introWanted = shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
+const cinemaWanted = cinematicWanted(location.search, location.hash);
 function startAudio() {
   if (ambient && ambientSeed !== state.seed) { ambient.dispose(); ambient = null; }
   if (!ambient) {
@@ -208,7 +211,7 @@ function frame(now) {
   const dread = state.sanity.dread, tier = tierFor(dread);
   const moving = renderer.updateCamera(dread);
   // Idle skip: with reduced motion nothing animates on its own, so only redraw after a change (or while a toast, flash or shake plays).
-  const busy = !reduceMotion || dirty || moving || state.flash > 0 || state.toast || state.shakes.size > 0;
+  const busy = !reduceMotion || cine.on || dirty || moving || state.flash > 0 || state.toast || state.shakes.size > 0;
   if (!busy) { running = false; return; }
   if (!state.visible) { requestAnimationFrame(frame); return; }
   dirty = false;
@@ -464,12 +467,82 @@ $('loadSession').addEventListener('click', () => { const s = loadSession(storage
 $('mapToggle').addEventListener('click', () => setMap(!mapOn));
 $('perfToggle').addEventListener('click', () => setPerf(!perfOn));
 $('invToggle').addEventListener('click', () => setInvestigator(!state.investigatorOn));
+$('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
+
+// ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
+const cine = { on: false, beats: [], durations: [], t0: 0, beat: -1, timer: 0, hadStory: false };
+function cinemaStep() {
+  const f = cinematicFrame(performance.now() - cine.t0, cine.durations, reduceMotion);
+  state.cinema = f.cam;
+  if (f.beat !== cine.beat) {
+    cine.beat = f.beat;
+    const b = cine.beats[f.beat];
+    if (b) { showBeat(b.index); $('cinemaCaption').textContent = b.text; announce(b.text); }
+  }
+  if (f.done) { setCinematic(false); return; }
+  mark();
+}
+function setCinematic(on) {
+  if (on === cine.on) return;
+  cine.on = on;
+  $('cinemaToggle').setAttribute?.('aria-pressed', String(on));
+  document.documentElement?.classList?.toggle?.('cinema', on);
+  $('cinemaCaption').hidden = !on;
+  clearInterval(cine.timer);
+  if (!on) { state.cinema = null; cine.beat = -1; if (!cine.hadStory) closeStory(); mark(); return; }
+  const all = storyBeats(), start = nightStartIndex(all, state.night + 1);
+  cine.beats = all.filter((b) => b.nightNumber === all[start].nightNumber);
+  cine.durations = cine.beats.map((b) => b.durationMs);
+  cine.hadStory = story.on; cine.beat = -1; cine.t0 = performance.now();
+  if (!story.on) openStory(start);
+  setPlaying(false);
+  announce(tr('cinema.exit'));
+  cinemaStep();
+  cine.timer = setInterval(cinemaStep, 100);
+}
+
+// ---------- gamepad (polled in rAF) and touch swipes, mapped by the pure functions in input.js ----------
+function doAction(a) {
+  const n = state.landmarks.length;
+  switch (a) {
+    case 'listen': if (state.focus >= 0) listen(state.focus); break;
+    case 'door': tryNextDoor(); break;
+    case 'whisper': doWhisper(); break;
+    case 'candle': doCandle(); break;
+    case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
+    case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
+    case 'cinematic': setCinematic(!cine.on); break;
+    case 'story': toggleStory(); break;
+    case 'nextBeat': if (story.on) showBeat(nextBeat(story.idx, storyBeats().length), true); break;
+    case 'prevBeat': if (story.on) showBeat(prevBeat(story.idx, storyBeats().length), true); break;
+    default:
+  }
+}
+// Polling starts only once a pad connects and stops when none is left, so a keyboard or touch session pays nothing.
+let padPrev = null, padPolling = false;
+function pollPad() {
+  const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
+  if (!pads.length) { padPolling = false; padPrev = null; return; }
+  const cur = snapshotPad(pads[0]);
+  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) doAction(a);
+  padPrev = cur;
+  requestAnimationFrame(pollPad);
+}
+let touch0 = null;
+canvas.addEventListener('touchstart', (e) => { const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
+canvas.addEventListener('touchend', (e) => {
+  const p = e.changedTouches[0]; if (!touch0 || !p) return;
+  const a = mapSwipe(p.clientX - touch0.x, p.clientY - touch0.y, performance.now() - touch0.t); touch0 = null;
+  if (a) doAction(a);
+}, { passive: true });
+addEventListener('gamepadconnected', () => { if (!padPolling) { padPolling = true; padPrev = null; requestAnimationFrame(pollPad); } });
 
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (introOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
   if (story.on) {
     const n = storyBeats().length, onCanvas = e.target === canvas;
     if (e.key === 'ArrowRight' && !onCanvas) { showBeat(nextBeat(story.idx, n), true); return; }
@@ -495,6 +568,7 @@ addEventListener('keydown', (e) => {
     case 'p': case 'P': postcard(); break;
     case 'g': case 'G': setMap(!mapOn); break;
     case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
+    case 'b': case 'B': setCinematic(true); break;
     case 'x': case 'X': setPerf(!perfOn); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
@@ -512,7 +586,6 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
 
 (async function init() {
   applyI18n();
-  applyI18n();
   try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); return; }
   ensureProcPatterns();
   $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
@@ -525,6 +598,8 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);
+  requestAnimationFrame(pollPad);
+  if (cinemaWanted) setCinematic(true);
   registerOffline();
   if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
 })();

@@ -142,5 +142,20 @@ test('app renders frames at several sanity levels without throwing', async () =>
   els.saveSession.listeners.click();
   assert.match(els.sessionNote.textContent, /Nothing saved/);
   els.loadSession.listeners.click();
+  // cinematic mode: B starts a take from this night's beats with a caption, Escape leaves; swipes map to actions
+  press('b');
+  assert.equal(els.cinemaCaption.hidden, false);
+  assert.match(els.cinemaCaption.textContent, /^Night \d+: /);
+  assert.equal(els.story.hidden, false);
+  for (let i = 0; i < 3; i++) raf(13000 + i * 16);
+  press('Escape');
+  assert.equal(els.cinemaCaption.hidden, true);
+  assert.equal(els.story.hidden, true);
+  els.cinemaToggle.listeners.click(); assert.equal(els.cinemaCaption.hidden, false);
+  els.cinemaToggle.listeners.click(); assert.equal(els.cinemaCaption.hidden, true);
+  const sanityBefore = Number(els.sanityOut.textContent);
+  els.view.listeners.touchstart({ touches: [{}], changedTouches: [{ clientX: 100, clientY: 300 }] });
+  els.view.listeners.touchend({ changedTouches: [{ clientX: 100, clientY: 200 }] });
+  assert.ok(Number(els.sanityOut.textContent) >= sanityBefore);
   globalThis.setInterval = realSetInterval;
 });
