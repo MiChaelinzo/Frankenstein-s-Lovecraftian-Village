@@ -4,9 +4,9 @@ const CACHE = 'flv-shell-v1';
 const PRECACHE = [
   './', 'index.html', 'selftest.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
   'data/village_catalog.json',
-  'src/app.js', 'src/building.js', 'src/casefile.js', 'src/core.js', 'src/draw.js', 'src/golden-data.js', 'src/i18n.js', 'src/intro.js',
+  'src/app.js', 'src/building.js', 'src/casefile.js', 'src/core.js', 'src/draw.js', 'src/golden-data.js', 'src/i18n.js', 'src/intro-ui.js', 'src/intro.js',
   'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
-  'src/session.js', 'src/story.js', 'src/textures.js', 'src/util.js',
+  'src/session.js', 'src/story-ui.js', 'src/story.js', 'src/textures.js', 'src/util.js',
 ];
 // Only page navigations may fall back to index.html offline; scripts, styles and JSON must never receive HTML.
 const isNavigation = (req) => req.mode === 'navigate' || (req.headers && req.headers.get('accept') || '').includes('text/html');

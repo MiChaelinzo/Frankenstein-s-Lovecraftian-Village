@@ -8,9 +8,9 @@ import {
   computeView, buildWalkers, omenText, addEntry, entryLabel,
   reportFilename, wrapIndex, describeScene, postcardFilename, postcardCaption, nightFromHash, nightClampNotice, ritualHudText,
 } from './scene.js';
-import { buildStory, clampBeat, nextBeat, prevBeat, nightStartIndex, parseStoryParam } from './story.js';
+import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
-import { shouldShowIntro, buildIntroSlides, advanceSlide, slideDelayMs } from './intro.js';
+import { shouldShowIntro } from './intro.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
   floorCountFor, maxFloors, parseFloor, DOOR_NAMES, doorMessage, buildingKey, nearestDoor, CAMERA_LABELS,
@@ -22,6 +22,8 @@ import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
+import { createStoryController } from './story-ui.js';
+import { createIntroController } from './intro-ui.js';
 import { esc, prettyId } from './util.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
@@ -359,101 +361,8 @@ function tryNextDoor() {
 }
 function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $('sound').checked = false; syncUi(); } else stopAudio(); }
 
-// ---------- story mode (beats from story.js; deep link #story=1&night=N&beat=N, beat is 0-based within the night) ----------
-const story = { on: false, beats: [], idx: 0, playing: false, timer: 0, ramp: 0 };
-function storyBeats() {
-  if (!story.beats.length && state.campaign) story.beats = buildStory(state.campaign);
-  return story.beats;
-}
-function rampSanity(target) {
-  clearTimeout(story.ramp);
-  const from = state.sanity.value;
-  if (reduceMotion || Math.abs(target - from) < 1) { setSanity(target, true); return; }
-  let i = 0;
-  const step = () => { i++; setSanity(i >= 8 ? target : from + ((target - from) * i) / 8, true); if (i < 8) story.ramp = setTimeout(step, 70); };
-  step();
-}
-function showBeat(idx, user) {
-  const beats = storyBeats(); if (!beats.length) return;
-  story.idx = clampBeat(idx, beats.length);
-  const b = beats[story.idx];
-  const nightIdx = b.nightNumber - 1;
-  if (nightIdx !== state.night) { state.night = nightIdx; renderCampaign(); }
-  rampSanity(100 - b.dreadPercent);
-  const start = nightStartIndex(beats, b.nightNumber);
-  $('storyText').textContent = b.text;
-  $('storyMeta').textContent = `Night ${b.nightNumber} of ${state.campaign.nights.length}, beat ${story.idx - start + 1} of ${beats.filter((x) => x.nightNumber === b.nightNumber).length} (${b.kind}). Sky ${b.sky}, weather ${b.weather}, dread target ${b.dreadPercent}%.`;
-  $('storyPrev').disabled = story.idx === 0;
-  $('storyNext').disabled = story.idx >= beats.length - 1;
-  pushHash();
-  if (user) clearTimeout(story.timer);
-  schedulePlay();
-}
-function schedulePlay() {
-  clearTimeout(story.timer);
-  if (!story.playing) return;
-  const beats = storyBeats();
-  if (story.idx >= beats.length - 1) { setPlaying(false); return; }
-  story.timer = setTimeout(() => showBeat(nextBeat(story.idx, beats.length)), beats[story.idx].durationMs);
-}
-function setPlaying(p) {
-  story.playing = p;
-  $('storyPlay').textContent = p ? 'Pause' : 'Play';
-  $('storyPlay').setAttribute?.('aria-pressed', String(p));
-  if (!p) clearTimeout(story.timer); else schedulePlay();
-}
-function openStory(idx, autoplay) {
-  story.on = true; $('story').hidden = false;
-  showBeat(idx, true);
-  if (autoplay) setPlaying(true);
-}
-function closeStory() {
-  story.on = false; setPlaying(false); clearTimeout(story.ramp); $('story').hidden = true; pushHash();
-}
-function toggleStory() { if (story.on) closeStory(); else openStory(nightStartIndex(storyBeats(), state.night + 1)); }
-function applyStoryHash() {
-  const sp = parseStoryParam(location.hash || location.search);
-  const q = parseStoryParam(location.search);
-  const on = sp.on || q.on;
-  if (!on) { if (story.on) closeStory(); return; }
-  const beats = storyBeats();
-  const hasNight = /(^|[#&?])night=/.test(location.hash);
-  const night = hasNight ? state.night + 1 : (sp.on ? sp.night : q.night);
-  const base = nightStartIndex(beats, night);
-  const n = beats.filter((x) => x.nightNumber === beats[base].nightNumber).length;
-  openStory(base + Math.min(n - 1, sp.on ? sp.beat : q.beat), optParam('autoplay') === '1');
-}
-
-// ---------- intro (skippable title sequence; ?intro=0 disables, deep links skip it) ----------
-const intro = { slides: [], i: 0, timer: 0, prevFocus: null };
-function renderSlide() {
-  const sl = intro.slides[intro.i];
-  $('introTitle').textContent = sl.title; $('introText').textContent = sl.text;
-  $('introStep').textContent = `${intro.i + 1} of ${intro.slides.length}.`;
-  $('introNext').textContent = intro.i === intro.slides.length - 1 ? 'Begin' : 'Next';
-  clearTimeout(intro.timer);
-  const delay = slideDelayMs(reduceMotion);
-  if (delay && intro.i < intro.slides.length - 1) intro.timer = setTimeout(introAdvance, delay);
-}
-function introAdvance() { const r = advanceSlide(intro.i, intro.slides.length); if (r.done) closeIntro(); else { intro.i = r.index; renderSlide(); } }
-function openIntro() {
-  intro.slides = buildIntroSlides(state.campaign); intro.i = 0;
-  intro.prevFocus = document.activeElement || null;
-  $('intro').hidden = false; renderSlide(); $('introNext').focus?.();
-}
-function closeIntro() { clearTimeout(intro.timer); $('intro').hidden = true; (intro.prevFocus && intro.prevFocus.focus ? intro.prevFocus : canvas).focus?.(); }
-const introOpen = () => $('intro').hidden === false;
-$('introNext').addEventListener('click', introAdvance);
-$('introSkip').addEventListener('click', closeIntro);
-// reading time: hovering or any key press stops the auto-advance for the current slide
-$('intro').addEventListener('pointerenter', () => clearTimeout(intro.timer));
-$('intro').addEventListener('pointerleave', () => { if (introOpen()) renderSlide(); });
-$('intro').addEventListener('keydown', () => clearTimeout(intro.timer), true);
-$('intro').addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeIntro(); e.preventDefault(); }
-  else if (e.key === 'ArrowRight' || ((e.key === 'Enter' || e.key === ' ') && e.target !== $('introSkip'))) { introAdvance(); e.preventDefault(); }
-  else if (e.key === 'Tab') { const to = e.shiftKey === (e.target === $('introNext')) ? $('introSkip') : $('introNext'); to.focus?.(); e.preventDefault(); }
-});
+const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
+const { openIntro, introOpen } = createIntroController({ $, canvas, state, reduceMotion });
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
