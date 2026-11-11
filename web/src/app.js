@@ -173,6 +173,7 @@ function trackRitual() {
 function selectNight(i, quiet) {
   if (!state.campaign) return;
   state.night = Math.max(0, Math.min(state.campaign.nights.length - 1, i));
+  progress.note.night(state.night); progress.update();
   renderCampaign();
   setSanity(currentNight().sanityStart, quiet);
 }
@@ -643,8 +644,9 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   if (daily) history.replaceState(null, '', `#seed=${daily.seed}`);
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
-  applyHash(); pushHash(); start();
-  if (saved) progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach });
+  applyHash();
+  if (saved) progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); // before pushHash, whose autosave would overwrite the stored codex/ach
+  pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);

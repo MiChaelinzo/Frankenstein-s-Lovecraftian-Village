@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- Web: the "nights" achievement can now be earned (`selectNight` calls `progress.note.night`); startup restores saved codex/achievements before the first autosave so storage is no longer briefly overwritten with empty sets. Controller test `web/test/progress-ui.test.js`.
+
 ### Added
 - Web: Stitch panel (`Y`, `?stitch=1`) built from `web/data/stitch.json`, which `tools/gen_stitch.py` generates from real repo facts (Core file count, golden groups and vectors, JS modules and test files, Unity runtime scripts and DLNK bridges, precache size, Kiro hooks, steering and spec task counts). `tools/test_gen_stitch.py`; `tools/validate_repo.py` fails when the file is stale. Pure model in `web/src/stitch.js` (validates untrusted JSON, escapes output).
 - Web: seeded Necronomicon codex (`web/src/codex.js`): a per-seed creature order for each ritual stage plus three omen entries, unlocked by the effective ritual stage and the highest dread omen reached. Achievements and journal completion (`web/src/achievements.js`, ten achievements, sticky). Panel `K` or `?codex=1`; unlocks are logged (one summary line when a deep link unlocks several). Both saved in the session (`codex`, `ach` fields; older saves without them load as empty, unknown ids are dropped, tested).
