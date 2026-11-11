@@ -138,3 +138,27 @@ Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, c
 - Thin Unity wrappers: `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkShowcaseSceneHelper`, `DlnkPackExplorerWindow` hold no rules. Status: Partially Verified (stub compile check), Unverified at runtime. Unity cannot be installed in the sandbox (licence activation is tied to the author's account).
 - Web-only on purpose: omen framing for the 3D view (`omenFraming`, `blendCamera` in `view3d-math.js`) is presentation over the unchanged Core path, so no golden entry. This is a recorded exception to Core parity: Unity renders no tentacles or eye, so its camera does not frame omens (see `.kiro/steering/tech.md` and `docs/UNITY_SETUP.md`). The blend gating is a pure function (`omenBlendWeight`) tested by behaviour.
 - Docs for the recording (`DEMO_SCRIPT.md`, `RECORDING.md`, `PACK_EXPLORATION.md`) are the only new files; no new code or abstraction.
+
+## Round 17: the Vigil game loop (design)
+Status: design written before code. Core rules, C# property tests and golden parity are Verified once the round 17 test counts below pass; the Unity forwarding is Partially Verified (compile check only) and runtime Unverified.
+
+**Goal.** Across the campaign nights the player must name the thing in the sea before sanity runs out. Clues cost sanity (existing `InteractionRules.SanityDelta` for whisper and landmark), lanterns give it back (the Candle delta), and falling sanity raises dread, which advances the ritual (`RitualChain.StageForDread`). The tension: learn the name, or let the ritual finish.
+
+**Inputs.** A `Campaign`, its `Ritual`, and the player events: `RecordClue(sourceId)`, `LightLantern(lampId)`, `RecordSanity(points)`, `EndureNight(carriedSanity)`. Sanity is integer points (0..100); `VigilRules.SanityPoints(float)` rounds a `SanityModel` value half up so C# and JS agree.
+
+**Rules (all in `Core/VillageVigil.cs`, integer only).**
+- `ClueTarget(night) = clamp(2 + night/2, 2, 6)`. A night offers `ClueTarget + 2` clue sources and 2 lamps. Sources and lamps are keyed by piece id; repeating one in the same night gives nothing new. Ids reset each night.
+- A night can be endured only when its clue target is met. Sanity carried to the next night is `min(100, carried + DawnRecovery)`. The dark also creeps: `NightCreep(night)` is the sanity the caller should drain during that night (the web client does this through `DRAIN_PER_SECOND`).
+- Name reveal: the entity name is `Ritual.Name`. Letters are revealed in a seeded order (`SeededRandom` keyed on the ritual seed); `NameReveal(ritual, found, total)` returns the name with a middle dot for each hidden letter. Revealed letters never hide again; at `total` the name is whole.
+- Ritual complete means the highest dread reached (lowest sanity seen) gives a stage `>= stageCount - 1`, the same predicate as the `ritual` achievement. The night schedule is deliberately not used, otherwise the last night would always complete the ritual.
+- Endings, stable ids in order: `hollowing`, `name_spoken`, `dawn`, `fever`, `witness`, `vessel`. Priority: hollowing (sanity reached 0), then name_spoken (all clues, name whole, sanity at least 50, ritual not complete), then the matrix: incomplete and sanity >= 50 is dawn, incomplete and below is fever, complete and >= 50 is witness, complete and below is vessel.
+- Score: clues, lit lanterns, remaining sanity, nights endured, codex entries, plus a bonus for name_spoken. Rank is a tier by named thresholds. Result code `V1-<seed>-<endingId>-<score>`; `TryParseResultCode` rejects anything non canonical.
+- Save string: `vigil1;endured;sanity;minSanity;clues;lanterns;clueIds;lampIds`. Unknown or inconsistent input is dropped and the state is left unchanged.
+
+**Outputs.** `VigilOutcome` (ending id, epitaph, score, rank, code) once finished or collapsed.
+
+**Failure conditions.** Null campaign or ritual gives a finished, empty vigil. Ids that are empty or contain `;` or `,` are refused. `EndureNight` returns -1 when the target is not met or the vigil is over. Malformed result codes and saves return false.
+
+**Test cases.** Determinism per seed; exactly one ending for every end state (exhaustive); priority order; uniqueness of clues and lanterns; gated EndureNight; score monotonic; code round trip and malformed rejection; reveal monotonic; balance over 200+ seeds (careful strategy finishes on at least 90 percent and reaches name_spoken on roughly 30 to 80 percent; reckless collapses on over 50 percent); golden parity with the JS mirror.
+
+**Hooks.** `ProgressionSession` owns the `VigilState` and awards two appended achievements, `vigil` (finish any ending) and `namer` (name_spoken). Existing ids and order are unchanged. Awards only follow player actions.
