@@ -77,4 +77,4 @@ A short history of how this project was built, taken from `git log` on the `feat
 
 ## Round 9 investigator
 - `20d139d` Core `Investigator.cs`, JS port, property tests, golden `investigators` parity, self-test group.
-- Web wiring (toggle, canvas, minimap, journal, screen reader text) and docs: see the next commit. Screenshot `docs/media/investigator.png` shows the web demo only.
+- `f1236a7` Web wiring (toggle, canvas, minimap, journal, screen reader text) and docs. Screenshot `docs/media/investigator.png` shows the web demo only.
