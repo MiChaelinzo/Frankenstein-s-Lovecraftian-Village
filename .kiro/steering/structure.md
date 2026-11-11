@@ -1,5 +1,7 @@
 # Structure
 
+See `project.md` for the Core, Runtime and Web responsibilities; this file lists the layout.
+
 ```
 .kiro/                 specs, hooks, steering (always committed, never ignored)
 Assets/Scripts/Core    pure C# logic (testable without Unity)

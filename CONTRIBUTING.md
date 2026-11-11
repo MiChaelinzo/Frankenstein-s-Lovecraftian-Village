@@ -15,6 +15,9 @@ dotnet test tests/Frankenstein.Core.Tests
 ```
 CI runs the same commands (`.github/workflows/ci.yml`).
 
+## Steering
+Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, principles, testing) and `.kiro/steering/agent.md` (working style, verification labels). Before committing run the three commands above: `dotnet test tests/Frankenstein.Core.Tests`, `node --test "web/test/*.test.js"` and `python3 tools/validate_repo.py`.
+
 ## Rules
 - **Core first.** New logic goes in `Assets/Scripts/Core` (no `UnityEngine` references) with a property test in `tests/Frankenstein.Core.Tests`. MonoBehaviours in `Assets/Scripts/Runtime` only wrap Core.
 - **Determinism.** Use `SeededRandom`, never `System.Random` or time, in Core.
