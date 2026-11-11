@@ -59,7 +59,7 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.ok(els.listen.innerHTML.includes('<option'));
   const press = (key) => keys.forEach((f) => f({ key, target: { tagName: 'BODY' } }));
   els.sanity.value = '100'; els.sanity.listeners.input();
-  press(']'); press('['); press('['); press('w'); press('l'); press('?'); press('n');
+  press(']'); press('['); press('['); press('w'); press('l'); press('?'); assert.match(els.helpDevice.textContent, /Last used/); press('n'); els.helpClose.listeners.click(); press('n');
   assert.match(els.stats.textContent, /Seed -?\d+:/);
   els.dlMd.listeners.click(); els.dlJson.listeners.click();
   assert.equal(clicked.length, 2);

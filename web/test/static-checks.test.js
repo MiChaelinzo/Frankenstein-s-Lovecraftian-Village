@@ -106,3 +106,25 @@ test('tour: skip stops propagation, pointerleave only restarts the timer, About 
   assert.match(tourSrc, /pointerleave', \(\) => \{ tour\.hover = false; if \(isOpen\(\)\) startTimer\(\)/);
   assert.match(appSrc, /if \(on\) pauseTour\(\); else resumeTour\(\)/);
 });
+
+test('share metadata: canonical, Open Graph and Twitter tags point at the live URL and a real preview image', () => {
+  const LIVE = 'https://frankensteinlovecraftianvillage.vercel.app/';
+  const meta = (attr, name) => new RegExp(`<meta ${attr}="${name}" content="([^"]+)"`).exec(html)?.[1];
+  assert.equal(/<link rel="canonical" href="([^"]+)"/.exec(html)?.[1], LIVE);
+  for (const p of ['og:title', 'og:description', 'og:type', 'og:url', 'og:image', 'og:image:alt', 'og:site_name', 'og:locale']) assert.ok(meta('property', p), p);
+  assert.equal(meta('property', 'og:url'), LIVE);
+  assert.equal(meta('property', 'og:image'), `${LIVE}assets/og-preview.png`);
+  assert.equal(meta('name', 'twitter:card'), 'summary_large_image');
+  assert.equal(meta('name', 'twitter:image'), `${LIVE}assets/og-preview.png`);
+  assert.ok(meta('name', 'twitter:title') && meta('name', 'twitter:description') && meta('name', 'theme-color'));
+  const png = readFileSync(join(web, 'assets', 'og-preview.png'));
+  assert.equal(png.subarray(1, 4).toString(), 'PNG');
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1200, 630], 'preview must be 1200x630');
+  assert.ok(png.length < 700 * 1024, `${png.length} bytes`);
+});
+test('the title screen and help dialog are labelled dialogs; the old intro and keyboard list are gone', () => {
+  assert.match(html, /<div id="title"[^>]*role="dialog"[^>]*aria-modal="true"[^>]*aria-labelledby="titleHeading"/);
+  assert.match(html, /<dialog id="help"[^>]*aria-labelledby="helpTitle"/);
+  assert.match(html, /id="loading"[^>]*role="status"/);
+  assert.doesNotMatch(html, /id="intro"|id="keys"/);
+});

@@ -6,7 +6,7 @@ import { nightFromHash } from '../src/scene.js';
 import { parseTheme, parseCamera, parseFloor, meshesWanted } from '../src/building.js';
 import { view3dWanted } from '../src/view3d-math.js';
 import { cinematicWanted } from '../src/cinematic.js';
-import { shouldShowIntro } from '../src/intro.js';
+import { shouldShowTitle } from '../src/title.js';
 import { tourWanted } from '../src/tour.js';
 import { parseStoryParam } from '../src/story.js';
 import { parseLang } from '../src/i18n.js';
@@ -76,7 +76,7 @@ test('Core WebShareLink hashes are parsed back by the web parsers', () => {
     assert.equal(parseFloor(new URLSearchParams(h.slice(1)).get('floor')), clamp(g.floor, 0, 8));
     assert.equal(view3dWanted('', h), g.view3d); assert.equal(cinematicWanted('', h), g.cinematic);
     assert.equal(meshesWanted('', h), g.meshes); assert.equal(tourWanted('', h), g.tour);
-    assert.equal(shouldShowIntro('', h), false); // a link with a seed always skips the intro
+    assert.equal(shouldShowTitle('', h), false); // a link with a seed always skips the title screen
     assert.equal(parseStoryParam(h).on, g.story);
     if (g.story) assert.equal(parseStoryParam(h).beat, clamp(g.beat, 0, 99));
     assert.equal(parseLang(new URLSearchParams(h.slice(1)).get('lang')), g.lang === 'fr' ? 'fr' : 'en');
