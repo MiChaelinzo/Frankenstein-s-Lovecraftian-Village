@@ -50,3 +50,13 @@ Property-based: many seeded random cases per property, failing seed reported. Co
 
 ## Story UI, intro and soundtrack
 `web/src/app.js` drives story mode from `story.js` beats (sanity ramps toward `100 - dreadPercent`, autoplay uses `durationMs`). `web/src/intro.js` holds pure intro helpers and the auto-skip rule for deep links. `web/src/music.js` has deterministic pure helpers (root from seed, drone, pulse schedule, gain clamp) and a thin WebAudio controller that is created only after the user ticks Music.
+
+## Ritual stage: night schedule versus dread
+The ritual stage used to follow current dread only, so night 4 at sanity 80 (20% dread) showed "stage 1 of 5" even though the campaign was on its fourth night. Both behaviors are kept and combined in `RitualChain.Progress` (JS `ritualProgress`):
+- **Scheduled stage**: `ScheduledStageForNight`, night N maps to stage N (clamped to the chain).
+- **Dread-reached stage**: the existing `StageForDread`, highest stage whose threshold the current dread has reached.
+- **Effective stage**: the larger of the two, so the night sets a floor and dread can still run ahead of it. A pace flag says `behind`, `on` or `ahead` (dread reached versus schedule).
+
+The web HUD, journal and case file print both numbers ("Night schedule: stage 4 of 5, dread reached: stage 1 (behind)") next to the effective stage. `RitualSaveState` (Core, text form `ritual1;seed;night;stage`) round-trips and clamps; the session link/save also carries the effective `stage`. Property tests cover the max/floor rule, monotonicity in dread and night, and the invariant across ritual, story and campaign (stage omen id matches the night's omen beat, thresholds stay at or below the night target and rise).
+
+Unity side (code-complete, unverified in Unity, not compiled here): `RitualDirector` listens to `HorrorAmbienceDirector.OmenCrossed` and `WalkthroughController.NightStarted`, raises `OnStageAdvanced(stage, name)`; `RitualStateAsset` is the ScriptableObject mirror; `RitualSaveBridge` stores the Core `RitualSaveState` text in PlayerPrefs.

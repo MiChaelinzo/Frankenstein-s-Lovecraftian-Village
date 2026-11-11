@@ -5,7 +5,7 @@
 Only the author can supply these. Nothing below has been filled in or guessed.
 
 - [x] Web extras (session save/load, map, case file, fr stub, perf HUD, offline shell) are covered by node tests; offline behaviour on a real host is unverified
-- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; Unity `RitualDirector` is planned only, not built
+- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; night schedule plus dread-reached stage with a floor-based effective stage; Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge` code-complete but unverified in Unity
 - [ ] Public demo video URL (under 3 minutes), recorded by Michael G. Inso, added to the Devpost form
 - [ ] Public social post URL using #KiroweenHackathon26 (Social Blitz Prize)
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)

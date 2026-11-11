@@ -122,7 +122,7 @@ The URP package (about 100 MB) is enough for inspection and for URP projects; th
 - Fantasy and horror environment design
 - First-person, third-person, and top-down compatibility
 - AI-assisted development workflow
-- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; the Unity `RitualDirector` is planned, not built.
+- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; night N sets a floor of ritual stage N and dread can run ahead (the HUD shows "Night schedule: stage X of N, dread reached: stage Y" plus the effective stage). Unity `RitualDirector`, `RitualStateAsset` and `RitualSaveBridge` are code-complete but unverified in Unity (not compiled here); the Core logic is tested.
 - Web demo extras: session save/load with auto-resume, village map and legend (`G`), case file export (Markdown or HTML), `?lang=fr` partial French, performance readout (`X` or `?perf=1`), offline shell via service worker on https/localhost (never in `?pack=1`)
 - Built for Kiroween 2026 Frankenstein challenge
 

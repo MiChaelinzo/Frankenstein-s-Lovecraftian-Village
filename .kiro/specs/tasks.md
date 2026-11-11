@@ -49,4 +49,4 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 44. Web story mode UI, skippable intro, opt-in procedural WebAudio soundtrack (`music.js`, `intro.js`, node tests); audio unverified by ear
 - [x] 45. Web session save/load, minimap and legend, case file export, i18n stub, perf HUD, offline PWA shell with CSP update (node and Python tests; offline untested on a real host)
 - [x] 46. Core `RitualChain` (seeded ritual stages across nights, omen and story beat links) with property tests, JS port `generateRitual`, golden parity; web night panel, journal and case file show it
-- [ ] 47. Unity (not built, unverified): `RitualDirector` MonoBehaviour driving `RitualChain.StageForDread` from the sanity/dread events, plus a ScriptableObject mirror and a SaveState bridge for the current stage
+- [x] 47. Code-complete, unverified in Unity (Core logic tested, scripts not compiled): `RitualDirector` MonoBehaviour driving `RitualChain.Progress` (night schedule floor plus dread-reached stage) from the dread and night events, plus `RitualStateAsset` ScriptableObject mirror and `RitualSaveBridge` over the Core `RitualSaveState`
