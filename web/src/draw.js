@@ -354,7 +354,7 @@ export function createRenderer(env) {
   // ---------- DLNK scene mode (?pack=1&scene=<name>): real placements from scene_layout.json as schematic solids ----------
   const roleTint = (role, fallback) => (pack.roles[role] ? pack.roles[role].tint : fallback);
   const shade = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
-  const toward = (c, d) => mix(c, [c[0] * 0.5 + 60, c[1] * 0.3, c[2] * 0.3 + 10], d * 0.7);
+  const toward = (c, d) => mix(c, [c[0] * 0.6 + 30, c[1] * 0.4, c[2] * 0.4 + 10], d * 0.4);
   function drawDlnkItem(it, dread, time) {
     const base = roleTint(it.role, [110, 110, 110]);
     const gloss = pack.roles[it.role] && typeof pack.roles[it.role].smoothness === 'number' ? pack.roles[it.role].smoothness : 0.3;

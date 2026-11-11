@@ -70,16 +70,19 @@ export function pickScene(scenes, wanted) {
  */
 export function normalizeScene(scene, gw, gd, pad = 1) {
   const objs = scene.objects;
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const o of objs) { minX = Math.min(minX, o.x); maxX = Math.max(maxX, o.x); minZ = Math.min(minZ, o.z); maxZ = Math.max(maxZ, o.z); }
+  // fit to the 3rd..97th percentile so a few far-away props do not squash the village; outliers clamp to the edge
+  const pct = (vals, q) => { const v = vals.slice().sort((m, n) => m - n); return v[Math.min(v.length - 1, Math.floor(q * (v.length - 1)))]; };
+  const xs = objs.map((o) => o.x), zs = objs.map((o) => o.z);
+  const lo = objs.length >= 20 ? 0.03 : 0, hi = objs.length >= 20 ? 0.97 : 1;
+  const minX = pct(xs, lo), maxX = pct(xs, hi), minZ = pct(zs, lo), maxZ = pct(zs, hi);
   const spanX = Math.max(1e-6, maxX - minX), spanZ = Math.max(1e-6, maxZ - minZ);
   const k = Math.min((gw - 2 * pad) / spanX, (gd - 2 * pad) / spanZ);
   const offX = (gw - spanX * k) / 2, offZ = (gd - spanZ * k) / 2;
   const items = objs.map((o, i) => {
     const st = KIND_STYLE[o.kind] || KIND_STYLE.generic;
     const grow = Math.max(0.6, Math.min(1.6, Math.sqrt(o.scale)));
-    const gx = Math.max(0, Math.min(gw, offX + (o.x - minX) * k));
-    const gz = Math.max(0, Math.min(gd, offZ + (maxZ - o.z) * k)); // north (+z) is up-screen
+    const gx = Math.max(0, Math.min(gw, offX + (Math.max(minX, Math.min(maxX, o.x)) - minX) * k));
+    const gz = Math.max(0, Math.min(gd, offZ + (maxZ - Math.max(minZ, Math.min(maxZ, o.z))) * k)); // north (+z) is up-screen
     return { i, kind: o.kind, name: o.name, gx, gz, size: st.size * grow, h: st.h * grow, rot: o.rotY, role: st.role, depth: gx + gz };
   });
   items.sort((a, b) => a.depth - b.depth || a.i - b.i);
