@@ -153,7 +153,18 @@ async function main() {
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
     const j1 = await ev(`document.getElementById('whispers').children.length`);
-    rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', !!promptText && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
+    // 3D vigil: the same spot looking up at the door lantern; E lights it once, restoring sanity and counting the lamp
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=74,90.5,0,16');
+    await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
+    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const ls0 = Number(await text('sanityOut'));
+    await key('e'); await sleep(900);
+    const ls1 = Number(await text('sanityOut')), lobj = await text('objectiveText');
+    await key('e'); await sleep(900);
+    const ls2 = Number(await text('sanityOut'));
+    rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
+    rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
     await special('Escape', 27, undefined); await sleep(300);
 
     // ?meshes=1 on the 2D board and the meshes page
@@ -209,6 +220,68 @@ async function main() {
     rec('3d fallback: click-pick without a lock throws nothing', errs.length === 0, { errors: errs.slice(0, 3) });
     await special('Escape', 27, undefined); await sleep(400);
     rec('3d fallback: a single Escape exits to 2D when there is no lock', await hidden('view3d'), {});
+
+    // ---- the vigil: objective line, lanterns, clues, endure the night, ending dialog, result card, begin again ----
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&reduced=1#seed=4321&sanity=100'); // a seed no earlier check played, so no autosaved vigil is restored
+    const obj0 = await text('objectiveText');
+    rec('vigil: a fresh seed shows the objective line', /^Night 1 of 5: clues 0\/2, lanterns lit 0\/3, the name: /.test(obj0), { obj0 });
+    await ev(`document.getElementById('whisper').click()`); await sleep(200);
+    const obj1 = await text('objectiveText');
+    await ev(`document.getElementById('whisper').click()`); await sleep(200);
+    const obj2 = await text('objectiveText');
+    rec('vigil: a new source adds a clue, hearing it again does not', /clues 1\/2/.test(obj1) && /clues 1\/2/.test(obj2), { obj1, obj2 });
+    const sBefore = Number(await text('sanityOut'));
+    await key('l'); await sleep(250);
+    const sAfter = Number(await text('sanityOut')), obj3 = await text('objectiveText');
+    rec('vigil: the candle lights a lantern, restores sanity and updates the count', sAfter > sBefore && /lanterns lit 1\/3/.test(obj3), { sBefore, sAfter, obj3 });
+    await key('l'); await key('l'); await sleep(200);
+    const sFull = Number(await text('sanityOut'));
+    await key('l'); await sleep(250);
+    const sNone = Number(await text('sanityOut'));
+    rec('vigil: no sanity once the night\'s lanterns are lit', sNone <= sFull && /No unlit lantern/.test(await text('narration')), { sFull, sNone, narration: await text('narration') });
+    rec('vigil: endure is hidden until enough is heard', await hidden('endure'), {});
+
+    // A scripted careful player using only real controls. Returns the ending title; seeds are tried in order until the true ending shows.
+    const play = (seed) => `(async () => {
+      const $ = (i) => document.getElementById(i), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const sanity = () => Number($('sanityOut').textContent);
+      const relight = async () => { while (sanity() < 60 && !$('objectiveText').textContent.includes('lit 3/3')) { $('candle').click(); await wait(30); } };
+      for (let guard = 0; guard < 8 && !$('ending').open; guard++) {
+        const opts = [...$('listen').options].map((o) => o.value).filter(Boolean);
+        const steps = [() => $('whisper').click(), () => $('church').click(), ...opts.map((v) => () => { $('listen').value = v; $('listen').dispatchEvent(new Event('change')); })];
+        for (const step of steps) { if ($('ending').open || !$('endure').hidden) break; await relight(); step(); await wait(30); }
+        if (!$('endure').hidden) { $('endure').click(); await wait(60); }
+        else if (!$('ending').open) break;
+      }
+      await wait(300);
+      return { open: $('ending').open, title: $('endingTitle').textContent, score: $('endingScore').textContent };
+    })()`;
+    let ended = null, usedSeed = 0;
+    for (const sd of [1818, 7, 42, 99, 2024, 31337, 5, 11, 123, 777, 4242, 9001]) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&reduced=1#seed=${sd}&sanity=100`);
+      ended = await ev(play(sd)); usedSeed = sd;
+      if (ended.open && ended.title === 'The Name Spoken') break;
+    }
+    rec('vigil: a scripted run endures every night and reaches the true ending on a known seed', ended.open && ended.title === 'The Name Spoken', { seed: usedSeed, ended });
+    const dlg = await ev(`[document.getElementById('endingEpitaph').textContent.length>20, document.getElementById('endingScore').textContent, document.getElementById('endingFound').textContent]`);
+    rec('vigil: the ending dialog shows an epitaph, score, rank and endings found', dlg[0] && /Score \d+, rank \w+/.test(dlg[1]) && /Endings found [1-6]\/6/.test(dlg[2]), { dlg });
+    await ev(`window.__blobs=[];const oc=URL.createObjectURL.bind(URL);URL.createObjectURL=(b)=>{window.__blobs.push(b);return oc(b)};document.getElementById('endingCard').click()`); await sleep(600);
+    const px = await ev(`(async()=>{const b=window.__blobs.find((x)=>x.type==='image/png');if(!b)return null;const im=await createImageBitmap(b),c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);const d=g.getImageData(0,0,c.width,c.height).data;const seen=new Set();let lit=0;for(let i=0;i<d.length;i+=4*97){seen.add((d[i]>>4)*256+(d[i+1]>>4)*16+(d[i+2]>>4));if(d[i]+d[i+1]+d[i+2]>300)lit++}return {w:c.width,h:c.height,colors:seen.size,lit}})()`);
+    rec('vigil: the result card PNG is 1200x630 and not blank', !!px && px.w === 1200 && px.h === 630 && px.colors > 20 && px.lit > 20, { px });
+    await ev(`window.__copied=null;navigator.clipboard.writeText=async(t)=>{window.__copied=t};document.getElementById('endingCopy').click()`); await sleep(300);
+    const copied = await ev(`window.__copied`);
+    rec('vigil: Copy result yields a result code and a link', /\| V1-\d+-\w+-\d+\n.*#seed=/.test(copied || ''), { copied });
+    const seedBefore = await ev(`document.getElementById('seed').value`);
+    await ev(`document.getElementById('endingAgain').click()`); await sleep(500);
+    const again = await ev(`[document.getElementById('ending').open, document.getElementById('seed').value, document.getElementById('objectiveText').textContent]`);
+    rec('vigil: Begin again closes the dialog and starts a fresh vigil on a new seed', again[0] === false && again[1] !== seedBefore && /clues 0\//.test(again[2]), { seedBefore, again });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&reduced=1#seed=4322&sanity=100');
+    await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
+    const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
+    rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;
