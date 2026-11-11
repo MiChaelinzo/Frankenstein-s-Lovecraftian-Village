@@ -102,14 +102,15 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 80 passing property tests |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 247 passing, including golden parity with C# output |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 87 passing property tests |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 248 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
 | Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
+| Unity playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`, package `.meta` files) | Unverified | Compile checked against stubs only; never run in Unity. Its rules (`InteractionRules`) are Verified in Core |
 | Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
 | HDRP look and URP roles | Unverified | No Unity run |
 | Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
@@ -194,6 +195,16 @@ Unlike parts, one creature:
 ## Repository layout
 See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Packages/com.michaelinzo.frankenstein-village/Core` (no Unity dependency), Unity glue in `Packages/com.michaelinzo.frankenstein-village/Runtime`.
 
+## Play in Unity
+Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+
+```
+Package Manager > Add package from git URL:
+https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village.git?path=/Packages/com.michaelinzo.frankenstein-village
+Then: Tools > Frankenstein > Create Playable Village Scene
+```
+Without the DLNK pack the village is plain blocks; the pack is never in this repo. The playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`) is compile checked against stubs only and has never run in Unity (Unverified). Visual reference for the intended mood is the pack author's own trailer; none of its footage or assets are used here.
+
 ## Setup
 1. Install **Unity 6** (6000.0.x). Use the HDRP template modules for the HDRP package, or URP for the URP package.
 2. Clone this repo and open it as a Unity project.
@@ -209,7 +220,7 @@ The Unity-side pieces (catalog binding, scene, `DreadVolumeBlender`, `HttpNarrat
 | Your project | Package | Notes |
 |--------------|---------|-------|
 | HDRP (this repo's default) | `Lovecraftian1.3 HDRP(Unity6).unitypackage` | `Packages/manifest.json` references `com.unity.render-pipelines.high-definition`, so it works as is. |
-| URP | `Lovecraftian1.3 URP(Unity6).unitypackage` | The scaffold manifest targets HDRP. Swap `com.unity.render-pipelines.high-definition` for `com.unity.render-pipelines.universal` in `Packages/manifest.json` (or create a URP project and copy `Assets/Scripts`, `Assets/Data`), then import the URP package. |
+| URP | `Lovecraftian1.3 URP(Unity6).unitypackage` | The scaffold manifest targets HDRP. Swap `com.unity.render-pipelines.high-definition` for `com.unity.render-pipelines.universal` in `Packages/manifest.json` (the package itself works in URP), then import the URP package. |
 
 Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Packages/com.michaelinzo.frankenstein-village` do not depend on a render pipeline.
 

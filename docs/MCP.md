@@ -41,7 +41,9 @@ Prerequisite: open the project in Unity 6 and import the pack you own. The local
    `Set VillageBuilder pieceCount to 80 (the default is 40) and keep the seed at 1818, then rebuild.`
 5. Compile check inside Unity:
    `Trigger a script compile, wait for it to finish, and report every compiler error and warning from the console for Packages/com.michaelinzo.frankenstein-village.` Fix real errors in the scripts, not in `tests/UnityCompileCheck/Stubs`.
-6. Read the console:
+6. Install the package and build the playable scene (Unverified, never run):
+   `Add the git package https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village.git?path=/Packages/com.michaelinzo.frankenstein-village, wait for the compile, run Tools > Frankenstein > Create Playable Village Scene, enter Play mode for ten seconds, then report console errors and warnings and whether the player can walk and press E on a house.`
+7. Read the console:
    `Read the Unity console and summarize errors, warnings, and the Auto-bind log lines that start with [Frankenstein].`
 
 ## Blender prompts
