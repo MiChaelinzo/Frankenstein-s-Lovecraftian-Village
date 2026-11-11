@@ -4,11 +4,11 @@
       "count": 1
     },
     "core": {
-      "count": 21
+      "count": 23
     },
     "golden": {
-      "count": 17,
-      "vectors": 323
+      "count": 20,
+      "vectors": 353
     },
     "js": {
       "count": 40,
@@ -17,15 +17,15 @@
     "kiro": {
       "count": 3,
       "steering": 6,
-      "tasksDone": 64,
-      "tasksTotal": 77
+      "tasksDone": 66,
+      "tasksTotal": 80
     },
     "pwa": {
-      "count": 56
+      "count": 62
     },
     "unity": {
       "bridges": 4,
-      "count": 19
+      "count": 20
     }
   },
   "version": 1

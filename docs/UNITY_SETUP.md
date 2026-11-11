@@ -4,6 +4,9 @@ Status: the package scripts are **compile checked** against original stubs (`dot
 
 The package is `com.michaelinzo.frankenstein-village` (folder `Packages/com.michaelinzo.frankenstein-village`). It contains logic, glue and an editor scene builder. It contains **no third-party pack assets**. Without the DLNK pack you get a walkable village of plain blocks; with the pack imported the builder uses the pack prefabs where names match.
 
+
+> **Why nothing here ran in Unity.** Unity cannot be installed or run in the Kiro Web sandbox: Unity Personal licence activation is tied to the author's Unity account, and no one else's credentials are requested or used. So all Unity code is **Partially Verified** (compile checked against original stubs in `tests/UnityCompileCheck`) and **Unverified** at runtime. For the video, see [DEMO_SCRIPT.md](DEMO_SCRIPT.md), [RECORDING.md](RECORDING.md) and [PACK_EXPLORATION.md](PACK_EXPLORATION.md).
+
 ## 1. Install the package
 
 Unity 6 (6000.0 or newer), HDRP or URP project.
@@ -33,7 +36,7 @@ The pack is by DLNK Artworks and is not in this repo. Get it from the links in t
 
 Do not mix pipelines: wrong-pipeline materials render pink. Keep the default `Assets/Lovecraftian Village*` location (git-ignored here).
 
-**What the downloaded editions actually contain** (checked by listing the packages with `tools/inspect_unitypackage.py`): materials, scenes, terrain layers and 14 lamp prefabs. The house, church and prop meshes are **not** in the HDRP and URP editions. For real houses you need the base pack that includes the meshes. With only the editions, the auto-binder can bind the lamps and most catalog ids stay on the block fallback.
+**What the downloaded editions actually contain** (checked by listing the packages with `tools/inspect_unitypackage.py`): materials, scenes, terrain layers and 14 prefabs (13 lamps and candle holders plus `GameSetup Basic`; see [PACK_EXPLORATION.md](PACK_EXPLORATION.md)). The house, church and prop meshes are **not** in the HDRP and URP editions. For real houses you need the base pack that includes the meshes. With only the editions, the auto-binder can bind the lamps and most catalog ids stay on the block fallback.
 
 ## 3. Build the playable scene
 
@@ -54,6 +57,33 @@ The builder adds HDRP Fog and Vignette overrides to the two Volume profiles by r
 ### Optional: GLB meshes (decision, not implemented)
 
 The scene builder does not load GLB files. Adding a `com.unity.cloud.gltfast` path would be code that cannot be exercised without Unity and the package, so it stays out until someone can run it. If you want the committed Blender meshes in Unity, install glTFast yourself and assign them to the catalog by hand. Status: Unverified, deliberately deferred.
+
+## 3b. Showcase tools (record Unity next to the web demo)
+
+Status for all four tools: **Partially Verified** (compile checked against stubs) and **Unverified at runtime** (never run in Unity). The path and link maths they call are **Verified** in Core (`FlythroughPath`, `WebShareLink`, `PrefabNameMatcher`; golden parity with `web/src/cinematic.js` and `web/src/session.js`). The scripts hold no path, link or matching logic of their own.
+
+**Showcase camera (`VillageFlythroughCamera`)**
+1. Add a GameObject with a Camera, then add the `VillageFlythroughCamera` component (or use the helper below).
+2. Either assign `villageBuilder` (seed, grid size and cell size are read from it) or set `seed`, `gridWidth`, `gridDepth` and `cellSize` by hand. The defaults match the web demo (seed 1818, 24x24, `cellSize` = Core `FlythroughPath.DefaultCell` 4). `VillageBuilder.cellSize` defaults to 6 and wins when a builder is assigned; camera height (4.6 m) and look-at height (1.6 m) do not scale with it, so set the builder to 4 as well for the same shot as the web. Unverified in Unity.
+3. Edit `beatDurationsMs` (milliseconds, same meaning as the web story beats). Core adds a 2 second tail. The default is five 6000 ms beats; the web uses `beatDurationMs(text length)` per beat, so copy those values for matching pacing.
+
+**Web-only exception: omen framing.** At Dire and Abyss the web fly-through blends toward `omenFraming` so the sea tentacles and the eye are in frame. This is web presentation over the unchanged Core path (`FlythroughPath`). Unity renders no tentacles or eye, so the Unity camera never frames omens and has nothing to frame. Do not port it to Core unless Unity gains those visuals.
+4. Press Play. Elapsed time advances by `Time.deltaTime` only, so for a repeatable take open Window > General > Recorder, choose a fixed frame rate (for example 30) and record. Tick `reducedMotion` for one still viewpoint, `loop` to repeat.
+
+**Copy Matching Web Demo URL**
+1. Open your scene (with a `VillageBuilder` or a `VillageFlythroughCamera`).
+2. Menu **Tools > Frankenstein > Copy Matching Web Demo URL**.
+3. Paste. The link carries the scene seed, sanity 100, `view=3d`, and `cinematic=1` when a showcase camera exists. Open it next to Unity for the side-by-side take. It never carries `?pack`.
+
+**DLNK Pack Explorer**
+1. Import the pack you own so prefabs sit under `Assets/_DLNK` (git-ignored).
+2. Menu **Tools > Frankenstein > DLNK Pack Explorer**, press **Rescan**.
+3. Prefabs are grouped House, Landmark, Prop or Other by the catalog id their name best matches (`PrefabNameMatcher`). Type in **Search** to filter. **Ping** selects the prefab in the Project window. **Place** instantiates it at the Scene view pivot (undoable) and frames it.
+
+**Open DLNK Demo Scene And Add Showcase Camera**
+1. Import the pack under `Assets/_DLNK`.
+2. Menu **Tools > Frankenstein > Open DLNK Demo Scene And Add Showcase Camera**. It asks to save the current scene, opens the first scene under `Assets/_DLNK` whose name contains "demo" (otherwise the first by path), and adds a `Frankenstein Showcase Camera`.
+3. Disable the scene's other cameras and AudioListeners, adjust the camera fields, press Play.
 
 ## 4. Troubleshooting
 

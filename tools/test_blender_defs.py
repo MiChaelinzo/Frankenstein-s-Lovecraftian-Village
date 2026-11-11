@@ -22,6 +22,14 @@ class MeshDefs(unittest.TestCase):
         for e in cat["entries"]:
             self.assertIn(e["id"], mesh_defs.KINDS)
 
+    def test_round16_props(self):
+        for k in ("boat", "dock", "fence", "cliff_rock", "lamp_tall", "lamp_double"):
+            self.assertIn(k, mesh_defs.KINDS)
+            self.assertIn(k, mesh_defs.PROP_KINDS)
+            self.assertLess(mesh_defs.stats(mesh_defs.build(k))["tris"], 400, k)
+        self.assertEqual(len(mesh_defs.KINDS), len(set(mesh_defs.KINDS)))
+        self.assertEqual(mesh_defs.KINDS[:7], mesh_defs.CATALOG_KINDS)
+
     def test_deterministic(self):
         for k in mesh_defs.KINDS:
             self.assertEqual(mesh_defs.build(k), mesh_defs.build(k))

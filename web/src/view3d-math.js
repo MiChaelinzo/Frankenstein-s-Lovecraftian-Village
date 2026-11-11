@@ -365,6 +365,28 @@ export function coastFeatures(gridW, gridD, seed, cell = CELL) {
   return { frame: f, dock, boats, cliffs };
 }
 
+export const DOCK_SEGMENT = 4;       // metres of dock covered by one dock mesh
+export const FENCE_SEGMENT = 3;      // metres of fence covered by one fence mesh
+export const LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
+
+/**
+ * Where the GLB props go along the coast, in local (u, v) metres: dock segments end to end out to sea, and two short fence runs on the
+ * land side flanking the dock. Seeded through coastFeatures, so a harbour keeps its look. Fences stay inside the shoreline extent.
+ */
+export function coastProps(gridW, gridD, seed, cell = CELL) {
+  const { frame: f, dock } = coastFeatures(gridW, gridD, seed, cell), segments = Math.ceil((dock.length + 1) / DOCK_SEGMENT);
+  const dockSegments = Array.from({ length: segments }, (_, i) => ({ u: dock.u, v: -1 + DOCK_SEGMENT / 2 + i * DOCK_SEGMENT }));
+  const fences = [];
+  for (const side of [-1, 1]) for (let k = 0; k < 4; k++) {
+    const u = dock.u + side * (dock.width / 2 + 3 + k * FENCE_SEGMENT);
+    if (u >= f.lo && u <= f.hi) fences.push({ u, v: -2 });
+  }
+  return { dockSegments, fences };
+}
+
+/** Which lamp post mesh stands at a lit house: the three variants by the light's seeded phase. */
+export const lampKind = (light) => LAMP_KINDS[Math.abs(Math.floor((light.phase || 0) * 3)) % LAMP_KINDS.length];
+
 /** Where the church on the hill stands: opposite the sea (east or west for a north coast), beyond the village edge. Metres. */
 export function churchSite(gridW, gridD, seed, cell = CELL) {
   const side = coastSide(seed), w = gridW * cell, d = gridD * cell;
@@ -374,10 +396,18 @@ export function churchSite(gridW, gridD, seed, cell = CELL) {
 
 // ---------- omens in the 3D world (decisions come from omenTargets in scene.js, same as the 2D canvas) ----------
 
-/** Seeded direction of the eye in the sky, away from the moon's usual arc: unit vector. */
-export function eyeParams(seed, nightNumber) {
+/**
+ * Seeded direction of the eye in the sky: unit vector. When the grid size is given the eye hangs over the sea (within about 20 degrees
+ * of the direction the coast faces, 19 to 29 degrees up), so one view of the water holds the eye and the tentacles together.
+ * Without a grid it keeps the older free direction (any bearing).
+ */
+export function eyeParams(seed, nightNumber, gridW = 0, gridD = 0) {
   const rng = new SeededRandom(((seed | 0) * 17 + (nightNumber | 0) * 104729 + 5) | 0);
-  const az = (rng.next(360) * Math.PI) / 180, el = (0.38 + rng.next(25) / 100);
+  let az = (rng.next(360) * Math.PI) / 180, el = 0.38 + rng.next(25) / 100;
+  if (gridW > 0 && gridD > 0) {
+    const f = coastFrame(gridW, gridD, seed), sea = f.axis === 'x' ? (f.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (f.dir > 0 ? Math.PI : 0);
+    az = sea + ((az / (Math.PI * 2)) - 0.5) * 0.7; el = 0.33 + (el - 0.38) * 0.8;
+  }
   return { dir: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)], width: 0.26, height: 0.085 };
 }
 
@@ -400,4 +430,70 @@ export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights
   const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
   return { drawCalls, triangles, points: rain + mist + halos, lights: Math.min(lights, MAX_LIGHTS), halos };
+}
+
+// ---------- omen framing: a fly-through viewpoint that keeps the eye and the tentacles inside the frame ----------
+
+const TENTACLE_HEIGHT = 13;      // metres at full growth, matches buildTentacles in view3d.js
+const FRAME_MARGIN = 0.88;       // every omen point must land within this fraction of the half screen
+const OMEN_CAMERA_HEIGHT = 5;    // above the 3 m roofs
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+/** World points that must stay on screen: the tips and waterline of each risen tentacle, and the rim of the open eye (distant, so as directions). */
+export function omenPoints({ gridW, gridD, seed, nightNumber, grow = 1, eyeOpen = 1 }) {
+  const bases = tentacleBases(gridW, gridD, seed), pts = [];
+  bases.forEach((b, i) => {
+    const g = clamp(grow * 1.4 - i * 0.25, 0, 1);
+    if (g <= 0) return;
+    const reach = 5 * Math.abs(b.lean) + 3;
+    pts.push({ p: [b.x, 0, b.z] }, { p: [b.x + reach, TENTACLE_HEIGHT * g, b.z] }, { p: [b.x - reach, TENTACLE_HEIGHT * g, b.z] });
+  });
+  if (eyeOpen > 0.5) {
+    const e = eyeParams(seed, nightNumber, gridW, gridD), az = Math.atan2(e.dir[0], -e.dir[2]), el = Math.asin(e.dir[1]);
+    for (const [da, de] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) pts.push({ dir: [az + da * e.width * 1.15, el + de * e.height * 1.6] });
+  }
+  return pts;
+}
+
+/**
+ * Camera { x, y, z, yaw, pitch, fits } that looks out to sea with every omen point inside the frame. It stands inland of the tentacles
+ * and backs away in 6 m steps until the view fits (at most 14 steps). Deterministic: same world and omen strength give the same camera.
+ * `fits` is false only if even the furthest stand could not hold the points.
+ */
+export function omenFraming({ gridW, gridD, seed, nightNumber, grow = 1, eyeOpen = 1, aspect = 16 / 9 }) {
+  const pts = omenPoints({ gridW, gridD, seed, nightNumber, grow, eyeOpen });
+  const f = coastFrame(gridW, gridD, seed), sea = f.axis === 'x' ? [f.dir, 0] : [0, f.dir], heading = Math.atan2(sea[0], -sea[1]);
+  const bases = tentacleBases(gridW, gridD, seed), cx = bases.reduce((a, b) => a + b.x, 0) / bases.length, cz = bases.reduce((a, b) => a + b.z, 0) / bases.length;
+  let cam = null;
+  for (let step = 0; step < 15; step++) {
+    const back = 24 + step * 6, x = cx - sea[0] * back, z = cz - sea[1] * back;
+    const ang = pts.map((q) => {
+      if (q.dir) return [q.dir[0], q.dir[1]];
+      const dx = q.p[0] - x, dz = q.p[2] - z;
+      return [Math.atan2(dx, -dz), Math.atan2(q.p[1] - OMEN_CAMERA_HEIGHT, Math.hypot(dx, dz))];
+    }).map(([a, e]) => [wrapPi(a - heading), e]);
+    const yawMid = (Math.min(...ang.map((a) => a[0])) + Math.max(...ang.map((a) => a[0]))) / 2;
+    const pitchMid = (Math.min(...ang.map((a) => a[1])) + Math.max(...ang.map((a) => a[1]))) / 2;
+    cam = { x, y: OMEN_CAMERA_HEIGHT, z, yaw: heading + yawMid, pitch: clamp(pitchMid, -MAX_PITCH, MAX_PITCH), fits: false };
+    const vp = viewProjection(cam, aspect);
+    cam.fits = pts.every((q) => {
+      const w = q.dir ? [cam.x + Math.sin(q.dir[0]) * Math.cos(q.dir[1]) * 300, OMEN_CAMERA_HEIGHT + Math.sin(q.dir[1]) * 300, cam.z - Math.cos(q.dir[0]) * Math.cos(q.dir[1]) * 300] : q.p;
+      const n = projectPoint(vp, w);
+      return n && Math.abs(n[0]) <= FRAME_MARGIN && Math.abs(n[1]) <= FRAME_MARGIN;
+    });
+    if (cam.fits) break;
+  }
+  return cam;
+}
+
+/** Blend a fly-through camera toward the omen framing by w (0..1). Yaw takes the short way round. */
+export function blendCamera(a, b, w) {
+  const k = clamp(w, 0, 1), lerp = (p, q) => p + (q - p) * k;
+  return { x: lerp(a.x, b.x), y: lerp(a.y, b.y), z: lerp(a.z, b.z), yaw: a.yaw + wrapPi(b.yaw - a.yaw) * k, pitch: lerp(a.pitch, b.pitch) };
+}
+
+/** Weight 0..1 for blending the fly-through toward omenFraming: 0 when not flying or the tentacles are down, 1 from tentacle 0.4 (Dire) up. */
+export function omenBlendWeight(flying, tentacle) {
+  if (!flying || !(tentacle > 0.01)) return 0;
+  return clamp(tentacle / 0.4, 0, 1);
 }

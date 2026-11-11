@@ -1,6 +1,8 @@
 // Minimal dependency-free GLB (glTF 2.0 binary) reader and software projector. Pure logic, no DOM.
 // Reads POSITION, indices and baseColorFactor only; that is all the original Blender meshes use.
-export const KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
+export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
+export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
+export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS];
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
 const NCOMP = { SCALAR: 1, VEC3: 3 };
@@ -124,15 +126,16 @@ export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.w
  * Places a parsed mesh on a village footprint and returns back to front polygons [{pts:[{x,y}*3], fill}].
  * project(x, z) is the renderer's iso projector, so meshes share the board with the procedural pieces.
  * piece {x, z, sizeX, sizeZ}; opts: hs (camera height scale), unitPx (pixels per world unit of height),
- * dread 0..1, tint [r,g,b] 0..255 theme colour or null. Deterministic: no randomness, same input gives the same output.
+ * dread 0..1, tint [r,g,b] 0..255 theme colour or null, rot radians about the vertical axis (default 0, so existing output is unchanged). Deterministic: no randomness, same input gives the same output.
  */
-export function meshPolygons(model, project, piece, { hs = 1, unitPx = 32, dread = 0, tint = null } = {}) {
+export function meshPolygons(model, project, piece, { hs = 1, unitPx = 32, dread = 0, tint = null, rot = 0 } = {}) {
   const { min, max } = model.bounds;
   const s = 0.9 * Math.min(piece.sizeX / (max[0] - min[0] || 1), piece.sizeZ / (max[2] - min[2] || 1));
   const cx = piece.x + piece.sizeX / 2, cz = piece.z + piece.sizeZ / 2;
   const mx = (min[0] + max[0]) / 2, mz = (min[2] + max[2]) / 2;
   const light = [-0.4, 0.8, -0.45], ll = Math.hypot(...light);
-  const wx = (p) => cx + (p[0] - mx) * s, wz = (p) => cz + (p[2] - mz) * s, ly = (p) => p[1] * s;
+  const cr = Math.cos(rot), sr = Math.sin(rot);
+  const wx = (p) => cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, wz = (p) => cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s, ly = (p) => p[1] * s;
   const out = model.triangles.map((t) => {
     const a = t.p[0], b = t.p[1], c = t.p[2];
     const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
@@ -166,15 +169,16 @@ export function fitScale(model, piece, cell) {
 /**
  * Appends one placed mesh to the flat array `out` and returns the placed height in metres.
  * Emissive triangles get glow = opts.glow (window light on or off) and phase for flicker. tint [r,g,b] 0..255 blends 30%.
- * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece.
+ * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians).
  */
-export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null } = {}) {
+export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0 } = {}) {
   const { min, max } = model.bounds;
   const s = scale ?? fitScale(model, piece, cell);
   const cx = at ? at[0] : (piece.x + piece.sizeX / 2) * cell, cz = at ? at[1] : (piece.z + piece.sizeZ / 2) * cell;
   const mx = (min[0] + max[0]) / 2, mz = (min[2] + max[2]) / 2;
+  const cr = Math.cos(rot), sr = Math.sin(rot);
   for (const t of model.triangles) {
-    const q = t.p.map((p) => [cx + (p[0] - mx) * s, p[1] * s, cz + (p[2] - mz) * s]);
+    const q = t.p.map((p) => [cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, p[1] * s, cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s]);
     const u = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]], v = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]];
     let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
     const nl = Math.hypot(...n) || 1; n = n.map((c) => c / nl);

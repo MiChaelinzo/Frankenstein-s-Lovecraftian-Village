@@ -382,7 +382,21 @@ export function createRenderer(env) {
     }
     return e;
   }
+  // ?meshes=1 with a local pack scene: boats, fences and rocks use the original props, turned by the item's rotation (degrees).
+  const DLNK_MESH = { boat: 'boat', fence: 'fence', rock: 'cliff_rock' };
+  function drawDlnkMesh(it, dread) {
+    const model = meshes && meshes.get(DLNK_MESH[it.kind]);
+    if (!model) return false;
+    const tc = state.theme !== 'auto' ? themeColors(state.theme) : null, s = it.size;
+    const piece = { x: it.gx - s, z: it.gz - s, sizeX: s * 2, sizeZ: s * 2 };
+    for (const t of meshPolygons(model, iso, piece, { hs: cam.hs, unitPx: TW / 2, dread, tint: tc ? tc[0] : null, rot: -(it.rot || 0) * Math.PI / 180 })) {
+      ctx.beginPath(); ctx.moveTo(t.pts[0].x, t.pts[0].y); ctx.lineTo(t.pts[1].x, t.pts[1].y); ctx.lineTo(t.pts[2].x, t.pts[2].y); ctx.closePath();
+      ctx.fillStyle = t.fill; ctx.strokeStyle = t.fill; ctx.lineWidth = 0.6; ctx.fill(); ctx.stroke();
+    }
+    return true;
+  }
   function drawDlnkItem(it, dread, time) {
+    if (DLNK_MESH[it.kind] && meshes && meshes.size && drawDlnkMesh(it, dread)) return;
     const gloss = pack.roles[it.role] && typeof pack.roles[it.role].smoothness === 'number' ? pack.roles[it.role].smoothness : 0.3;
     const h = it.h, s = it.size, cx = it.gx - s / 2, cz = it.gz - s / 2;
     const { L, R, T } = dlnkShadesFor(it.role, dread);

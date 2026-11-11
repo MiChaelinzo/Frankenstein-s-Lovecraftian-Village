@@ -60,6 +60,7 @@ Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code 
 | `RitualDirector`, `VillageCoreInspectorWindow` | `Mathf.RoundToInt(dread * 100)` rounds halves to even; Core and web round halves up | **Bug.** Both use `DreadThresholds.Percent` now. `VillageReport` uses the same function (golden unchanged). |
 | `HorrorAmbienceDirector` | Magic numbers `0.2f + 0.8f * dread`; drain default 0.5 per second while the web demo drained 1.0 per second | `DreadCurve.AmbienceVolume` and `SanityModel.DrainPerSecond` (1.0, the value players of the web demo see). **Behavior change for Unity's default drain**, documented here; existing scenes with a serialized value keep it. |
 | `HttpNarrationProvider` | Empty `catch` | Logs `Debug.LogWarning` with URL and reason. |
+| `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow`, `DlnkShowcaseSceneHelper` | Thin wrappers. The fly-through maths moved to Core `FlythroughPath` (mirror of `cinematic.js`, golden parity), links come from Core `WebShareLink`, grouping from `PrefabNameMatcher`. | Only unit conversion (radians to Unity heading) and Editor GUI remain outside Core. Partially Verified (compile checked), Unverified in Unity. |
 | Other Runtime scripts | Thin glue (`VillageBuilder`, `WalkthroughController`, `DlnkDoorOmenBridge`, `DlnkBuildingFloorBridge`, `RitualSave*`, `DreadVolumeBlender`) | No change needed. |
 
 ## Removed or fixed
@@ -131,3 +132,9 @@ Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, c
 - `CodexModel`, `AchievementRules`, `DailySeed` stay in Core: their JS mirrors are golden-checked against them, so they are the source of truth, but Runtime consumer added in round 15 (`ProgressionTracker`).
 - Unity drain default 0.5 to 1.0: no serialized `sanityDrainPerSecond` found in the repo by grep; Unity itself was not opened. Status: Unverified in Unity.
 - Classifier keywords such as "tea", "web", "log": not spot-checked against real pack names, because packs are gitignored and absent here. Status: Unverified; the unclassified percentage in the scene label is the runtime check.
+
+## Round 16: fly-through, share link, showcase
+- Core owns the numbers: `FlythroughPath` mirrors `cinematicFrame` and `flythroughCamera` in `web/src/cinematic.js`; `WebShareLink` mirrors `sessionHash`; `PromptStrings.PlaceName` mirrors the `loc.*` entries of `web/src/i18n.js`. Golden sections `flythrough`, `shareLinks`, `places` are the contract. Status: Verified (dotnet 101, node 294).
+- Thin Unity wrappers: `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkShowcaseSceneHelper`, `DlnkPackExplorerWindow` hold no rules. Status: Partially Verified (stub compile check), Unverified at runtime. Unity cannot be installed in the sandbox (licence activation is tied to the author's account).
+- Web-only on purpose: omen framing for the 3D view (`omenFraming`, `blendCamera` in `view3d-math.js`) is presentation over the unchanged Core path, so no golden entry. This is a recorded exception to Core parity: Unity renders no tentacles or eye, so its camera does not frame omens (see `.kiro/steering/tech.md` and `docs/UNITY_SETUP.md`). The blend gating is a pure function (`omenBlendWeight`) tested by behaviour.
+- Docs for the recording (`DEMO_SCRIPT.md`, `RECORDING.md`, `PACK_EXPLORATION.md`) are the only new files; no new code or abstraction.

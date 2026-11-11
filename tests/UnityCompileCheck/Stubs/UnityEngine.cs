@@ -9,6 +9,7 @@ namespace UnityEngine
         public string name { get; set; }
         public static T Instantiate<T>(T original, Vector3 position, Quaternion rotation, Transform parent) where T : Object { return original; }
         public static void DestroyImmediate(Object obj) { }
+        public static T FindFirstObjectByType<T>() where T : Object { return null; }
         public static implicit operator bool(Object o) { return o != null; }
     }
     public class Component : Object
@@ -121,6 +122,7 @@ namespace UnityEngine
         public float x, y, z;
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public static Vector3 forward { get { return default; } }
+        public static Vector3 zero { get { return default; } }
         public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z); }
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
         public static Vector3 operator *(Vector3 a, float f) { return new Vector3(a.x * f, a.y * f, a.z * f); }
@@ -145,6 +147,11 @@ namespace UnityEngine
     {
         public static float deltaTime { get { return 0f; } }
         public static float time { get { return 0f; } }
+    }
+
+    public static class GUIUtility
+    {
+        public static string systemCopyBuffer { get; set; }
     }
 
     public static class Debug

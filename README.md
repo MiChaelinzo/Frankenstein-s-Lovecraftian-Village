@@ -104,8 +104,8 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 94 passing property tests |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 285 passing, including golden parity with C# output |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 101 passing property tests |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 289 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
@@ -116,6 +116,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
 | Unity playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`, package `.meta` files) | Unverified | Compile checked against stubs only; never run in Unity. Its rules (`InteractionRules`) are Verified in Core |
 | Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
+| Unity showcase tools (`VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow`, `DlnkShowcaseSceneHelper`, see [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md)) | Partially Verified | Compile checked against stubs (0 errors); never run in Unity, so runtime behavior is Unverified. The Core path (`FlythroughPath`) and link (`WebShareLink`) they call are Verified by dotnet tests and golden parity |
 | HDRP look and URP roles | Unverified | No Unity run |
 | Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
 | Hosted web demo | Verified | HTTP 200 on all entry pages and modules plus served CSP, checked by curl (`python3 tools/check_live.py`, 10/10 checks) |
@@ -200,7 +201,7 @@ Unlike parts, one creature:
 See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Packages/com.michaelinzo.frankenstein-village/Core` (no Unity dependency), Unity glue in `Packages/com.michaelinzo.frankenstein-village/Runtime`.
 
 ## Play in Unity
-Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md). Unity cannot be installed or run in the sandbox because Unity Personal licence activation is tied to the author's Unity account, so all Unity work is compile checked only (Partially Verified) and Unverified at runtime.
 
 ```
 Package Manager > Add package from git URL:
@@ -243,7 +244,7 @@ The tests are property-based: each property runs 300 seeded random cases and rep
 Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
 ## Built with Kiro
-Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
+Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script (side-by-side web and Unity, under 3:00): [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Recording setup: [docs/RECORDING.md](docs/RECORDING.md). Unity pack exploration script: [docs/PACK_EXPLORATION.md](docs/PACK_EXPLORATION.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
