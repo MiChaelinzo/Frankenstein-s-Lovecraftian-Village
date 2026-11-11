@@ -57,3 +57,10 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 52. Offscreen canvas cache for static terrain: skipped, ground and sea depend on dread, the easing camera squash and pack patterns every frame, so a cache would not give identical visuals without a wider refactor. Round 10 revisited it: the sea waves and reeds are animated by time, and the ground colour is a continuous function of dread, so a dread-bucketed cache cannot be pixel-identical and an exact-key cache would miss on every easing frame. Decision: not implemented
 - [x] 53. Web Stitch panel from `tools/gen_stitch.py` repo data (validator checks freshness), seeded Necronomicon codex and achievements saved in the session with backward-compatible parsing, high-contrast theme, opt-in daily village seed with an injectable clock (node and Python tests)
 - [x] 54. Code-complete, unverified in Unity (not compiled): `VillageCoreInspectorWindow` Editor window previewing Core village report and campaign; six new dotnet property tests and six node invariant tests
+- [x] 55. Web progress arming gate (`progress-gate.js`): codex and achievements only award after a player action, deep links and restored sessions only preview, saved progress restored until the first action
+- [x] 56. Journal Story and Progress tabs with unseen badge (`journal.js`, en and fr, node tests)
+- [x] 57. Opt-in judge tour `?tour=1` (`tour.js`, `tour-ui.js`), About dialog, static and perf budget tests, README judge quick start
+- [x] 58. Tour card placement helper `tourCardPlacement` with node test (card inside viewport, scroll on overflow, flips to the top when covering its target)
+- [ ] 59. Author: record tour and About screenshots or footage for the demo video (headless 1280x720 captures clip the bottom, shoot at 1280x770 or in a real browser)
+- [ ] 60. Real-browser check of the tour (keyboard, screen reader, a short laptop viewport); only headless Chrome was used
+- [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)

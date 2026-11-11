@@ -81,3 +81,8 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Story mode steps through every beat of every night and autoplays with pause; `#story=1&night=N&beat=N` opens at that beat.
 - The intro is skippable by keyboard and button, disabled by `?intro=0`, and static under reduced motion.
 - The soundtrack is procedural, silent until a user gesture opts in, has volume and mute, uses no audio files, and removes pulses under reduced motion.
+
+## Judge tour, journal tabs and progress gate
+- `?tour=1` starts a keyboard accessible tour; a bare URL never starts it; Esc skips; reduced motion disables auto-advance; the card stays inside the viewport.
+- Codex entries and achievements are awarded only after a player action. Deep links and restored sessions only preview, and a preview never overwrites saved progress.
+- The journal has Story and Progress tabs, with a badge for unseen progress.

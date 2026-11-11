@@ -96,3 +96,10 @@ A short history of how this project was built, taken from `git log` on the `feat
 ## Round 10 editor window and invariants
 - `02a7309` Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
 - `692a59e` Review fixes: nights achievement hook wired, restore before first autosave, controller test, CONTRIBUTING notes on stitch regen and `capture=1`. Journal flooding left as is: at most 1-2 lines per action, deep links collapse to one summary line.
+
+## Round 11 journal, tour and polish
+- `c47a25d` Progress previews on deep links and restore until the first player action (`web/src/progress-gate.js`, tests). Codex and achievements are only awarded after a player action.
+- `0c43015` Story and Progress journal tabs with an unseen badge (`web/src/journal.js`, tests).
+- `bc2e65b` Opt-in judge tour, About dialog, static and perf budget tests, judge quick start in the README, `--blood` colour change, service worker cache `flv-shell-v4`.
+- `c9fa15c` Tour card placement fix: pure `tourCardPlacement`, max height with scroll, higher z-index, re-placed on resize. The clipping seen in a 1280x720 headless screenshot is mostly a capture artifact (about 50 px missing at that size; 1280x770 and 390x800 show the full card), so this is a guard, not a proven user bug. Node tests 208 passing at that point.
+- Not verified: no real browser session, no live URL, no Unity, GitHub Actions blocked by an account billing lock.

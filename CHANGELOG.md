@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 11
+- Web: opt-in judge tour (`?tour=1`, `web/src/tour.js` pure step model, `web/src/tour-ui.js` DOM glue): 12 stops, about a minute, auto-advance stops on hover or key press, manual only under reduced motion, Esc skips, focus returns to the previous control. A pure `tourCardPlacement` keeps the card inside the viewport (capped height, scrolls if needed, moves to the top edge when the highlighted control would sit under it). Never starts on a bare URL.
+- Web: About dialog (`A` or button) with credits and license. Story and Progress tabs in the journal with an unseen badge (`web/src/journal.js`).
+- Web: static checks and perf budget node tests (`static-checks.test.js`, `perf-budget.test.js`), en and fr strings for the new UI, README judge quick start, service worker cache `flv-shell-v4`.
+- Changed: the `--blood` colour was adjusted for contrast.
+- Rule: codex entries and achievements are only awarded after a player action (`web/src/progress-gate.js`). Deep links and restored sessions only preview progress; saved progress is restored until the first player action, so a preview never overwrites a save.
+- Headless screenshots at exactly 1280x720 clip the bottom of the page (the capture window loses about 50 px; the same page at 1280x770 and at 390x800 shows the whole card). The placement fix is still kept as a real guard for short viewports.
+
 ### Fixed
 - Web: the "nights" achievement can now be earned (`selectNight` calls `progress.note.night`); startup restores saved codex/achievements before the first autosave so storage is no longer briefly overwritten with empty sets. Controller test `web/test/progress-ui.test.js`.
 
