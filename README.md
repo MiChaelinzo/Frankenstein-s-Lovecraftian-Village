@@ -28,6 +28,15 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 - **Gamepad and touch**: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic; swipe sideways on the view to pick a landmark, up for a candle, down for a whisper. Mapping is unit tested; not tried on real hardware here.
 
 ![Cinematic mode](docs/media/cinematic.png)
+- **Stitch panel** (`Y`, the Stitch button or `?stitch=1`): how the parts connect (C# Core, golden parity, JS port, Unity scripts, WebAudio, offline shell, Kiro hooks, steering and spec tasks). Every number is read from the repo by `tools/gen_stitch.py` into `web/data/stitch.json`; the validator fails if that file is stale.
+- **Necronomicon codex and achievements** (`K`, the Codex button or `?codex=1`): a seeded bestiary, one creature per ritual stage (order shuffled per seed) plus one entry per dread omen, unlocked as the ritual advances and omens rise. Ten achievements (first whisper, three doors, every night, full journal, Abyss, final ritual stage, half and full codex, investigator route) and a journal completion percentage. Both are saved in the session; older saves still load.
+- **High contrast** (`H`, the button or `?contrast=1`): white on black panels, thick borders and a yellow focus ring; the choice is remembered on this device.
+- **Today's village** (`Z`, the button or `?daily=1`): opt-in only. The seed comes from the UTC date, so everyone who opts in on the same day gets the same village. A bare URL never uses it.
+
+| ![Stitch panel](docs/media/stitch.png) | ![Codex and achievements](docs/media/codex.png) |
+|---|---|
+
+![High contrast theme](docs/media/contrast.png)
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
 
 What the demo does:
@@ -52,6 +61,10 @@ What the demo does:
 | `U` | mute |
 | `S` | story mode (then `,` `.` or Left / Right step, Space play/pause, Esc exit) |
 | `B` | cinematic capture mode (`B` or `Esc` leaves) |
+| `K` | codex and achievements |
+| `Y` | stitch panel |
+| `H` | high contrast |
+| `Z` | today's village (opt-in daily seed) |
 | `?` | show or hide the list |
 | Left / Right / Enter | with the canvas focused: pick a landmark and listen |
 

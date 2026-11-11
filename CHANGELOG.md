@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Web: Stitch panel (`Y`, `?stitch=1`) built from `web/data/stitch.json`, which `tools/gen_stitch.py` generates from real repo facts (Core file count, golden groups and vectors, JS modules and test files, Unity runtime scripts and DLNK bridges, precache size, Kiro hooks, steering and spec task counts). `tools/test_gen_stitch.py`; `tools/validate_repo.py` fails when the file is stale. Pure model in `web/src/stitch.js` (validates untrusted JSON, escapes output).
+- Web: seeded Necronomicon codex (`web/src/codex.js`): a per-seed creature order for each ritual stage plus three omen entries, unlocked by the effective ritual stage and the highest dread omen reached. Achievements and journal completion (`web/src/achievements.js`, ten achievements, sticky). Panel `K` or `?codex=1`; unlocks are logged (one summary line when a deep link unlocks several). Both saved in the session (`codex`, `ach` fields; older saves without them load as empty, unknown ids are dropped, tested).
+- Web: high-contrast theme (`H`, button, `?contrast=1`, remembered in localStorage; `web/src/access.js`).
+- Web: opt-in daily village (`Z`, button, `?daily=1`): seed from the UTC date via FNV-1a, injectable clock, pinned values in `web/test/daily.test.js`. Never used on a bare URL.
+- All new labels in en and fr. New modules are in the service worker precache (cache name bumped to `flv-shell-v2`); three web-only checks added to the self-test page (273 checks). Web-only logic, so no C# mirror or golden vectors.
+
 ### Changed
 - Web: the cinematic exit hint now matches the active input device (keyboard "B or Escape", gamepad "Select", touch "Tap Exit"), touch users get a visible Exit button during a take, and the page `<title>` and meta description follow `?lang=` (en and fr). Investigator pause and cinematic playback restore moved into `web/src/investigator-state.js` with node tests. New test that every module and asset reachable from `index.html` and `selftest.html` is in the service worker precache. Spec task 52 (offscreen terrain cache) revisited and again not implemented: sea waves and reeds animate with time and ground colour varies continuously with dread, so no cache would be pixel-identical. Not tried on a real touch device or gamepad.
 
