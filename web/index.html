@@ -26,6 +26,7 @@
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
+          <button id="cinemaExit" class="cinema-exit" type="button" data-i18n="btn.cinemaexit" hidden>Exit</button>
           <div id="hint" class="hint" data-i18n="hint.view">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
         <p id="viewDesc" class="sr-only"></p>
@@ -115,6 +116,12 @@
             <button id="cinemaToggle" type="button" aria-pressed="false" data-i18n="btn.cinematic">Cinematic (B)</button>
             <button id="perfToggle" type="button" aria-pressed="false" data-i18n="btn.perf">Perf (X)</button>
           </div>
+          <div class="row">
+            <button id="codexToggle" type="button" aria-pressed="false" aria-controls="codexPanel" data-i18n="btn.codex">Codex (K)</button>
+            <button id="stitchToggle" type="button" aria-pressed="false" aria-controls="stitchPanel" data-i18n="btn.stitch">Stitch (Y)</button>
+            <button id="contrastToggle" type="button" aria-pressed="false" data-i18n="btn.contrast">High contrast (H)</button>
+            <button id="dailyBtn" type="button" data-i18n="btn.daily">Today's village (Z)</button>
+          </div>
           <p id="sessionNote" class="stats" role="status" aria-live="polite"></p>
           <p id="stats" class="stats"></p>
         </section>
@@ -129,6 +136,18 @@
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
           <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds" data-i18n-aria="aria.minimap"></canvas>
           <ul id="legend" class="legend" aria-label="Legend"></ul>
+        </section>
+        <section id="codexPanel" class="panel codex" aria-labelledby="codexTitle" hidden>
+          <h2 id="codexTitle" data-i18n="title.codex">Necronomicon codex</h2>
+          <p id="codexMeta" class="stats" role="status"></p>
+          <ul id="codexList" class="codex-list"></ul>
+          <h2 data-i18n="title.ach">Achievements</h2>
+          <p id="achMeta" class="stats" role="status"></p>
+          <ul id="achList" class="codex-list"></ul>
+        </section>
+        <section id="stitchPanel" class="panel stitch" aria-labelledby="stitchTitle" hidden>
+          <h2 id="stitchTitle" data-i18n="title.stitch">How it is stitched together</h2>
+          <div id="stitchBody"></div>
         </section>
         <details id="keys" class="panel keys" open>
           <summary data-i18n="keys.title">Keyboard</summary>
@@ -147,6 +166,10 @@
             <li data-i18n-html="keys.investigator"><kbd>I</kbd> send an investigator along the lantern route (also ?investigator=1)</li>
             <li data-i18n-html="keys.cinematic"><kbd>B</kbd> cinematic capture mode: chrome hidden, scripted camera through this night's story beats (also ?cinematic=1)</li>
             <li data-i18n="keys.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic. Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper.</li>
+            <li data-i18n-html="keys.codex"><kbd>K</kbd> codex and achievements (also ?codex=1)</li>
+            <li data-i18n-html="keys.stitch"><kbd>Y</kbd> how the parts are stitched together (also ?stitch=1)</li>
+            <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
+            <li data-i18n-html="keys.daily"><kbd>Z</kbd> today's village, the same seed for everyone on this date (also ?daily=1)</li>
             <li data-i18n-html="keys.perf"><kbd>X</kbd> performance readout (also ?perf=1)</li>
             <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
             <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>

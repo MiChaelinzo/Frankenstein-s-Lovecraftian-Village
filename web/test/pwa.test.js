@@ -49,3 +49,19 @@ test('index.html offline fallback applies only to navigation requests', () => {
   assert.match(sw, /isNavigation\(req\) \? caches\.match\(new URL\('index\.html'/);
   assert.match(sw, /Response\.error\(\)/);
 });
+test('every asset and module reachable from index.html and selftest.html is precached', () => {
+  const seen = new Set(), queue = [];
+  const add = (p) => { if (!seen.has(p)) { seen.add(p); queue.push(p); } };
+  for (const page of ['index.html', 'selftest.html']) {
+    const html = readFileSync(join(web, page), 'utf8');
+    add(page);
+    for (const m of html.matchAll(/(?:src|href)="((?!https?:|#|data:)[^"]+)"/g)) add(m[1].replace(/^\.\//, ''));
+  }
+  while (queue.length) {
+    const p = queue.pop();
+    if (!/\.js$/.test(p) || !existsSync(join(web, p))) continue;
+    const src = readFileSync(join(web, p), 'utf8');
+    for (const m of src.matchAll(/from\s+'(\.[^']+)'/g)) add(join(dirname(p), m[1]).split('\\').join('/'));
+  }
+  for (const p of seen) assert.ok(list.includes(p), `${p} is reachable from the pages but not in PRECACHE`);
+});

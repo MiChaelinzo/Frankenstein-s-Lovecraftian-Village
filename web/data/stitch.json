@@ -1,0 +1,32 @@
+{
+  "parts": {
+    "audio": {
+      "count": 1
+    },
+    "core": {
+      "count": 15
+    },
+    "golden": {
+      "count": 12,
+      "vectors": 214
+    },
+    "js": {
+      "count": 31,
+      "tests": 28
+    },
+    "kiro": {
+      "count": 3,
+      "steering": 3,
+      "tasksDone": 47,
+      "tasksTotal": 54
+    },
+    "pwa": {
+      "count": 39
+    },
+    "unity": {
+      "bridges": 4,
+      "count": 14
+    }
+  },
+  "version": 1
+}

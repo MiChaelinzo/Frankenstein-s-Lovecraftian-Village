@@ -47,3 +47,16 @@ export function gateAction(action, cinematicOn) {
   if (!action) return null;
   return cinematicOn && action !== 'cinematic' ? null : action;
 }
+
+/** Which input device produced the last event? Anything unknown is treated as keyboard. */
+export const DEVICES = ['keyboard', 'pad', 'touch'];
+export const normalizeDevice = (d) => (DEVICES.includes(d) ? d : 'keyboard');
+
+/** i18n key for the cinematic exit hint that matches the active input device. */
+export const cinemaExitKey = (device) => {
+  const d = normalizeDevice(device);
+  return d === 'pad' ? 'cinema.exit.pad' : d === 'touch' ? 'cinema.exit.touch' : 'cinema.exit';
+};
+
+/** The exit button is shown only for touch, where there is no keyboard Escape or pad Select. */
+export const showCinemaExit = (device) => normalizeDevice(device) === 'touch';

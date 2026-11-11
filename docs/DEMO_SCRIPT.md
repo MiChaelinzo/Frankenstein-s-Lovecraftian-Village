@@ -32,6 +32,9 @@ Extra shots, all in the browser:
 - Buildings panel: `theme`, `cam=top` with the floor slider, `O` to try doors.
 - Download the Markdown report; drive the demo from the keyboard (`W C L N [ ] D M T V F O ?`).
 - Reduced motion with `?reduced=1`.
+- Stitch panel: `?intro=0&stitch=1#seed=1818` shows how the parts connect, with numbers read from the repo.
+- Codex and achievements: `?intro=0&codex=1#seed=1818&sanity=40&night=3`, then press `W` and `O` a few times to earn achievements.
+- High contrast: press `H` (or `?contrast=1`). Today's village: press `Z` (opt-in daily seed).
 - Cinematic take of a night: `?intro=0&cinematic=1#seed=1818&night=3` (see above).
 
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.

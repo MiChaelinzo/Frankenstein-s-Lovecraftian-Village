@@ -25,8 +25,12 @@ import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
+import { createProgressController } from './progress-ui.js';
+import { dailyVillage, dailyWanted } from './daily.js';
+import { contrastWanted, loadContrast, saveContrast } from './access.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
-import { gateAction, mapGamepad, mapSwipe, snapshotPad } from './input.js';
+import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
+import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
@@ -37,7 +41,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const ctx = canvas.getContext('2d');
 const params = new URLSearchParams(location.search);
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1';
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1' || params.get('capture') === '1';
 if (reduceMotion) document.documentElement?.classList?.add('reduced');
 
 const V = computeView(canvas.width, canvas.height, GRID_W, GRID_D);
@@ -131,6 +135,7 @@ function rebuild() {
   if (state.investigatorOn) startInvestigator();
   updateDesc();
   say(null);
+  progress.update();
   if (story.on) showBeat(story.idx);
 }
 
@@ -163,16 +168,19 @@ function trackRitual() {
   }
   state.ritualStage = stage;
   renderRitual();
+  progress.update();
 }
 function selectNight(i, quiet) {
   if (!state.campaign) return;
   state.night = Math.max(0, Math.min(state.campaign.nights.length - 1, i));
+  progress.note.night(state.night); progress.update();
   renderCampaign();
   setSanity(currentNight().sanityStart, quiet);
 }
 
 // ---------- narration + journal ----------
 function log(kind, text) {
+  progress.note.kind(kind);
   state.journal = addEntry(state.journal, { kind, text, sanity: state.sanity.value });
   $('whispers').innerHTML = state.journal.map((e) => `<li class="e-${e.kind}">${esc(entryLabelL(e, lang))}</li>`).join('');
 }
@@ -188,6 +196,7 @@ function say(locationId) {
 function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
   const text = omenTextL(e, lang);
+  if (e.rising) progress.note.tier(e.tier);
   state.toast = { text, at: performance.now(), rising: e.rising };
   announce(text); mark();
   if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
@@ -227,7 +236,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, ...progress.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -236,6 +245,7 @@ function applySession(s) {
   history.replaceState(null, '', sessionHash(v));
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
+  progress.restore(v); progress.update();
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -270,7 +280,7 @@ function setInvestigator(on) {
   updateDesc(); mark();
 }
 function stepInvestigator() {
-  const inv = state.investigator; if (!inv || document.hidden || cine.on) return; // paused during a cinematic take so it stays repeatable
+  const inv = state.investigator; if (!inv || !shouldStepInvestigator({ investigator: inv, hidden: document.hidden, cinemaOn: cine.on })) return; // paused during a cinematic take so it stays repeatable
   const hit = inv.step();
   if (hit) {
     state.sanity.apply(-hit.sanityLoss);
@@ -279,7 +289,7 @@ function stepInvestigator() {
     const text = tr('log.investigator', { site: tr(`kind.${hit.siteId}`), n: hit.sanityLoss });
     log('investigator', text); announce(text); updateDesc();
   }
-  if (inv.finished) { clearInterval(invTimer); invTimer = 0; log('investigator', tr('log.investigatorend')); updateDesc(); }
+  if (inv.finished) { clearInterval(invTimer); invTimer = 0; log('investigator', tr('log.investigatorend')); progress.note.investigatorDone(); progress.update(); updateDesc(); }
   drawMinimap(); mark();
 }
 function setMap(on) { mapOn = on; $('mapPanel').hidden = !on; $('mapToggle').setAttribute?.('aria-pressed', String(on)); drawMinimap(); }
@@ -298,6 +308,7 @@ function applyI18n() {
   document.documentElement?.setAttribute?.('lang', lang);
   if (lang === 'en') return;
   document.title = `${tr('page.title')} | Kiroween 2026`;
+  document.querySelector?.('meta[name="description"]')?.setAttribute('content', tr('page.description'));
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = tr(el.getAttribute('data-i18n'));
   for (const el of document.querySelectorAll('[data-i18n-html]')) el.innerHTML = tr(el.getAttribute('data-i18n-html'));
   for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', tr(el.getAttribute('data-i18n-aria')));
@@ -359,6 +370,7 @@ function tryDoor(p) {
   state.toast = { text, at: performance.now(), rising: behavior >= 2 };
   announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
+  progress.note.door(); progress.update();
   mark();
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
@@ -384,6 +396,7 @@ function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').val
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
+  progress.note.listen();
   setFocus(i); adjust(-2, p.id);
 }
 function download(name, text, mime) {
@@ -411,6 +424,7 @@ function tryNextDoor() {
 function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $('sound').checked = false; syncUi(); } else stopAudio(); }
 
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
+const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
 
 canvas.addEventListener('click', (e) => {
@@ -438,7 +452,7 @@ $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
-const doWhisper = () => adjust(-8, 'the walls');
+const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
 const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
 const doCandle = () => adjust(10, 'the village');
 $('whisper').addEventListener('click', doWhisper);
@@ -469,7 +483,29 @@ $('perfToggle').addEventListener('click', () => setPerf(!perfOn));
 $('invToggle').addEventListener('click', () => setInvestigator(!state.investigatorOn));
 $('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
 
+// ---------- codex, stitch panel, high contrast, daily village (all opt-in) ----------
+function setContrast(on, persist) {
+  document.documentElement?.classList?.toggle?.('hc', on);
+  $('contrastToggle').setAttribute?.('aria-pressed', String(on));
+  if (persist) { saveContrast(storage, on); $('sessionNote').textContent = tr(on ? 'msg.contrast.on' : 'msg.contrast.off'); announce($('sessionNote').textContent); }
+  mark();
+}
+function noteDaily(d) { const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
+function applyDaily() {
+  const d = dailyVillage();
+  if (!d) { $('sessionNote').textContent = tr('msg.dailyfail'); return; }
+  state.seed = d.seed; $('seed').value = d.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio();
+  noteDaily(d);
+}
+$('codexToggle').addEventListener('click', () => progress.setCodex(!progress.isCodexOn()));
+$('stitchToggle').addEventListener('click', () => progress.setStitch(!progress.isStitchOn()));
+$('contrastToggle').addEventListener('click', () => setContrast(!document.documentElement.classList.contains('hc'), true));
+$('dailyBtn').addEventListener('click', applyDaily);
+
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
+// Last input device seen, so the exit hint names the control the player actually has.
+let inputDevice = 'keyboard';
+const setDevice = (d) => { inputDevice = normalizeDevice(d); };
 const cine = { on: false, beats: [], durations: [], t0: 0, beat: -1, timer: 0, hadStory: false, hadPlaying: false };
 function cinemaStep() {
   const f = cinematicFrame(performance.now() - cine.t0, cine.durations, reduceMotion);
@@ -489,14 +525,15 @@ function setCinematic(on) {
   document.documentElement?.classList?.toggle?.('cinema', on);
   $('cinemaCaption').hidden = !on;
   clearInterval(cine.timer);
-  if (!on) { state.cinema = null; cine.beat = -1; if (!cine.hadStory) closeStory(); else if (cine.hadPlaying) setPlaying(true); mark(); return; }
+  if (!on) { state.cinema = null; cine.beat = -1; const act = restoreAction(cine); if (act === 'close') closeStory(); else if (act === 'resume') setPlaying(true); $('cinemaExit').hidden = true; mark(); return; }
   const all = storyBeats(), start = nightStartIndex(all, state.night + 1);
   cine.beats = all.filter((b) => b.nightNumber === all[start].nightNumber);
   cine.durations = cine.beats.map((b) => b.durationMs);
-  cine.hadStory = story.on; cine.hadPlaying = story.playing; cine.beat = -1; cine.t0 = performance.now();
+  Object.assign(cine, snapshotPlayback(story)); cine.beat = -1; cine.t0 = performance.now();
   if (!story.on) openStory(start);
   setPlaying(false);
-  announce(tr('cinema.exit'));
+  $('cinemaExit').hidden = !showCinemaExit(inputDevice);
+  announce(tr(cinemaExitKey(inputDevice)));
   cinemaStep();
   cine.timer = setInterval(cinemaStep, 100);
 }
@@ -525,21 +562,24 @@ function pollPad() {
   const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
   if (!pads.length) { padPolling = false; padPrev = null; return; }
   const cur = snapshotPad(pads[0]);
-  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) doAction(a);
+  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
   padPrev = cur;
   requestAnimationFrame(pollPad);
 }
 let touch0 = null;
-canvas.addEventListener('touchstart', (e) => { const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
+canvas.addEventListener('touchstart', (e) => { setDevice('touch'); const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
 canvas.addEventListener('touchcancel', () => { touch0 = null; }, { passive: true });
 canvas.addEventListener('touchend', (e) => {
   const p = e.changedTouches[0]; if (!touch0 || !p) return;
   const a = mapSwipe(p.clientX - touch0.x, p.clientY - touch0.y, performance.now() - touch0.t); touch0 = null;
   if (a) doAction(a);
 }, { passive: true });
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setDevice('touch'); else if (e.pointerType === 'mouse' || e.pointerType === 'pen') setDevice('keyboard'); }, { passive: true });
+$('cinemaExit').addEventListener('click', () => setCinematic(false));
 addEventListener('gamepadconnected', () => { if (!padPolling) { padPolling = true; padPrev = null; requestAnimationFrame(pollPad); } });
 
 addEventListener('keydown', (e) => {
+  setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (introOpen()) return;
   const tag = e.target && e.target.tagName;
@@ -572,6 +612,10 @@ addEventListener('keydown', (e) => {
     case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
     case 'b': case 'B': setCinematic(true); break;
     case 'x': case 'X': setPerf(!perfOn); break;
+    case 'k': case 'K': progress.setCodex(!progress.isCodexOn()); break;
+    case 'y': case 'Y': progress.setStitch(!progress.isStitchOn()); break;
+    case 'h': case 'H': setContrast(!document.documentElement.classList.contains('hc'), true); break;
+    case 'z': case 'Z': applyDaily(); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
@@ -595,10 +639,19 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   if (pack.want) await loadPack();
   state.investigatorOn = optParam('investigator') === '1';
   $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
+  setContrast(contrastWanted(location.search, location.hash, loadContrast(storage)), false);
+  const daily = dailyWanted(location.search, location.hash) && !/seed=/.test(location.hash) ? dailyVillage() : null; // opt-in only
+  if (daily) history.replaceState(null, '', `#seed=${daily.seed}`);
+  const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
-  applyHash(); pushHash(); start();
+  applyHash();
+  if (saved) progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); // before pushHash, whose autosave would overwrite the stored codex/ach
+  pushHash(); start();
+  if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
+  if (optParam('codex') === '1') progress.setCodex(true);
+  if (optParam('stitch') === '1') progress.setStitch(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);
   requestAnimationFrame(pollPad);
   if (cinemaWanted) setCinematic(true);

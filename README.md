@@ -28,6 +28,15 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 - **Gamepad and touch**: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic; swipe sideways on the view to pick a landmark, up for a candle, down for a whisper. Mapping is unit tested; not tried on real hardware here.
 
 ![Cinematic mode](docs/media/cinematic.png)
+- **Stitch panel** (`Y`, the Stitch button or `?stitch=1`): how the parts connect (C# Core, golden parity, JS port, Unity scripts, WebAudio, offline shell, Kiro hooks, steering and spec tasks). Every number is read from the repo by `tools/gen_stitch.py` into `web/data/stitch.json`; the validator fails if that file is stale.
+- **Necronomicon codex and achievements** (`K`, the Codex button or `?codex=1`): a seeded bestiary, one creature per ritual stage (order shuffled per seed) plus one entry per dread omen, unlocked as the ritual advances and omens rise. Ten achievements (first whisper, three doors, every night, full journal, Abyss, final ritual stage, half and full codex, investigator route) and a journal completion percentage. Both are saved in the session; older saves still load.
+- **High contrast** (`H`, the button or `?contrast=1`): white on black panels, thick borders and a yellow focus ring; the choice is remembered on this device.
+- **Today's village** (`Z`, the button or `?daily=1`): opt-in only. The seed comes from the UTC date, so everyone who opts in on the same day gets the same village. A bare URL never uses it.
+
+| ![Stitch panel](docs/media/stitch.png) | ![Codex and achievements](docs/media/codex.png) |
+|---|---|
+
+![High contrast theme](docs/media/contrast.png)
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
 
 What the demo does:
@@ -38,7 +47,7 @@ What the demo does:
 ![Campaign night 5](docs/media/campaign-night5.png)
 - **Whispers journal**: every whisper is kept, so you can reread what the narrator said.
 - **Village report**: download a Markdown or JSON report of the current seed, sanity and layout.
-- **Accessibility**: full keyboard control, skip link to the village view, live regions for toasts and cinematic captions, a screen reader description of the village, reduced motion (`prefers-reduced-motion` or `?reduced=1`), responsive layout.
+- **Accessibility**: full keyboard control, skip link to the village view, live regions for toasts and cinematic captions, a screen reader description of the village, reduced motion (`prefers-reduced-motion` or `?reduced=1`; `?capture=1` is the same static rendering for screenshots), responsive layout.
 
 | Key | Action |
 |-----|--------|
@@ -52,6 +61,10 @@ What the demo does:
 | `U` | mute |
 | `S` | story mode (then `,` `.` or Left / Right step, Space play/pause, Esc exit) |
 | `B` | cinematic capture mode (`B` or `Esc` leaves) |
+| `K` | codex and achievements |
+| `Y` | stitch panel |
+| `H` | high contrast |
+| `Z` | today's village (opt-in daily seed) |
 | `?` | show or hide the list |
 | Left / Right / Enter | with the canvas focused: pick a landmark and listen |
 
@@ -70,6 +83,7 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 | Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
 | Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | **Unverified**: never run in the Unity editor |
+| Unity Editor window `VillageCoreInspectorWindow` (`Tools > Frankenstein > Village Core Inspector`, previews Core village report and campaign) | **Unverified**: never compiled or run in the Unity editor |
 | Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
 
 The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.
@@ -178,7 +192,7 @@ python3 tools/validate_repo.py
 After intentionally changing Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests`, then `node tools/embed_golden.mjs` (refreshes the data used by `web/selftest.html`), and update `web/src/core.js` to match.
 The tests are property-based: each property runs 300 seeded random cases and reports the failing seed. If your home directory is read-only, run with `HOME=/tmp/home`.
 
-Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh`.
+Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
 ## Built with Kiro
 Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).

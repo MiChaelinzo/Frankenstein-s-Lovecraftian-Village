@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+- Web: the "nights" achievement can now be earned (`selectNight` calls `progress.note.night`); startup restores saved codex/achievements before the first autosave so storage is no longer briefly overwritten with empty sets. Controller test `web/test/progress-ui.test.js`.
+
+### Added
+- Web: Stitch panel (`Y`, `?stitch=1`) built from `web/data/stitch.json`, which `tools/gen_stitch.py` generates from real repo facts (Core file count, golden groups and vectors, JS modules and test files, Unity runtime scripts and DLNK bridges, precache size, Kiro hooks, steering and spec task counts). `tools/test_gen_stitch.py`; `tools/validate_repo.py` fails when the file is stale. Pure model in `web/src/stitch.js` (validates untrusted JSON, escapes output).
+- Web: seeded Necronomicon codex (`web/src/codex.js`): a per-seed creature order for each ritual stage plus three omen entries, unlocked by the effective ritual stage and the highest dread omen reached. Achievements and journal completion (`web/src/achievements.js`, ten achievements, sticky). Panel `K` or `?codex=1`; unlocks are logged (one summary line when a deep link unlocks several). Both saved in the session (`codex`, `ach` fields; older saves without them load as empty, unknown ids are dropped, tested).
+- Web: high-contrast theme (`H`, button, `?contrast=1`, remembered in localStorage; `web/src/access.js`).
+- Web: opt-in daily village (`Z`, button, `?daily=1`): seed from the UTC date via FNV-1a, injectable clock, pinned values in `web/test/daily.test.js`. Never used on a bare URL.
+- All new labels in en and fr. New modules are in the service worker precache (cache name bumped to `flv-shell-v2`); three web-only checks added to the self-test page (273 checks). Web-only logic, so no C# mirror or golden vectors.
+
+- Unity Editor window `VillageCoreInspectorWindow` (`Tools > Frankenstein > Village Core Inspector`): read-only preview of the Core village report, dread tier and seeded campaign for a seed and sanity. Uses only Core APIs. Written by inspection, **not compiled or run in Unity**.
+- Invariant tests: six new dotnet properties (`InvariantProperties.cs`, 64 total) and six node counterparts (`web/test/invariants.test.js`): layout bounds and no overlap, target count cap, dread monotone in sanity, tier monotone in dread, campaign numbering and non-lightening sky, report landmark and average-horror bounds. No Core change, so no golden regeneration.
+
+### Changed
+- Web: the cinematic exit hint now matches the active input device (keyboard "B or Escape", gamepad "Select", touch "Tap Exit"), touch users get a visible Exit button during a take, and the page `<title>` and meta description follow `?lang=` (en and fr). Investigator pause and cinematic playback restore moved into `web/src/investigator-state.js` with node tests. New test that every module and asset reachable from `index.html` and `selftest.html` is in the service worker precache. Spec task 52 (offscreen terrain cache) revisited and again not implemented: sea waves and reeds animate with time and ground colour varies continuously with dread, so no cache would be pixel-identical. Not tried on a real touch device or gamepad.
+
+### Fixed
+- Pack-mode headless screenshots (`?pack=1`) no longer hang (exit 124). Not an app bug: the same page in a live DevTools session renders about 39 frames per second and screenshots in 0.2 s, and `?pack=1&reduced=1` finishes under virtual time. The continuous animated frame loop with pattern textures stops Chrome's `--virtual-time-budget` clock from finishing. New `?capture=1` renders the static still frame (same as reduced motion); `tools/screenshot.sh` adds it for `pack=1` queries and wraps Chrome in `timeout` (`SHOT_TIMEOUT`, default 60 s).
+
 ### Added
 - Web: cinematic capture mode (`B`, the Cinematic button or `?cinematic=1`). Hides the page chrome, shows a large caption and runs a scripted camera pan and zoom through the current night's story beats on the fixed story beat timings, then returns to the normal page. The timeline is a pure function (`web/src/cinematic.js`, `cinematicFrame`) with node tests; under reduced motion the camera stays still and only the beats advance. `B` or `Esc` leaves early.
 - Web: gamepad and touch controls through a pure, tested mapping (`web/src/input.js`). The Gamepad API is polled in `requestAnimationFrame` only after a pad connects (stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic). Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. Not tried on a physical gamepad or touch device here.

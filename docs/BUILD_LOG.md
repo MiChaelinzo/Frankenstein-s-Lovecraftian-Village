@@ -82,3 +82,17 @@ A short history of how this project was built, taken from `git log` on the `feat
 ## Round 9 cinematic, input and accessibility
 - `252b411` Web cinematic capture mode (`web/src/cinematic.js`, pure timeline, still camera under reduced motion), gamepad and touch mapping (`web/src/input.js`), skip link and caption live region, duplicate `applyI18n()` call removed. Test counts after: node 131, dotnet 58. Headless screenshot `docs/media/cinematic.png` checked (web demo only). Gamepad and touch not tried on real hardware.
 - `ac165d9` Docs: README, CHANGELOG, DEMO_SCRIPT clean take steps, Devpost checklist, tasks 49 to 52, steering. Offscreen terrain cache skipped (task 52): ground and sea redraw from dread, the easing camera squash and pack patterns each frame.
+
+## Round 10 pack screenshot hang
+- Root cause: headless virtual-time artifact, not an app bug (live CDP session: 118 rAF frames in 3 s with pack vs 181 without, screenshot in 194 ms; `?pack=1&reduced=1` works under virtual time, animated pack run exits 124 even with a 300 ms budget). Fix: `?capture=1` (static frame) added by `tools/screenshot.sh` for pack queries, plus a hard `timeout`. Commit hash recorded in the git log (`fix: pack screenshot hang`).
+
+## Round 10 minor review notes
+- `7acbb4f` Input-aware cinematic exit hint, touch Exit button, `web/src/investigator-state.js` with tests, translated page title and meta description, precache reachability test. Node tests 138, selftest 270 of 270 passing headless. Terrain cache (task 52) revisited and rejected: not pixel-identical possible.
+
+## Round 10 judge-facing features
+- `f16567b` Stitch panel from `tools/gen_stitch.py` repo data (validator checks freshness), seeded codex and achievements saved in the session (backward compatible), high-contrast theme, opt-in daily village with injectable clock. Node tests 159, selftest 273 of 273 headless, tools tests and dotnet 58 pass. Headless screenshots occasionally exit 124 under virtual time on the unchanged base too; retrying succeeds.
+- `c702b0a` Docs and web-demo screenshots `docs/media/stitch.png`, `codex.png`, `contrast.png` (each under 700 KB).
+
+## Round 10 editor window and invariants
+- `02a7309` Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
+- `692a59e` Review fixes: nights achievement hook wired, restore before first autosave, controller test, CONTRIBUTING notes on stitch regen and `capture=1`. Journal flooding left as is: at most 1-2 lines per action, deep links collapse to one summary line.

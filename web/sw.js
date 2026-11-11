@@ -1,12 +1,12 @@
 // Offline cache for the static demo. Network first, cache fallback. Precaches only the explicit list below.
 // It never touches local-pack (licensed art stays out of caches) and never serves or stores anything for ?pack=1.
-const CACHE = 'flv-shell-v1';
+const CACHE = 'flv-shell-v2';
 const PRECACHE = [
   './', 'index.html', 'selftest.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
-  'data/village_catalog.json',
-  'src/app.js', 'src/building.js', 'src/casefile.js', 'src/cinematic.js', 'src/core.js', 'src/draw.js', 'src/golden-data.js', 'src/input.js', 'src/i18n-text.js', 'src/i18n.js', 'src/intro-ui.js', 'src/intro.js',
-  'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
-  'src/session.js', 'src/story-ui.js', 'src/story.js', 'src/textures.js', 'src/util.js',
+  'data/village_catalog.json', 'data/stitch.json',
+  'src/access.js', 'src/achievements.js', 'src/app.js', 'src/building.js', 'src/casefile.js', 'src/cinematic.js', 'src/codex.js', 'src/core.js', 'src/daily.js', 'src/draw.js', 'src/golden-data.js', 'src/input.js', 'src/investigator-state.js', 'src/i18n-text.js', 'src/i18n.js', 'src/intro-ui.js', 'src/intro.js',
+  'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/progress-ui.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
+  'src/session.js', 'src/story-ui.js', 'src/stitch.js', 'src/story.js', 'src/textures.js', 'src/util.js',
 ];
 // Only page navigations may fall back to index.html offline; scripts, styles and JSON must never receive HTML.
 const isNavigation = (req) => req.mode === 'navigate' || (req.headers && req.headers.get('accept') || '').includes('text/html');

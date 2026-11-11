@@ -6,6 +6,9 @@ import {
   Investigator, simulateInvestigator, describeInvestigatorHit,
 } from './core.js';
 import { buildStory } from './story.js';
+import { creatureOrder, CREATURE_COUNT } from './codex.js';
+import { dailyVillage } from './daily.js';
+import { earnedIds, newStats } from './achievements.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -53,5 +56,9 @@ export function runSelfTest(golden, catalogEntries) {
     golden.matcher.scores.forEach(([id, name, expected]) => check('Matcher', `${id} vs ${name}`, () => PrefabNameMatcher.score(id, name) === expected));
     golden.matcher.resolves.forEach(([id, hint, expected]) => check('Matcher', `resolve ${id} hint ${hint}`, () => PrefabNameMatcher.resolve(id, hint, names) === expected));
   }
+  // Web-only deterministic checks for the round 10 modules (no C# counterpart, so no golden vectors).
+  check('Web', 'daily seed is stable for a fixed clock', () => dailyVillage(() => new Date('2026-11-14T12:00:00Z')).seed === 1880875346);
+  check('Web', 'codex creature order is a permutation', () => same([...creatureOrder(1818)].sort((a, b) => a - b), Array.from({ length: CREATURE_COUNT }, (_, i) => i)));
+  check('Web', 'no achievements before any play', () => earnedIds(newStats()).length === 0);
   return results;
 }
