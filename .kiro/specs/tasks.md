@@ -63,4 +63,12 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 58. Tour card placement helper `tourCardPlacement` with node test (card inside viewport, scroll on overflow, flips to the top when covering its target)
 - [ ] 59. Author: record tour and About screenshots or footage for the demo video (headless 1280x720 captures clip the bottom, shoot at 1280x770 or in a real browser)
 - [ ] 60. Real-browser check of the tour (keyboard, screen reader, a short laptop viewport); only headless Chrome was used
+- [x] 62. Round 12: stub-based Unity compile check (`tests/UnityCompileCheck`, CI job), MCP prep docs (no MCP run)
+- [x] 63. Round 12: DLNK scene layout parser, material properties, `?pack=1&scene=` mode with node tests (local pack only)
+- [x] 64. Round 12: headless Blender 4.2 LTS original GLB meshes, `meshes.html` viewer, link from About with en and fr parity
+- [ ] 65. Decode EXR lightmaps (stdlib) for local pack ground shading
+- [ ] 66. Use URP texture roles when a URP package carries them (currently HDRP only)
+- [ ] 67. Sprite mode (`?sprites`) from locally rendered Blender sprites
+- [ ] 68. Better scene classification of generic objects (rocks, plants, walls)
+- [ ] 69. Run the compile check against a real Unity install and the MCP workflow (author only)
 - [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)

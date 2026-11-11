@@ -38,3 +38,13 @@ test('hintFor, badgeText, tintChannel', () => {
   assert.equal(tintChannel(200, 255), 200);
   assert.equal(tintChannel(200, 0), 0);
 });
+
+test('material fields are optional, validated and old manifests still pass', () => {
+  assert.equal(validateManifest(good).roles.roof.smoothness, undefined);
+  const m = structuredClone(good);
+  m.roles.roof.smoothness = 0.4; m.roles.roof.metallic = 7; m.roles.roof.slots = ['_MaskMap', 'bad slot!', 5];
+  const r = validateManifest(m).roles.roof;
+  assert.equal(r.smoothness, 0.4);
+  assert.equal(r.metallic, undefined);
+  assert.deepEqual(r.slots, ['_MaskMap']);
+});

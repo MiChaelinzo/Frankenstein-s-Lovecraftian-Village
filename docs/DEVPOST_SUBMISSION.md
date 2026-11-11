@@ -9,6 +9,7 @@ Only the author can supply these. Nothing below has been filled in or guessed.
 - [x] Seeded investigator walking a lantern route (Core, JS port, golden parity; web toggle `I` / `?investigator=1`, off by default; sanity hits in the journal, minimap marker, screen reader village description)
 - [x] Stitch panel from generated repo data, seeded codex and achievements saved in the session, high-contrast theme, opt-in daily village (node and Python tests; headless screenshots of the web demo only)
 - [x] Round 11: judge tour (`?tour=1`), About dialog, journal Story and Progress tabs, progress gated on player actions; node tested, only headless Chrome tried
+- [x] Round 12: stub-based Unity compile check (not a Unity run), DLNK scene mode `?pack=1&scene=` (local pack only), original Blender 4.2 LTS meshes as GLB with `meshes.html` viewer; MCP only documented, never run
 - [ ] Public demo video URL (under 3 minutes), recorded by Michael G. Inso, added to the Devpost form
 - [ ] Public social post URL using #KiroweenHackathon26 (Social Blitz Prize)
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)

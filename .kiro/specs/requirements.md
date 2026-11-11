@@ -1,3 +1,8 @@
+
+## DLNK scene mode, Blender meshes and compile check
+- `?pack=1&scene=<name>` renders a validated local layout; malformed layouts are rejected; default and plain `?pack=1` are unchanged; nothing pack-derived is committed.
+- Original meshes are built headless in Blender and exported as small GLB; the web viewer needs no dependencies and is reachable from About in en and fr.
+- The Unity scripts compile against stubs in CI; this is documented as a stub check, not a Unity run. MCP use is never claimed.
 # Requirements: Stitched Village Slice
 
 ## Introduction

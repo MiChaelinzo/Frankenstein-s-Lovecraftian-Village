@@ -1,3 +1,6 @@
+
+## DLNK scene mode, Blender pipeline, compile check
+`tools/dlnk_scene.py` parses PrefabInstance modifications, maps guids to names and classifies kinds; `build_local_pack.py` writes `scene_layout.json` and material properties (git-ignored). `web/src/dlnk-layout.js` validates, fits by percentile bounds and picks a scene. `tools/blender/gen_meshes.py` runs in Blender 4.2 LTS (git-ignored `pack-scratch/blender`) and writes GLB to `web/assets/meshes/`; `web/src/glb.js` parses and projects in software (no WebGL). `tests/UnityCompileCheck` compiles Runtime and Editor scripts against original stubs.
 # Design
 
 ## Architecture

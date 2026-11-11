@@ -30,6 +30,7 @@ import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
 import { dailyVillage, dailyWanted } from './daily.js';
+import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
 import { contrastWanted, loadContrast, saveContrast } from './access.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
@@ -466,6 +467,7 @@ $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));
 
 canvas.addEventListener('click', (e) => {
+  if (state.dlnk) return; // scene mode draws schematic solids instead of the village; do not select hidden pieces
   const r = canvas.getBoundingClientRect();
   const mx = (e.clientX - r.left) * canvas.width / r.width, my = (e.clientY - r.top) * canvas.height / r.height;
   const di = nearestDoor(state.doors.map(doorPoint).map((pt) => ({ x: pt.x, y: pt.y - 3 })), mx, my, 12);
@@ -475,6 +477,7 @@ canvas.addEventListener('click', (e) => {
   if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-2, best.id); }
 });
 canvas.addEventListener('keydown', (e) => {
+  if (state.dlnk) return;
   const n = state.landmarks.length;
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { setFocus(wrapIndex(state.focus, n, 1)); e.preventDefault(); }
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); e.preventDefault(); }
@@ -671,6 +674,30 @@ if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver((es) =
 setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-0.5); syncUi(); } }, 500);
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
+// ---------- DLNK scene mode: ?pack=1&scene=<name>, only when local-pack/scene_layout.json exists ----------
+function setDlnkScene(slug) {
+  const scene = slug && pack.layout ? pack.layout[slug] : null;
+  state.dlnk = scene ? { slug, scene, items: normalizeScene(scene, GRID_W, GRID_D) } : null;
+  const sel = $('dlnkScene'); if (sel) sel.value = state.dlnk ? slug : '';
+  const q = new URLSearchParams(location.search);
+  if (state.dlnk) q.set('scene', slug); else q.delete('scene');
+  history.replaceState(null, '', `${location.pathname}?${q.toString()}${location.hash}`);
+  mark();
+}
+function setupDlnk() {
+  if (!pack.layout) return;
+  const row = $('theme').parentNode;
+  const label = document.createElement('label'); label.htmlFor = 'dlnkScene'; label.textContent = tr('label.dlnkscene');
+  const sel = document.createElement('select'); sel.id = 'dlnkScene';
+  sel.innerHTML = `<option value="">${esc(tr('opt.dlnknone'))}</option>` + Object.entries(pack.layout).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `<option value="${esc(k)}">${esc(v.title)}</option>`).join('');
+  sel.addEventListener('change', () => setDlnkScene(sel.value));
+  row.append(label, sel);
+  const wanted = sceneFromUrl(location.search, location.hash);
+  if (!wanted) return;
+  const slug = pickScene(pack.layout, wanted);
+  if (slug) setDlnkScene(slug); else $('sessionNote').textContent = tr('msg.dlnkmissing', { name: wanted });
+}
+
 (async function init() {
   applyI18n(); renderJournal();
   try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); return; }
@@ -678,6 +705,7 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
     `<optgroup label="${esc(tr('opt.group', { g: tr(`group.${g}`) }))}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${esc(themeLabel(lang, t))}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
+  if (pack.want) setupDlnk();
   state.investigatorOn = optParam('investigator') === '1';
   $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
   setContrast(contrastWanted(location.search, location.hash, loadContrast(storage)), false);

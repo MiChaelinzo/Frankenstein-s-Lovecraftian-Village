@@ -1,11 +1,12 @@
 // Texture sources for the canvas renderer: the optional local pack (?pack=1) and the procedural pattern library.
 import { SeededRandom } from './core.js';
+import { validateLayout } from './dlnk-layout.js';
 import { validateManifest, hintFor, tintChannel } from './pack.js';
 import { THEMES, themeColors } from './building.js';
 
 export function createTextures({ ctx, params, tr }) {
   // ---------- optional local pack mode (?pack=1), textures come from the git-ignored web/local-pack/ ----------
-  const pack = { want: params.get('pack') === '1', manifest: null, roles: {}, patterns: {}, notice: '' };
+  const pack = { want: params.get('pack') === '1', manifest: null, roles: {}, patterns: {}, notice: '', layout: null, layoutNotice: '' };
   const PACK_SCALE = { wall_wood: 0.3, wall_brick: 0.3, wall_plaster: 0.3, wall_stone: 0.3, roof: 0.3, trunk: 0.25, ground: 0.5, ground_stones: 0.5 };
   function loadImage(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error(`cannot load ${src}`)); im.src = src; }); }
   async function loadPack() {
@@ -26,10 +27,23 @@ export function createTextures({ ctx, params, tr }) {
         pack.patterns[name] = pat;
       }
       pack.roles = v.roles; pack.manifest = json;
+      await loadLayout();
     } catch (err) {
       pack.patterns = {}; pack.manifest = null;
       pack.notice = tr('msg.packmissing');
       console.warn(`[pack] ${err.message}`);
+    }
+  }
+  // Optional scene_layout.json from tools/build_local_pack.py; absence is normal and keeps plain pack mode.
+  async function loadLayout() {
+    try {
+      const res = await fetch('local-pack/scene_layout.json');
+      if (!res.ok) return;
+      const v = validateLayout(await res.json());
+      if (v.ok) pack.layout = v.scenes;
+      else console.warn(`[pack] scene layout rejected: ${v.errors.join('; ')}`);
+    } catch (err) {
+      console.warn(`[pack] no scene layout: ${err.message}`);
     }
   }
   // Procedural texture library (no assets): one small seamless pattern per theme, built once on a tiny offscreen canvas.

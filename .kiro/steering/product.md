@@ -8,3 +8,4 @@ Frankenstein's Lovecraftian Village is a Unity 6 HDRP cosmic-horror village envi
 - Legal: the 'Lovecraftian Village 1.3 HDRP' pack is commercial and owned by the author. It is never committed to this repo.
 
 - Audio rule: the web soundtrack is original and procedural (WebAudio), silent until the user opts in, with no audio files and no copyrighted music.
+- Round 12 facts: scene mode and pack textures are local only; original Blender meshes are committed; no live URL, Unity run or MCP use is claimed.

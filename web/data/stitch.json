@@ -11,17 +11,17 @@
       "vectors": 214
     },
     "js": {
-      "count": 35,
-      "tests": 33
+      "count": 38,
+      "tests": 36
     },
     "kiro": {
       "count": 3,
-      "steering": 3,
-      "tasksDone": 51,
-      "tasksTotal": 61
+      "steering": 4,
+      "tasksDone": 54,
+      "tasksTotal": 69
     },
     "pwa": {
-      "count": 43
+      "count": 54
     },
     "unity": {
       "bridges": 4,

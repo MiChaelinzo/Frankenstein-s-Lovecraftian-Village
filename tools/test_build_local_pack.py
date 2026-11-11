@@ -86,6 +86,40 @@ class MaterialTests(unittest.TestCase):
         self.assertIsNone(b.parse_tint("nothing here"))
 
 
+class MaterialTests(unittest.TestCase):
+    HDRP = ("  m_Floats:\n    - _Metallic: 0.25\n    - _Smoothness: 0.4\n  m_Colors:\n    - _BaseColor: {r: 1, g: 0.5, b: 0, a: 1}\n"
+            "  m_TexEnvs:\n    - _MaskMap:\n        m_Texture: {fileID: 2800000, guid: 0123456789abcdef0123456789abcdef, type: 3}\n"
+            "    - _NormalMap:\n        m_Texture: {fileID: 0}\n")
+    URP = "  m_Floats:\n    - _Glossiness: 0.7\n  m_Colors:\n    - _Color: {r: 0, g: 1, b: 0, a: 1}\n"
+
+    def test_hdrp_properties(self):
+        m = b.parse_material(self.HDRP)
+        self.assertEqual((m["tint"], m["smoothness"], m["metallic"], m["slots"]), ([255, 128, 0], 0.4, 0.25, ["_MaskMap"]))
+
+    def test_urp_names_and_empty(self):
+        m = b.parse_material(self.URP)
+        self.assertEqual((m["tint"], m["smoothness"], m["metallic"]), ([0, 255, 0], 0.7, None))
+        self.assertEqual(b.parse_material("nothing"), {"tint": None, "smoothness": None, "metallic": None, "slots": []})
+
+    def test_scene_layout_from_synthetic_package(self):
+        scene = ("%YAML 1.1\n--- !u!29 &1\nOcclusionCullingSettings:\n  m_ObjectHideFlags: 0\n" + "# pad\n" * 400 +
+                 "--- !u!1001 &5\nPrefabInstance:\n  m_Modification:\n    m_TransformParent: {fileID: 0}\n    m_Modifications:\n"
+                 "    - target: {fileID: 9, guid: " + "a" * 32 + ", type: 3}\n      propertyPath: m_LocalPosition.x\n      value: 3\n      objectReference: {fileID: 0}\n"
+                 "    m_SourcePrefab: {fileID: 100100000, guid: " + "a" * 32 + ", type: 3}\n")
+        with tempfile.TemporaryDirectory() as d:
+            pkg = os.path.join(d, "t.unitypackage")
+            with tarfile.open(pkg, "w:gz") as t:
+                for guid, path, data in [("s1", "Assets/Scenes/Demo One.unity", scene.encode()), ("p1", "Assets/P/Church00.prefab", b"x")]:
+                    for name, body in [("pathname", path.encode()), ("asset", data)]:
+                        ti = tarfile.TarInfo(f"{guid}/{name}")
+                        ti.size = len(body)
+                        t.addfile(ti, io.BytesIO(body))
+            lay = b.build_scene_layout(pkg)
+            self.assertEqual(list(lay["scenes"]), ["demo-one"])
+            self.assertEqual(lay["scenes"]["demo-one"]["total"], 1)
+            self.assertEqual(lay["scenes"]["demo-one"]["objects"][0]["x"], 3.0)
+
+
 class PackageTests(unittest.TestCase):
     def test_read_selected_and_manifest(self):
         with tempfile.TemporaryDirectory() as d:

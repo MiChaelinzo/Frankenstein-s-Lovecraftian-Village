@@ -36,3 +36,13 @@ jobs:
         run: |
           UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests
           git diff --exit-code web/test/golden.json
+
+  unity-compile-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      # Stub based syntax and type check only; not a Unity build.
+      - run: dotnet build tests/UnityCompileCheck
