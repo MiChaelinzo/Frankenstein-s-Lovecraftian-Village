@@ -467,6 +467,7 @@ $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));
 
 canvas.addEventListener('click', (e) => {
+  if (state.dlnk) return; // scene mode draws schematic solids instead of the village; do not select hidden pieces
   const r = canvas.getBoundingClientRect();
   const mx = (e.clientX - r.left) * canvas.width / r.width, my = (e.clientY - r.top) * canvas.height / r.height;
   const di = nearestDoor(state.doors.map(doorPoint).map((pt) => ({ x: pt.x, y: pt.y - 3 })), mx, my, 12);
@@ -476,6 +477,7 @@ canvas.addEventListener('click', (e) => {
   if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-2, best.id); }
 });
 canvas.addEventListener('keydown', (e) => {
+  if (state.dlnk) return;
   const n = state.landmarks.length;
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { setFocus(wrapIndex(state.focus, n, 1)); e.preventDefault(); }
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); e.preventDefault(); }

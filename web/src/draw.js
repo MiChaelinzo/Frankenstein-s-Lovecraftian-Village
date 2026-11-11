@@ -355,11 +355,23 @@ export function createRenderer(env) {
   const roleTint = (role, fallback) => (pack.roles[role] ? pack.roles[role].tint : fallback);
   const shade = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
   const toward = (c, d) => mix(c, [c[0] * 0.6 + 30, c[1] * 0.4, c[2] * 0.4 + 10], d * 0.4);
+  // Side and top shades per role, rebuilt only when dread changes (scene mode can draw 3000 items per frame).
+  const dlnkShades = new Map();
+  let dlnkShadeDread = NaN;
+  function dlnkShadesFor(role, dread) {
+    if (dread !== dlnkShadeDread) { dlnkShades.clear(); dlnkShadeDread = dread; }
+    let e = dlnkShades.get(role);
+    if (!e) {
+      const base = roleTint(role, [110, 110, 110]);
+      e = { L: toward(shade(base, 0.5), dread), R: toward(shade(base, 0.34), dread), T: toward(shade(base, 0.72), dread) };
+      dlnkShades.set(role, e);
+    }
+    return e;
+  }
   function drawDlnkItem(it, dread, time) {
-    const base = roleTint(it.role, [110, 110, 110]);
     const gloss = pack.roles[it.role] && typeof pack.roles[it.role].smoothness === 'number' ? pack.roles[it.role].smoothness : 0.3;
     const h = it.h, s = it.size, cx = it.gx - s / 2, cz = it.gz - s / 2;
-    const L = toward(shade(base, 0.5), dread), R = toward(shade(base, 0.34), dread), T = toward(shade(base, 0.72), dread);
+    const { L, R, T } = dlnkShadesFor(it.role, dread);
     const kind = it.kind;
     if (kind === 'house_a' || kind === 'house_b' || kind === 'church' || kind === 'part' || kind === 'well' || kind === 'altar') {
       const bx = box(cx, cz, s, s, h, kind === 'part' || kind === 'well' || kind === 'altar' ? T : null, L, R);
