@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLayout, pickScene, normalizeScene, sceneFromUrl, kindCounts, sceneLabel, slugify, MAX_SCENE_OBJECTS } from '../src/dlnk-layout.js';
+import { validateLayout, pickScene, normalizeScene, sceneFromUrl, kindCounts, sceneLabel, unclassifiedShare, slugify, MAX_SCENE_OBJECTS } from '../src/dlnk-layout.js';
 
 const obj = (kind, x, z, extra = {}) => ({ name: `${kind}00`, kind, x, z, y: 0, rotY: 0, scale: 1, ...extra });
 const good = {
@@ -77,4 +77,16 @@ test('sceneFromUrl, kindCounts, sceneLabel', () => {
   const { scenes } = validateLayout(good);
   assert.deepEqual(kindCounts(scenes['coast-scene']), { house_a: 1, church: 1, rock: 1 });
   assert.equal(sceneLabel('coast-scene', scenes['coast-scene']), 'DLNK scene: Coast Scene (3 objects)');
+});
+
+test('unclassifiedShare and sceneLabel report the generic share instead of hiding it', () => {
+  const scene = { title: 'T', total: 4, objects: [obj('rock', 0, 0), obj('generic', 1, 1), obj('generic', 2, 2), obj('prop', 3, 3)] };
+  assert.deepEqual(unclassifiedShare(scene), { count: 2, percent: 50 });
+  assert.equal(sceneLabel('t', scene), 'DLNK scene: T (4 objects), 2 unclassified (50%) as hollow rings');
+  assert.deepEqual(unclassifiedShare({ objects: [] }), { count: 0, percent: 0 });
+});
+
+test('validateLayout accepts the effect and prop kinds', () => {
+  const v = validateLayout({ version: 1, scenes: { a: { objects: [obj('effect', 0, 0), obj('prop', 1, 1)] } } });
+  assert.equal(v.scenes.a.objects.length, 2);
 });

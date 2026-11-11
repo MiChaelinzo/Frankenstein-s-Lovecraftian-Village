@@ -423,8 +423,13 @@ export function createRenderer(env) {
     } else if (kind === 'fence') {
       const a = it.rot * Math.PI / 180, dx = Math.cos(a) * s * TW * 0.3, dy = Math.sin(a) * s * TH * 0.3;
       ctx.strokeStyle = toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.6), dread); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x - dx, p.y - dy); ctx.lineTo(p.x + dx, p.y + dy); ctx.moveTo(p.x - dx, p.y - dy - 4); ctx.lineTo(p.x + dx, p.y + dy - 4); ctx.stroke();
+    } else if (kind === 'prop') {
+      ctx.fillStyle = toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.5), dread); ctx.fillRect(p.x - 1.5, p.y - 3, 3, 3);
+    } else if (kind === 'effect') {
+      ctx.fillStyle = `rgba(150,160,170,${0.12 + dread * 0.05})`; ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
     } else {
-      ctx.fillStyle = toward([90, 90, 86], dread); ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      // unclassified: a hollow ring so unknown objects are never mistaken for known kinds
+      ctx.strokeStyle = toward([200, 170, 90], dread); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(p.x, p.y - 1, 2.5, 0, 7); ctx.stroke();
     }
   }
   function drawDlnk(dread, time) { for (const it of state.dlnk.items) drawDlnkItem(it, dread, time); }

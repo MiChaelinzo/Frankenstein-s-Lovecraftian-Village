@@ -87,3 +87,9 @@ Not merged: `access.js`, `perf.js`, `minimap.js`, `investigator-state.js`, `prog
 - `session.js` bounds duplicate `CampaignGenerator` limits (night 8) as literals; a future change to the night range needs both updated.
 - The Unity drain default changed from 0.5 to 1.0 per second for new components. Serialized scene values are not touched.
 - Core files `CodexModel`, `AchievementRules`, `DailySeed` have no Runtime consumer yet. They exist so Unity and Web share one definition; wiring them is future work and is not claimed here.
+
+## Round 13 decisions: pack tooling
+
+- Spec task 65 (stdlib EXR lightmap decoder) is skipped. Nothing in the web demo consumes lightmaps, so it would be infrastructure for a hypothetical need.
+- Spec task 66: the URP package contains 230 materials but no material textures (its images are lightmaps and reflection probes), so URP roles are material-only. Texturing in `?pack=1` still needs the HDRP package.
+- Spec task 68: classification lives only in Python (`tools/dlnk_scene.py`); the JS side validates kinds against `LAYOUT_KINDS`, and `tools/test_dlnk_scene.py` checks both lists match. Unmatched names stay `generic` and are shown, not hidden.

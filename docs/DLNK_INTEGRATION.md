@@ -46,3 +46,7 @@ If a pack method signature does not match a UnityEvent (for example it takes no 
 ## Web demo
 
 The web demo uses the same decisions through `web/src/core.js` (`detailLevel`, `floorVisible`, `doorOmen`, `suggestedCamera`, `allowedCamera`), verified against the C# output.
+
+## Scene kinds and unclassified objects
+
+`tools/dlnk_scene.py` classifies prefab names with ordered keyword lists (house, church, tree, rock, plant, fence, boat, lamp, `prop` for loose household objects, `effect` for decals, cobwebs, fog and trigger volumes, `part`). Names no rule matches stay `generic`; the scene view draws them as hollow rings and the HUD line reports their count and share. On the local Coast Scene this dropped `generic` from 817 to 74 of 2628 objects (rebuild the pack to refresh `scene_layout.json`). The URP package has no material textures, so `tools/build_local_pack.py` writes material-only roles for it (`materialOnlyRoles`); use the HDRP package for textures. Visual judgment is Partially Verified (headless screenshot); the URP look in Unity is Unverified.

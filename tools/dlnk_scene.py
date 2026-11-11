@@ -18,20 +18,43 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from inspect_unitypackage import score, clean_name, _SRC_GUID  # noqa: E402
 
 MAX_OBJECTS = 3000
+KIND_UNCLASSIFIED = "generic"  # honest bucket: names no rule matched. The web demo draws it as an outlined marker and counts it.
+# Named keyword lists. Order in KIND_KEYWORDS is the tie break: on equal score the earlier kind wins.
+CHURCH_WORDS = ["church", "chapel", "cathedral", "temple"]
+WELL_WORDS = ["well", "fountain"]
+ALTAR_WORDS = ["altar", "shrine", "tomb", "grave"]
+LAMP_WORDS = ["lamp", "lantern", "candle", "torch", "streetlight"]
+DEAD_TREE_WORDS = ["dead", "stump", "trunk", "log"]
+TREE_WORDS = ["tree", "pine", "palm", "pinus"]
+PLANT_WORDS = ["plant", "plants", "branch", "grass", "fern", "flower", "bush", "weed", "reed", "mushroom"]
+BOAT_WORDS = ["boat", "ship", "canoe", "rowing"]
+ROCK_WORDS = ["rock", "stone", "boulder", "cliff", "pinnacle"]
+FENCE_WORDS = ["fence", "gate", "railing"]
+# Non-physical scene furniture: decals, cobwebs, fog and dust sprites, shadow cards, trigger volumes.
+EFFECT_WORDS = ["decal", "web", "fog", "cloud", "dust", "pollen", "shadow", "trigger"]
+# Small loose objects found inside and around buildings.
+PROP_WORDS = ["barrel", "jar", "sack", "bottle", "book", "drawers", "cup", "tea", "dish", "broom", "jug", "shovel", "bucket",
+              "tools", "chain", "picture", "curtins", "bollard", "hook", "fish", "postcard", "handwritting"]
+PART_WORDS = ["wall", "window", "door", "roof", "wood", "plank", "nail", "beam", "pillar", "stairs", "chimney", "floor"]
+HOUSE_WORDS = ["house", "home", "cottage", "hut", "cabin", "barn", "mill", "shed", "tower"]
 KIND_KEYWORDS = [
-    ("church", ["church", "chapel", "cathedral", "temple"]),
-    ("well", ["well", "fountain"]),
-    ("altar", ["altar", "shrine", "tomb", "grave"]),
-    ("lamp", ["lamp", "lantern", "candle", "torch", "streetlight"]),
-    ("dead_tree", ["dead", "stump", "trunk", "log"]),
-    ("tree", ["tree", "pine", "palm", "pinus"]),
-    ("plant", ["plant", "plants", "branch", "grass", "fern", "flower", "bush", "weed", "reed"]),
-    ("boat", ["boat", "ship", "canoe"]),
-    ("rock", ["rock", "stone", "boulder", "cliff"]),
-    ("fence", ["fence", "gate", "railing"]),
-    ("part", ["wall", "window", "door", "roof", "wood", "plank", "nail", "beam", "pillar", "stairs", "chimney", "floor"]),
-    ("house", ["house", "home", "cottage", "hut", "cabin", "barn", "mill", "shed", "tower"]),
+    ("church", CHURCH_WORDS),
+    ("well", WELL_WORDS),
+    ("altar", ALTAR_WORDS),
+    ("lamp", LAMP_WORDS),
+    ("dead_tree", DEAD_TREE_WORDS),
+    ("tree", TREE_WORDS),
+    ("plant", PLANT_WORDS),
+    ("boat", BOAT_WORDS),
+    ("rock", ROCK_WORDS),
+    ("fence", FENCE_WORDS),
+    ("effect", EFFECT_WORDS),
+    ("prop", PROP_WORDS),
+    ("part", PART_WORDS),
+    ("house", HOUSE_WORDS),
 ]
+# Every kind classify() can return; tools/test_dlnk_scene.py checks this equals LAYOUT_KINDS in web/src/dlnk-layout.js.
+KINDS = ["house_a", "house_b"] + [k for k, _ in KIND_KEYWORDS if k != "house"] + [KIND_UNCLASSIFIED]
 _DOC = re.compile(r"^--- !u!(\d+) &(-?\d+)( stripped)?[ \t]*\r?$", re.M)
 _NUM = r"(-?[0-9.]+(?:[eE][-+]?\d+)?|-?nan|-?inf)"
 _FID = re.compile(r"\{fileID:\s*(-?\d+)")
@@ -55,8 +78,8 @@ def yaw_degrees(x, y, z, w):
 
 
 def classify(name):
-    """Catalog kind for a prefab name. Houses alternate house_a / house_b deterministically; unknown is 'generic'."""
-    best, best_score = "generic", 0
+    """Catalog kind for a prefab name. Houses alternate house_a / house_b deterministically; unmatched names stay 'generic' (unclassified)."""
+    best, best_score = KIND_UNCLASSIFIED, 0
     for kind, words in KIND_KEYWORDS:
         s = max(score(name, w) for w in words)
         if s > best_score:
@@ -190,7 +213,7 @@ def build_layout(raw, max_objects=MAX_OBJECTS):
         if not all(math.isfinite(o[k]) for k in ("x", "y", "z", "rotY", "scale")):
             continue
         name = o["name"] if o["name"] != "?" else "Unknown"
-        objs.append({"name": name, "kind": classify(name) if o["name"] != "?" else "generic",
+        objs.append({"name": name, "kind": classify(name) if o["name"] != "?" else KIND_UNCLASSIFIED,
                      "x": round(o["x"], 3), "z": round(o["z"], 3), "y": round(o["y"], 3),
                      "rotY": round(o["rotY"], 2), "scale": round(max(0.01, min(100.0, o["scale"])), 3)})
     total = len(objs)
