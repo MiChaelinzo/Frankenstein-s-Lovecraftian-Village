@@ -738,3 +738,215 @@ export function simulateInvestigator(layout, width, depth, seed) {
 }
 
 export const describeInvestigatorHit = (h) => `tick ${h.tick} at ${h.x},${h.z} ${h.siteId} -${h.sanityLoss}`;
+
+// ---- Vigil (VillageVigil.cs): name the thing in the sea before sanity runs out ----
+
+export const VIGIL_MIN_CLUE_TARGET = 2;
+export const VIGIL_MAX_CLUE_TARGET = 6;
+export const VIGIL_SPARE_SOURCES = 2;
+export const VIGIL_LAMPS_PER_NIGHT = 3;
+export const VIGIL_DAWN_RECOVERY = 8;
+export const VIGIL_CREEP_BASE = 4;
+export const VIGIL_CREEP_PER_NIGHT = 2;
+export const VIGIL_STEADY_SANITY = 50;
+export const VIGIL_HIDDEN_LETTER = '\u00b7';
+export const VIGIL_ENDING_IDS = ['hollowing', 'name_spoken', 'dawn', 'fever', 'witness', 'vessel'];
+export const VIGIL_EPITAPHS = [
+  "They found you at the water's edge in the morning, kneeling, and none of them could say whose face you wore.",
+  'You said the name aloud and the sea went quiet, as one does for a creditor who has finally been paid.',
+  'The sun came up on a village that remembered nothing. You walked out before it could remember you.',
+  'You left with the name half spoken. It still moves your lips, in your sleep, in the wrong language.',
+  'You watched the ritual finish and kept your mind. The village will never forgive you for having seen.',
+  'The ritual closed around you like a hand. Something wears your shape and walks home in your place.',
+];
+export const VIGIL_POINTS = { clue: 100, lantern: 25, sanity: 2, night: 150, codex: 20, namer: 1000 };
+export const VIGIL_RANK_NAMES = ['Forgotten', 'Watcher', 'Keeper', 'Reader', 'Namer'];
+export const VIGIL_RANK_THRESHOLDS = [0, 600, 1500, 2500, 3500];
+const VIGIL_PREFIX = 'V1';
+const VIGIL_SAVE_TAG = 'vigil1';
+
+const clampInt = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const vigilNight = (night) => Math.max(1, Math.trunc(night) || 1);
+
+/** Clues needed to endure a night, clamped. Nights below 1 count as night 1. */
+export const clueTarget = (night) => clampInt(VIGIL_MIN_CLUE_TARGET + Math.floor(vigilNight(night) / 2), VIGIL_MIN_CLUE_TARGET, VIGIL_MAX_CLUE_TARGET);
+export const sourcesOffered = (night) => clueTarget(night) + VIGIL_SPARE_SOURCES;
+export const nightCreep = (night) => VIGIL_CREEP_BASE + vigilNight(night) * VIGIL_CREEP_PER_NIGHT;
+export function totalClues(nights) {
+  let total = 0;
+  for (let n = 1; n <= nights; n++) total += clueTarget(n);
+  return total;
+}
+/** Rounds a sanity value half up into 0..100 points; NaN counts as 0. */
+export function sanityPoints(sanity) {
+  if (Number.isNaN(sanity) || sanity <= 0) return 0;
+  if (sanity >= MAX_SANITY) return MAX_SANITY;
+  return Math.floor(Math.fround(sanity) + 0.5);
+}
+export const nextNightSanity = (carried) => clampInt(carried + VIGIL_DAWN_RECOVERY, 0, MAX_SANITY);
+
+/** The ritual name with a middle dot for each hidden letter, revealed in a seeded order that never hides a letter again. */
+export function nameReveal(ritual, cluesFound, cluesTotal) {
+  if (!ritual || !ritual.name) return '';
+  const name = ritual.name;
+  const letters = [];
+  for (let i = 0; i < name.length; i++) if (/[A-Za-z]/.test(name[i])) letters.push(i);
+  const rng = new SeededRandom(ritual.seed ^ 0x7e57ab1e);
+  for (let i = letters.length - 1; i > 0; i--) {
+    const j = rng.next(i + 1);
+    const t = letters[i]; letters[i] = letters[j]; letters[j] = t;
+  }
+  let shown = 0;
+  if (cluesTotal > 0) shown = Math.floor((letters.length * clampInt(cluesFound, 0, cluesTotal)) / cluesTotal);
+  const chars = name.split('');
+  for (let k = shown; k < letters.length; k++) chars[letters[k]] = VIGIL_HIDDEN_LETTER;
+  return chars.join('');
+}
+
+/** The one ending for an end state: hollowing, then name_spoken, then the ritual-complete by sanity matrix. */
+export function endingFor(sanity, collapsed, named, ritualComplete) {
+  if (collapsed || sanity <= 0) return 'hollowing';
+  const steady = sanity >= VIGIL_STEADY_SANITY;
+  if (named && !ritualComplete && steady) return 'name_spoken';
+  if (ritualComplete) return steady ? 'witness' : 'vessel';
+  return steady ? 'dawn' : 'fever';
+}
+export const epitaphFor = (endingId) => { const i = VIGIL_ENDING_IDS.indexOf(endingId); return i < 0 ? '' : VIGIL_EPITAPHS[i]; };
+
+export function vigilScore(clues, lanterns, sanity, nightsEndured, codexEntries, endingId) {
+  const p = VIGIL_POINTS;
+  const total = Math.max(0, clues) * p.clue + Math.max(0, lanterns) * p.lantern + clampInt(sanity, 0, MAX_SANITY) * p.sanity
+    + Math.max(0, nightsEndured) * p.night + Math.max(0, codexEntries) * p.codex + (endingId === 'name_spoken' ? p.namer : 0);
+  return Math.min(total, 2147483647);
+}
+export function vigilRank(score) {
+  let rank = 0;
+  for (let i = 0; i < VIGIL_RANK_THRESHOLDS.length; i++) if (score >= VIGIL_RANK_THRESHOLDS[i]) rank = i;
+  return rank;
+}
+export const vigilResultCode = (seed, endingId, score) => `${VIGIL_PREFIX}-${seed | 0}-${endingId}-${score}`;
+
+/** Strict canonical integer: digits only, optional leading minus when allowed, no leading zeros, no "-0". Returns null when invalid. */
+function strictInt(text, allowNegative) {
+  if (typeof text !== 'string' || text.length === 0 || text.length > 11) return null;
+  const re = allowNegative ? /^(0|-?[1-9][0-9]*)$/ : /^(0|[1-9][0-9]*)$/;
+  if (!re.test(text)) return null;
+  const v = Number(text);
+  return v >= -2147483648 && v <= 2147483647 ? v : null;
+}
+
+/** Parses a canonical result code into { seed, endingId, score }, or null when malformed. */
+export function parseVigilResultCode(text) {
+  const head = `${VIGIL_PREFIX}-`;
+  if (typeof text !== 'string' || !text.startsWith(head)) return null;
+  const last = text.lastIndexOf('-');
+  if (last <= head.length) return null;
+  const mid = text.lastIndexOf('-', last - 1);
+  if (mid < head.length) return null;
+  const endingId = text.slice(mid + 1, last);
+  const seed = strictInt(text.slice(head.length, mid), true);
+  const score = strictInt(text.slice(last + 1), false);
+  if (!VIGIL_ENDING_IDS.includes(endingId) || seed === null || score === null) return null;
+  return { seed, endingId, score };
+}
+
+const validVigilId = (id) => typeof id === 'string' && id.length > 0 && !id.includes(';') && !id.includes(',');
+
+/** One run through the campaign nights. Sanity effects are applied by the caller (SanityModel + InteractionRules). */
+export class VigilState {
+  constructor(campaign, ritual) {
+    this.campaign = campaign || null;
+    this.ritual = ritual || null;
+    this.nightClueIds = new Set();
+    this.nightLampIds = new Set();
+    this.nightsEndured = 0;
+    this.clues = 0;
+    this.lanterns = 0;
+    const first = campaign && campaign.nights && campaign.nights.length > 0 ? campaign.nights[0].sanityStart : MAX_SANITY;
+    this.sanity = sanityPoints(first);
+    this.minSanity = this.sanity;
+  }
+  get nightsTotal() { return this.campaign && this.campaign.nights ? this.campaign.nights.length : 0; }
+  get night() { return Math.max(1, Math.min(this.nightsEndured + 1, Math.max(1, this.nightsTotal))); }
+  get clueTarget() { return clueTarget(this.night); }
+  get cluesRequired() { return totalClues(this.nightsTotal); }
+  get isCollapsed() { return this.minSanity <= 0; }
+  get isFinished() { return this.isCollapsed || this.nightsEndured >= this.nightsTotal; }
+  get isNamed() { return this.cluesRequired > 0 && this.clues >= this.cluesRequired; }
+  get peakDread() { return MAX_SANITY - this.minSanity; }
+  get ritualStage() { return ritualStageForDread(this.ritual, this.peakDread); }
+  get isRitualComplete() { return !!this.ritual && this.ritual.stages.length > 0 && this.ritualStage >= this.ritual.stages.length - 1; }
+  get revealedName() { return nameReveal(this.ritual, this.clues, this.cluesRequired); }
+  get canEndureNight() { return !this.isFinished && this.nightClueIds.size >= this.clueTarget; }
+
+  /** True only the first time this source is heard on this night. */
+  recordClue(sourceId) {
+    if (this.isFinished || !validVigilId(sourceId) || this.nightClueIds.has(sourceId)) return false;
+    this.nightClueIds.add(sourceId);
+    this.clues++;
+    return true;
+  }
+  /** True only the first time this lamp is lit on this night. The caller applies the sanity gain. */
+  lightLantern(lampId) {
+    if (this.isFinished || !validVigilId(lampId) || this.nightLampIds.has(lampId)) return false;
+    this.nightLampIds.add(lampId);
+    this.lanterns++;
+    return true;
+  }
+  recordSanity(sanity) {
+    if (this.isFinished) return;
+    this.sanity = clampInt(Math.trunc(sanity) || 0, 0, MAX_SANITY);
+    if (this.sanity < this.minSanity) this.minSanity = this.sanity;
+  }
+  /** Returns the next night's starting sanity, or -1 when the target is not met or the vigil is over. */
+  endureNight(carriedSanity) {
+    if (!this.canEndureNight) return -1;
+    this.recordSanity(carriedSanity);
+    if (this.isCollapsed) return 0;
+    this.nightsEndured++;
+    this.nightClueIds.clear();
+    this.nightLampIds.clear();
+    if (this.nightsEndured >= this.nightsTotal) return this.sanity;
+    this.sanity = nextNightSanity(this.sanity);
+    return this.sanity;
+  }
+  /** The outcome, or null while the vigil is running. */
+  outcome(codexEntries) {
+    if (!this.isFinished) return null;
+    const endingId = endingFor(this.sanity, this.isCollapsed, this.isNamed, this.isRitualComplete);
+    const score = vigilScore(this.clues, this.lanterns, this.sanity, this.nightsEndured, codexEntries, endingId);
+    const rank = vigilRank(score);
+    return {
+      endingId, epitaph: epitaphFor(endingId), score, rank, rankName: VIGIL_RANK_NAMES[rank],
+      code: vigilResultCode(this.campaign ? this.campaign.seed : 0, endingId, score),
+      clues: this.clues, lanterns: this.lanterns, nightsEndured: this.nightsEndured, sanity: this.sanity,
+      named: this.isNamed, ritualComplete: this.isRitualComplete,
+    };
+  }
+  /** "vigil1;endured;sanity;minSanity;clues;lanterns;clueIds;lampIds" (ids sorted, comma separated). */
+  serialize() {
+    const ids = (set) => [...set].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',');
+    return [VIGIL_SAVE_TAG, this.nightsEndured, this.sanity, this.minSanity, this.clues, this.lanterns, ids(this.nightClueIds), ids(this.nightLampIds)].join(';');
+  }
+  /** Restores a saved string. Malformed or inconsistent input returns false and leaves the state unchanged. */
+  tryRestore(text) {
+    if (typeof text !== 'string' || text.length === 0) return false;
+    const parts = text.split(';');
+    if (parts.length !== 8 || parts[0] !== VIGIL_SAVE_TAG) return false;
+    const [endured, sanity, min, clues, lanterns] = parts.slice(1, 6).map((p) => strictInt(p, false));
+    if ([endured, sanity, min, clues, lanterns].includes(null)) return false;
+    if (endured > this.nightsTotal || sanity > MAX_SANITY || min > sanity) return false;
+    const parseIds = (t) => {
+      const set = new Set();
+      if (t.length === 0) return set;
+      for (const id of t.split(',')) { if (!validVigilId(id) || set.has(id)) return null; set.add(id); }
+      return set;
+    };
+    const nightClues = parseIds(parts[6]);
+    const nightLamps = parseIds(parts[7]);
+    if (!nightClues || !nightLamps || nightClues.size > clues || nightLamps.size > lanterns) return false;
+    this.nightsEndured = endured; this.sanity = sanity; this.minSanity = min; this.clues = clues; this.lanterns = lanterns;
+    this.nightClueIds = nightClues; this.nightLampIds = nightLamps;
+    return true;
+  }
+}

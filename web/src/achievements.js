@@ -12,12 +12,14 @@ export const ACHIEVEMENTS = [
   { id: 'codexhalf', test: (s) => s.codexTotal > 0 && s.codexCount * 2 >= s.codexTotal },
   { id: 'codexfull', test: (s) => s.codexTotal > 0 && s.codexCount >= s.codexTotal },
   { id: 'wanderer', test: (s) => s.investigatorDone },
+  { id: 'vigil', test: (s) => s.vigilDone },
+  { id: 'namer', test: (s) => s.namerDone },
 ];
 const VALID = new Set(ACHIEVEMENTS.map((a) => a.id));
 
 export const newStats = () => ({
   whispers: 0, listens: 0, doors: 0, nightsVisited: 0, nightsTotal: 0, kinds: new Set(), tier: 0,
-  stage: -1, stageCount: 0, codexCount: 0, codexTotal: 0, investigatorDone: false,
+  stage: -1, stageCount: 0, codexCount: 0, codexTotal: 0, investigatorDone: false, vigilDone: false, namerDone: false,
 });
 
 /** Ids earned by these stats. */

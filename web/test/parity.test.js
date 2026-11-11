@@ -13,6 +13,9 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
+  clueTarget, sourcesOffered, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
+  parseVigilResultCode, VigilState, VIGIL_ENDING_IDS, VIGIL_EPITAPHS, VIGIL_RANK_NAMES, VIGIL_RANK_THRESHOLDS,
+  VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES,
 } from '../src/core.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -170,7 +173,7 @@ test('codex entries, creature order and unlocks match C# CodexModel', () => {
 });
 
 test('achievement predicates and journal completion match C# AchievementRules', () => {
-  assert.deepEqual(ACHIEVEMENTS.map((a) => a.id), ['whisper', 'listener', 'doors', 'nights', 'journal', 'abyss', 'ritual', 'codexhalf', 'codexfull', 'wanderer']);
+  assert.deepEqual(ACHIEVEMENTS.map((a) => a.id), ['whisper', 'listener', 'doors', 'nights', 'journal', 'abyss', 'ritual', 'codexhalf', 'codexfull', 'wanderer', 'vigil', 'namer']);
   assert.ok(golden.achievements.length > 0);
   for (const g of golden.achievements) {
     const [whispers, listens, doors, nightsVisited, nightsTotal, mask, tier, stage, stageCount, codexCount, codexTotal, done] = g.stats;
@@ -200,4 +203,49 @@ test('first-person interaction rules match C# InteractionRules exactly', () => {
   for (const [category, kind] of g.kinds) assert.equal(INTERACTION_KINDS.indexOf(InteractionRules.kindForCategory(category)), kind, category);
   assert.equal(InteractionRules.cooldownElapsed(5, NaN), true);
   assert.equal(InteractionRules.cooldownElapsed(5, -Infinity), true);
+});
+
+test('vigil rules, endings, scores, codes, reveals and playthroughs match C# VillageVigil', () => {
+  const g = golden.vigil;
+  assert.ok(g && g.targets.length > 0 && g.plays.length > 0);
+  for (const [n, target, sources, creep, total] of g.targets) {
+    assert.deepEqual([clueTarget(n), sourcesOffered(n), nightCreep(n), totalClues(Math.max(0, n))], [target, sources, creep, total], `night ${n}`);
+  }
+  assert.deepEqual([VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES], g.constants);
+  assert.deepEqual(VIGIL_ENDING_IDS, g.endingIds);
+  assert.deepEqual(VIGIL_EPITAPHS, g.epitaphs);
+  assert.deepEqual(VIGIL_RANK_NAMES, g.ranks);
+  assert.deepEqual(VIGIL_RANK_THRESHOLDS, g.rankThresholds);
+  for (const [sanity, collapsed, named, complete, ending] of g.endings) assert.equal(endingFor(sanity, !!collapsed, !!named, !!complete), ending);
+  for (const [c, l, san, n, x, end, score, rank] of g.scores) {
+    assert.equal(vigilScore(c, l, san, n, x, end), score);
+    assert.equal(vigilRank(score), rank);
+  }
+  assert.deepEqual([-5, 0, 0.49, 0.5, 49.5, 99.5, 100, 250, NaN].map(sanityPoints), g.sanityPoints);
+  for (const [seed, end, score, code] of g.codes) {
+    assert.equal(vigilResultCode(seed, end, score), code);
+    assert.deepEqual(parseVigilResultCode(code), { seed, endingId: end, score });
+  }
+  const good = new Map(g.goodCodes.map(([t, seed, end, score]) => [t, { seed, endingId: end, score }]));
+  for (const bad of g.badCodes) assert.deepEqual(parseVigilResultCode(bad), good.get(bad) ?? null, bad);
+  for (const r of g.reveals) {
+    const ritual = generateRitual(generateCampaign(r.seed, r.nights));
+    assert.equal(ritual.name, r.name);
+    assert.equal(totalClues(r.nights), r.total);
+    r.masks.forEach((mask, f) => assert.equal(nameReveal(ritual, f, r.total), mask, `reveal ${r.seed} ${r.nights} ${f}`));
+  }
+  for (const p of g.plays) {
+    const campaign = generateCampaign(p.seed, p.nights);
+    const v = new VigilState(campaign, generateRitual(campaign));
+    for (const [kind, id, value] of p.events) {
+      if (kind === 'c') v.recordClue(id);
+      else if (kind === 'l') v.lightLantern(id);
+      else if (kind === 's') v.recordSanity(value);
+      else v.endureNight(value);
+    }
+    const o = v.outcome(3);
+    assert.equal(v.serialize(), p.save, `save ${p.seed}`);
+    assert.equal(v.revealedName, p.name);
+    assert.deepEqual([o.endingId, o.score, o.rank, o.code, o.named, o.ritualComplete], [p.ending, p.score, p.rank, p.code, p.named, p.ritualComplete], `outcome ${p.seed}`);
+  }
 });

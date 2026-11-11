@@ -4,15 +4,15 @@
       "count": 1
     },
     "core": {
-      "count": 23
+      "count": 24
     },
     "golden": {
-      "count": 20,
+      "count": 21,
       "vectors": 353
     },
     "js": {
       "count": 40,
-      "tests": 40
+      "tests": 41
     },
     "kiro": {
       "count": 3,
