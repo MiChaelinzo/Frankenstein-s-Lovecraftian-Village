@@ -196,6 +196,14 @@ namespace Frankenstein.Core.Tests
                       .Append(", \"name\": ").Append(JsonSerializer.Serialize(ritual.Name)).Append(", \"stages\": [");
                     for (int i = 0; i < ritual.Stages.Count; i++)
                         sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(RitualChain.Describe(ritual.Stages[i])));
+                    sb.Append("], \"progress\": [");
+                    bool firstP = true;
+                    for (int night = 0; night <= ritual.Stages.Count + 1; night++)
+                        foreach (int dread in new[] { 0, 25, 50, 80, 100 })
+                        {
+                            sb.Append(firstP ? "" : ", ").Append(JsonSerializer.Serialize(RitualChain.Describe(RitualChain.Progress(ritual, night, dread))));
+                            firstP = false;
+                        }
                     sb.Append("] }");
                 }
             sb.Append("\n  ],\n  \"matcher\": {\n    \"scores\": [");

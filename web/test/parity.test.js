@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
-  generateRitual, describeRitualStage,
+  generateRitual, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
 } from '../src/core.js';
 
@@ -88,6 +88,9 @@ test('ritual chains match C# RitualChain exactly', () => {
     const r = generateRitual(generateCampaign(g.seed, g.requested));
     assert.equal(r.name, g.name, `name seed ${g.seed}`);
     assert.deepEqual(r.stages.map(describeRitualStage), g.stages, `seed ${g.seed} nights ${g.requested}`);
+    const prog = [];
+    for (let night = 0; night <= r.stages.length + 1; night++) for (const d of [0, 25, 50, 80, 100]) prog.push(describeRitualProgress(ritualProgress(r, night, d)));
+    assert.deepEqual(prog, g.progress, `progress seed ${g.seed} nights ${g.requested}`);
   }
 });
 

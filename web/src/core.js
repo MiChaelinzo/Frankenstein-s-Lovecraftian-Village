@@ -531,6 +531,42 @@ export function ritualStageForDread(ritual, dreadPercent) {
   return found;
 }
 
+/** Stage the night schedule expects (night N maps to stage N-1, clamped). -1 for no ritual or night below 1. */
+export function scheduledStageForNight(ritual, nightNumber) {
+  if (!ritual || !ritual.stages.length || nightNumber < 1) return -1;
+  return Math.min(nightNumber, ritual.stages.length) - 1;
+}
+
+/** { scheduled, dreadReached, effective, pace }. The night sets a floor: effective is the larger of scheduled and dread-reached. */
+export function ritualProgress(ritual, nightNumber, dreadPercent) {
+  const scheduled = scheduledStageForNight(ritual, nightNumber);
+  const dreadReached = ritualStageForDread(ritual, dreadPercent);
+  return { scheduled, dreadReached, effective: Math.max(scheduled, dreadReached), pace: dreadReached < scheduled ? 'behind' : dreadReached > scheduled ? 'ahead' : 'on' };
+}
+
+export function describeRitualProgress(p) {
+  return `scheduled ${p.scheduled} reached ${p.dreadReached} effective ${p.effective} ${p.pace}`;
+}
+
+/** Plain ritual save state, text form "ritual1;seed;night;stage" (RitualSaveState.cs). */
+export function clampRitualSave(s, stageCount) {
+  const count = Math.max(0, stageCount | 0);
+  return {
+    seed: s.seed | 0,
+    nightNumber: count === 0 ? 1 : Math.max(1, Math.min(count, s.nightNumber | 0)),
+    stage: Math.max(-1, Math.min(count - 1, s.stage | 0)),
+  };
+}
+export function serializeRitualSave(s) { return `ritual1;${s.seed | 0};${s.nightNumber | 0};${s.stage | 0}`; }
+export function parseRitualSave(text) {
+  if (typeof text !== 'string') return null;
+  const p = text.split(';');
+  if (p.length !== 4 || p[0] !== 'ritual1' || !p.slice(1).every((x) => /^[+-]?\d+$/.test(x))) return null;
+  const v = p.slice(1).map(Number);
+  if (v.some((x) => x < -2147483648 || x > 2147483647)) return null;
+  return { seed: v[0], nightNumber: v[1], stage: v[2] };
+}
+
 export function describeRitualStage(s) {
   return `Night ${s.nightNumber}: ${s.name} [${s.sigil}] at ${s.dreadThresholdPercent}% omen ${s.omenId} beat ${s.beatIndex}`;
 }

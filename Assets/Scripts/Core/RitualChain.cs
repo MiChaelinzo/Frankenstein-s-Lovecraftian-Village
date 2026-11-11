@@ -15,6 +15,15 @@ namespace Frankenstein.Core
         public int BeatIndex;           // index of the night's "omen" beat in StorySequencer.Build
     }
 
+    /// <summary>Night-schedule versus dread-reached ritual progress. Stage values are 0-based indexes, -1 means none.</summary>
+    public sealed class RitualProgress
+    {
+        public int Scheduled;
+        public int DreadReached;
+        public int Effective;
+        public string Pace; // "behind", "on" or "ahead"
+    }
+
     /// <summary>A seeded chain of ritual stages across campaign nights.</summary>
     public sealed class Ritual
     {
@@ -94,6 +103,38 @@ namespace Frankenstein.Core
                 if (ritual.Stages[i].DreadThresholdPercent <= dreadPercent) found = i;
             return found;
         }
+
+        /// <summary>
+        /// Stage the night schedule expects: night N maps to stage N-1, clamped to the chain. -1 for a null or empty ritual
+        /// or a night below 1.
+        /// </summary>
+        public static int ScheduledStageForNight(Ritual ritual, int nightNumber)
+        {
+            if (ritual == null || ritual.Stages.Count == 0 || nightNumber < 1) return -1;
+            return Math.Min(nightNumber, ritual.Stages.Count) - 1;
+        }
+
+        /// <summary>
+        /// Combines the night schedule with the dread actually reached. The night sets a floor, so Effective is the larger of the two
+        /// and never goes backwards when the player has low sanity on a late night. Pace is "behind" when dread has not caught up
+        /// with the schedule, "ahead" when it has passed it, otherwise "on".
+        /// </summary>
+        public static RitualProgress Progress(Ritual ritual, int nightNumber, int dreadPercent)
+        {
+            int scheduled = ScheduledStageForNight(ritual, nightNumber);
+            int reached = StageForDread(ritual, dreadPercent);
+            return new RitualProgress
+            {
+                Scheduled = scheduled,
+                DreadReached = reached,
+                Effective = Math.Max(scheduled, reached),
+                Pace = reached < scheduled ? "behind" : reached > scheduled ? "ahead" : "on",
+            };
+        }
+
+        /// <summary>Stable text form, e.g. "scheduled 3 reached 1 effective 3 behind" (stage values are 0-based, -1 means none).</summary>
+        public static string Describe(RitualProgress p) =>
+            "scheduled " + p.Scheduled + " reached " + p.DreadReached + " effective " + p.Effective + " " + p.Pace;
 
         /// <summary>Stable text form, e.g. "Night 2: Offering [spiral] at 40% omen 1.2 beat 8".</summary>
         public static string Describe(RitualStage s) =>
