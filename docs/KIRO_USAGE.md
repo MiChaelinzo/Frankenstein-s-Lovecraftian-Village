@@ -56,6 +56,8 @@ No MCP server configuration is committed to this repo, and the scaffold run did 
 
 No MCP server was connected for this project.
 
+The author set up Unity MCP and Blender MCP on a local machine; none of it ran inside the Kiro Web sandbox, so no file in this repo was produced through MCP. See [MCP.md](MCP.md). The spoken pitch is in [KIRO_PITCH.md](KIRO_PITCH.md).
+
 ## Property-based testing
 
 Tests are in [`tests/Frankenstein.Core.Tests`](../tests/Frankenstein.Core.Tests). `Property.cs` is a small hand-rolled runner (no FsCheck dependency): each property runs 300 seeded random cases and reports the failing seed so a failure is reproducible. `CoreProperties.cs` has 9 xunit tests derived from the original requirements (`DepthProperties.cs` adds tests for dread events, the report and the prefab matcher; the suite totals 22):

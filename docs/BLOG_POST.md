@@ -56,7 +56,9 @@ dotnet test tests/Frankenstein.Core.Tests
 python3 tools/validate_repo.py
 ```
 
-Play it: https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1
+Play it: https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1 (add `?view=3d` to the URL for the first-person view)
+
+The 60 to 90 second spoken version of this story and a short Devpost write-up are in `docs/KIRO_PITCH.md`. Unity and Blender MCP were set up on my own machine, but the cloud sandbox never ran them, so the Unity side remains unverified.
 
 Repo: https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village
 

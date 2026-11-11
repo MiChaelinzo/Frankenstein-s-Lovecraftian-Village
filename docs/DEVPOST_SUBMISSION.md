@@ -57,7 +57,8 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [x] Public repo with detectable open source license (Apache-2.0)
 - [x] `/.kiro` at root with specs, hooks and steering, not gitignored
 - [x] Verifiable claims: parity self-test at `web/selftest.html` (served by Pages) and history in `docs/BUILD_LOG.md`
-- [ ] Demo video under 3 minutes, public (script in `docs/DEMO_SCRIPT.md`)
+- [ ] Demo video under 3 minutes, public (timed script with a 40 to 60 second Kiro segment in `docs/DEMO_SCRIPT.md`; no DLNK trailer footage or copyrighted music, credit DLNK)
+- [x] Kiro pitch (60 to 90 second spoken script) and short Devpost write-up drafted in `docs/KIRO_PITCH.md`; paste the write-up into the Devpost Kiro field
 - [x] Kiro usage write-up finished (`docs/KIRO_USAGE.md`)
 - [ ] Category selected: Frankenstein
 
@@ -116,10 +117,13 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
 - **Requirements:** a clear, well-produced demo video under 3 minutes, public, showing the project working.
 - **Eligibility:** eligible.
 - **Checklist (tied to [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md)):**
-  - [ ] Total length under 3:00 (script targets 2:40)
+  - [ ] Total length under 3:00 (script targets 2:50; live URL https://frankensteinlovecraftianvillage.vercel.app/ shown in the first and last shot)
   - [ ] 0:00-0:15 hook with fog and title card (web demo intro, `?intro=0` skips it)
   - [ ] Cinematic take recorded with `?intro=0&cinematic=1` (steps in DEMO_SCRIPT, "Cinematic mode for a clean take")
   - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
+  - [ ] 1:30-2:25 Kiro segment per `docs/DEMO_SCRIPT.md` ("How we used Kiro"): specs, steering, hooks, `dotnet test`, PR list
+  - [ ] Unity segment only if you ran the package yourself (otherwise say Unverified)
+  - [ ] Older sub-timings below are superseded by the shot list in `docs/DEMO_SCRIPT.md`
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
   - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`
   - [ ] 1:10-1:35 `dotnet test` passing in the terminal
