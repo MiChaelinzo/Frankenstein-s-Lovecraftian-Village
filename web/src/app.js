@@ -25,6 +25,9 @@ import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
+import { createProgressController } from './progress-ui.js';
+import { dailyVillage, dailyWanted } from './daily.js';
+import { contrastWanted, loadContrast, saveContrast } from './access.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
 import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
@@ -132,6 +135,7 @@ function rebuild() {
   if (state.investigatorOn) startInvestigator();
   updateDesc();
   say(null);
+  progress.update();
   if (story.on) showBeat(story.idx);
 }
 
@@ -164,6 +168,7 @@ function trackRitual() {
   }
   state.ritualStage = stage;
   renderRitual();
+  progress.update();
 }
 function selectNight(i, quiet) {
   if (!state.campaign) return;
@@ -174,6 +179,7 @@ function selectNight(i, quiet) {
 
 // ---------- narration + journal ----------
 function log(kind, text) {
+  progress.note.kind(kind);
   state.journal = addEntry(state.journal, { kind, text, sanity: state.sanity.value });
   $('whispers').innerHTML = state.journal.map((e) => `<li class="e-${e.kind}">${esc(entryLabelL(e, lang))}</li>`).join('');
 }
@@ -189,6 +195,7 @@ function say(locationId) {
 function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
   const text = omenTextL(e, lang);
+  if (e.rising) progress.note.tier(e.tier);
   state.toast = { text, at: performance.now(), rising: e.rising };
   announce(text); mark();
   if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
@@ -228,7 +235,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, ...progress.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -237,6 +244,7 @@ function applySession(s) {
   history.replaceState(null, '', sessionHash(v));
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
+  progress.restore(v); progress.update();
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -280,7 +288,7 @@ function stepInvestigator() {
     const text = tr('log.investigator', { site: tr(`kind.${hit.siteId}`), n: hit.sanityLoss });
     log('investigator', text); announce(text); updateDesc();
   }
-  if (inv.finished) { clearInterval(invTimer); invTimer = 0; log('investigator', tr('log.investigatorend')); updateDesc(); }
+  if (inv.finished) { clearInterval(invTimer); invTimer = 0; log('investigator', tr('log.investigatorend')); progress.note.investigatorDone(); progress.update(); updateDesc(); }
   drawMinimap(); mark();
 }
 function setMap(on) { mapOn = on; $('mapPanel').hidden = !on; $('mapToggle').setAttribute?.('aria-pressed', String(on)); drawMinimap(); }
@@ -361,6 +369,7 @@ function tryDoor(p) {
   state.toast = { text, at: performance.now(), rising: behavior >= 2 };
   announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
+  progress.note.door(); progress.update();
   mark();
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
@@ -386,6 +395,7 @@ function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').val
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
+  progress.note.listen();
   setFocus(i); adjust(-2, p.id);
 }
 function download(name, text, mime) {
@@ -413,6 +423,7 @@ function tryNextDoor() {
 function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $('sound').checked = false; syncUi(); } else stopAudio(); }
 
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
+const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
 
 canvas.addEventListener('click', (e) => {
@@ -440,7 +451,7 @@ $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
-const doWhisper = () => adjust(-8, 'the walls');
+const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
 const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
 const doCandle = () => adjust(10, 'the village');
 $('whisper').addEventListener('click', doWhisper);
@@ -470,6 +481,25 @@ $('mapToggle').addEventListener('click', () => setMap(!mapOn));
 $('perfToggle').addEventListener('click', () => setPerf(!perfOn));
 $('invToggle').addEventListener('click', () => setInvestigator(!state.investigatorOn));
 $('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
+
+// ---------- codex, stitch panel, high contrast, daily village (all opt-in) ----------
+function setContrast(on, persist) {
+  document.documentElement?.classList?.toggle?.('hc', on);
+  $('contrastToggle').setAttribute?.('aria-pressed', String(on));
+  if (persist) { saveContrast(storage, on); $('sessionNote').textContent = tr(on ? 'msg.contrast.on' : 'msg.contrast.off'); announce($('sessionNote').textContent); }
+  mark();
+}
+function noteDaily(d) { const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
+function applyDaily() {
+  const d = dailyVillage();
+  if (!d) { $('sessionNote').textContent = tr('msg.dailyfail'); return; }
+  state.seed = d.seed; $('seed').value = d.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio();
+  noteDaily(d);
+}
+$('codexToggle').addEventListener('click', () => progress.setCodex(!progress.isCodexOn()));
+$('stitchToggle').addEventListener('click', () => progress.setStitch(!progress.isStitchOn()));
+$('contrastToggle').addEventListener('click', () => setContrast(!document.documentElement.classList.contains('hc'), true));
+$('dailyBtn').addEventListener('click', applyDaily);
 
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
 // Last input device seen, so the exit hint names the control the player actually has.
@@ -581,6 +611,10 @@ addEventListener('keydown', (e) => {
     case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
     case 'b': case 'B': setCinematic(true); break;
     case 'x': case 'X': setPerf(!perfOn); break;
+    case 'k': case 'K': progress.setCodex(!progress.isCodexOn()); break;
+    case 'y': case 'Y': progress.setStitch(!progress.isStitchOn()); break;
+    case 'h': case 'H': setContrast(!document.documentElement.classList.contains('hc'), true); break;
+    case 'z': case 'Z': applyDaily(); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
@@ -604,10 +638,18 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   if (pack.want) await loadPack();
   state.investigatorOn = optParam('investigator') === '1';
   $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
+  setContrast(contrastWanted(location.search, location.hash, loadContrast(storage)), false);
+  const daily = dailyWanted(location.search, location.hash) && !/seed=/.test(location.hash) ? dailyVillage() : null; // opt-in only
+  if (daily) history.replaceState(null, '', `#seed=${daily.seed}`);
+  const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash(); pushHash(); start();
+  if (saved) progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach });
+  if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
+  if (optParam('codex') === '1') progress.setCodex(true);
+  if (optParam('stitch') === '1') progress.setStitch(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);
   requestAnimationFrame(pollPad);
   if (cinemaWanted) setCinematic(true);

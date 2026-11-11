@@ -1,8 +1,10 @@
 // Session save/load and share links. Pure functions plus a storage wrapper that tolerates a missing localStorage.
 export const SESSION_KEY = 'flv.session.v1';
+import { cleanAchievementIds } from './achievements.js';
 export const CAMERAS = ['auto', 'first', 'third', 'top'];
 const THEME_RE = /^[a-z0-9_-]{1,32}$/;
 const int = (v) => (typeof v === 'number' || typeof v === 'string') && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
+const CODEX_RE = /^(s[0-8]|o[1-3])$/;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
@@ -22,6 +24,9 @@ export function parseSession(input) {
     cam: CAMERAS.includes(o.cam) ? o.cam : 'third',
     floor: floor === null ? 0 : clamp(floor, 0, 8),
     stage: stage === null ? -1 : clamp(stage, -1, 8), // effective ritual stage reached, -1 for none
+    // Added in round 10; older saves lack them and load as empty. Unknown ids are dropped.
+    codex: Array.isArray(o.codex) ? [...new Set(o.codex.filter((i) => typeof i === 'string' && CODEX_RE.test(i)))] : [],
+    ach: cleanAchievementIds(o.ach),
   };
 }
 

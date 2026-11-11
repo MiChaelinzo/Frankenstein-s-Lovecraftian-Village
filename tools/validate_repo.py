@@ -13,7 +13,7 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           "docs/media/calm.png", "docs/media/dread.png", "docs/media/abyss.png", "docs/media/mobile.png",
           "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
           "docs/DEVPOST_SUBMISSION.md", "docs/BUILD_LOG.md", "web/selftest.html", "web/src/selftest.js", "web/src/golden-data.js", "docs/media/selftest.png", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt",
-          "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py"]:
+          "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py", "tools/gen_stitch.py", "web/data/stitch.json"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
@@ -64,6 +64,11 @@ if os.path.isfile("vercel.json"):
             errors.append('vercel.json outputDirectory must be "web"')
     except ValueError:
         errors.append("vercel.json is not valid JSON")
+
+sys.path.insert(0, os.path.join(root, "tools"))
+import gen_stitch
+if not os.path.isfile(gen_stitch.OUT) or open(gen_stitch.OUT, encoding="utf-8").read() != gen_stitch.render(gen_stitch.build()):
+    errors.append("web/data/stitch.json is stale: run python3 tools/gen_stitch.py")
 
 EM_DASH = "\u2014"
 text_ext = (".md", ".js", ".cs", ".json", ".py", ".yml", ".html", ".css", ".toml", ".txt")
