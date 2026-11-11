@@ -8,7 +8,7 @@ import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenBlendWeight, omenFraming,
-  particleCounts, particleSeeds, parseCamParam, pickBox, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
+  particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
 import { omenTargets } from './scene.js';
@@ -385,7 +385,7 @@ let meshPromise = null;
 const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock']));
 
 /**
- * getScene() -> { layout, seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
+ * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
  *   fly: camera {x,y,z,yaw,pitch} while the ?cinematic=1 fly-through runs (it replaces walking), else null }
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
@@ -422,7 +422,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
 
   function centerRay() { return forwardVector(cam.yaw, cam.pitch); }
   function target(ray, s) {
-    const hit = pickBox([cam.x, cam.y, cam.z], ray, boxes, 60);
+    const origin = [cam.x, cam.y, cam.z], hit = pickBox(origin, ray, boxes, 60);
+    // Vigil lamps share the same view ray; a lamp wins when it is not clearly behind the wall it hangs beside.
+    const lampHit = s.lamps && s.lamps.length ? pickLamp(origin, ray, s.lamps, 60) : null;
+    if (lampHit && (!hit || lampHit.distance <= hit.distance + 0.6)) {
+      const lamp = s.lamps[lampHit.index];
+      return { piece: { id: 'lamp', lampId: lamp.id, lit: !!lamp.lit }, kind: 'lamp', distance: lampHit.distance, inRange: InteractionRules.inRange(lampHit.distance) };
+    }
     if (!hit) return null;
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };

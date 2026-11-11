@@ -4,6 +4,7 @@
 import { SeededRandom, tierFor } from './core.js';
 import { queryParam } from './util.js';
 
+export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
 export const EYE_HEIGHT = 1.6;
 export const BODY_RADIUS = 0.35;
@@ -162,6 +163,24 @@ export function pickBox(origin, dir, boxes, maxDistance = FAR) {
   boxes.forEach((b, index) => {
     const t = rayBox(origin, dir, b);
     if (t !== null && t <= maxDistance && (!best || t < best.distance)) best = { index, distance: t };
+  });
+  return best;
+}
+
+/**
+ * Nearest lamp whose pick sphere the ray crosses: { index, distance } or null. Lamps are { pos: [x, y, z] } in metres.
+ * Shares the ray with pickBox so lamps and buildings are picked from one view ray, not a second picker.
+ */
+export function pickLamp(origin, dir, lamps, maxDistance = FAR, radius = LAMP_PICK_RADIUS) {
+  let best = null;
+  lamps.forEach((l, index) => {
+    const c = [l.pos[0] - origin[0], l.pos[1] - origin[1], l.pos[2] - origin[2]];
+    const along = c[0] * dir[0] + c[1] * dir[1] + c[2] * dir[2];
+    if (along < 0) return;
+    const off2 = c[0] * c[0] + c[1] * c[1] + c[2] * c[2] - along * along;
+    if (off2 > radius * radius) return;
+    const distance = Math.max(0, along - Math.sqrt(radius * radius - off2));
+    if (distance <= maxDistance && (!best || distance < best.distance)) best = { index, distance };
   });
   return best;
 }

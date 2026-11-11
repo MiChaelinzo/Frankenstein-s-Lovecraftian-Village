@@ -42,6 +42,8 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.doesNotMatch(els.progressLog.innerHTML, /e-codex|e-achievement/);
   assert.match(els.whispers.innerHTML, /<li class="e-/);
   assert.equal(els['tab-progress'].tabIndex, -1);
+  assert.match(els.objectiveText.textContent, /^Night 1 of \d: clues 0\/2, lanterns lit 0\/3, the name: /);
+  assert.equal(els.endure.hidden, true);
   for (const s of [100, 60, 30, 0]) {
     els.sanity.value = String(s);
     els.sanity.listeners.input();

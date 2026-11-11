@@ -31,6 +31,11 @@
           <button id="cinemaExit" class="cinema-exit" type="button" data-i18n="btn.cinemaexit" hidden>Exit</button>
           <div id="hint" class="hint" data-i18n="hint.view">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
+        <section class="objective" aria-label="Vigil objective" data-i18n-aria="vigil.aria">
+          <p id="objective" class="objective-line" role="status"><span id="objectiveText"></span></p>
+          <p id="vigilNote" class="stats" role="status"></p>
+          <button id="endure" type="button" data-i18n="vigil.endure" hidden>Endure the night (E)</button>
+        </section>
         <p id="viewDesc" class="sr-only"></p>
 
         <section id="story" class="panel story" aria-labelledby="storyTitle" hidden>
@@ -96,7 +101,7 @@
           <div class="row">
             <button id="whisper" type="button" data-i18n="btn.whisper">Hear a whisper (-8)</button>
             <button id="church" type="button" data-i18n="btn.church">Enter the church (-15)</button>
-            <button id="candle" type="button" data-i18n="btn.candle">Light a candle (+10)</button>
+            <button id="candle" type="button" data-i18n="btn.candle">Light the next lantern (+10)</button>
             <label class="check"><input id="drain" type="checkbox"> <span data-i18n="label.drain">Let the dark creep in</span></label>
             <label class="check"><input id="sound" type="checkbox"> <span data-i18n="label.music">Music (procedural, off until you opt in)</span></label>
             <label for="volume" data-i18n="label.volume">Volume</label>
@@ -167,7 +172,8 @@
           <ul>
             <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
             <li data-i18n-html="keys.church"><kbd>C</kbd> enter the church</li>
-            <li data-i18n-html="keys.candle"><kbd>L</kbd> light a candle</li>
+            <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>
+            <li data-i18n-html="keys.endure"><kbd>E</kbd> endure the night once enough clues are heard (2D view)</li>
             <li data-i18n-html="keys.newvillage"><kbd>N</kbd> new village</li>
             <li data-i18n-html="keys.sanity"><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
             <li data-i18n-html="keys.drain"><kbd>D</kbd> let the dark creep in</li>
@@ -217,6 +223,21 @@
     <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo uses only procedural shapes and an original procedural soundtrack. Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
     <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: thirteen low-poly models made for this project, drawn by a small software projector.</p>
     <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
+  </dialog>
+  <dialog id="ending" class="about ending" aria-labelledby="endingTitle" aria-describedby="endingEpitaph">
+    <h2 id="endingTitle"></h2>
+    <p id="endingEpitaph" class="epitaph"></p>
+    <p id="endingScore"></p>
+    <p id="endingName"></p>
+    <p id="endingStats" class="stats"></p>
+    <p id="endingFound" class="stats"></p>
+    <p id="endingNote" class="stats" role="status"></p>
+    <div class="row">
+      <button id="endingCard" type="button" data-i18n="btn.vigilcard">Result card (PNG)</button>
+      <button id="endingCopy" type="button" data-i18n="btn.vigilcopy">Copy result</button>
+      <button id="endingAgain" type="button" data-i18n="btn.vigilagain">Begin again</button>
+      <button id="endingKeep" type="button" data-i18n="btn.vigilkeep">Keep exploring</button>
+    </div>
   </dialog>
   <div id="tour" class="tour" role="dialog" aria-modal="false" aria-labelledby="tourTitle" aria-describedby="tourText" hidden>
     <h2 id="tourTitle"></h2>

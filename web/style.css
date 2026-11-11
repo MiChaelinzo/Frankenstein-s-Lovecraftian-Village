@@ -138,3 +138,13 @@ html.hc .tour .stats { margin: 2px 0 8px; }
 .view3d[hidden] { display: none; }
 .view3d-prompt { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: 4px 10px; font-style: italic; text-shadow: 0 2px 8px #000, 0 0 12px #000; pointer-events: none; }
 .view3d-prompt::before { content: ""; position: absolute; left: 50%; top: -22px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: rgba(220,230,225,.7); }
+
+.objective { margin: 8px 0; }
+.objective-line { margin: 0 0 4px; font-style: italic; letter-spacing: .02em; color: #cfd8d3; }
+.ending { max-width: 36rem; }
+.ending h2 { font-style: italic; }
+.ending .epitaph { font-size: 1.1rem; font-style: italic; }
+.ending[open] { animation: endingFade 1.6s ease both; }
+@keyframes endingFade { from { opacity: 0; } to { opacity: 1; } }
+html.reduced .ending[open] { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ending[open] { animation: none; } }

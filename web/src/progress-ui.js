@@ -76,6 +76,7 @@ export function createProgressController({ $, tr, state, log, announce, fetchJso
       whisper() { armed = true; stats.whispers++; }, door() { armed = true; stats.doors++; }, listen() { armed = true; stats.listens++; },
       kind(k) { stats.kinds.add(k); }, tier(n) { stats.tier = Math.max(stats.tier, n); },
       night(i) { (stats.visited ||= new Set()).add(i); }, investigatorDone() { armed = true; stats.investigatorDone = true; },
+      vigilDone(named) { armed = true; stats.vigilDone = true; if (named) stats.namerDone = true; },
     },
     snapshot: () => ({ codex: [...codex], ach: [...earned] }),
     restore(s) {
