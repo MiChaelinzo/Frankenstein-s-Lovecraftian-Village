@@ -78,3 +78,5 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 74. Round 14: UPM package `com.michaelinzo.frankenstein-village` (scripts and catalog moved, paths and validator updated, `.meta` generator), Core `InteractionRules` with property tests, playable layer and scene builder (compile checked only; Unity Unverified), `docs/UNITY_SETUP.md`
 - [ ] 75. Author: install the package in Unity 6, run Tools > Frankenstein > Create Playable Village Scene, report what breaks (first real run)
 - [ ] 73. Real-browser check of the quieter banner and flash pacing (author only)
+- [x] 76. Round 14: opt-in first-person WebGL view (`?view=3d`): `view3d-math.js`, `view3d.js`, `glb.js` GL feed, JS `InteractionRules` with golden parity. Headless SwiftShader render inspected; pointer lock, touch, gamepad and real GPU not exercised
+- [ ] 77. Author: try `?view=3d` in a real browser (mouse look, touch, gamepad) and report feel and frame rate

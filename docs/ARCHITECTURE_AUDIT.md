@@ -38,6 +38,7 @@ Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code 
 | `textures.js`, `pack.js`, `glb.js`, `meshes-page.js` | Texture patterns, pack manifest checks, GLB reader | pure presentation | Asset handling only. |
 | `app.js` | Sanity costs and drain rate (were literals) | **Moved to Core** (`SanityModel` constants) | Now `SanityModel.FOCUS_COST` etc. The rest is DOM glue. |
 | `input.js` | Gamepad and swipe mapping | UI-only | Device input. |
+| `view3d-math.js`, `view3d.js` | Opt-in first-person WebGL view | pure math tested; GL shell Partially Verified | Reuses core.js layout, campaign, dread and `InteractionRules`; glb.js feeds meshes. No parallel loader or rules. |
 | `music.js` | Drone frequencies, gain curve | pure presentation | Original Web Audio synthesis. Unity has its own audio path (`DreadCurve.AmbienceVolume` is the Unity volume rule). |
 | `i18n.js`, `i18n-text.js` | Strings and localized helpers | pure presentation | Text only. |
 | `journal.js` | Journal list model and tabs | UI-only | Display model. |

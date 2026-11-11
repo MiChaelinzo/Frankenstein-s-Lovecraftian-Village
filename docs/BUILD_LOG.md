@@ -132,4 +132,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 - Unverified: Unity was not installed or run; nothing here ran in the editor.
 
 ## Round 14
+- `c083174` JS `InteractionRules` mirrored in `core.js` with golden parity section `interaction`.
+- `56cc0c7` Opt-in WebGL first-person view (`view3d-math.js`, `view3d.js`, `glb.js` buffers, input mappings, 20 node tests). Headless Chromium rendered it with SwiftShader (`docs/media/view3d-village.png`, `view3d-dread.png`). Interactive controls (pointer lock, touch, gamepad) were not exercised in a browser.
 - Live deployment at https://frankensteinlovecraftianvillage.vercel.app/. `python3 tools/check_live.py` passed 10/10 (HTTP 200 and content types, CSP, HSTS, 404 for the local pack). Unverified: real-browser behavior on the host, Unity.

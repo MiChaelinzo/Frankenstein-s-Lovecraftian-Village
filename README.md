@@ -42,6 +42,8 @@ Useful URLs (append to `http://localhost:8000/`; each feature is opt-in and a ba
 Press `A` or use the About button for credits and license. `?lang=fr` switches to French. Which logic lives in Core and which is UI-only: [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md). Checks: `python3 tools/validate_repo.py`, `node --test "web/test/*.test.js"` and `dotnet test tests/Frankenstein.Core.Tests`. Nothing here was run inside the Unity editor.
 
 ## Play it in your browser (no Unity, no download)
+
+**First-person 3D (opt-in):** add `?view=3d` to the URL or press "First-person 3D view". Dependency-free WebGL with dread-driven fog, a dusk or night sky per campaign night, moon, lantern light, sea and rain; WASD and mouse, touch or gamepad; E or click interacts using the same rules as the Unity layer. The isometric view stays the default. Status: Partially Verified (see the table below).
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
 
 - Live: [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) on Vercel. Hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md); only Vercel has been deployed. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
@@ -108,6 +110,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
+| Web 3D view (`?view=3d`, `view3d.js`) | Partially Verified | Camera, collision, picking, fog, sky, lantern maths and a stub-GL render smoke test are node-tested; a headless SwiftShader render was inspected (`docs/media/view3d-village.png`). Pointer lock, touch, gamepad and real GPUs were not exercised |
 | Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
 | Unity playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`, package `.meta` files) | Unverified | Compile checked against stubs only; never run in Unity. Its rules (`InteractionRules`) are Verified in Core |
