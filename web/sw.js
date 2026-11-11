@@ -5,7 +5,7 @@ const PRECACHE = [
   './', 'index.html', 'selftest.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
   'data/village_catalog.json', 'data/stitch.json',
   'src/access.js', 'src/achievements.js', 'src/app.js', 'src/building.js', 'src/casefile.js', 'src/cinematic.js', 'src/codex.js', 'src/core.js', 'src/daily.js', 'src/draw.js', 'src/golden-data.js', 'src/input.js', 'src/journal.js', 'src/investigator-state.js', 'src/i18n-text.js', 'src/i18n.js', 'src/intro-ui.js', 'src/intro.js',
-  'src/minimap.js', 'src/music.js', 'src/pack.js', 'src/perf.js', 'src/progress-gate.js', 'src/progress-ui.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
+  'src/minimap.js', 'src/music.js', 'src/dlnk-layout.js', 'src/pack.js', 'src/perf.js', 'src/progress-gate.js', 'src/progress-ui.js', 'src/scene.js', 'src/selftest-page.js', 'src/selftest.js',
   'src/session.js', 'src/story-ui.js', 'src/stitch.js', 'src/story.js', 'src/textures.js', 'src/tour-ui.js', 'src/tour.js', 'src/util.js',
 ];
 // Only page navigations may fall back to index.html offline; scripts, styles and JSON must never receive HTML.

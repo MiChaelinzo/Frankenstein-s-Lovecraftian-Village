@@ -3,6 +3,7 @@ import { SeededRandom } from './core.js';
 import { cameraTransform } from './cinematic.js';
 import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
+import { sceneLabel } from './dlnk-layout.js';
 import { themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
 import { lerp, mix } from './util.js';
 import { locName } from './i18n-text.js';
@@ -341,13 +342,66 @@ export function createRenderer(env) {
   }
 
   function drawPackBadge() {
-    const text = pack.manifest ? badgeText(pack.manifest) : pack.notice;
+    let text = pack.manifest ? badgeText(pack.manifest) : pack.notice;
     if (!text) return;
+    if (state.dlnk && pack.manifest) text += ` | ${sceneLabel(state.dlnk.slug, state.dlnk.scene)}`;
     ctx.save(); ctx.font = '13px Georgia, serif'; ctx.textAlign = 'left';
     const w = (ctx.measureText ? ctx.measureText(text).width : 300) + 16;
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(8, canvas.height - 30, w, 22);
     ctx.fillStyle = pack.manifest ? 'rgb(190,230,210)' : 'rgb(240,200,150)'; ctx.fillText(text, 16, canvas.height - 15); ctx.restore();
   }
+
+  // ---------- DLNK scene mode (?pack=1&scene=<name>): real placements from scene_layout.json as schematic solids ----------
+  const roleTint = (role, fallback) => (pack.roles[role] ? pack.roles[role].tint : fallback);
+  const shade = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
+  const toward = (c, d) => mix(c, [c[0] * 0.5 + 60, c[1] * 0.3, c[2] * 0.3 + 10], d * 0.7);
+  function drawDlnkItem(it, dread, time) {
+    const base = roleTint(it.role, [110, 110, 110]);
+    const gloss = pack.roles[it.role] && typeof pack.roles[it.role].smoothness === 'number' ? pack.roles[it.role].smoothness : 0.3;
+    const h = it.h, s = it.size, cx = it.gx - s / 2, cz = it.gz - s / 2;
+    const L = toward(shade(base, 0.5), dread), R = toward(shade(base, 0.34), dread), T = toward(shade(base, 0.72), dread);
+    const kind = it.kind;
+    if (kind === 'house_a' || kind === 'house_b' || kind === 'church' || kind === 'part' || kind === 'well' || kind === 'altar') {
+      const bx = box(cx, cz, s, s, h, kind === 'part' || kind === 'well' || kind === 'altar' ? T : null, L, R);
+      if (kind === 'house_a' || kind === 'house_b' || kind === 'church') {
+        const ridge = (kind === 'church' ? 12 : 8) * cam.hs;
+        const mA = lerpPt(bx.up(bx.a), bx.up(bx.d), 0.5), mB = lerpPt(bx.up(bx.b), bx.up(bx.c), 0.5);
+        const roof = toward(shade(roleTint('roof', [90, 60, 50]), 0.55 + gloss * 0.2), dread);
+        poly([bx.up(bx.d), bx.up(bx.c), rise(mB, ridge), rise(mA, ridge)], roof);
+        poly([bx.up(bx.b), bx.up(bx.c), rise(mB, ridge)], toward(shade(roleTint('roof', [90, 60, 50]), 0.35), dread));
+        if (kind === 'church') { const t = rise(mA, ridge + 10 * cam.hs); ctx.strokeStyle = 'rgb(170,150,150)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(t.x, t.y - 8); ctx.moveTo(t.x - 3, t.y - 5); ctx.lineTo(t.x + 3, t.y - 5); ctx.stroke(); }
+        else if (it.i % 3 !== 0) { const w = lerpPt(bx.d, bx.c, 0.5); const wp = rise(w, h * cam.hs * 0.5); ctx.fillStyle = dread > 0.6 && it.i % 5 === 0 ? 'rgba(210,50,50,.85)' : 'rgba(255,200,110,.8)'; ctx.fillRect(wp.x - 1.5, wp.y - 1.5, 3, 3); }
+      }
+      if (kind === 'altar') { const c = rise(iso(it.gx, it.gz), h * cam.hs + 2); ctx.fillStyle = 'rgba(200,40,50,.8)'; ctx.fillRect(c.x - 1.5, c.y - 1.5, 3, 3); }
+      return;
+    }
+    const p = iso(it.gx, it.gz);
+    if (kind === 'tree' || kind === 'dead_tree') {
+      const top = rise(p, h * cam.hs);
+      ctx.strokeStyle = toward([84, 62, 48], dread); ctx.lineWidth = kind === 'tree' ? 2.5 : 1.8; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(top.x, top.y); ctx.stroke();
+      if (kind === 'tree') { ctx.fillStyle = toward([34, 62, 46], dread); ctx.beginPath(); ctx.ellipse(top.x, top.y - 3, 7 + s * 6, 5 + s * 4, 0, 0, 7); ctx.fill(); }
+      else { ctx.lineWidth = 1; ctx.beginPath(); for (const d of [-1, 1]) { ctx.moveTo(top.x, top.y + 5); ctx.lineTo(top.x + d * 6, top.y - 3); ctx.moveTo(top.x, top.y + 9); ctx.lineTo(top.x + d * 4, top.y + 3); } ctx.stroke(); }
+    } else if (kind === 'lamp') {
+      const top = rise(p, h * cam.hs);
+      ctx.strokeStyle = 'rgb(70,60,56)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(top.x, top.y); ctx.stroke();
+      const flick = reduceMotion ? 1 : 0.8 + 0.2 * Math.sin(time / (150 + (it.i % 7) * 20) + it.i);
+      glow(top.x, top.y, 20, dread > 0.6 && it.i % 4 === 0 ? '230,60,60' : '255,190,110', 0.55 * flick, 0.7);
+    } else if (kind === 'rock') {
+      ctx.fillStyle = toward(shade(roleTint('wall_stone', [120, 120, 120]), 0.55), dread);
+      ctx.beginPath(); ctx.ellipse(p.x, p.y - 2, 3 + s * 12, 2 + s * 7, 0, 0, 7); ctx.fill();
+    } else if (kind === 'plant') {
+      ctx.fillStyle = toward([40, 70, 50], dread); ctx.fillRect(p.x - 1.5, p.y - 3, 3, 3);
+    } else if (kind === 'boat') {
+      const a = it.rot * Math.PI / 180, dx = Math.cos(a) * s * TW * 0.25, dy = Math.sin(a) * s * TH * 0.25;
+      poly([{ x: p.x - dx, y: p.y - dy }, { x: p.x + dx, y: p.y + dy }, { x: p.x + dx * 0.6, y: p.y + dy * 0.6 + 4 }, { x: p.x - dx * 0.6, y: p.y - dy * 0.6 + 4 }], toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.6), dread));
+    } else if (kind === 'fence') {
+      const a = it.rot * Math.PI / 180, dx = Math.cos(a) * s * TW * 0.3, dy = Math.sin(a) * s * TH * 0.3;
+      ctx.strokeStyle = toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.6), dread); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x - dx, p.y - dy); ctx.lineTo(p.x + dx, p.y + dy); ctx.moveTo(p.x - dx, p.y - dy - 4); ctx.lineTo(p.x + dx, p.y + dy - 4); ctx.stroke();
+    } else {
+      ctx.fillStyle = toward([90, 90, 86], dread); ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+    }
+  }
+  function drawDlnk(dread, time) { for (const it of state.dlnk.items) drawDlnkItem(it, dread, time); }
 
   let hintHidden = false;
   // the top hint and the omen banner share the top edge; hide the hint while a banner shows
@@ -397,23 +451,22 @@ export function createRenderer(env) {
     drawSea(dread, time);
     drawGround(dread);
     active.length = 0;
-    const n = Math.min(cultistCount(tier), state.walkers.length);
+    const n = state.dlnk ? 0 : Math.min(cultistCount(tier), state.walkers.length);
     for (let i = 0; i < n; i++) {
       const pos = walkerPos(state.walkers[i], time / 1000); pos.depth = pos.x + pos.z + 0.6; active.push(pos);
       const s = iso(pos.x, pos.z); glow(s.x, s.y, 26, '255,190,110', 0.28, 0.5);
     }
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
-    for (const p of state.drawOrder) {
+    if (state.dlnk) drawDlnk(dread, time);
+    else for (const p of state.drawOrder) {
       while (ai < active.length && active[ai].depth <= p.depth) drawCultist(active[ai++], dread, time);
       const sh = state.shakes.get(p.key);
       if (sh) { const o = doorShake(sh.behavior, real - sh.at, reduceMotion); ctx.save(); ctx.translate(o.dx, o.dy); drawPiece(p, dread, time); ctx.restore(); }
       else drawPiece(p, dread, time);
     }
     while (ai < active.length) drawCultist(active[ai++], dread, time);
-    drawInvestigator(time);
-    drawFocus(time);
-    drawDoorMarks(real);
+    if (!state.dlnk) { drawInvestigator(time); drawFocus(time); drawDoorMarks(real); }
     drawTentacles(dread, time);
     drawFog(dread, time);
     ctx.restore();

@@ -4,6 +4,7 @@
 export const PACK_ROLES = ['wall_wood', 'wall_brick', 'wall_plaster', 'wall_stone', 'roof', 'trunk', 'ground', 'ground_stones'];
 
 const isByte = (n) => Number.isInteger(n) && n >= 0 && n <= 255;
+const isUnit = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1;
 const safeRel = (s) => typeof s === 'string' && /^textures\/[A-Za-z0-9_.-]+\.png$/.test(s);
 
 /** Returns { ok, errors, roles } where roles keeps only well-formed entries for known role names. */
@@ -21,6 +22,10 @@ export function validateManifest(json) {
       if (!safeRel(r.texture)) { errors.push(`${name}: bad texture path`); continue; }
       if (!Array.isArray(r.tint) || r.tint.length !== 3 || !r.tint.every(isByte)) { errors.push(`${name}: bad tint`); continue; }
       roles[name] = { texture: r.texture, tint: r.tint.slice(), sourcePathname: String(r.sourcePathname || '') };
+      // optional material fields (round 12); old manifests simply do not have them
+      if (isUnit(r.smoothness)) roles[name].smoothness = r.smoothness;
+      if (isUnit(r.metallic)) roles[name].metallic = r.metallic;
+      if (Array.isArray(r.slots)) roles[name].slots = r.slots.filter((x) => typeof x === 'string' && /^_[A-Za-z0-9]{1,40}$/.test(x)).slice(0, 24);
     }
     if (!Object.keys(roles).length) errors.push('no usable roles');
   }
