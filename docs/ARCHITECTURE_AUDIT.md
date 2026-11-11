@@ -132,3 +132,9 @@ Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, c
 - `CodexModel`, `AchievementRules`, `DailySeed` stay in Core: their JS mirrors are golden-checked against them, so they are the source of truth, but Runtime consumer added in round 15 (`ProgressionTracker`).
 - Unity drain default 0.5 to 1.0: no serialized `sanityDrainPerSecond` found in the repo by grep; Unity itself was not opened. Status: Unverified in Unity.
 - Classifier keywords such as "tea", "web", "log": not spot-checked against real pack names, because packs are gitignored and absent here. Status: Unverified; the unclassified percentage in the scene label is the runtime check.
+
+## Round 16: fly-through, share link, showcase
+- Core owns the numbers: `FlythroughPath` mirrors `cinematicFrame` and `flythroughCamera` in `web/src/cinematic.js`; `WebShareLink` mirrors `sessionHash`; `PromptStrings.PlaceName` mirrors the `loc.*` entries of `web/src/i18n.js`. Golden sections `flythrough`, `shareLinks`, `places` are the contract. Status: Verified (dotnet 101, node 294).
+- Thin Unity wrappers: `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkShowcaseSceneHelper`, `DlnkPackExplorerWindow` hold no rules. Status: Partially Verified (stub compile check), Unverified at runtime. Unity cannot be installed in the sandbox (licence activation is tied to the author's account).
+- Web-only on purpose: omen framing for the 3D view (`omenFraming`, `blendCamera` in `view3d-math.js`) is presentation over the unchanged Core path, so no golden entry.
+- Docs for the recording (`DEMO_SCRIPT.md`, `RECORDING.md`, `PACK_EXPLORATION.md`) are the only new files; no new code or abstraction.

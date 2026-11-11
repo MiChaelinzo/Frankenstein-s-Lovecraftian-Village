@@ -16,7 +16,7 @@ Read this verbatim at about 150 words per minute. It can be used as a voice-over
 > I set up Unity and Blender MCP on my own machine, but the cloud sandbox never ran them, so the Unity side is honestly marked unverified. The village is playable in your browser today.
 
 ## Devpost write-up (short)
-**How we used Kiro.** The project was built with Kiro Web. An orchestrator delegated to a planner (explored the repo, wrote `context.json` and feature files), a coder (implemented one feature, ran the tests, committed locally) and a reviewer. The agents used the GitHub CLI power for git and GitHub work. Rounds were merged as pull requests, with #13 the latest merge commit at the time of writing (see `git log`).
+**How we used Kiro.** The project was built with Kiro Web. An orchestrator delegated to a planner (explored the repo, wrote `context.json` and feature files), a coder (implemented one feature, ran the tests, committed locally) and a reviewer. The agents used the GitHub CLI power for git and GitHub work. Rounds were merged as pull requests, with #15 the latest merge commit at the time of writing (see `git log`).
 
 **Specs.** `.kiro/specs` has `requirements.md` (WHEN/THEN/SHALL), `design.md` (requirements mapped to testable properties) and `tasks.md`. Core rules (layout, catalog, sanity, dread, narration fallback, dread events, the village report) follow the spec-driven path; later Core additions such as rituals and interaction rules followed the same Core-first, property-test rule without new spec entries; Unity glue and atmosphere were vibe coded and are labeled as such.
 
@@ -29,3 +29,5 @@ Read this verbatim at about 150 words per minute. It can be used as a voice-over
 **Honest limits.** Unity and Blender MCP were set up locally by the author; they were not used inside the Kiro Web sandbox, so no file here was produced through MCP (see [MCP.md](MCP.md)). The Unity runtime is Unverified; the package is only compile checked against stubs. The web demo is live at https://frankensteinlovecraftianvillage.vercel.app/ (deep link: https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1).
 
 **Credit.** Pack textures and models by DLNK (Daelonik Artworks). The DLNK trailer footage and its music are not used in the video.
+
+**In the video.** The 54 second "How we used Kiro" shot in [DEMO_SCRIPT.md](DEMO_SCRIPT.md) uses the same facts as this page. Unity cannot be installed in the sandbox (Personal licence activation is tied to the author's account), so the Unity footage is the author's own first run and the Unity side stays Partially Verified (compile check) and Unverified at runtime.

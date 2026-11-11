@@ -45,6 +45,16 @@ Prerequisite: open the project in Unity 6 and import the pack you own. The local
    `Add the git package https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village.git?path=/Packages/com.michaelinzo.frankenstein-village, wait for the compile, run Tools > Frankenstein > Create Playable Village Scene, enter Play mode for ten seconds, then report console errors and warnings and whether the player can walk and press E on a house.`
 7. Read the console:
    `Read the Unity console and summarize errors, warnings, and the Auto-bind log lines that start with [Frankenstein].`
+8. Showcase take (matches [DEMO_SCRIPT.md](DEMO_SCRIPT.md), Unverified, never run):
+   `With the DLNK pack imported under Assets/_DLNK, run Tools > Frankenstein > Open DLNK Demo Scene And Add Showcase Camera, then report which scene opened and the console lines that start with [Frankenstein]. Disable every other Camera and AudioListener, set VillageFlythroughCamera seed to 1818, enter Play mode and report TotalSeconds.`
+9. Matching web link:
+   `Run Tools > Frankenstein > Copy Matching Web Demo URL and return the logged URL. It should start with https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100.`
+10. Playable walk for the side-by-side:
+   `Create a new scene, run Tools > Frankenstein > Create Playable Village Scene, set VillageBuilder pieceCount to 80 and seed 1818, press Play for ten seconds and report console errors and whether FirstPersonExplorer moves with WASD.`
+11. Pack exploration (see [PACK_EXPLORATION.md](PACK_EXPLORATION.md)):
+   `Open Tools > Frankenstein > DLNK Pack Explorer, rescan, and list the scenes found under Assets/_DLNK. Then open Coast Scene.unity, MystVillage.unity and Assets 1.0.unity in turn and report any pink materials (wrong render pipeline).`
+12. Unity Recorder (optional, `com.unity.recorder` is not a repo dependency):
+   `Install com.unity.recorder, add a Movie recorder on the Game View at 1920x1080, constant 30 fps, and record one full VillageFlythroughCamera take to Recordings/ outside Assets/ThirdParty.`
 
 ## Blender prompts
 
@@ -57,6 +67,8 @@ The headless Blender pipeline lives in `tools/blender/` (see [docs/BLENDER.md](B
 Never feed pack meshes or textures into Blender sessions that produce files you intend to commit.
 
 ## Honest limits
+
+- Unity cannot be installed in the Kiro Web sandbox (Personal licence activation is tied to the author's Unity account), so prompts 6 to 12 are Unverified. Unity code is Partially Verified (compile checked against stubs) at best.
 
 - Nothing on this page has been executed against a live Unity or Blender MCP server.
 - `tests/UnityCompileCheck` is a stub-based syntax and type check, not a Unity build.

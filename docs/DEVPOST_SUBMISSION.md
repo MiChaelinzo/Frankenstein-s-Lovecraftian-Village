@@ -124,6 +124,9 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
   - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
   - [ ] 1:30-2:25 Kiro segment per `docs/DEMO_SCRIPT.md` ("How we used Kiro"): specs, steering, hooks, `dotnet test`, PR list
   - [ ] Unity segment only if you ran the package yourself (otherwise say Unverified)
+  - [ ] Side-by-side format: web left, Unity right, seed 1818 on both (DEMO_SCRIPT "Matching seeds"); recording setup in `docs/RECORDING.md`; Unity path in `docs/PACK_EXPLORATION.md`
+  - [ ] No DLNK trailer footage, no copyrighted music, own footage only, DLNK credited on the closing card
+  - [ ] Say on camera that the Unity package is compile checked only and Unverified at runtime unless you ran it
   - [ ] Older sub-timings below are superseded by the shot list in `docs/DEMO_SCRIPT.md`
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
   - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`

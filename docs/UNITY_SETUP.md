@@ -4,6 +4,9 @@ Status: the package scripts are **compile checked** against original stubs (`dot
 
 The package is `com.michaelinzo.frankenstein-village` (folder `Packages/com.michaelinzo.frankenstein-village`). It contains logic, glue and an editor scene builder. It contains **no third-party pack assets**. Without the DLNK pack you get a walkable village of plain blocks; with the pack imported the builder uses the pack prefabs where names match.
 
+
+> **Why nothing here ran in Unity.** Unity cannot be installed or run in the Kiro Web sandbox: Unity Personal licence activation is tied to the author's Unity account, and no one else's credentials are requested or used. So all Unity code is **Partially Verified** (compile checked against original stubs in `tests/UnityCompileCheck`) and **Unverified** at runtime. For the video, see [DEMO_SCRIPT.md](DEMO_SCRIPT.md), [RECORDING.md](RECORDING.md) and [PACK_EXPLORATION.md](PACK_EXPLORATION.md).
+
 ## 1. Install the package
 
 Unity 6 (6000.0 or newer), HDRP or URP project.
@@ -33,7 +36,7 @@ The pack is by DLNK Artworks and is not in this repo. Get it from the links in t
 
 Do not mix pipelines: wrong-pipeline materials render pink. Keep the default `Assets/Lovecraftian Village*` location (git-ignored here).
 
-**What the downloaded editions actually contain** (checked by listing the packages with `tools/inspect_unitypackage.py`): materials, scenes, terrain layers and 14 lamp prefabs. The house, church and prop meshes are **not** in the HDRP and URP editions. For real houses you need the base pack that includes the meshes. With only the editions, the auto-binder can bind the lamps and most catalog ids stay on the block fallback.
+**What the downloaded editions actually contain** (checked by listing the packages with `tools/inspect_unitypackage.py`): materials, scenes, terrain layers and 14 prefabs (13 lamps and candle holders plus `GameSetup Basic`; see [PACK_EXPLORATION.md](PACK_EXPLORATION.md)). The house, church and prop meshes are **not** in the HDRP and URP editions. For real houses you need the base pack that includes the meshes. With only the editions, the auto-binder can bind the lamps and most catalog ids stay on the block fallback.
 
 ## 3. Build the playable scene
 

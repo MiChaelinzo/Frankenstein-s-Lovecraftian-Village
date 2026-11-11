@@ -80,3 +80,6 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 73. Real-browser check of the quieter banner and flash pacing (author only)
 - [x] 76. Round 14: opt-in first-person WebGL view (`?view=3d`): `view3d-math.js`, `view3d.js`, `glb.js` GL feed, JS `InteractionRules` with golden parity. Headless SwiftShader render inspected; pointer lock, touch, gamepad and real GPU not exercised
 - [ ] 77. Author: try `?view=3d` in a real browser (mouse look, touch, gamepad) and report feel and frame rate
+- [x] 78. Round 16: Core `FlythroughPath`, `WebShareLink`, place names with golden parity; Unity `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow` (compile checked only, Unity Unverified); omen framing and 6 more Blender props on the web side
+- [x] 79. Round 16 docs: side-by-side `docs/DEMO_SCRIPT.md`, `docs/RECORDING.md`, `docs/PACK_EXPLORATION.md`, MCP prompts 8 to 12. Unity cannot be installed in the sandbox (licence tied to the author's account)
+- [ ] 80. Author: record the side-by-side video with own footage (no DLNK trailer, no copyrighted music), run the Unity steps for the first time and report what breaks

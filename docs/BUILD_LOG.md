@@ -157,3 +157,12 @@ A short history of how this project was built, taken from `git log` on the `feat
 - Known gap (not fixed): Unity interaction prompts pass `Focus.locationId` to `PromptStrings.Prompt`, so names are raw ids while the web shows `locName`. Localized place names in Core would need a name table mirrored from `i18n-text.js` plus a drift test; deferred. Unverified in Unity.
 - Daily seed ordering: not changed. `ProgressionTracker.Awake` sets `walkthrough.seed`, and `WalkthroughController` generates in `Start`; Unity runs every `Awake` before any `Start`, so the order holds. Unverified in Unity.
 - `tools/browser_check.mjs` is a manual, environment-specific tool (Chromium path default and `--no-sandbox`), not part of the pre-merge suite or CI.
+
+## Round 16 commits
+- `3dceaae` Core `FlythroughPath`, `WebShareLink` and place names with golden parity (dotnet 101, was 94; node 289 at that point).
+- `1c1e5cf` Unity showcase camera (`VillageFlythroughCamera`), `WebDemoUrlMenu`, DLNK pack tools over Core. Compile checked only.
+- `a53f10d` 3D fly-through frames the eye and tentacles at Dire and Abyss.
+- `797b408` Original boat, dock, fence, cliff rock and two lamp meshes (13 in total) wired into the 3D coast and the meshes page.
+- `4a35b93` `tools/browser_check.mjs` extended to 30 checks, prop and omen framing tests. Local 30 of 30; live 28 of 30 (the host predates round 16).
+- Docs commit for this round: hash in `git log`. Demo script (side by side), `docs/RECORDING.md`, `docs/PACK_EXPLORATION.md`, MCP prompts 8 to 12. Scene names (Coast Scene, Assets 1.0, MystVillage) and the 14 prefabs were read from the git-ignored HDRP and URP packages with a pathname listing; no derived data committed. Node tests 294.
+- Unverified: Unity. It cannot be installed or run in the sandbox (Personal licence activation is tied to the author's Unity account), so Unity code is Partially Verified (compile check against stubs) and Unverified at runtime.

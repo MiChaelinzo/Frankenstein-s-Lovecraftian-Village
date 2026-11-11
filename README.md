@@ -201,7 +201,7 @@ Unlike parts, one creature:
 See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Packages/com.michaelinzo.frankenstein-village/Core` (no Unity dependency), Unity glue in `Packages/com.michaelinzo.frankenstein-village/Runtime`.
 
 ## Play in Unity
-Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md). Unity cannot be installed or run in the sandbox because Unity Personal licence activation is tied to the author's Unity account, so all Unity work is compile checked only (Partially Verified) and Unverified at runtime.
 
 ```
 Package Manager > Add package from git URL:
@@ -244,7 +244,7 @@ The tests are property-based: each property runs 300 seeded random cases and rep
 Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
 ## Built with Kiro
-Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
+Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script (side-by-side web and Unity, under 3:00): [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Recording setup: [docs/RECORDING.md](docs/RECORDING.md). Unity pack exploration script: [docs/PACK_EXPLORATION.md](docs/PACK_EXPLORATION.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
