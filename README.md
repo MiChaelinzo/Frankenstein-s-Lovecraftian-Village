@@ -96,19 +96,24 @@ Run locally (ES modules need HTTP, not `file://`):
 python3 -m http.server -d web 8000   # then open http://localhost:8000
 ```
 
-### Verified vs unverified
-| Part | Status |
-|------|--------|
-| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread curve, dread events, village report, prefab name matcher, DLNK building policy | Verified: property tests under `dotnet test` |
-| JS port in `web/src/core.js` | Verified: golden parity with C# output, `node --test` |
-| Parity self-test page (`web/selftest.html`) | Verified: 126 checks pass in headless Chromium; run it yourself in any browser over HTTP |
-| `WalkthroughController` | Code-complete, never compiled in Unity |
-| Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
-| Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
-| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | **Unverified**: never run in the Unity editor |
-| Unity Editor window `VillageCoreInspectorWindow` (`Tools > Frankenstein > Village Core Inspector`, previews Core village report and campaign) | **Unverified**: never compiled or run in the Unity editor |
-| Unity Runtime and Editor scripts compile check (`tests/UnityCompileCheck`, `dotnet build`) | Stub based: compiles against original hand-written Unity stubs, so it proves syntax and type consistency only, not Unity runtime behavior or real API fidelity |
-| Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
+### Verification status
+Labels: **Verified** = executed by an automated test or command here; **Partially Verified** = checked by inspection, screenshots or a stub-based compile only; **Unverified** = not executed. Nothing that needs the Unity editor is Verified. A validator check (`tools/verification_labels.py`) keeps the Status column to these three labels.
+
+| Area | Status | Evidence |
+|------|--------|----------|
+| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 80 passing property tests |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 235 passing, including golden parity with C# output |
+| Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
+| Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
+| Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
+| Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
+| Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |
+| Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
+| Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
+| HDRP look and URP roles | Unverified | No Unity run |
+| Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
+| Hosting, live URL, offline shell on a host | Unverified | No deploy exists, see [docs/HOSTING.md](docs/HOSTING.md) |
+| Gamepad on real hardware | Unverified | Only logic is node-tested |
 
 Round 12 additions: `tools/dlnk_scene.py` plus `?pack=1&scene=<name>` render real scene placements from the owner's local pack (git-ignored, EXR lightmaps not decoded); `tools/blender/` builds seven original low-poly GLB meshes headless with Blender 4.2 LTS (viewer: `web/meshes.html`, linked from About); `tests/UnityCompileCheck` is a stub-based compile check (0 errors, 1 warning, not a Unity run). MCP for Unity and Blender is documented in [docs/MCP.md](docs/MCP.md) but was never run here, and no `mcp.json` is shipped. No live URL exists yet.
 
@@ -167,7 +172,7 @@ The URP package (about 100 MB) is enough for inspection and for URP projects; th
 - Fantasy and horror environment design
 - First-person, third-person, and top-down compatibility
 - AI-assisted development workflow
-- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; night N sets a floor of ritual stage N and dread can run ahead (the HUD shows "Night schedule: stage X of N, dread reached: stage Y" plus the effective stage). Unity `RitualDirector`, `RitualStateAsset` and `RitualSaveBridge` are code-complete but unverified in Unity (not compiled here); the Core logic is tested.
+- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; night N sets a floor of ritual stage N and dread can run ahead (the HUD shows "Night schedule: stage X of N, dread reached: stage Y" plus the effective stage). Unity `RitualDirector`, `RitualStateAsset` and `RitualSaveBridge` are Unverified in Unity (not compiled here); the Core logic is Verified.
 - **Investigator** (off by default): a seeded investigator walks a lantern route between village pieces and loses sanity at omen sites (altar, well, church, dead tree). Press `I`, use the Investigator button or open with `?investigator=1`. Same seed gives the same route and hits in C# and JS (golden parity). Shows a lantern figure, a minimap marker and journal entries, and the screen reader description lists what stands in the village.
 - Web demo extras: session save/load with auto-resume, village map and legend (`G`), case file export (Markdown or HTML), `?lang=fr` partial French, performance readout (`X` or `?perf=1`), offline shell via service worker on https/localhost (never in `?pack=1`)
 - Built for Kiroween 2026 Frankenstein challenge
@@ -192,7 +197,7 @@ See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in
 2. Clone this repo and open it as a Unity project.
 3. Download the package that matches your render pipeline from the Downloads section above (the OneDrive links are the only supported source; the packages are imported locally and never committed).
 4. Import it: `Assets > Import Package > Custom Package...`, pick the `.unitypackage`, and import everything. Keep the default `Assets/Lovecraftian Village*` location; those folders are gitignored.
-5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Assets/Scripts/Editor`, matches catalog ids to imported prefab names; unverified in Unity) or add bindings by hand (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
+5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Assets/Scripts/Editor`, matches catalog ids to imported prefab names; Unverified in Unity) or add bindings by hand (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
 6. Add a `VillageBuilder` and a `HorrorAmbienceDirector` to a scene.
 7. Optional: create two global Volumes (calm and dread, same overrides) and assign them to a `DreadVolumeBlender`, then reference it from the director. Set `narrationEndpoint` on the director for HTTP AI narration.
 

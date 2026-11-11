@@ -9,7 +9,7 @@ All footage is recorded by the author from this repo and the author's own Unity 
 | 1:30-2:20 | Kiro in action: `.kiro` specs, hooks firing on save, `dotnet test` property tests running, the `selftest.html` page passing | "Kiro turned requirements into correctness properties. Hooks run the tests and guard the paid assets. The self-test page checks the JS port against C# output." |
 | 2:20-2:50 | Short Unity clip if available (only if you have opened the project in Unity yourself), then repo link and #KiroweenHackathon26 | "Specs, steering, hooks and property tests, stitched together. Thanks for watching." |
 
-If you have no Unity footage, skip that clip and say so; the Unity side is code-complete but unverified in the editor.
+If you have no Unity footage, skip that clip and say so; the Unity side is Unverified in the editor.
 
 ## Tour and About scenes (optional, about 15 seconds)
 1. Open `http://localhost:8000/?intro=0&tour=1`. Let two or three stops play (or press Right arrow), say what each control does, then press Esc.

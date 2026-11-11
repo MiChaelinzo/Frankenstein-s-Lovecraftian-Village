@@ -4,8 +4,8 @@
 
 Only the author can supply these. Nothing below has been filled in or guessed.
 
-- [x] Web extras (session save/load, map, case file, fr stub, perf HUD, offline shell) are covered by node tests; offline behaviour on a real host is unverified
-- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; night schedule plus dread-reached stage with a floor-based effective stage; Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge` code-complete but unverified in Unity
+- [x] Web extras (session save/load, map, case file, fr stub, perf HUD, offline shell) are covered by node tests; offline behaviour on a real host is Unverified
+- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; night schedule plus dread-reached stage with a floor-based effective stage; Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge` Unverified in Unity
 - [x] Seeded investigator walking a lantern route (Core, JS port, golden parity; web toggle `I` / `?investigator=1`, off by default; sanity hits in the journal, minimap marker, screen reader village description)
 - [x] Stitch panel from generated repo data, seeded codex and achievements saved in the session, high-contrast theme, opt-in daily village (node and Python tests; headless screenshots of the web demo only)
 - [x] Round 11: judge tour (`?tour=1`), About dialog, journal Story and Progress tabs, progress gated on player actions; node tested, only headless Chrome tried
@@ -45,7 +45,7 @@ Keeping a commercial asset pack out of an open-source repo; testing Unity-bound 
 Pure-C# core with property tests that run anywhere; guardrails that make the legal boundary automatic.
 
 ## What's next
-Verifying the Unity-side scripts in the editor, recording the demo video, and more catalog pieces. HDRP volume blending and the AI narration provider are code-complete but unverified in Unity.
+Verifying the Unity-side scripts in the editor, recording the demo video, and more catalog pieces. HDRP volume blending and the AI narration provider are Unverified in Unity.
 
 ## Built with
 Unity 6, HDRP, C#, JavaScript (canvas), Kiro, xunit, Node test runner, GitHub Actions, Python.
