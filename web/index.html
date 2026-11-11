@@ -22,6 +22,8 @@
       <div class="primary">
         <section class="stage" aria-label="Village view">
           <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" data-i18n-aria="aria.view" aria-describedby="viewDesc"></canvas>
+          <canvas id="view3d" class="view3d" width="960" height="560" tabindex="0" role="img" aria-label="First-person 3D view of the village" data-i18n-aria="aria.view3d" hidden></canvas>
+          <div id="view3dPrompt" class="view3d-prompt" role="status" aria-live="polite" hidden></div>
           <div id="narration" class="narration" aria-live="polite"></div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
@@ -72,6 +74,7 @@
             <label for="floor"><output id="floorOut">Floor 1</output></label>
             <input id="floor" type="range" min="0" max="2" step="1" value="0" aria-describedby="cameraNote">
             <button id="door" type="button" data-i18n="btn.door">Try the next door</button>
+            <button id="view3dBtn" type="button" aria-pressed="false" data-i18n="btn.view3d">First-person 3D view</button>
           </div>
           <p id="themeNote" class="stats"></p>
           <p id="cameraNote" class="stats"></p>

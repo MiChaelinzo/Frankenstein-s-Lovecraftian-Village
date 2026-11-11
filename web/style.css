@@ -132,3 +132,9 @@ html.hc .tour .stats { margin: 2px 0 8px; }
 .tour-target { outline-color: #ffeb3b; }
 @media (forced-colors: active) { .about, .tour { border: 2px solid CanvasText; } .tour .stats { margin: 2px 0 8px; }
 .tour-target { outline-color: Highlight; } }
+
+/* opt-in first-person 3D view: sits over the 2D canvas, which is hidden while it is open */
+.view3d { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.view3d[hidden] { display: none; }
+.view3d-prompt { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: 4px 10px; font-style: italic; text-shadow: 0 2px 8px #000, 0 0 12px #000; pointer-events: none; }
+.view3d-prompt::before { content: ""; position: absolute; left: 50%; top: -22px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: rgba(220,230,225,.7); }

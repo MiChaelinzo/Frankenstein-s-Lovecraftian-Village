@@ -2,7 +2,7 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
-  detailLevel, doorOmen, generateRitual, ritualProgress, Investigator,
+  detailLevel, doorOmen, generateRitual, ritualProgress, Investigator, InteractionRules,
 } from './core.js';
 import {
   computeView, buildWalkers,
@@ -16,6 +16,8 @@ import {
   floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor, meshesWanted,
 } from './building.js';
 import { loadMeshSet } from './glb.js';
+import { createView3d } from './view3d.js';
+import { view3dWanted } from './view3d-math.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
@@ -77,6 +79,35 @@ const meshes = new Map(); // filled only by ?meshes=1; empty means the procedura
 const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $, meshes });
 if (meshesWanted(location.search, location.hash)) loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
 const { iso, doorPoint } = renderer;
+
+// ---------- opt-in first-person 3D view (?view=3d or the button); 2D isometric stays the default ----------
+const packTint = (...roles) => { const r = pack.want && pack.roles && roles.map((n) => pack.roles[n]).find(Boolean); return r ? r.tint : null; };
+const view3d = createView3d({
+  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion, capture: params.get('capture') === '1', camParam: optParam('cam3d'),
+  getScene: () => ({
+    layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
+    night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },
+    categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
+    labelFor: (p, kind) => tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) }),
+    tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
+    groundTint: packTint('ground'),
+  }),
+  onInteract: (p, kind) => interact3d(p, kind),
+  onExit: () => setView3d(false),
+  notice: (key) => { $('sessionNote').textContent = tr(key); },
+});
+function setView3d(on) {
+  if (on && !state.catalog) return;
+  if (on) { $('view3d').hidden = false; if (!view3d.enter()) { $('view3d').hidden = true; return; } $('view').style.visibility = 'hidden'; $('hint').textContent = tr('view3d.hint'); }
+  else { view3d.exit(); $('view3d').hidden = true; $('view').style.visibility = ''; $('hint').textContent = tr('hint.view'); mark(); }
+  $('view3dBtn').setAttribute('aria-pressed', String(on)); $('view3dBtn').textContent = tr(on ? 'btn.view3dexit' : 'btn.view3d');
+}
+function interact3d(p, kind) {
+  progress.arm();
+  if (kind === 'door') { tryDoor(p); return; }
+  if (kind === 'landmark') { progress.note.listen(); const li = state.landmarks.indexOf(p); if (li >= 0) setFocus(li); } else progress.note.whisper();
+  adjust(InteractionRules.sanityDelta(kind), p.id);
+}
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
@@ -251,7 +282,7 @@ function updateDesc() {
 
 let running = false;
 function frame(now) {
-  if (document.hidden) { running = false; perf.reset(); return; }
+  if (document.hidden || view3d.active) { running = false; perf.reset(); return; }
   const real = performance.now();
   for (const [k, sh] of state.shakes) if (real - sh.at > 1500) state.shakes.delete(k);
   const dread = state.sanity.dread, tier = tierFor(dread);
@@ -265,7 +296,7 @@ function frame(now) {
   tickPerf(now);
   requestAnimationFrame(frame);
 }
-function start() { if (running) return; running = true; requestAnimationFrame(frame); }
+function start() { if (view3d.active) view3d.refresh(); if (running) return; running = true; requestAnimationFrame(frame); }
 
 // ---------- session, minimap, case file, perf HUD, i18n, offline ----------
 const storage = safeStorage();
@@ -406,6 +437,7 @@ function tryDoor(p) {
   const text = doorMessageL(doorMessage(behavior, p.key), lang);
   state.shakes.set(p.key, { behavior, at: performance.now() });
   showToast(text, behavior >= 2);
+  if (view3d.active) { $('narration').textContent = text; $('narration').style.opacity = 1; }
   announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
   progress.note.door(); progress.update();
@@ -504,6 +536,7 @@ $('theme').addEventListener('change', () => setTheme($('theme').value));
 $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
+$('view3dBtn').addEventListener('click', () => setView3d(!view3d.active));
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
 const doWhisper = () => { progress.note.whisper(); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
@@ -616,7 +649,7 @@ function pollPad() {
   const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
   if (!pads.length) { padPolling = false; padPrev = null; return; }
   const cur = snapshotPad(pads[0]);
-  if (!introOpen() && !document.hidden) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
+  if (!introOpen() && !document.hidden && !view3d.active) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
   padPrev = cur;
   requestAnimationFrame(pollPad);
 }
@@ -635,6 +668,7 @@ addEventListener('gamepadconnected', () => { if (!padPolling) { padPolling = tru
 addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (view3d.active) return; // the 3D view owns WASD, E and Escape while open
   if (introOpen()) return;
   if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
   if (aboutOpen()) return;
@@ -737,6 +771,7 @@ function setupDlnk() {
   if (optParam('stitch') === '1') progress.setStitch(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);
   requestAnimationFrame(pollPad);
+  if (view3dWanted(location.search, location.hash)) setView3d(true);
   if (cinemaWanted) setCinematic(true);
   registerOffline();
   if (tourOn) openTour();

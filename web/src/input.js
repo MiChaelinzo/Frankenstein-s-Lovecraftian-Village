@@ -60,3 +60,27 @@ export const cinemaExitKey = (device) => {
 
 /** The exit button is shown only for touch, where there is no keyboard Escape or pad Select. */
 export const showCinemaExit = (device) => normalizeDevice(device) === 'touch';
+
+// ---- first-person 3D view (?view=3d): continuous movement from sticks and touch ----
+export const PAD_DEADZONE_3D = 0.18;
+const dz = (v) => (Number.isFinite(v) && Math.abs(v) >= PAD_DEADZONE_3D ? (v - Math.sign(v) * PAD_DEADZONE_3D) / (1 - PAD_DEADZONE_3D) : 0);
+
+/** Left stick walks (axes 0,1), right stick looks (axes 2,3). Values are -1..1 with a rescaled dead zone; forward is stick up. */
+export function padAxes3d(snap) {
+  const a = (snap && snap.axes) || [];
+  return { strafe: dz(a[0]), forward: -dz(a[1]), turn: dz(a[2]), look: -dz(a[3]) };
+}
+
+export const TOUCH_DRIVE_RADIUS_PX = 60;
+export const TAP_MAX_PX = 10;
+export const TAP_MAX_MS = 280;
+const unit = (v) => Math.max(-1, Math.min(1, v));
+
+/** Virtual joystick: finger offset from where the touch began, in pixels, to forward/strafe -1..1 (drag up walks forward). */
+export function touchDrive(start, cur) {
+  if (!start || !cur || ![start.x, start.y, cur.x, cur.y].every(Number.isFinite)) return { forward: 0, strafe: 0 };
+  return { strafe: unit((cur.x - start.x) / TOUCH_DRIVE_RADIUS_PX), forward: unit(-(cur.y - start.y) / TOUCH_DRIVE_RADIUS_PX) };
+}
+
+/** A tap is a short touch that barely moved. */
+export const isTap = (x0, y0, x1, y1, ms) => [x0, y0, x1, y1, ms].every(Number.isFinite) && ms >= 0 && ms <= TAP_MAX_MS && Math.hypot(x1 - x0, y1 - y0) <= TAP_MAX_PX;
