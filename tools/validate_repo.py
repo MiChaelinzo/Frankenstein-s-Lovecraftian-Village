@@ -40,6 +40,13 @@ for f in tracked:
         errors.append(f"binary asset needs review: {f}")
 
 for f in tracked:
+    if f.lower().endswith(".glb"):
+        if not f.startswith("web/assets/meshes/"):
+            errors.append(f"glb only allowed under web/assets/meshes/: {f}")
+        elif os.path.getsize(f) >= 200 * 1024:
+            errors.append(f"glb must be under 200 KB: {f}")
+
+for f in tracked:
     if f.startswith("Assets/_DLNK") or f.startswith("web/local-pack/"):
         errors.append(f"pack-derived path must not be tracked: {f}")
 
