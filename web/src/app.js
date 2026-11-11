@@ -35,7 +35,8 @@ import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from '
 import { dailyVillage, dailyWanted } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
 import { contrastWanted, loadContrast, saveContrast } from './access.js';
-import { cinematicFrame, cinematicWanted } from './cinematic.js';
+import { texturePlan } from './pack.js';
+import { cinematicFrame, cinematicWanted, flythroughCamera } from './cinematic.js';
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
 import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
 import {
@@ -91,7 +92,10 @@ const view3d = createView3d({
     labelFor: (p, kind) => tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) }),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
+    fly: cine.on && view3d.active ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
+  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
+  packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind),
   onExit: () => setView3d(false),
   notice: (key) => { $('sessionNote').textContent = tr(key); },
@@ -603,6 +607,7 @@ function cinemaStep() {
     if (b) { showBeat(b.index); $('cinemaCaption').textContent = b.text; announce(b.text); }
   }
   if (f.done) { setCinematic(false); return; }
+  if (view3d.active) view3d.refresh();
   mark();
 }
 function setCinematic(on) {

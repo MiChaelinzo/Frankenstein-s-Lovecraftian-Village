@@ -137,3 +137,23 @@ A short history of how this project was built, taken from `git log` on the `feat
 - Live deployment at https://frankensteinlovecraftianvillage.vercel.app/. `python3 tools/check_live.py` passed 10/10 (HTTP 200 and content types, CSP, HSTS, 404 for the local pack). Unverified: real-browser behavior on the host, Unity.
 
 - Docs for the demo video: timed `docs/DEMO_SCRIPT.md`, `docs/KIRO_PITCH.md` (spoken script and Devpost write-up). Documentation only; nothing was recorded or run in Unity.
+
+## Round 15 commits
+- `a86d2d6` 3D fly-through, layered fog, coast, church hill, omens, pack textures, frame budget.
+- `1221474` Real-browser check tool, `setPointerCapture` guard, verification labels.
+- `3ee8f90` Codex, achievements and daily seed wired into Unity Runtime, localized prompts. dotnet 94, node 285. Unity Unverified.
+- Docs commit for this round: hash in `git log`. Freshness checked: `gen_stitch.py`, `gen_package_meta.py` (0 files to write), golden, sw.js precache and CSP via tests. All `tools/test_*.py` exit 0 on the final run.
+
+## Round 15 real-browser verification
+- Added `tools/browser_check.mjs` (run: `python3 -m http.server 8123 -d web`, then `node tools/browser_check.mjs`; Chromium headless shell with SwiftShader flags, real time, no virtual-time budget). `frameStats` has a node test (`web/test/browser-check.test.js`); node tests 285.
+- Final run 23 of 23 passed: sanity 100 to 82 and a whisper after `[ [ w`; G, K, X open panels; journal tab click and ArrowLeft; door button 3 to 4 journal entries; O runs clean; story S, `.` (beat 1 to 2 of 5), Escape; `?tour=1` Enter twice (stop 2 to 4 of 12), Left (3), Escape closes; `?view=3d` WebGL canvas 950 px wide; W and A each changed the screenshot hash; click acquired pointer lock, first Escape released it, second exited to 2D; with `requestPointerLock` removed drag-look changed the frame, click-pick and single Escape worked; `?view=3d&cinematic=1` frames changed over 2.5 s with the first story caption; 0 uncaught errors.
+- Real bug found by an earlier run of the same driver: `canvas.setPointerCapture` threw `InvalidStateError` in `onPointerDown`. Fixed with a guard in `web/src/view3d.js`; the rerun was clean.
+- Frame time (real time, rAF timestamps over a 6 s walk, 259 frames): mean 23.2 ms (about 43 fps), median 16.7, p95 33.5, max 100 on ANGLE SwiftShader software GL. Indicative of CPU rendering only, not GPUs.
+- Not exercised: clicking a specific door in 3D (E was run with no door in reach), touch, gamepad, other browsers, the live Vercel host in a real browser (`python3 tools/check_live.py` passed 10/10 at HTTP level), Unity. The live host does not yet include round 15.
+
+### Round 15 review follow-up
+
+- `flyStop` seed hash now uses `Math.imul(seed | 0, 2654435761) >>> 0`, so large seeds no longer lose low bits (matches an integer-wrapping port).
+- Known gap (not fixed): Unity interaction prompts pass `Focus.locationId` to `PromptStrings.Prompt`, so names are raw ids while the web shows `locName`. Localized place names in Core would need a name table mirrored from `i18n-text.js` plus a drift test; deferred. Unverified in Unity.
+- Daily seed ordering: not changed. `ProgressionTracker.Awake` sets `walkthrough.seed`, and `WalkthroughController` generates in `Start`; Unity runs every `Awake` before any `Start`, so the order holds. Unverified in Unity.
+- `tools/browser_check.mjs` is a manual, environment-specific tool (Chromium path default and `--no-sandbox`), not part of the pre-merge suite or CI.

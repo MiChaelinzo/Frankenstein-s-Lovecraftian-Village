@@ -48,6 +48,12 @@ namespace Frankenstein.Editor
             var player = AddPlayer(builder, director);
             player.interactor.hud = DreadHud.Create(director);
 
+            var tracker = director.gameObject.AddComponent<ProgressionTracker>();
+            tracker.director = director;
+            tracker.interactor = player.interactor;
+            tracker.ritualDirector = director.GetComponent<RitualDirector>();
+            tracker.walkthrough = director.GetComponent<WalkthroughController>();
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("[Frankenstein] Saved " + ScenePath + (packImported ? " (pack prefabs bound where names matched)." : " (primitive fallback, pack not imported)."));
         }

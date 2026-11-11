@@ -16,7 +16,7 @@ dotnet test tests/Frankenstein.Core.Tests
 CI runs the same commands (`.github/workflows/ci.yml`).
 
 ## Steering
-Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, principles, testing) and `.kiro/steering/agent.md` (working style, verification labels). Before committing run the three commands above: `dotnet test tests/Frankenstein.Core.Tests`, `node --test "web/test/*.test.js"` and `python3 tools/validate_repo.py`.
+Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, principles, testing) and `.kiro/steering/agent.md` (working style, verification labels). For browser behavior, serve `web/` (`python3 -m http.server 8123 -d web`) and run `node tools/browser_check.mjs` (local headless Chromium, 23 checks; optional, not run in CI). Test counts at round 15: 94 dotnet, 285 node. Before committing run the three commands above: `dotnet test tests/Frankenstein.Core.Tests`, `node --test "web/test/*.test.js"` and `python3 tools/validate_repo.py`.
 
 See also [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) for which logic lives in Core, which is UI-only, and why.
 

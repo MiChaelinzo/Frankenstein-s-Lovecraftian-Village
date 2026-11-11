@@ -1,3 +1,4 @@
+using System;
 using Frankenstein.Core;
 using UnityEngine;
 
@@ -14,6 +15,11 @@ namespace Frankenstein.Runtime
         public Transform eye;
         public HorrorAmbienceDirector director;
         public DreadHud hud;
+        [Tooltip("Prompt language, a key of Core PromptStrings (en or fr). Unknown values fall back to English.")]
+        public string language = PromptStrings.DefaultLanguage;
+
+        /// <summary>Raised after a successful interaction with the kind that was used.</summary>
+        public event Action<InteractionKind> Interacted;
 
         private float _lastUse = float.NegativeInfinity;
 
@@ -23,7 +29,7 @@ namespace Frankenstein.Runtime
         private void Update()
         {
             Focus = Probe();
-            if (hud != null) hud.SetPrompt(Focus != null ? "E  " + Focus.kind : "");
+            if (hud != null) hud.SetPrompt(Focus != null ? "E  " + PromptStrings.Prompt(language, Focus.kind, Focus.locationId) : "");
         }
 
         /// <summary>Returns the in-range target in front of the eye, or null.</summary>
@@ -57,6 +63,7 @@ namespace Frankenstein.Runtime
             }
             director.Sanity.Apply(InteractionRules.SanityDelta(target.kind));
             if (hud != null) hud.ShowMessage(text);
+            if (Interacted != null) Interacted(target.kind);
             return true;
         }
     }

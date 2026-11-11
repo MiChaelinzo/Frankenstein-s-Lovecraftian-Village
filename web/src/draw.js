@@ -2,7 +2,7 @@
 import { SeededRandom } from './core.js';
 import { meshPolygons } from './glb.js';
 import { cameraTransform } from './cinematic.js';
-import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, applyFlash } from './scene.js';
+import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, applyFlash, omenTargets } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
 import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
@@ -470,7 +470,7 @@ export function createRenderer(env) {
 
   function drawScene(now, real, dread, tier) {
     const time = reduceMotion ? 0 : now;
-    const eyeT = tier >= 3 ? 1 : 0, tentT = tier >= 3 ? 1 : tier >= 2 ? 0.4 : 0;
+    const { eye: eyeT, tentacle: tentT } = omenTargets(tier);
     state.eye = reduceMotion || state.snap ? eyeT : state.eye + (eyeT - state.eye) * 0.06;
     state.tentacle = reduceMotion || state.snap ? tentT : state.tentacle + (tentT - state.tentacle) * 0.06;
     state.snap = false;

@@ -48,3 +48,37 @@ export function cameraTransform(cam, w, h) {
 }
 
 export const cinematicWanted = (search, hash) => /(^|[?#&])cinematic=1(?![0-9A-Za-z])/.test(`${search || ''}${hash || ''}`);
+
+// ---------- 3D fly-through (?view=3d&cinematic=1) ----------
+// The same beats drive a camera that circles the village. Everything is metres and radians in the 3D view's convention
+// (camera looks down -Z at yaw 0, so yaw = atan2(dx, -dz)). Pure and deterministic: no clocks, no randomness beyond the seed.
+export const FLY_ANGLE_STEP = 0.95; // radians travelled around the village per beat
+const FLY_MIN_HEIGHT = 4.6;         // above the 3 m houses so the camera never clips a roof
+
+/** The camera stop for beat index i (any integer). Seed picks the starting bearing so different villages open differently. */
+export function flyStop(i, { gridW, gridD, seed = 0, cell = 4 }) {
+  const cx = (gridW * cell) / 2, cz = (gridD * cell) / 2, half = Math.hypot(cx, cz);
+  const start = ((Math.imul(seed | 0, 2654435761) >>> 0) % 6283) / 1000;
+  const angle = start + i * FLY_ANGLE_STEP;
+  const radius = half * (i % 2 === 0 ? 0.78 : 0.58);
+  const height = FLY_MIN_HEIGHT + 1.6 + Math.sin(i * 1.7) * 1.4;
+  return { pos: [cx + Math.sin(angle) * radius, height, cz - Math.cos(angle) * radius], look: [cx + Math.sin(i * 2.1) * 6, 1.6, cz + Math.cos(i * 2.3) * 6] };
+}
+
+const lerpV = (a, b, u) => a.map((v, k) => v + (b[k] - v) * u);
+const aim = (pos, look) => {
+  const dx = look[0] - pos[0], dy = look[1] - pos[1], dz = look[2] - pos[2];
+  return { yaw: Math.atan2(dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
+};
+
+/**
+ * Camera { x, y, z, yaw, pitch } for elapsed ms t and the beat durations. Moves between stops beat by beat (eased), so a
+ * beat change in the story is a visible change of viewpoint. Reduced motion: one fixed still viewpoint, never moving.
+ */
+export function flythroughCamera(t, durations, world, reduced = false) {
+  const f = cinematicFrame(t, durations, reduced);
+  const a = flyStop(reduced ? 0 : f.beat, world), b = flyStop(reduced ? 0 : f.beat + 1, world);
+  const u = reduced ? 0 : f.done ? 1 : smooth(Math.max(0, Math.min(1, f.beatT)));
+  const pos = lerpV(a.pos, b.pos, u), look = lerpV(a.look, b.look, u), { yaw, pitch } = aim(pos, look);
+  return { x: pos[0], y: pos[1], z: pos[2], yaw, pitch };
+}
