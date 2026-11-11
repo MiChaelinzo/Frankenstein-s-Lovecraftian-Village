@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Web: static checks and perf budget node tests (`static-checks.test.js`, `perf-budget.test.js`), en and fr strings for the new UI, README judge quick start, service worker cache `flv-shell-v4`.
 - Changed: the `--blood` colour was adjusted for contrast.
 - Rule: codex entries and achievements are only awarded after a player action (`web/src/progress-gate.js`). Deep links and restored sessions only preview progress; saved progress is restored until the first player action, so a preview never overwrites a save.
+- Fix (review): keyboard `[` `]` and story keys now arm progress like the mouse paths; Esc in the tour no longer also exits story or cinematic mode; leaving the tour card restarts only the timer (no re-announce); the auto-advance pauses while About is open (d8e833c).
 - Headless screenshots at exactly 1280x720 clip the bottom of the page (the capture window loses about 50 px; the same page at 1280x770 and at 390x800 shows the whole card). The placement fix is still kept as a real guard for short viewports.
 
 ### Fixed
