@@ -107,3 +107,12 @@ html.hc .whispers li, html.hc .codex-list li, html.hc .stitch-list li { border-b
 html.hc .whispers li.e-omen { color: #ff9a9a; }
 html.hc .whispers li.e-door { color: #ffe08a; }
 html.hc canvas { filter: contrast(1.35) brightness(1.15); }
+
+.jtabs { display: flex; gap: 6px; margin: 4px 0 6px; }
+.jtabs [role=tab] { flex: 1; padding: 4px 8px; font-size: .8rem; background: transparent; border: 1px solid #1a2527; color: var(--dim); cursor: pointer; }
+.jtabs [role=tab][aria-selected=true] { color: var(--ink); border-color: var(--moss); }
+.jtabs [role=tab]:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+.jbadge { display: inline-block; min-width: 1.2em; padding: 0 5px; border-radius: 9px; background: var(--moss); color: #000; font-size: .72rem; font-weight: bold; text-align: center; }
+html.hc .jtabs [role=tab] { border-color: #888; color: #fff; }
+@media (forced-colors: active) { .jtabs [role=tab][aria-selected=true] { outline: 2px solid Highlight; } }
+.jbadge[hidden] { display: none; }

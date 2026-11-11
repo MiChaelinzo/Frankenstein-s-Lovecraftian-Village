@@ -130,7 +130,16 @@
       <aside class="side" aria-label="Journal, map and keys">
         <section class="panel journal" aria-labelledby="journalTitle">
           <h2 id="journalTitle" data-i18n="title.whispers">Whispers</h2>
-          <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
+          <div class="jtabs" role="tablist" aria-labelledby="journalTitle">
+            <button type="button" role="tab" id="tab-story" aria-selected="true" aria-controls="pane-story" data-i18n="tab.story">Story</button>
+            <button type="button" role="tab" id="tab-progress" aria-selected="false" aria-controls="pane-progress" tabindex="-1"><span data-i18n="tab.progress">Progress</span> <span id="progressBadge" class="jbadge" hidden></span></button>
+          </div>
+          <div id="pane-story" role="tabpanel" aria-labelledby="tab-story">
+            <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
+          </div>
+          <div id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden>
+            <ol id="progressLog" class="whispers"><li class="empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
+          </div>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
