@@ -94,4 +94,4 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `c702b0a` Docs and web-demo screenshots `docs/media/stitch.png`, `codex.png`, `contrast.png` (each under 700 KB).
 
 ## Round 10 editor window and invariants
-- Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
+- `02a7309` Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
