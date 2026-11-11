@@ -24,6 +24,8 @@ import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
+import { tourWanted } from './tour.js';
+import { createTourController } from './tour-ui.js';
 import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
@@ -74,7 +76,8 @@ const { iso, doorPoint } = renderer;
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
-const introWanted = shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
+const tourOn = tourWanted(location.search, location.hash); // opt-in only: ?tour=1
+const introWanted = !tourOn && shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
 const cinemaWanted = cinematicWanted(location.search, location.hash);
 function startAudio() {
   if (ambient && ambientSeed !== state.seed) { ambient.dispose(); ambient = null; }
@@ -447,6 +450,19 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
+const { openTour, closeTour, tourOpen } = createTourController({ $, tr, canvas, reduceMotion, announce });
+// About dialog: native <dialog> (focus trap and Esc come from the browser); falls back to the open attribute.
+let aboutIsOpen = false; // the dialog's 'close' event (Esc, button) resets it
+const aboutOpen = () => aboutIsOpen;
+function setAbout(on) {
+  const d = $('about');
+  aboutIsOpen = on;
+  if (on) { if (d.showModal) d.showModal(); else d.setAttribute?.('open', ''); $('aboutClose').focus?.(); }
+  else if (d.close) d.close(); else d.removeAttribute?.('open');
+}
+$('about').addEventListener('close', () => { aboutIsOpen = false; });
+$('aboutBtn').addEventListener('click', () => setAbout(true));
+$('aboutClose').addEventListener('click', () => setAbout(false));
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
@@ -603,6 +619,8 @@ addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (introOpen()) return;
+  if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
+  if (aboutOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
@@ -637,6 +655,7 @@ addEventListener('keydown', (e) => {
     case 'y': case 'Y': progress.setStitch(!progress.isStitchOn()); break;
     case 'h': case 'H': setContrast(!document.documentElement.classList.contains('hc'), true); break;
     case 'z': case 'Z': applyDaily(); break;
+    case 'a': case 'A': setAbout(true); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
@@ -677,5 +696,6 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   requestAnimationFrame(pollPad);
   if (cinemaWanted) setCinematic(true);
   registerOffline();
+  if (tourOn) openTour();
   if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
 })();

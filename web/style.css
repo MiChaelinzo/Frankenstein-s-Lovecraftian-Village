@@ -1,4 +1,4 @@
-:root { color-scheme: dark; --ink: #cfd8d3; --dim: #7d8a85; --blood: #b0222c; --moss: #5f8f78; }
+:root { color-scheme: dark; --ink: #cfd8d3; --dim: #7d8a85; --blood: #c4303a; --moss: #5f8f78; }
 * { box-sizing: border-box; }
 body { margin: 0; background: radial-gradient(ellipse at top, #10181a, #05080a 70%); color: var(--ink); font: 16px/1.5 Georgia, 'Times New Roman', serif; min-height: 100vh; }
 main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 40px; }
@@ -116,3 +116,16 @@ html.hc canvas { filter: contrast(1.35) brightness(1.15); }
 html.hc .jtabs [role=tab] { border-color: #888; color: #fff; }
 @media (forced-colors: active) { .jtabs [role=tab][aria-selected=true] { outline: 2px solid Highlight; } }
 .jbadge[hidden] { display: none; }
+
+/* About dialog and judge tour */
+.about { max-width: 34rem; padding: 22px 26px; border: 1px solid var(--moss); background: #060b0c; color: var(--ink); }
+.about::backdrop { background: rgba(2,4,5,.85); }
+.about p { font-size: 1rem; }
+.tour { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 12; width: min(36rem, calc(100vw - 24px)); padding: 14px 18px; background: #060b0c; border: 1px solid var(--moss); box-shadow: 0 0 30px rgba(0,0,0,.9); }
+.tour[hidden] { display: none; }
+.tour h2 { color: #e6eee9; }
+.tour p { margin: 4px 0; }
+.tour-target { outline: 3px solid #e0c48a; outline-offset: 3px; }
+html.hc .about, html.hc .tour { background: #000; border: 2px solid #fff; }
+html.hc .tour-target { outline-color: #ffeb3b; }
+@media (forced-colors: active) { .about, .tour { border: 2px solid CanvasText; } .tour-target { outline-color: Highlight; } }
