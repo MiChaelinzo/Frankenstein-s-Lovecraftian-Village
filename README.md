@@ -4,7 +4,7 @@
 
 ![The village at full sanity](docs/media/calm.png)
 
-**Play in your browser:** no live URL is confirmed yet (`<YOUR-LIVE-URL>`). The GitHub Pages workflow is currently blocked by an account billing lock, so the Pages site is not available. The live URL depends on the host the author connects; see [`docs/HOSTING.md`](docs/HOSTING.md). Until then run it locally (see below).
+**Play in your browser:** [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) (deep link: [seed 1818, sanity 100, night 1](https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1)). Deployed on Vercel; HTTP-level checks are recorded below (`python3 tools/check_live.py`). The GitHub Pages workflow is blocked by an account billing lock. See [`docs/HOSTING.md`](docs/HOSTING.md). You can also run it locally (see below).
 
 | Dread | Abyss |
 |-------|-------|
@@ -18,7 +18,7 @@ A Unity 6 cosmic-horror village environment, built for **Kiroween 2026** in the 
 This project combines Unity 6, AI-assisted development workflows, and a modular Lovecraftian environment to create a dark fantasy village inspired by cosmic horror and environmental storytelling.
 
 ## Judge quick start
-No live URL is confirmed (see [`docs/HOSTING.md`](docs/HOSTING.md)), so run it locally. You need Python 3 for the server; the demo itself has no dependencies and no build step.
+Open the live site above, or run it locally. You need Python 3 for the server; the demo itself has no dependencies and no build step.
 
 ```bash
 cd web
@@ -44,7 +44,7 @@ Press `A` or use the About button for credits and license. `?lang=fr` switches t
 ## Play it in your browser (no Unity, no download)
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
 
-- Live: not confirmed (`<YOUR-LIVE-URL>`). Free static hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md), untested against real hosts. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
+- Live: [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) on Vercel. Hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md); only Vercel has been deployed. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
 - Change the **seed** for a new village, drag **sanity** down to watch the vignette close in, the fog thicken, the moon redden and the narrator turn on you. Click buildings for whispers. Open **Story mode** (`S`) to step or autoplay through every beat of every night. A skippable intro plays on a bare URL. Tick **Music** to opt in to an original procedural WebAudio soundtrack (no audio files, silent until you opt in, with volume and mute).
 - Story deep links: `#seed=1818&story=1&night=3&beat=2` (beat is 0-based within the night); `?story=1&autoplay=1` starts playing. `?intro=0` or `#intro=0` skips the intro, and any `#seed=`, `#story=`, `#sanity=` or `#night=` link skips it automatically.
 - Share a state with the URL hash, for example `#seed=1818&sanity=35`.
@@ -113,7 +113,8 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
 | HDRP look and URP roles | Unverified | No Unity run |
 | Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
-| Hosting, live URL, offline shell on a host | Unverified | No deploy exists, see [docs/HOSTING.md](docs/HOSTING.md) |
+| Hosted web demo | Verified | HTTP 200 on all entry pages and modules plus served CSP, checked by curl (`python3 tools/check_live.py`, 10/10 checks) |
+| Hosted demo in a real browser, offline shell on a host | Unverified | Only HTTP responses were checked, see [docs/HOSTING.md](docs/HOSTING.md) |
 | Gamepad on real hardware | Unverified | Only logic is node-tested |
 
 Round 12 additions: `tools/dlnk_scene.py` plus `?pack=1&scene=<name>` render real scene placements from the owner's local pack (git-ignored, EXR lightmaps not decoded); `tools/blender/` builds seven original low-poly GLB meshes headless with Blender 4.2 LTS (viewer: `web/meshes.html`, linked from About); `tests/UnityCompileCheck` is a stub-based compile check (0 errors, 1 warning, not a Unity run). MCP for Unity and Blender is documented in [docs/MCP.md](docs/MCP.md) but was never run here, and no `mcp.json` is shipped. No live URL exists yet.

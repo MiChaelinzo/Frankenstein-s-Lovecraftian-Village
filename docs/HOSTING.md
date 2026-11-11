@@ -2,7 +2,7 @@
 
 The demo in `web/` is plain static files (no build step, no server code). Every path is relative, so it works at a site root or under a sub-path such as `/Frankenstein-s-Lovecraftian-Village/` (checked by `web/test/paths.test.js` with a local test server only).
 
-**Nothing here has been tested against a real host. No live URL is confirmed.** The author must connect a host, verify it, then paste the resulting URL into `README.md` and the Devpost form in place of `<YOUR-LIVE-URL>`.
+**Live URL:** [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) (Vercel; deep link [https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1](https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1)). Verified at HTTP level only by `python3 tools/check_live.py` (200 and content types on `/`, `/selftest.html`, `/meshes.html`, `/src/app.js`, `/data/village_catalog.json`, `/sw.js`, `/assets/meshes/house_a.glb`; CSP and HSTS headers served; `/local-pack/manifest.json` returns 404). Real-browser behavior on the host is not verified. Netlify and Cloudflare Pages remain untested.
 
 ## Status
 
@@ -10,7 +10,7 @@ The demo in `web/` is plain static files (no build step, no server code). Every 
 |------|--------|
 | GitHub Pages | Blocked: the GitHub Actions account has a billing lock, so `pages.yml` cannot run and the Pages site returns 404. Unverified after the lock is fixed. |
 | Netlify | Config added (`netlify.toml`, `web/_headers`). Not connected, not tested. |
-| Vercel | Config added (`vercel.json`). Not connected, not tested. |
+| Vercel | Deployed (see Live URL). HTTP checks pass via `tools/check_live.py`; browser use not verified. |
 | Cloudflare Pages | Uses `web/_headers`. Not connected, not tested. |
 
 ## Dashboard steps (each host builds from Git, so `web/local-pack` never exists there)

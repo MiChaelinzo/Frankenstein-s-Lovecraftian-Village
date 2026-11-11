@@ -123,3 +123,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `c706b1f` Logged swallowed errors, removed dead exports and duplicated helpers. UnityCompileCheck stub gained `UnityWebRequest.error`.
 - Unverified: Unity was never run; Runtime edits are compile checked against stubs only.
 - Horror design review (this commit, hash in `git log`): seeded lightning and shake, capped flash gate, coalesced shorter banners, `web/test/notice-policy.test.js`. Feel is Partially Verified; no real browser session.
+
+## Round 14
+- Live deployment at https://frankensteinlovecraftianvillage.vercel.app/. `python3 tools/check_live.py` passed 10/10 (HTTP 200 and content types, CSP, HSTS, 404 for the local pack). Unverified: real-browser behavior on the host, Unity.

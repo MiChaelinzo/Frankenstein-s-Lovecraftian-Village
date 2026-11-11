@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 14
+- Live deployment: https://frankensteinlovecraftianvillage.vercel.app/ (Vercel). `tools/check_live.py` (offline test `tools/test_check_live.py`) checks entry pages, modules, content types, CSP, HSTS and the 404 for `/local-pack/manifest.json`; the run against the live URL passed 10/10. README row "Hosted web demo" is Verified at HTTP level only; real-browser use of the host stays Unverified.
+
 ### Round 13
 - Feature: `?meshes=1` opt-in GLB mesh mode (`meshPolygons` and `loadMeshSet` in `glb.js`, `meshKindFor` and `meshesWanted` in `building.js`), node tests in `web/test/mesh-mode.test.js`; default view unchanged. Visual result Partially Verified by one headless screenshot (`docs/media/meshes-village.png`).
 - Fix (review): a light flash no longer masks a heavy one inside the 4 s gap (`applyFlash` in `scene.js`, tested as a pure sequence); `meshesWanted` uses `queryParam`; removed the unused `ROLES` alias from `build_local_pack.py`.

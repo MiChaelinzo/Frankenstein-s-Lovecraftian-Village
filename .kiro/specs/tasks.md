@@ -44,7 +44,7 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 39. Web demo: texture themes mapped to DLNK groups (procedural and pack), top-down floor peel, camera modes limited by `allowedCamera`, door omens, omen-driven detail, accessibility and idle redraw skip (`web/src/building.js`, node tests)
 - [x] 40. Rewrite `docs/DEMO_SCRIPT.md` (own footage only, no third-party promo trailer)
 - [x] 41. Hosting configs (`netlify.toml`, `vercel.json`, `web/_headers`), `tools/stage_web.py` with test, `web/test/paths.test.js`, `docs/HOSTING.md`, `pages.yml` uploads staged `dist` (untested on real hosts)
-- [ ] 42. Author connects a host per `docs/HOSTING.md` and pastes the verified URL into README and Devpost
+- [x] 42. Author connects a host per `docs/HOSTING.md` and pastes the verified URL into README and Devpost
 - [x] 43. Core `StorySequencer` (beats per night, omen by dread tier, navigation, reading time) with property tests, JS port `web/src/story.js`, golden parity and self-test
 - [x] 44. Web story mode UI, skippable intro, opt-in procedural WebAudio soundtrack (`music.js`, `intro.js`, node tests); audio Partially Verified (logic node-tested, never heard)
 - [x] 45. Web session save/load, minimap and legend, case file export, i18n stub, perf HUD, offline PWA shell with CSP update (node and Python tests; offline untested on a real host)

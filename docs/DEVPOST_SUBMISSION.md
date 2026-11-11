@@ -16,7 +16,7 @@ Only the author can supply these. Nothing below has been filled in or guessed.
 - [ ] Confirm CI (`ci.yml`) is green on GitHub
 - [ ] Run the catalog auto-binder in Unity against the owned pack (unverified so far)
 - [ ] Connect a static host per `docs/HOSTING.md` (Netlify, Vercel or Cloudflare Pages), then verify `/` and `/selftest.html` on it
-- [ ] Replace the `<YOUR-LIVE-URL>` placeholders in `README.md` and the Devpost form with the verified URL
+- [x] Live URL in `README.md`: https://frankensteinlovecraftianvillage.vercel.app/ (paste the same URL, or the deep link https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1, into the Devpost form)
 - [ ] Optional: fix the GitHub account billing lock so `pages.yml` can run
 - [ ] Confirm wording of prize rules on the official Devpost page
 

@@ -56,6 +56,8 @@ dotnet test tests/Frankenstein.Core.Tests
 python3 tools/validate_repo.py
 ```
 
+Play it: https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1
+
 Repo: https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village
 
 Created by Michael G. Inso. Environment assets courtesy of DLNK Artworks.
