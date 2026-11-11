@@ -1,6 +1,7 @@
 // Localized versions of the English text helpers in scene.js, building.js and intro.js.
 // For lang 'en' every function returns exactly what the original helper returns (tested), so the Core mirrors stay untouched.
 import { STRINGS, t } from './i18n.js';
+import { ritualProgress } from './core.js';
 
 const fround = Math.fround;
 
@@ -47,16 +48,27 @@ export function describeSceneL({ seed, pieces, tier, dreadPercent, focus }, lang
   return t('desc.scene', lang, { seed, pieces, pct: dreadPercent, tier: tierLabel(lang, tier) }) + (focus ? t('desc.listen', lang, { focus }) : '');
 }
 
-export function ritualHudTextL(ritual, dreadPercent, lang) {
+/** " Night schedule: stage X of N, dread reached: stage Y (behind)." for a ritualProgress result, or '' when no night applies. */
+export function ritualScheduleTextL(prog, stageCount, lang) {
+  if (!prog || prog.scheduled < 0) return '';
+  return t('ritual.schedule', lang, {
+    s: prog.scheduled + 1, n: stageCount,
+    d: prog.dreadReached < 0 ? t('ritual.dread_none', lang) : t('ritual.dread_stage', lang, { i: prog.dreadReached + 1 }),
+    pace: t(`ritual.pace_${prog.pace}`, lang),
+  });
+}
+
+export function ritualHudTextL(ritual, dreadPercent, lang, nightNumber) {
   if (!ritual || !Array.isArray(ritual.stages) || !ritual.stages.length) return '';
-  let found = -1;
-  for (let i = 0; i < ritual.stages.length; i++) if (ritual.stages[i].dreadThresholdPercent <= dreadPercent) found = i;
+  const prog = ritualProgress(ritual, typeof nightNumber === 'number' ? nightNumber : 0, dreadPercent);
+  const found = prog.effective;
   if (found < 0) {
     return t('ritual.notbegun', lang, { name: ritual.name, stage: ritual.stages[0].name, pct: ritual.stages[0].dreadThresholdPercent });
   }
   const st = ritual.stages[found];
   const next = ritual.stages[found + 1];
-  return t('ritual.stage', lang, { name: ritual.name, i: found + 1, n: ritual.stages.length, stage: st.name, sigil: st.sigil }) +
+  const sched = ritualScheduleTextL(prog, ritual.stages.length, lang);
+  return t('ritual.stage', lang, { name: ritual.name, i: found + 1, n: ritual.stages.length, stage: st.name, sigil: st.sigil }) + sched +
     (next ? t('ritual.next', lang, { next: next.name, pct: next.dreadThresholdPercent }) : t('ritual.done', lang));
 }
 

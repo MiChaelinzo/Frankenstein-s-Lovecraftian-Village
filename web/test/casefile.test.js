@@ -34,3 +34,10 @@ test('case file includes the ritual chain section', () => {
   assert.equal((a.match(/^- Night \d+, \w+ \(sigil /gm) || []).length, 5);
   assert.ok(a.indexOf('## Ritual') < a.indexOf('## Story beats'));
 });
+
+test('case file states night schedule, dread reached and effective stage', () => {
+  const a = buildCaseFile({ ...input(), night: 4, sanity: 80 });
+  assert.match(a, /Night schedule: night N reaches ritual stage N of 5/);
+  assert.match(a, /Current: night schedule: stage 4 of 5, dread reached: (none|stage [123]), effective stage 4 \(behind\)\./);
+  assert.ok(!buildCaseFile(input()).includes('Current: night schedule'));
+});

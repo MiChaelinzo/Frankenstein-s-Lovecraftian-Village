@@ -32,7 +32,10 @@ test('English output equals the original helpers (the Core mirrors stay the sour
   }
   for (const seed of [1, 7, 42, 1818]) {
     const c = generateCampaign(seed), r = generateRitual(c);
-    for (const p of [0, 10, 40, 70, 100]) assert.equal(ritualHudTextL(r, p, 'en'), ritualHudText(r, p));
+    for (const p of [0, 10, 40, 70, 100]) {
+      assert.equal(ritualHudTextL(r, p, 'en'), ritualHudText(r, p));
+      for (const night of [1, 3, 5, 9]) assert.equal(ritualHudTextL(r, p, 'en', night), ritualHudText(r, p, night));
+    }
     assert.deepEqual(introSlidesL(c, 'en'), buildIntroSlides(c));
   }
   assert.equal(ritualHudTextL(null, 5, 'en'), '');

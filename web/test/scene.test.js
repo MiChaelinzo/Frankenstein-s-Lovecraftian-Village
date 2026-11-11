@@ -91,3 +91,12 @@ test('ritualHudText reports stage, next stage and completion', () => {
   assert.match(ritualHudText(r, 100), /The rite is complete\./);
   assert.ok(!ritualHudText(r, 100).includes('\u2014'));
 });
+
+test('ritualHudText with a night shows schedule, dread reached and a floor-based effective stage', () => {
+  const r = generateRitual(generateCampaign(1818, 5));
+  const txt = ritualHudText(r, 20, 4);
+  assert.match(txt, /stage 4 of 5/);
+  assert.match(txt, /Night schedule: stage 4 of 5, dread reached: (none|stage [123]) \(behind\)\./);
+  assert.match(ritualHudText(r, 100, 1), /stage 5 of 5.*Night schedule: stage 1 of 5, dread reached: stage 5 \(ahead\)/);
+  assert.equal(ritualHudText(r, 40), ritualHudText(r, 40, 0));
+});

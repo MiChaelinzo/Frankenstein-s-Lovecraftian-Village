@@ -2,7 +2,7 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
-  detailLevel, doorOmen, generateRitual, ritualStageForDread,
+  detailLevel, doorOmen, generateRitual, ritualProgress,
 } from './core.js';
 import {
   computeView, buildWalkers, addEntry,
@@ -27,7 +27,7 @@ import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
-  describeSceneL, ritualHudTextL, nightClampNoticeL, postcardCaptionL,
+  describeSceneL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
 } from './i18n-text.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
@@ -145,14 +145,15 @@ function renderCampaign() {
 }
 function renderRitual() {
   const el = $('ritualInfo'); if (!el) return;
-  const text = ritualHudTextL(state.ritual, Math.round(state.sanity.dread * 100), lang);
+  const text = ritualHudTextL(state.ritual, Math.round(state.sanity.dread * 100), lang, state.night + 1);
   if (el.textContent !== text) el.textContent = text;
 }
 function trackRitual() {
-  const stage = ritualStageForDread(state.ritual, Math.round(state.sanity.dread * 100));
+  const prog = ritualProgress(state.ritual, state.night + 1, Math.round(state.sanity.dread * 100));
+  const stage = prog.effective;
   if (stage > state.ritualStage && stage >= 0) {
     const st = state.ritual.stages[stage];
-    log('omen', tr('log.ritual', { name: st.name, sigil: st.sigil }));
+    log('omen', tr('log.ritual', { name: st.name, sigil: st.sigil }) + ritualScheduleTextL(prog, state.ritual.stages.length, lang));
   }
   state.ritualStage = stage;
   renderRitual();
@@ -220,7 +221,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -228,6 +229,7 @@ function applySession(s) {
   const v = parseSession(s); if (!v) return;
   history.replaceState(null, '', sessionHash(v));
   applyHash();
+  state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -249,7 +251,7 @@ function tickPerf(now) {
 }
 function caseMarkdown() {
   const r = report();
-  return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, journal: [...state.journal].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
+  return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, night: state.night + 1, journal: [...state.journal].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
 }
 // Applies the language to every static label declared in index.html. English is the markup itself, so it is left untouched.
 function applyI18n() {

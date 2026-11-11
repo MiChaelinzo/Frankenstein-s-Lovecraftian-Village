@@ -1,12 +1,12 @@
 // Case file export: deterministic Markdown/HTML of a campaign. No timestamps, so the same inputs give identical output.
 import { buildStory } from './story.js';
-import { generateRitual } from './core.js';
+import { generateRitual, ritualProgress } from './core.js';
 
 const one = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 export const caseFileName = (seed, ext) => `village-casefile-seed-${seed | 0}.${ext}`;
 
-/** input: { campaign, seed, sanity, journal: [{kind,text,sanity}], report?: { pieces, tier, dreadPercent, omen } } */
-export function buildCaseFile({ campaign, seed, sanity, journal = [], report = null }) {
+/** input: { campaign, seed, sanity, journal: [{kind,text,sanity}], report?: { pieces, tier, dreadPercent, omen }, night?: 1-based current night } */
+export function buildCaseFile({ campaign, seed, sanity, journal = [], report = null, night = 0 }) {
   const L = [];
   const name = campaign ? campaign.villageName : 'Unknown';
   L.push(`# Case File: ${name}`, '', `- Seed: ${seed | 0}`, `- Sanity at filing: ${Math.round(sanity)}`);
@@ -23,6 +23,11 @@ export function buildCaseFile({ campaign, seed, sanity, journal = [], report = n
     const ritual = generateRitual(campaign);
     L.push('', `## Ritual: ${one(ritual.name)}`, '');
     for (const st of ritual.stages) L.push(`- Night ${st.nightNumber}, ${st.name} (sigil ${st.sigil}), begins at ${st.dreadThresholdPercent}% dread, omen ${st.omenId}, story beat ${st.beatIndex + 1}`);
+    L.push('', `Night schedule: night N reaches ritual stage N of ${ritual.stages.length}. The effective stage is the later of the night's stage and the stage dread has reached, so the night sets a floor.`);
+    if (night >= 1) {
+      const p = ritualProgress(ritual, night, Math.round(100 - sanity));
+      L.push('', `Current: night schedule: stage ${p.scheduled + 1} of ${ritual.stages.length}, dread reached: ${p.dreadReached < 0 ? 'none' : `stage ${p.dreadReached + 1}`}, effective stage ${p.effective + 1} (${p.pace === 'on' ? 'on schedule' : p.pace}).`);
+    }
     L.push('', '## Story beats', '');
     for (const b of buildStory(campaign)) L.push(`- [night ${b.nightNumber}, ${b.kind}, ${b.dreadPercent}%] ${one(b.text)}`);
   }
