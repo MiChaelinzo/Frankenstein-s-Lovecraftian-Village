@@ -12,7 +12,7 @@ export function parseSession(input) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
   const seed = int(o.seed), sanity = int(o.sanity);
   if (seed === null || sanity === null) return null;
-  const night = int(o.night), beat = int(o.beat), floor = int(o.floor);
+  const night = int(o.night), beat = int(o.beat), floor = int(o.floor), stage = int(o.stage);
   return {
     seed: seed | 0,
     sanity: clamp(sanity, 0, 100),
@@ -21,6 +21,7 @@ export function parseSession(input) {
     theme: typeof o.theme === 'string' && THEME_RE.test(o.theme) ? o.theme : 'auto',
     cam: CAMERAS.includes(o.cam) ? o.cam : 'third',
     floor: floor === null ? 0 : clamp(floor, 0, 8),
+    stage: stage === null ? -1 : clamp(stage, -1, 8), // effective ritual stage reached, -1 for none
   };
 }
 

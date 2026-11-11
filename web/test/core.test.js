@@ -105,3 +105,25 @@ test('report: counts add up, deterministic, no em dash', () => {
   assert.doesNotThrow(() => JSON.parse(js(a)));
   assert.ok(md(build(null, null, 4, 4, 1, NaN)).includes('- none'));
 });
+
+import { generateRitual as _gr, generateCampaign as _gc, ritualProgress as _rp, scheduledStageForNight as _ss, serializeRitualSave as _sr, parseRitualSave as _pr, clampRitualSave as _cr } from '../src/core.js';
+test('ritual progress: night sets a floor, dread can run ahead', () => {
+  const r = _gr(_gc(1818, 5));
+  const p = _rp(r, 4, 20);
+  assert.equal(p.scheduled, 3);
+  assert.ok(p.dreadReached < 3);
+  assert.equal(p.effective, 3);
+  assert.equal(p.pace, 'behind');
+  assert.equal(_rp(r, 1, 100).pace, 'ahead');
+  assert.equal(_rp(r, 1, 100).effective, 4);
+  assert.equal(_ss(null, 2), -1);
+  assert.equal(_ss(r, 0), -1);
+  assert.equal(_ss(r, 99), 4);
+});
+test('ritual save text round trips, rejects junk and clamps', () => {
+  const s = { seed: -5, nightNumber: 3, stage: 2 };
+  assert.deepEqual(_pr(_sr(s)), s);
+  for (const bad of [null, '', 'ritual1;1;2', 'ritual2;1;2;3', 'ritual1;a;2;3', 'ritual1;1;2;99999999999']) assert.equal(_pr(bad), null);
+  assert.deepEqual(_cr({ seed: 1, nightNumber: 50, stage: 50 }, 5), { seed: 1, nightNumber: 5, stage: 4 });
+  assert.deepEqual(_cr({ seed: 1, nightNumber: 50, stage: 50 }, 0), { seed: 1, nightNumber: 1, stage: -1 });
+});

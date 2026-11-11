@@ -531,6 +531,42 @@ export function ritualStageForDread(ritual, dreadPercent) {
   return found;
 }
 
+/** Stage the night schedule expects (night N maps to stage N-1, clamped). -1 for no ritual or night below 1. */
+export function scheduledStageForNight(ritual, nightNumber) {
+  if (!ritual || !ritual.stages.length || nightNumber < 1) return -1;
+  return Math.min(nightNumber, ritual.stages.length) - 1;
+}
+
+/** { scheduled, dreadReached, effective, pace }. The night sets a floor: effective is the larger of scheduled and dread-reached. */
+export function ritualProgress(ritual, nightNumber, dreadPercent) {
+  const scheduled = scheduledStageForNight(ritual, nightNumber);
+  const dreadReached = ritualStageForDread(ritual, dreadPercent);
+  return { scheduled, dreadReached, effective: Math.max(scheduled, dreadReached), pace: dreadReached < scheduled ? 'behind' : dreadReached > scheduled ? 'ahead' : 'on' };
+}
+
+export function describeRitualProgress(p) {
+  return `scheduled ${p.scheduled} reached ${p.dreadReached} effective ${p.effective} ${p.pace}`;
+}
+
+/** Plain ritual save state, text form "ritual1;seed;night;stage" (RitualSaveState.cs). */
+export function clampRitualSave(s, stageCount) {
+  const count = Math.max(0, stageCount | 0);
+  return {
+    seed: s.seed | 0,
+    nightNumber: count === 0 ? 1 : Math.max(1, Math.min(count, s.nightNumber | 0)),
+    stage: Math.max(-1, Math.min(count - 1, s.stage | 0)),
+  };
+}
+export function serializeRitualSave(s) { return `ritual1;${s.seed | 0};${s.nightNumber | 0};${s.stage | 0}`; }
+export function parseRitualSave(text) {
+  if (typeof text !== 'string') return null;
+  const p = text.split(';');
+  if (p.length !== 4 || p[0] !== 'ritual1' || !p.slice(1).every((x) => /^[+-]?\d+$/.test(x))) return null;
+  const v = p.slice(1).map(Number);
+  if (v.some((x) => x < -2147483648 || x > 2147483647)) return null;
+  return { seed: v[0], nightNumber: v[1], stage: v[2] };
+}
+
 export function describeRitualStage(s) {
   return `Night ${s.nightNumber}: ${s.name} [${s.sigil}] at ${s.dreadThresholdPercent}% omen ${s.omenId} beat ${s.beatIndex}`;
 }
@@ -591,3 +627,77 @@ export function suggestedCamera(dread) {
 export function allowedCamera(requested, dread) {
   return tierFor(dread) >= 3 && requested === 2 ? 0 : requested;
 }
+
+// ---- Investigator (Investigator.cs) ----
+
+export const INVESTIGATOR_MAX_WAYPOINTS = 10;
+export const INVESTIGATOR_RANGE = 2;
+export const OMEN_SITE_IDS = ['altar', 'well', 'church', 'dead_tree'];
+
+const siteCenter = (p) => ({ x: p.x + Math.trunc(p.sizeX / 2), z: p.z + Math.trunc(p.sizeZ / 2) });
+
+export function buildInvestigatorRoute(layout, width, depth, rng) {
+  const route = [];
+  const count = Math.min(INVESTIGATOR_MAX_WAYPOINTS, layout.length);
+  const used = new Array(layout.length).fill(false);
+  const cur = rng.next(layout.length);
+  used[cur] = true;
+  const pos = siteCenter(layout[cur]);
+  route.push({ x: pos.x, z: pos.z });
+  const clamp = (c) => ({ x: Math.max(0, Math.min(width - 1, c.x)), z: Math.max(0, Math.min(depth - 1, c.z)) });
+  for (let w = 1; w < count; w++) {
+    let best = -1, bestDist = 2147483647;
+    for (let i = 0; i < layout.length; i++) {
+      if (used[i]) continue;
+      const c = siteCenter(layout[i]);
+      const d = Math.abs(c.x - pos.x) + Math.abs(c.z - pos.z);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    if (best < 0) break;
+    used[best] = true;
+    const target = siteCenter(layout[best]);
+    while (pos.x !== target.x) { pos.x += Math.sign(target.x - pos.x); route.push(clamp(pos)); }
+    while (pos.z !== target.z) { pos.z += Math.sign(target.z - pos.z); route.push(clamp(pos)); }
+  }
+  return route;
+}
+
+/** One cell per step(); the first cell within range of each omen site yields a sanity hit. */
+export class Investigator {
+  constructor(layout, width, depth, seed) {
+    this.rng = new SeededRandom(seed ^ 0x1abe11);
+    this.route = [];
+    this.tick = 0;
+    this.sites = [];
+    this.visited = [];
+    if (!layout || !layout.length || !(width > 0) || !(depth > 0)) return;
+    this.sites = layout.filter((p) => OMEN_SITE_IDS.includes(p.id));
+    this.visited = this.sites.map(() => false);
+    this.route = buildInvestigatorRoute(layout, width, depth, this.rng);
+  }
+  get finished() { return this.tick >= this.route.length; }
+  get position() { return this.route.length ? this.route[Math.min(this.tick, this.route.length - 1)] : { x: 0, z: 0 }; }
+  /** Returns a hit {tick, x, z, siteId, sanityLoss} or null. */
+  step() {
+    if (this.finished) return null;
+    const cell = this.route[this.tick];
+    const at = this.tick++;
+    for (let i = 0; i < this.sites.length; i++) {
+      if (this.visited[i]) continue;
+      const c = siteCenter(this.sites[i]);
+      if (Math.max(Math.abs(c.x - cell.x), Math.abs(c.z - cell.z)) > INVESTIGATOR_RANGE) continue;
+      this.visited[i] = true;
+      return { tick: at, x: cell.x, z: cell.z, siteId: this.sites[i].id, sanityLoss: 3 + this.rng.next(5) };
+    }
+    return null;
+  }
+}
+
+export function simulateInvestigator(layout, width, depth, seed) {
+  const inv = new Investigator(layout, width, depth, seed);
+  const hits = [];
+  while (!inv.finished) { const h = inv.step(); if (h) hits.push(h); }
+  return hits;
+}
+
+export const describeInvestigatorHit = (h) => `tick ${h.tick} at ${h.x},${h.z} ${h.siteId} -${h.sanityLoss}`;

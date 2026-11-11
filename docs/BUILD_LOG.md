@@ -69,3 +69,16 @@ A short history of how this project was built, taken from `git log` on the `feat
 
 ## Round 8 fixes
 - `f6ac618` Service worker offline fallback to index.html now only for navigation requests; `isNavigation` tested in pwa.test.js.
+
+## Round 9 ritual stage resolution
+- `a9d4138` Core `ScheduledStageForNight`, `Progress`, `RitualSaveState`, JS port, golden `progress` parity, xunit and node tests.
+- `cbaa3b6` Web: HUD, journal, case file and session show night schedule, dread-reached and effective stage (en and fr).
+- `6bf7297` Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge`. Not compiled: Unity is not installed here.
+
+## Round 9 investigator
+- `20d139d` Core `Investigator.cs`, JS port, property tests, golden `investigators` parity, self-test group.
+- `f1236a7` Web wiring (toggle, canvas, minimap, journal, screen reader text) and docs. Screenshot `docs/media/investigator.png` shows the web demo only.
+
+## Round 9 cinematic, input and accessibility
+- `252b411` Web cinematic capture mode (`web/src/cinematic.js`, pure timeline, still camera under reduced motion), gamepad and touch mapping (`web/src/input.js`), skip link and caption live region, duplicate `applyI18n()` call removed. Test counts after: node 131, dotnet 58. Headless screenshot `docs/media/cinematic.png` checked (web demo only). Gamepad and touch not tried on real hardware.
+- `ac165d9` Docs: README, CHANGELOG, DEMO_SCRIPT clean take steps, Devpost checklist, tasks 49 to 52, steering. Offscreen terrain cache skipped (task 52): ground and sea redraw from dread, the easing camera squash and pack patterns each frame.

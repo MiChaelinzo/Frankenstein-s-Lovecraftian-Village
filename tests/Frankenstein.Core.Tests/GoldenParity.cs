@@ -196,8 +196,33 @@ namespace Frankenstein.Core.Tests
                       .Append(", \"name\": ").Append(JsonSerializer.Serialize(ritual.Name)).Append(", \"stages\": [");
                     for (int i = 0; i < ritual.Stages.Count; i++)
                         sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(RitualChain.Describe(ritual.Stages[i])));
+                    sb.Append("], \"progress\": [");
+                    bool firstP = true;
+                    for (int night = 0; night <= ritual.Stages.Count + 1; night++)
+                        foreach (int dread in new[] { 0, 25, 50, 80, 100 })
+                        {
+                            sb.Append(firstP ? "" : ", ").Append(JsonSerializer.Serialize(RitualChain.Describe(RitualChain.Progress(ritual, night, dread))));
+                            firstP = false;
+                        }
                     sb.Append("] }");
                 }
+            sb.Append("\n  ],\n  \"investigators\": [\n");
+            first = true;
+            foreach (var s in Seeds)
+            {
+                var layout = VillageLayoutGenerator.Generate(cat, 24, 24, 40, s);
+                var walker = new Investigator(layout, 24, 24, s);
+                if (!first) sb.Append(",\n");
+                first = false;
+                sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"length\": ").Append(walker.Route.Count).Append(", \"cells\": [");
+                for (int i = 0; i < walker.Route.Count; i++)
+                    sb.Append(i > 0 ? ", " : "").Append('[').Append(walker.Route[i].X).Append(", ").Append(walker.Route[i].Z).Append(']');
+                sb.Append("], \"hits\": [");
+                var hits = Investigator.Simulate(layout, 24, 24, s);
+                for (int i = 0; i < hits.Count; i++)
+                    sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(Investigator.Describe(hits[i])));
+                sb.Append("] }");
+            }
             sb.Append("\n  ],\n  \"matcher\": {\n    \"scores\": [");
             for (int i = 0; i < MatchIds.Length; i++)
                 for (int k = 0; k < MatchNames.Length; k++)

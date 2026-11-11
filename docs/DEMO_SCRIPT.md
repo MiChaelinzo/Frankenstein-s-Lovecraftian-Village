@@ -11,6 +11,13 @@ All footage is recorded by the author from this repo and the author's own Unity 
 
 If you have no Unity footage, skip that clip and say so; the Unity side is code-complete but unverified in the editor.
 
+## Cinematic mode for a clean take
+1. Serve the demo locally (`python3 -m http.server -d web 8000`) and open `http://localhost:8000/?intro=0&cinematic=1#seed=1818&night=3` in a full-screen browser window at 1920x1080.
+2. The page hides its chrome, shows a large caption and pans and zooms through that night's story beats. Timings are fixed (the story beat reading times), so every take of the same seed and night is identical; rehearse once, then record.
+3. The take ends by itself about two seconds after the last beat and the normal page comes back. Press `B` or `Esc` to stop early, `B` to start again on the current night.
+4. With reduced motion (`?reduced=1` or the OS setting) the camera stays still and only the captions change, which is useful for a calm b-roll shot.
+5. Music stays off unless you tick it before pressing `B`.
+
 ## Why third-party promo footage is not used
 - Copyright: the DLNK trailer belongs to DLNK Works; a submission cannot reuse it without permission.
 - Licensing: the pack license covers using the assets in your own project, not redistributing their marketing.
@@ -25,5 +32,6 @@ Extra shots, all in the browser:
 - Buildings panel: `theme`, `cam=top` with the floor slider, `O` to try doors.
 - Download the Markdown report; drive the demo from the keyboard (`W C L N [ ] D M T V F O ?`).
 - Reduced motion with `?reduced=1`.
+- Cinematic take of a night: `?intro=0&cinematic=1#seed=1818&night=3` (see above).
 
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.

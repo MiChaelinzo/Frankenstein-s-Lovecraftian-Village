@@ -1,5 +1,5 @@
 // Pure helpers for the browser scene. No DOM access here so node can test them.
-import { SeededRandom } from './core.js';
+import { SeededRandom, ritualProgress } from './core.js';
 
 /** Fit a gw x gd isometric board into a cw x ch canvas. Returns tile size and the screen origin of cell (0,0). */
 export function computeView(cw, ch, gw, gd, margin = { x: 8, top: 110, bottom: 8 }) {
@@ -173,16 +173,22 @@ export function nightFromHash(hash, count) {
   return Math.max(0, Math.min(count - 1, v - 1));
 }
 
-/** HUD text for the current ritual stage. `ritual` comes from generateRitual; dreadPercent is 0..100. */
-export function ritualHudText(ritual, dreadPercent) {
+/**
+ * HUD text for the current ritual stage. `ritual` comes from generateRitual; dreadPercent is 0..100.
+ * With a 1-based `nightNumber` the night schedule sets a floor: the shown stage is the larger of the scheduled and dread-reached
+ * stage and the text also states both ("Night schedule: stage 4 of 5, dread reached: stage 1 (behind)").
+ */
+export function ritualHudText(ritual, dreadPercent, nightNumber) {
   if (!ritual || !Array.isArray(ritual.stages) || !ritual.stages.length) return '';
-  let found = -1;
-  for (let i = 0; i < ritual.stages.length; i++) if (ritual.stages[i].dreadThresholdPercent <= dreadPercent) found = i;
+  const prog = ritualProgress(ritual, typeof nightNumber === 'number' ? nightNumber : 0, dreadPercent);
+  const found = prog.effective;
   if (found < 0) {
     return `${ritual.name}: not yet begun (first stage, ${ritual.stages[0].name}, at ${ritual.stages[0].dreadThresholdPercent}% dread).`;
   }
   const st = ritual.stages[found];
   const next = ritual.stages[found + 1];
-  return `${ritual.name}: stage ${found + 1} of ${ritual.stages.length}, ${st.name} (sigil ${st.sigil}).` +
+  const sched = prog.scheduled < 0 ? '' :
+    ` Night schedule: stage ${prog.scheduled + 1} of ${ritual.stages.length}, dread reached: ${prog.dreadReached < 0 ? 'none' : `stage ${prog.dreadReached + 1}`} (${prog.pace === 'on' ? 'on schedule' : prog.pace}).`;
+  return `${ritual.name}: stage ${found + 1} of ${ritual.stages.length}, ${st.name} (sigil ${st.sigil}).${sched}` +
     (next ? ` Next: ${next.name} at ${next.dreadThresholdPercent}% dread.` : ' The rite is complete.');
 }

@@ -11,64 +11,66 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
+  <a class="skip-link" href="#view" data-i18n="a11y.skip">Skip to the village view</a>
+  <main id="main">
     <header>
-      <h1>Frankenstein's Lovecraftian Village</h1>
-      <p class="tag">Stitched from a seeded layout generator, a sanity model and a narrator. Kiroween 2026, Frankenstein category.</p>
+      <h1 data-i18n="page.title">Frankenstein's Lovecraftian Village</h1>
+      <p class="tag" data-i18n="page.tag">Stitched from a seeded layout generator, a sanity model and a narrator. Kiroween 2026, Frankenstein category.</p>
     </header>
 
     <div class="layout">
       <div class="primary">
         <section class="stage" aria-label="Village view">
-          <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" aria-describedby="viewDesc"></canvas>
+          <canvas id="view" width="960" height="560" tabindex="0" role="img" aria-label="Procedurally generated isometric village" data-i18n-aria="aria.view" aria-describedby="viewDesc"></canvas>
           <div id="narration" class="narration" aria-live="polite"></div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
-          <div id="hint" class="hint">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
+          <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
+          <div id="hint" class="hint" data-i18n="hint.view">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
         <p id="viewDesc" class="sr-only"></p>
 
         <section id="story" class="panel story" aria-labelledby="storyTitle" hidden>
-          <h2 id="storyTitle">Story mode</h2>
+          <h2 id="storyTitle" data-i18n="title.story">Story mode</h2>
           <p id="storyMeta" class="stats"></p>
           <p id="storyText" class="story-text" aria-live="polite"></p>
           <div class="row">
-            <button id="storyPrev" type="button">Previous</button>
-            <button id="storyPlay" type="button" aria-pressed="false">Play</button>
-            <button id="storyNext" type="button">Next</button>
-            <button id="storyExit" type="button">Exit story</button>
+            <button id="storyPrev" type="button" data-i18n="btn.prev">Previous</button>
+            <button id="storyPlay" type="button" aria-pressed="false" data-i18n="btn.play">Play</button>
+            <button id="storyNext" type="button" data-i18n="btn.next">Next</button>
+            <button id="storyExit" type="button" data-i18n="btn.exitstory">Exit story</button>
           </div>
         </section>
 
         <section class="panel campaign" aria-labelledby="campaignTitle">
-          <h2 id="campaignTitle">Campaign: <span id="villageName">the village</span></h2>
+          <h2 id="campaignTitle"><span data-i18n="title.campaign">Campaign:</span> <span id="villageName">the village</span></h2>
           <div class="row">
-            <label for="night">Night</label>
+            <label for="night" data-i18n="label.night">Night</label>
             <select id="night"></select>
-            <button id="nightPrev" type="button">Previous night</button>
-            <button id="nightNext" type="button">Next night</button>
-            <button id="storyOpen" type="button" aria-controls="story">Story mode (S)</button>
-            <button id="postcard" type="button">Save postcard (PNG)</button>
+            <button id="nightPrev" type="button" data-i18n="btn.nightprev">Previous night</button>
+            <button id="nightNext" type="button" data-i18n="btn.nightnext">Next night</button>
+            <button id="storyOpen" type="button" aria-controls="story" data-i18n="btn.story">Story mode (S)</button>
+            <button id="postcard" type="button" data-i18n="btn.postcard">Save postcard (PNG)</button>
           </div>
           <p id="nightClamp" class="stats" role="status" hidden></p>
           <p id="nightInfo" class="stats" aria-live="polite"></p>
         </section>
 
         <section class="panel building" aria-labelledby="buildingTitle">
-          <h2 id="buildingTitle">Buildings</h2>
+          <h2 id="buildingTitle" data-i18n="title.buildings">Buildings</h2>
           <div class="row">
-            <label for="theme">Texture theme</label>
-            <select id="theme" aria-describedby="themeNote"><option value="auto">Default (mixed)</option></select>
-            <label for="camera">Camera</label>
+            <label for="theme" data-i18n="label.theme">Texture theme</label>
+            <select id="theme" aria-describedby="themeNote"><option value="auto" data-i18n="opt.themeauto">Default (mixed)</option></select>
+            <label for="camera" data-i18n="label.camera">Camera</label>
             <select id="camera" aria-describedby="cameraNote">
-              <option value="third">Third-person</option>
-              <option value="first">First-person look</option>
-              <option value="top">Top-down cutaway</option>
-              <option value="auto">Auto (follow dread)</option>
+              <option value="third" data-i18n="cam.third">Third-person</option>
+              <option value="first" data-i18n="cam.first">First-person look</option>
+              <option value="top" data-i18n="cam.top">Top-down cutaway</option>
+              <option value="auto" data-i18n="cam.auto">Auto (follow dread)</option>
             </select>
             <label for="floor"><output id="floorOut">Floor 1</output></label>
             <input id="floor" type="range" min="0" max="2" step="1" value="0" aria-describedby="cameraNote">
-            <button id="door" type="button">Try the next door</button>
+            <button id="door" type="button" data-i18n="btn.door">Try the next door</button>
           </div>
           <p id="themeNote" class="stats"></p>
           <p id="cameraNote" class="stats"></p>
@@ -76,94 +78,99 @@
 
         <section class="panel" aria-label="Controls">
           <div class="row">
-            <label for="seed">Seed</label>
+            <label for="seed" data-i18n="label.seed">Seed</label>
             <input id="seed" type="number" step="1" value="1818">
-            <button id="reroll" type="button">Stitch a new village</button>
-            <button id="share" type="button">Copy share link</button>
+            <button id="reroll" type="button" data-i18n="btn.reroll">Stitch a new village</button>
+            <button id="share" type="button" data-i18n="btn.share">Copy share link</button>
           </div>
           <div class="row">
-            <label for="sanity">Sanity <output id="sanityOut">100</output></label>
+            <label for="sanity"><span data-i18n="label.sanity">Sanity</span> <output id="sanityOut">100</output></label>
             <input id="sanity" type="range" min="0" max="100" step="1" value="100">
             <span class="meter" aria-hidden="true"><i id="dreadBar"></i></span>
             <span id="dreadOut" class="dread">Dread 0%</span>
           </div>
           <div class="row">
-            <button id="whisper" type="button">Hear a whisper (-8)</button>
-            <button id="church" type="button">Enter the church (-15)</button>
-            <button id="candle" type="button">Light a candle (+10)</button>
-            <label class="check"><input id="drain" type="checkbox"> Let the dark creep in</label>
-            <label class="check"><input id="sound" type="checkbox"> Music (procedural, off until you opt in)</label>
-            <label for="volume">Volume</label>
-            <input id="volume" type="range" min="0" max="100" step="5" value="60" aria-label="Music volume">
-            <button id="mute" type="button" aria-pressed="false">Mute (U)</button>
+            <button id="whisper" type="button" data-i18n="btn.whisper">Hear a whisper (-8)</button>
+            <button id="church" type="button" data-i18n="btn.church">Enter the church (-15)</button>
+            <button id="candle" type="button" data-i18n="btn.candle">Light a candle (+10)</button>
+            <label class="check"><input id="drain" type="checkbox"> <span data-i18n="label.drain">Let the dark creep in</span></label>
+            <label class="check"><input id="sound" type="checkbox"> <span data-i18n="label.music">Music (procedural, off until you opt in)</span></label>
+            <label for="volume" data-i18n="label.volume">Volume</label>
+            <input id="volume" type="range" min="0" max="100" step="5" value="60" aria-label="Music volume" data-i18n-aria="aria.volume">
+            <button id="mute" type="button" aria-pressed="false" data-i18n="btn.mute">Mute (U)</button>
           </div>
           <div class="row">
-            <label for="listen">Listen to</label>
-            <select id="listen"><option value="">Choose a landmark</option></select>
-            <button id="dlMd" type="button">Download report (Markdown)</button>
-            <button id="dlJson" type="button">Download report (JSON)</button>
-            <button id="dlCase" type="button">Download case file (Markdown)</button>
-            <button id="dlCaseHtml" type="button">Case file (HTML)</button>
+            <label for="listen" data-i18n="label.listen">Listen to</label>
+            <select id="listen"><option value="" data-i18n="opt.landmark">Choose a landmark</option></select>
+            <button id="dlMd" type="button" data-i18n="btn.dlmd">Download report (Markdown)</button>
+            <button id="dlJson" type="button" data-i18n="btn.dljson">Download report (JSON)</button>
+            <button id="dlCase" type="button" data-i18n="btn.casefile">Download case file (Markdown)</button>
+            <button id="dlCaseHtml" type="button" data-i18n="btn.casehtml">Case file (HTML)</button>
           </div>
           <div class="row">
-            <button id="saveSession" type="button">Save session</button>
-            <button id="loadSession" type="button">Load session</button>
-            <button id="mapToggle" type="button" aria-pressed="false" aria-controls="mapPanel">Map (G)</button>
-            <button id="perfToggle" type="button" aria-pressed="false">Perf (X)</button>
+            <button id="saveSession" type="button" data-i18n="btn.save">Save session</button>
+            <button id="loadSession" type="button" data-i18n="btn.load">Load session</button>
+            <button id="mapToggle" type="button" aria-pressed="false" aria-controls="mapPanel" data-i18n="btn.map">Map (G)</button>
+            <button id="invToggle" type="button" aria-pressed="false" data-i18n="btn.investigator">Investigator (I)</button>
+            <button id="cinemaToggle" type="button" aria-pressed="false" data-i18n="btn.cinematic">Cinematic (B)</button>
+            <button id="perfToggle" type="button" aria-pressed="false" data-i18n="btn.perf">Perf (X)</button>
           </div>
           <p id="sessionNote" class="stats" role="status" aria-live="polite"></p>
           <p id="stats" class="stats"></p>
         </section>
       </div>
 
-      <aside class="side">
+      <aside class="side" aria-label="Journal, map and keys">
         <section class="panel journal" aria-labelledby="journalTitle">
-          <h2 id="journalTitle">Whispers</h2>
-          <ol id="whispers" class="whispers"><li class="empty">Nothing has spoken yet.</li></ol>
+          <h2 id="journalTitle" data-i18n="title.whispers">Whispers</h2>
+          <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
-          <h2 id="mapTitle">Village map</h2>
-          <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds"></canvas>
+          <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
+          <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds" data-i18n-aria="aria.minimap"></canvas>
           <ul id="legend" class="legend" aria-label="Legend"></ul>
         </section>
         <details id="keys" class="panel keys" open>
-          <summary>Keyboard</summary>
+          <summary data-i18n="keys.title">Keyboard</summary>
           <ul>
-            <li><kbd>W</kbd> whisper</li>
-            <li><kbd>C</kbd> enter the church</li>
-            <li><kbd>L</kbd> light a candle</li>
-            <li><kbd>N</kbd> new village</li>
-            <li><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
-            <li><kbd>D</kbd> let the dark creep in</li>
-            <li><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
-            <li><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
-            <li><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
-            <li><kbd>P</kbd> save postcard</li>
-            <li><kbd>G</kbd> village map and legend</li>
-            <li><kbd>X</kbd> performance readout (also ?perf=1)</li>
-            <li><kbd>T</kbd> next texture theme</li>
-            <li><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
-            <li><kbd>F</kbd> peel up one floor (top-down only)</li>
-            <li><kbd>O</kbd> try the next door</li>
-            <li><kbd>?</kbd> show or hide this list</li>
-            <li>View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
+            <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
+            <li data-i18n-html="keys.church"><kbd>C</kbd> enter the church</li>
+            <li data-i18n-html="keys.candle"><kbd>L</kbd> light a candle</li>
+            <li data-i18n-html="keys.newvillage"><kbd>N</kbd> new village</li>
+            <li data-i18n-html="keys.sanity"><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
+            <li data-i18n-html="keys.drain"><kbd>D</kbd> let the dark creep in</li>
+            <li data-i18n-html="keys.music"><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
+            <li data-i18n-html="keys.story"><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
+            <li data-i18n-html="keys.nights"><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
+            <li data-i18n-html="keys.postcard"><kbd>P</kbd> save postcard</li>
+            <li data-i18n-html="keys.map"><kbd>G</kbd> village map and legend</li>
+            <li data-i18n-html="keys.investigator"><kbd>I</kbd> send an investigator along the lantern route (also ?investigator=1)</li>
+            <li data-i18n-html="keys.cinematic"><kbd>B</kbd> cinematic capture mode: chrome hidden, scripted camera through this night's story beats (also ?cinematic=1)</li>
+            <li data-i18n="keys.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic. Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper.</li>
+            <li data-i18n-html="keys.perf"><kbd>X</kbd> performance readout (also ?perf=1)</li>
+            <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
+            <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
+            <li data-i18n-html="keys.floor"><kbd>F</kbd> peel up one floor (top-down only)</li>
+            <li data-i18n-html="keys.door"><kbd>O</kbd> try the next door</li>
+            <li data-i18n-html="keys.help"><kbd>?</kbd> show or hide this list</li>
+            <li data-i18n-html="keys.focus">View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
           </ul>
         </details>
       </aside>
     </div>
 
     <footer>
-      <p>Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro, or ?lang=fr for the partial French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
+      <p data-i18n-html="foot.html">Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro, or ?lang=fr for the French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
   <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" aria-describedby="introText" hidden>
     <div class="intro-card">
       <h2 id="introTitle"></h2>
       <p id="introText"></p>
-      <p class="stats"><span id="introStep"></span> Enter, Space or Right arrow to continue, Escape to skip.</p>
+      <p class="stats"><span id="introStep"></span> <span data-i18n="intro.hint">Enter, Space or Right arrow to continue, Escape to skip.</span></p>
       <div class="row">
-        <button id="introNext" type="button">Next</button>
-        <button id="introSkip" type="button">Skip intro</button>
+        <button id="introNext" type="button" data-i18n="btn.next">Next</button>
+        <button id="introSkip" type="button" data-i18n="btn.skipintro">Skip intro</button>
       </div>
     </div>
   </div>

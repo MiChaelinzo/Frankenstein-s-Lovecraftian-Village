@@ -24,6 +24,10 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 - Change the **seed** for a new village, drag **sanity** down to watch the vignette close in, the fog thicken, the moon redden and the narrator turn on you. Click buildings for whispers. Open **Story mode** (`S`) to step or autoplay through every beat of every night. A skippable intro plays on a bare URL. Tick **Music** to opt in to an original procedural WebAudio soundtrack (no audio files, silent until you opt in, with volume and mute).
 - Story deep links: `#seed=1818&story=1&night=3&beat=2` (beat is 0-based within the night); `?story=1&autoplay=1` starts playing. `?intro=0` or `#intro=0` skips the intro, and any `#seed=`, `#story=`, `#sanity=` or `#night=` link skips it automatically.
 - Share a state with the URL hash, for example `#seed=1818&sanity=35`.
+- **Cinematic mode** for clean video takes: `?intro=0&cinematic=1#seed=1818&night=3` (or press `B`). Chrome is hidden and a scripted camera pans through that night's story beats on fixed timings, then the page returns. Reduced motion keeps the camera still. See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+- **Gamepad and touch**: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic; swipe sideways on the view to pick a landmark, up for a candle, down for a whisper. Mapping is unit tested; not tried on real hardware here.
+
+![Cinematic mode](docs/media/cinematic.png)
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
 
 What the demo does:
@@ -34,7 +38,7 @@ What the demo does:
 ![Campaign night 5](docs/media/campaign-night5.png)
 - **Whispers journal**: every whisper is kept, so you can reread what the narrator said.
 - **Village report**: download a Markdown or JSON report of the current seed, sanity and layout.
-- **Accessibility**: full keyboard control, reduced motion (`prefers-reduced-motion` or `?reduced=1`), responsive layout.
+- **Accessibility**: full keyboard control, skip link to the village view, live regions for toasts and cinematic captions, a screen reader description of the village, reduced motion (`prefers-reduced-motion` or `?reduced=1`), responsive layout.
 
 | Key | Action |
 |-----|--------|
@@ -47,6 +51,7 @@ What the demo does:
 | `M` | music on/off |
 | `U` | mute |
 | `S` | story mode (then `,` `.` or Left / Right step, Space play/pause, Esc exit) |
+| `B` | cinematic capture mode (`B` or `Esc` leaves) |
 | `?` | show or hide the list |
 | Left / Right / Enter | with the canvas focused: pick a landmark and listen |
 
@@ -122,7 +127,8 @@ The URP package (about 100 MB) is enough for inspection and for URP projects; th
 - Fantasy and horror environment design
 - First-person, third-person, and top-down compatibility
 - AI-assisted development workflow
-- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; the Unity `RitualDirector` is planned, not built.
+- **Ritual chain**: a seeded cult ritual runs across the campaign nights (stage names, sigils, rising dread thresholds, linked to each night's omen beat). The night panel shows the current stage, the journal logs advances, and the case file lists the chain. Core code is shared with C# via golden parity; night N sets a floor of ritual stage N and dread can run ahead (the HUD shows "Night schedule: stage X of N, dread reached: stage Y" plus the effective stage). Unity `RitualDirector`, `RitualStateAsset` and `RitualSaveBridge` are code-complete but unverified in Unity (not compiled here); the Core logic is tested.
+- **Investigator** (off by default): a seeded investigator walks a lantern route between village pieces and loses sanity at omen sites (altar, well, church, dead tree). Press `I`, use the Investigator button or open with `?investigator=1`. Same seed gives the same route and hits in C# and JS (golden parity). Shows a lantern figure, a minimap marker and journal entries, and the screen reader description lists what stands in the village.
 - Web demo extras: session save/load with auto-resume, village map and legend (`G`), case file export (Markdown or HTML), `?lang=fr` partial French, performance readout (`X` or `?perf=1`), offline shell via service worker on https/localhost (never in `?pack=1`)
 - Built for Kiroween 2026 Frankenstein challenge
 

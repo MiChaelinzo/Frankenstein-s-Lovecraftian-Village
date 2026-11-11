@@ -5,7 +5,8 @@
 Only the author can supply these. Nothing below has been filled in or guessed.
 
 - [x] Web extras (session save/load, map, case file, fr stub, perf HUD, offline shell) are covered by node tests; offline behaviour on a real host is unverified
-- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; Unity `RitualDirector` is planned only, not built
+- [x] Seeded ritual chain (Core, JS port, golden parity) shown in the web night panel, journal and case file; night schedule plus dread-reached stage with a floor-based effective stage; Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge` code-complete but unverified in Unity
+- [x] Seeded investigator walking a lantern route (Core, JS port, golden parity; web toggle `I` / `?investigator=1`, off by default; sanity hits in the journal, minimap marker, screen reader village description)
 - [ ] Public demo video URL (under 3 minutes), recorded by Michael G. Inso, added to the Devpost form
 - [ ] Public social post URL using #KiroweenHackathon26 (Social Blitz Prize)
 - [ ] Published blog post URL (Bonus Blog Prize; draft in `docs/BLOG_POST.md`)
@@ -114,6 +115,7 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
 - **Checklist (tied to [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md)):**
   - [ ] Total length under 3:00 (script targets 2:40)
   - [ ] 0:00-0:15 hook with fog and title card (web demo intro, `?intro=0` skips it)
+  - [ ] Cinematic take recorded with `?intro=0&cinematic=1` (steps in DEMO_SCRIPT, "Cinematic mode for a clean take")
   - [ ] Web story mode segment (deep links in DEMO_SCRIPT); soundtrack is original, procedural and opt-in, no audio files
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub
   - [ ] 0:40-1:10 spec requirements and the properties table in `design.md`

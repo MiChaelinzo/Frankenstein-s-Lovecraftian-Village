@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
-  generateRitual, describeRitualStage,
+  generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
 } from '../src/core.js';
 
@@ -88,6 +88,9 @@ test('ritual chains match C# RitualChain exactly', () => {
     const r = generateRitual(generateCampaign(g.seed, g.requested));
     assert.equal(r.name, g.name, `name seed ${g.seed}`);
     assert.deepEqual(r.stages.map(describeRitualStage), g.stages, `seed ${g.seed} nights ${g.requested}`);
+    const prog = [];
+    for (let night = 0; night <= r.stages.length + 1; night++) for (const d of [0, 25, 50, 80, 100]) prog.push(describeRitualProgress(ritualProgress(r, night, d)));
+    assert.deepEqual(prog, g.progress, `progress seed ${g.seed} nights ${g.requested}`);
   }
 });
 
@@ -124,5 +127,16 @@ test('DLNK building policy matches C# DreadBuildingPolicy exactly', () => {
   for (const [count, active, clamped, vis] of b.floors) {
     assert.equal(clampFloor(active, count), clamped);
     assert.deepEqual(vis.map((_, f) => (floorVisible(f, active, count, true) ? 1 : 0)), vis);
+  }
+});
+
+test('investigator routes and sanity hits match C# exactly', () => {
+  assert.ok(golden.investigators.length > 0);
+  for (const g of golden.investigators) {
+    const layout = generateLayout(catalog, 24, 24, 40, g.seed);
+    const inv = new Investigator(layout, 24, 24, g.seed);
+    assert.equal(inv.route.length, g.length, `length seed ${g.seed}`);
+    assert.deepEqual(inv.route.map((c) => [c.x, c.z]), g.cells, `route seed ${g.seed}`);
+    assert.deepEqual(simulateInvestigator(layout, 24, 24, g.seed).map(describeInvestigatorHit), g.hits, `hits seed ${g.seed}`);
   }
 });
