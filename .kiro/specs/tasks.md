@@ -11,8 +11,8 @@
 - [x] 9. Kiro hooks and steering
 - [x] 10. README, KIRO_USAGE, DEMO_SCRIPT, DEVPOST_SUBMISSION
 - [ ] 11. In Unity: import owned pack, bind prefabs in a VillageCatalogAsset, build the demo scene (packages now downloaded and inspected locally; they hold no meshes, building prefabs come from the base pack)
-- [x] 12. HDRP volumes (fog, vignette, color) blended by dread (code-complete: `DreadCurve` in Core is tested; `DreadVolumeBlender` is unverified in Unity until the author authors the two Volumes)
-- [x] 13. Optional: AI narration provider via HTTP behind INarrationProvider (code-complete: `HttpNarrationProvider` is unverified in Unity)
+- [x] 12. HDRP volumes (fog, vignette, color) blended by dread (Core `DreadCurve` is Verified; `DreadVolumeBlender` is Unverified in Unity until the author authors the two Volumes)
+- [x] 13. Optional: AI narration provider via HTTP behind INarrationProvider (`HttpNarrationProvider` is Unverified in Unity)
 - [ ] 14. Record demo video and publish
 - [x] 15. Browser demo under `web/`: dependency-free JS port of Core, procedural canvas village, sanity-driven dread, seed sharing via URL hash
 - [x] 16. Golden parity: C# test emits `web/test/golden.json`, `node --test` proves the JS port matches C# exactly
@@ -21,7 +21,7 @@
 - [x] 19. Core: village report in Markdown and JSON (R9)
 - [x] 20. Core: prefab name matcher with property tests (R10)
 - [x] 21. Golden parity extended and JS port updated for 18 to 20
-- [x] 22. Editor `CatalogAutoBinder` and director omen event (code-complete, unverified in Unity)
+- [x] 22. Editor `CatalogAutoBinder` and director omen event (Unverified in Unity)
 - [x] 23. Web demo polish: omen toasts, Whispers journal, report download, keyboard, reduced motion, responsive layout (R11)
 - [x] 24. `tools/screenshot.sh` and screenshots in `docs/media`
 - [x] 25. CI workflow, CONTRIBUTING, CHANGELOG, em dash check in the validator
@@ -31,7 +31,7 @@
 - [x] 29. Core: seeded `CampaignGenerator` (village name, per-night title, rising dread target, sky, weather, rumor, lore) with JS port, golden parity and tests
 - [x] 30. Web: campaign panel and night selector, dusk/night/witching tint, rain and fog, postcard PNG export
 - [x] 31. Web: in-browser parity self-test (`web/selftest.html`) with embedded golden vectors and a drift test
-- [x] 32. Runtime `WalkthroughController` for stepping campaign nights (code-complete, unverified in Unity) and `docs/BUILD_LOG.md`
+- [x] 32. Runtime `WalkthroughController` for stepping campaign nights (Unverified in Unity) and `docs/BUILD_LOG.md`
 - [x] 33. `tools/fetch_pack.py`: reproducible download of the URP and HDRP packages into the ignored downloads folder
 - [x] 34. Inspector scene scan: referenced prefab GUIDs and names, folder entries, no-mesh summary
 - [x] 35. Matcher fix (single-letter tokens) and catalog `prefabHint` with `PrefabNameMatcher.Resolve`, JS and Python ports, golden parity
@@ -46,17 +46,17 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 41. Hosting configs (`netlify.toml`, `vercel.json`, `web/_headers`), `tools/stage_web.py` with test, `web/test/paths.test.js`, `docs/HOSTING.md`, `pages.yml` uploads staged `dist` (untested on real hosts)
 - [ ] 42. Author connects a host per `docs/HOSTING.md` and pastes the verified URL into README and Devpost
 - [x] 43. Core `StorySequencer` (beats per night, omen by dread tier, navigation, reading time) with property tests, JS port `web/src/story.js`, golden parity and self-test
-- [x] 44. Web story mode UI, skippable intro, opt-in procedural WebAudio soundtrack (`music.js`, `intro.js`, node tests); audio unverified by ear
+- [x] 44. Web story mode UI, skippable intro, opt-in procedural WebAudio soundtrack (`music.js`, `intro.js`, node tests); audio Partially Verified (logic node-tested, never heard)
 - [x] 45. Web session save/load, minimap and legend, case file export, i18n stub, perf HUD, offline PWA shell with CSP update (node and Python tests; offline untested on a real host)
 - [x] 46. Core `RitualChain` (seeded ritual stages across nights, omen and story beat links) with property tests, JS port `generateRitual`, golden parity; web night panel, journal and case file show it
-- [x] 47. Code-complete, unverified in Unity (Core logic tested, scripts not compiled): `RitualDirector` MonoBehaviour driving `RitualChain.Progress` (night schedule floor plus dread-reached stage) from the dread and night events, plus `RitualStateAsset` ScriptableObject mirror and `RitualSaveBridge` over the Core `RitualSaveState`
+- [x] 47. Core logic Verified, scripts Unverified in Unity: `RitualDirector` MonoBehaviour driving `RitualChain.Progress` (night schedule floor plus dread-reached stage) from the dread and night events, plus `RitualStateAsset` ScriptableObject mirror and `RitualSaveBridge` over the Core `RitualSaveState`
 - [x] 48. Core `Investigator` (seeded walk along a lantern route between village pieces, one cell per tick, sanity hit the first time it passes an omen site) with property tests, JS port, golden `investigators` parity and self-test group; web toggle (`I`, `?investigator=1`), canvas figure and trail, minimap marker, journal entries, screen reader village description (en and fr)
 - [x] 49. Web cinematic capture mode (`B`, `?cinematic=1`): pure deterministic timeline `cinematicFrame` in `web/src/cinematic.js` with node tests, reduced motion keeps the camera still
 - [x] 50. Web gamepad and touch controls through the pure mapping in `web/src/input.js` (tested); Gamepad API polled in rAF only while a pad is connected; not tried on real hardware
 - [x] 51. Web accessibility pass: skip link, labelled sidebar, cinematic caption live region, gamepad and touch help (en and fr)
 - [ ] 52. Offscreen canvas cache for static terrain: skipped, ground and sea depend on dread, the easing camera squash and pack patterns every frame, so a cache would not give identical visuals without a wider refactor. Round 10 revisited it: the sea waves and reeds are animated by time, and the ground colour is a continuous function of dread, so a dread-bucketed cache cannot be pixel-identical and an exact-key cache would miss on every easing frame. Decision: not implemented
 - [x] 53. Web Stitch panel from `tools/gen_stitch.py` repo data (validator checks freshness), seeded Necronomicon codex and achievements saved in the session with backward-compatible parsing, high-contrast theme, opt-in daily village seed with an injectable clock (node and Python tests)
-- [x] 54. Code-complete, unverified in Unity (not compiled): `VillageCoreInspectorWindow` Editor window previewing Core village report and campaign; six new dotnet property tests and six node invariant tests
+- [x] 54. Unverified in Unity (not compiled): `VillageCoreInspectorWindow` Editor window previewing Core village report and campaign; six new dotnet property tests and six node invariant tests
 - [x] 55. Web progress arming gate (`progress-gate.js`): codex and achievements only award after a player action, deep links and restored sessions only preview, saved progress restored until the first action
 - [x] 56. Journal Story and Progress tabs with unseen badge (`journal.js`, en and fr, node tests)
 - [x] 57. Opt-in judge tour `?tour=1` (`tour.js`, `tour-ui.js`), About dialog, static and perf budget tests, README judge quick start
@@ -66,9 +66,13 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 62. Round 12: stub-based Unity compile check (`tests/UnityCompileCheck`, CI job), MCP prep docs (no MCP run)
 - [x] 63. Round 12: DLNK scene layout parser, material properties, `?pack=1&scene=` mode with node tests (local pack only)
 - [x] 64. Round 12: headless Blender 4.2 LTS original GLB meshes, `meshes.html` viewer, link from About with en and fr parity
-- [ ] 65. Decode EXR lightmaps (stdlib) for local pack ground shading
-- [ ] 66. Use URP texture roles when a URP package carries them (currently HDRP only)
-- [ ] 67. Sprite mode (`?sprites`) from locally rendered Blender sprites
-- [ ] 68. Better scene classification of generic objects (rocks, plants, walls)
+- [x] 65. Decision: skipped. An EXR decoder is speculative infrastructure (nothing in the web demo consumes lightmaps); recorded in `docs/ARCHITECTURE_AUDIT.md`
+- [x] 66. Package-flavor aware roles in `tools/build_local_pack.py` (`ROLES_HDRP`, `ROLES_URP`). Listing the URP package showed it ships materials but no material textures (only lightmaps and probes), so URP roles are material-only (`materialOnlyRoles` in the manifest: tint, smoothness, metallic, slots). Synthetic-data tests Verified; the URP look in Unity is Unverified
+- [x] 67. GLB mesh mode (`?meshes=1`, opt-in): committed original Blender meshes drawn through the village iso projector, procedural fallback with console.warn. Node tests Verified; the look is Partially Verified (one headless screenshot, `docs/media/meshes-village.png`)
+- [x] 68. Data-driven scene classification (named keyword lists in `tools/dlnk_scene.py`, new `prop` and `effect` kinds); unclassified `generic` objects drawn as hollow rings and counted in the HUD line. Python and JS kind lists checked equal by a test. Coast scene generic share 817 to 74 of 2628 (Partially Verified: one headless screenshot)
 - [ ] 69. Run the compile check against a real Unity install and the MCP workflow (author only)
 - [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)
+- [x] 70. Round 13: architecture and parity audit (`docs/ARCHITECTURE_AUDIT.md`); codex, achievements, daily seed, sanity costs, floor counts moved to Core with golden parity; silent catches and dead code removed
+- [ ] 71. Wire `CodexModel`, `AchievementRules` and `DailySeed` into Unity Runtime (Core only today; Unity never run)
+- [x] 72. Round 13: horror design review. Seeded ambient lightning and shake (no `Math.random` in the render path), one capped and rate-limited flash gate, shorter and coalesced banners (`scene.js`, `web/test/notice-policy.test.js`); visual feel Partially Verified
+- [ ] 73. Real-browser check of the quieter banner and flash pacing (author only)

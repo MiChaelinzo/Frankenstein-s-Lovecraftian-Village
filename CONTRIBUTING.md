@@ -15,6 +15,11 @@ dotnet test tests/Frankenstein.Core.Tests
 ```
 CI runs the same commands (`.github/workflows/ci.yml`).
 
+## Steering
+Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, principles, testing) and `.kiro/steering/agent.md` (working style, verification labels). Before committing run the three commands above: `dotnet test tests/Frankenstein.Core.Tests`, `node --test "web/test/*.test.js"` and `python3 tools/validate_repo.py`.
+
+See also [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) for which logic lives in Core, which is UI-only, and why.
+
 ## Rules
 - **Core first.** New logic goes in `Assets/Scripts/Core` (no `UnityEngine` references) with a property test in `tests/Frankenstein.Core.Tests`. MonoBehaviours in `Assets/Scripts/Runtime` only wrap Core.
 - **Determinism.** Use `SeededRandom`, never `System.Random` or time, in Core.
@@ -26,7 +31,7 @@ CI runs the same commands (`.github/workflows/ci.yml`).
   CI fails if `web/test/golden.json` would change. `web/data/village_catalog.json` must stay byte-identical to `Assets/Data/village_catalog.json`.
 - **No paid assets, no Git LFS.** Never commit the Lovecraftian Village pack (DLNK Artworks) or anything under `Assets/ThirdParty` except its README. The pack comes only from the OneDrive links in the README. `tools/validate_repo.py` enforces this.
 - **No em dashes** (U+2014) in any written content; the validator checks text files.
-- **Be honest in docs.** Mark anything not run in the Unity editor as unverified. Do not invent usage numbers.
+- **Be honest in docs.** Label status claims Verified, Partially Verified or Unverified (see the README verification table). Anything not run in the Unity editor is Unverified. Do not invent usage numbers.
 - **Tone.** Dread over gore.
 
 ## Generated Stitch data

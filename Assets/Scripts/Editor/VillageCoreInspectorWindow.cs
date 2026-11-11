@@ -44,7 +44,7 @@ namespace Frankenstein.Editor
             _nights = Mathf.Clamp(EditorGUILayout.IntField("Campaign nights", _nights), CampaignGenerator.MinNights, CampaignGenerator.MaxNights);
 
             float dread = SanityModel.DreadFor(_sanity);
-            EditorGUILayout.LabelField("Dread", Mathf.RoundToInt(dread * 100f) + "% (" + DreadThresholds.TierNames[DreadThresholds.TierFor(dread)] + ")");
+            EditorGUILayout.LabelField("Dread", DreadThresholds.Percent(dread) + "% (" + DreadThresholds.TierNames[DreadThresholds.TierFor(dread)] + ")");
 
             if (GUILayout.Button("Refresh")) Refresh(dread);
             EditorGUILayout.HelpBox(_status, MessageType.None);

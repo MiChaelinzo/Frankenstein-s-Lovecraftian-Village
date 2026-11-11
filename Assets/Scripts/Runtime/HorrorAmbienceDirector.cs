@@ -10,7 +10,7 @@ namespace Frankenstein.Runtime
     {
         public AudioSource ambienceLoop;
         public DreadVolumeBlender volumeBlender;
-        public float sanityDrainPerSecond = 0.5f;
+        public float sanityDrainPerSecond = SanityModel.DrainPerSecond;
         [Tooltip("Optional HTTP endpoint for AI narration. Empty keeps the offline narrator.")]
         public string narrationEndpoint = "";
 
@@ -32,7 +32,7 @@ namespace Frankenstein.Runtime
         private void Update()
         {
             Sanity.Apply(-sanityDrainPerSecond * Time.deltaTime);
-            if (ambienceLoop != null) ambienceLoop.volume = 0.2f + 0.8f * Sanity.Dread;
+            if (ambienceLoop != null) ambienceLoop.volume = DreadCurve.AmbienceVolume(Sanity.Dread);
             if (volumeBlender != null) volumeBlender.Apply(Sanity.Dread);
             _events.Update(Sanity.Dread, _eventBuffer);
             for (int i = 0; i < _eventBuffer.Count; i++) OmenCrossed?.Invoke(_eventBuffer[i]);

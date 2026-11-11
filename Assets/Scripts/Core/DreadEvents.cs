@@ -33,6 +33,12 @@ namespace Frankenstein.Core
             return Math.Max(0f, Math.Min(1f, dread));
         }
 
+        /// <summary>Dread as a whole percent 0..100, rounding halves up (same as the web port and the village report).</summary>
+        public static int Percent(float dread)
+        {
+            return (int)Math.Floor(Sanitize(dread) * 100f + 0.5f);
+        }
+
         /// <summary>Stateless tier: how many thresholds the dread has reached (0..3).</summary>
         public static int TierFor(float dread)
         {

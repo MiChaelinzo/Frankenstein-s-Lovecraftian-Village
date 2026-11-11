@@ -37,6 +37,14 @@ namespace Frankenstein.Core.Tests
             "Barrel00b Variant", "WoodBucket00", "Pinnacle00c", "PillarStone00a", "Cottage_03", "StoneChapel", "Rock",
         };
 
+        private static readonly double[] FloorRolls = { 0.0, 0.34, 0.35, 0.49, 0.5, 0.99 };
+        private static readonly string[] DailyInstants =
+        {
+            "2026-11-14T23:59:59Z", "2026-11-15T00:00:00Z", "2026-01-02T00:00:00Z", "2024-02-29T12:00:00Z", "0999-12-31T00:00:00Z", "9999-12-31T23:59:59Z",
+        };
+        private static readonly string[] DailyKeys = { "", "2026-11-14", "2026-11-15", "0001-01-01", "caf\u00e9", "not-a-date" };
+        private const int AchievementCases = 64;
+
         private static string DreadToken(float d, CultureInfo inv) =>
             float.IsNaN(d) ? "\"NaN\"" : float.IsPositiveInfinity(d) ? "\"Infinity\"" : float.IsNegativeInfinity(d) ? "\"-Infinity\"" : d.ToString("R", inv);
 
@@ -290,8 +298,96 @@ namespace Frankenstein.Core.Tests
                     for (int f = 0; f < count; f++) sb.Append(f > 0 ? ", " : "").Append(DreadBuildingPolicy.FloorVisible(f, active, count, true) ? 1 : 0);
                     sb.Append("]]");
                 }
-            sb.Append("]\n  }\n}\n");
+            sb.Append("],\n    \"floorCounts\": [");
+            first = true;
+            foreach (var id in new[] { "house_a", "house_b", "church", "well", "dead_tree" })
+                foreach (var roll in FloorRolls)
+                    foreach (var roll2 in FloorRolls)
+                    {
+                        if (!first) sb.Append(", ");
+                        first = false;
+                        sb.Append('[').Append(JsonSerializer.Serialize(id)).Append(", ").Append(roll.ToString("R", inv)).Append(", ")
+                          .Append(roll2.ToString("R", inv)).Append(", ").Append(DreadBuildingPolicy.FloorCountFor(id, roll, roll2)).Append(']');
+                    }
+            sb.Append("]\n  },\n");
+            AppendProgression(sb, inv);
+            sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Codex, achievement and daily seed sections (top level keys "codex", "achievements", "daily").</summary>
+        private static void AppendProgression(StringBuilder sb, CultureInfo inv)
+        {
+            sb.Append("  \"codex\": [\n");
+            bool first = true;
+            foreach (var s in Seeds)
+                foreach (var nights in StoryNightCounts)
+                {
+                    var ritual = RitualChain.Generate(CampaignGenerator.Generate(s, nights));
+                    if (!first) sb.Append(",\n");
+                    first = false;
+                    sb.Append("    { \"seed\": ").Append(s.ToString(inv)).Append(", \"requested\": ").Append(nights.ToString(inv)).Append(", \"order\": [")
+                      .Append(string.Join(", ", CodexModel.CreatureOrder(ritual.Seed))).Append("], \"entries\": [");
+                    var entries = CodexModel.Entries(ritual);
+                    for (int i = 0; i < entries.Count; i++)
+                    {
+                        var e = entries[i];
+                        sb.Append(i > 0 ? ", " : "");
+                        if (e.Kind == "stage")
+                            sb.Append('[').Append(JsonSerializer.Serialize(e.Id)).Append(", \"stage\", ").Append(e.Creature).Append(", ").Append(JsonSerializer.Serialize(e.Sigil))
+                              .Append(", ").Append(JsonSerializer.Serialize(e.StageName)).Append(", ").Append(e.Night).Append(']');
+                        else
+                            sb.Append('[').Append(JsonSerializer.Serialize(e.Id)).Append(", \"omen\", ").Append(e.Tier).Append(']');
+                    }
+                    sb.Append("], \"unlocked\": [");
+                    bool firstU = true;
+                    for (int stage = -1; stage <= ritual.Stages.Count; stage++)
+                        for (int tier = 0; tier <= CodexModel.OmenTiers + 1; tier++)
+                        {
+                            sb.Append(firstU ? "" : ", ").Append('[').Append(stage).Append(", ").Append(tier).Append(", ")
+                              .Append(JsonSerializer.Serialize(CodexModel.UnlockedIds(ritual, stage, tier))).Append(']');
+                            firstU = false;
+                        }
+                    sb.Append("] }");
+                }
+            sb.Append("\n  ],\n  \"sanityRules\": [").Append(SanityModel.FocusCost.ToString("R", inv)).Append(", ").Append(SanityModel.WhisperCost.ToString("R", inv)).Append(", ")
+              .Append(SanityModel.ChurchCost.ToString("R", inv)).Append(", ").Append(SanityModel.CandleRestore.ToString("R", inv)).Append(", ")
+              .Append(SanityModel.DrainPerSecond.ToString("R", inv)).Append("],\n  \"achievements\": [\n");
+            for (int c = 0; c < AchievementCases; c++)
+            {
+                var r = new SeededRandom(c * 7919 + 13);
+                var stats = new AchievementStats
+                {
+                    Whispers = r.Next(3), Listens = r.Next(6), Doors = r.Next(6), NightsTotal = r.Next(10), Tier = r.Next(5),
+                    StageCount = r.Next(10), InvestigatorDone = r.Next(2) == 1,
+                };
+                stats.NightsVisited = r.Next(stats.NightsTotal + 2);
+                stats.Stage = r.Next(stats.StageCount + 2) - 1;
+                stats.CodexTotal = r.Next(14);
+                stats.CodexCount = r.Next(stats.CodexTotal + 2);
+                int mask = r.Next(32);
+                for (int k = 0; k < AchievementRules.JournalKinds.Length; k++)
+                    if ((mask & (1 << k)) != 0) stats.Kinds.Add(AchievementRules.JournalKinds[k]);
+                if ((mask & 16) != 0) stats.Kinds.Add("unrelated");
+                var done = AchievementRules.Completion(stats.Kinds);
+                sb.Append("    { \"stats\": [").Append(stats.Whispers).Append(", ").Append(stats.Listens).Append(", ").Append(stats.Doors).Append(", ")
+                  .Append(stats.NightsVisited).Append(", ").Append(stats.NightsTotal).Append(", ").Append(mask).Append(", ").Append(stats.Tier).Append(", ")
+                  .Append(stats.Stage).Append(", ").Append(stats.StageCount).Append(", ").Append(stats.CodexCount).Append(", ").Append(stats.CodexTotal).Append(", ")
+                  .Append(stats.InvestigatorDone ? 1 : 0).Append("], \"earned\": ").Append(JsonSerializer.Serialize(AchievementRules.EarnedIds(stats)))
+                  .Append(", \"completion\": [").Append(done.Seen).Append(", ").Append(done.Total).Append(", ").Append(done.Percent).Append("] }")
+                  .Append(c < AchievementCases - 1 ? ",\n" : "\n");
+            }
+            sb.Append("  ],\n  \"daily\": {\n    \"keys\": [");
+            for (int i = 0; i < DailyInstants.Length; i++)
+            {
+                var instant = DateTime.Parse(DailyInstants[i], inv, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+                sb.Append(i > 0 ? ", " : "").Append('[').Append(JsonSerializer.Serialize(DailyInstants[i])).Append(", ")
+                  .Append(JsonSerializer.Serialize(DailySeed.KeyFor(instant))).Append(']');
+            }
+            sb.Append("],\n    \"seeds\": [");
+            for (int i = 0; i < DailyKeys.Length; i++)
+                sb.Append(i > 0 ? ", " : "").Append('[').Append(JsonSerializer.Serialize(DailyKeys[i])).Append(", ").Append(DailySeed.SeedFromKey(DailyKeys[i]).ToString(inv)).Append(']');
+            sb.Append("]\n  }\n");
         }
 
         [Fact]

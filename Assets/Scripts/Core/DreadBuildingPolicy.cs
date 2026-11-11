@@ -8,6 +8,15 @@ namespace Frankenstein.Core
     /// <summary>Camera styles a scene can offer. Order is stable (golden parity uses the ints).</summary>
     public enum CameraMode { FirstPerson = 0, ThirdPerson = 1, TopDown = 2 }
 
+    /// <summary>Mean detail and how many buildings sit at each detail level 0..3.</summary>
+    public sealed class DetailSummary
+    {
+        public int Count;
+        public float Mean;
+        public int Best;
+        public readonly int[] LevelCounts = new int[DreadBuildingPolicy.MaxDetail + 1];
+    }
+
     /// <summary>
     /// Engine-free decisions behind the DLNK Myst Village adapter layer: per-building detail level,
     /// floor peel for top-down views, omen driven door behavior and camera mode policy. Nothing here
@@ -16,6 +25,23 @@ namespace Frankenstein.Core
     public static class DreadBuildingPolicy
     {
         public const int MaxDetail = 3;
+
+        /// <summary>Aggregate of per-building detail levels (each clamped into 0..MaxDetail). Empty input gives Count 0, Mean 0.</summary>
+        public static DetailSummary Summarize(System.Collections.Generic.IEnumerable<int> levels)
+        {
+            var summary = new DetailSummary();
+            int sum = 0;
+            foreach (int raw in levels)
+            {
+                int level = ClampDetail(raw);
+                summary.Count++;
+                sum += level;
+                summary.LevelCounts[level]++;
+                if (level > summary.Best) summary.Best = level;
+            }
+            summary.Mean = summary.Count > 0 ? (float)sum / summary.Count : 0f;
+            return summary;
+        }
 
         /// <summary>FNV-1a over UTF-16 code units, so ids hash the same in C# and JS.</summary>
         public static int StableHash(string text)
@@ -36,7 +62,31 @@ namespace Frankenstein.Core
             int tier = DreadThresholds.TierFor(dread);
             int delay = new SeededRandom(unchecked(seed ^ StableHash(buildingId))).Next(3);
             int level = MaxDetail - Math.Max(0, tier - delay);
+            return ClampDetail(level);
+        }
+
+        /// <summary>Clamps any detail value into 0..MaxDetail.</summary>
+        public static int ClampDetail(int level)
+        {
             return Math.Max(0, Math.Min(MaxDetail, level));
+        }
+
+        /// <summary>Camera mode for a raw int (0 FirstPerson, 1 ThirdPerson, 2 TopDown); out of range values clamp to the nearest mode.</summary>
+        public static CameraMode CameraFromInt(int mode)
+        {
+            return (CameraMode)Math.Max(0, Math.Min(2, mode));
+        }
+
+        /// <summary>
+        /// Floors per building, deterministic from the id and two per-piece rolls in 0..1:
+        /// house_a 1-2, house_b 2-3, church 2, everything else 1.
+        /// </summary>
+        public static int FloorCountFor(string buildingId, double roll, double roll2)
+        {
+            if (buildingId == "house_a") return roll < 0.5 ? 1 : 2;
+            if (buildingId == "house_b") return roll2 < 0.35 ? 2 : 3;
+            if (buildingId == "church") return 2;
+            return 1;
         }
 
         /// <summary>Clamps a requested floor into [0, floorCount - 1]. Zero or fewer floors gives 0.</summary>

@@ -1,5 +1,6 @@
 // Guided judge tour (about 60 s). Pure step model: opt-in only (?tour=1), never starts on a bare URL.
 // The DOM glue lives in tour-ui.js. Each step points at one control by element id; text comes from i18n keys tour.<id> and tour.<id>.d.
+import { queryParam } from './util.js';
 export const TOUR_STEPS = [
   { id: 'view', target: 'view', ms: 6000 },
   { id: 'seed', target: 'seed', ms: 5000 },
@@ -17,8 +18,7 @@ export const TOUR_STEPS = [
 
 /** True only for an explicit ?tour=1 in the query or hash. */
 export function tourWanted(search, hash) {
-  const get = (s) => new URLSearchParams(String(s || '').replace(/^[?#]/, '')).get('tour');
-  return get(search) === '1' || get(hash) === '1';
+  return queryParam(search, 'tour') === '1' || queryParam(hash, 'tour') === '1';
 }
 
 export const tourTotalMs = (steps = TOUR_STEPS) => steps.reduce((n, s) => n + s.ms, 0);

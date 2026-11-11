@@ -1,15 +1,16 @@
 // Canvas renderer for the isometric village. All drawing lives here; app.js only decides when to draw.
 import { SeededRandom } from './core.js';
+import { meshPolygons } from './glb.js';
 import { cameraTransform } from './cinematic.js';
-import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
+import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, applyFlash } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
-import { themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
+import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
 import { lerp, mix } from './util.js';
 import { locName } from './i18n-text.js';
 
 export function createRenderer(env) {
-  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $ } = env;
+  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $, meshes } = env;
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
   const TW = V.tw, TH = V.th;
   const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
@@ -65,7 +66,20 @@ export function createRenderer(env) {
   const topDownNow = () => cam.mode === 2;
   function doorPoint(p) { const m = 0.05; return lerpPt(iso(p.x + m, p.z + p.sizeZ - m), iso(p.x + p.sizeX - m, p.z + p.sizeZ - m), 0.2); }
 
+  // ?meshes=1: draws the committed Blender mesh through the same iso projector. Returns false to fall back to the procedural piece.
+  function drawMeshPiece(p, dread) {
+    const model = meshes && meshes.get(meshKindFor(p.id));
+    if (!model) return false;
+    const tc = state.theme !== 'auto' ? themeColors(state.theme) : null;
+    for (const t of meshPolygons(model, iso, p, { hs: cam.hs, unitPx: TW / 2, dread, tint: tc ? tc[0] : null })) {
+      ctx.beginPath(); ctx.moveTo(t.pts[0].x, t.pts[0].y); ctx.lineTo(t.pts[1].x, t.pts[1].y); ctx.lineTo(t.pts[2].x, t.pts[2].y); ctx.closePath();
+      ctx.fillStyle = t.fill; ctx.strokeStyle = t.fill; ctx.lineWidth = 0.6; ctx.fill(); ctx.stroke();
+    }
+    return true;
+  }
+
   function drawPiece(p, dread, time) {
+    if (meshes && meshes.size && drawMeshPiece(p, dread)) return;
     const v = p.vis;
     const feat = detailFeatures(p.detail);
     const topDown = topDownNow();
@@ -409,8 +423,13 @@ export function createRenderer(env) {
     } else if (kind === 'fence') {
       const a = it.rot * Math.PI / 180, dx = Math.cos(a) * s * TW * 0.3, dy = Math.sin(a) * s * TH * 0.3;
       ctx.strokeStyle = toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.6), dread); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x - dx, p.y - dy); ctx.lineTo(p.x + dx, p.y + dy); ctx.moveTo(p.x - dx, p.y - dy - 4); ctx.lineTo(p.x + dx, p.y + dy - 4); ctx.stroke();
+    } else if (kind === 'prop') {
+      ctx.fillStyle = toward(shade(roleTint('wall_wood', [110, 80, 60]), 0.5), dread); ctx.fillRect(p.x - 1.5, p.y - 3, 3, 3);
+    } else if (kind === 'effect') {
+      ctx.fillStyle = `rgba(150,160,170,${0.12 + dread * 0.05})`; ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
     } else {
-      ctx.fillStyle = toward([90, 90, 86], dread); ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      // unclassified: a hollow ring so unknown objects are never mistaken for known kinds
+      ctx.strokeStyle = toward([200, 170, 90], dread); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(p.x, p.y - 1, 2.5, 0, 7); ctx.stroke();
     }
   }
   function drawDlnk(dread, time) { for (const it of state.dlnk.items) drawDlnkItem(it, dread, time); }
@@ -427,11 +446,11 @@ export function createRenderer(env) {
     setHintHidden(!!t);
     if (!t) return;
     const age = now - t.at;
-    if (age > 6000) { state.toast = null; setHintHidden(false); return; }
-    const a = reduceMotion ? 1 : Math.min(1, age / 400, (6000 - age) / 800);
-    ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.font = 'italic 26px Georgia, serif'; ctx.textAlign = 'center';
+    if (age > TOAST_MS) { state.toast = null; setHintHidden(false); return; }
+    const a = reduceMotion ? 1 : Math.min(1, age / 400, (TOAST_MS - age) / 800);
+    ctx.save(); ctx.globalAlpha = Math.max(0, a) * 0.85; ctx.font = 'italic 26px Georgia, serif'; ctx.textAlign = 'center';
     const w = Math.min(canvas.width - 20, (ctx.measureText ? ctx.measureText(t.text).width : 400) + 48);
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(canvas.width / 2 - w / 2, 22, w, 44);
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(canvas.width / 2 - w / 2, 22, w, 44);
     ctx.strokeStyle = t.rising ? 'rgba(200,60,60,.8)' : 'rgba(95,143,120,.8)'; ctx.lineWidth = 1; ctx.strokeRect(canvas.width / 2 - w / 2, 22, w, 44);
     ctx.fillStyle = t.rising ? 'rgb(240,170,170)' : 'rgb(190,230,210)'; ctx.fillText(t.text, canvas.width / 2, 52); ctx.restore();
   }
@@ -459,7 +478,7 @@ export function createRenderer(env) {
     drawSky(dread, time);
     ctx.save();
     if (state.cinema) { const ct = cameraTransform(state.cinema, canvas.width, canvas.height); ctx.translate(ct.tx, ct.ty); ctx.scale(ct.scale, ct.scale); }
-    if (!reduceMotion && dread > 0.5) ctx.translate((Math.random() - 0.5) * (dread - 0.5) * 3, (Math.random() - 0.5) * (dread - 0.5) * 3);
+    if (!reduceMotion) { const j = dreadJitter(state.seed, real, dread); ctx.translate(j.dx, j.dy); }
     drawSea(dread, time);
     drawGround(dread);
     active.length = 0;
@@ -483,7 +502,7 @@ export function createRenderer(env) {
     drawFog(dread, time);
     ctx.restore();
     if (state.flash > 0) { ctx.fillStyle = `rgba(210,230,255,${state.flash.toFixed(2)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); state.flash = Math.max(0, state.flash - 0.04); }
-    else if (!reduceMotion && dread > 0.4 && Math.random() < 0.0015 * dread) state.flash = 0.5;
+    else if (!reduceMotion) applyFlash(state, ambientFlash(state.seed, real, dread), real);
     drawWeather(dread, time);
     drawVignette(dread, time);
     drawToast(performance.now());

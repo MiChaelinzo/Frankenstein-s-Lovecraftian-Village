@@ -195,6 +195,12 @@ function fits(occ, w, d, x, z, sx, sz) {
 }
 
 export class SanityModel {
+  // Rule constants mirror SanityModel.cs (golden-checked): costs of player actions and the creeping drain rate.
+  static FOCUS_COST = 2;
+  static WHISPER_COST = 8;
+  static CHURCH_COST = 15;
+  static CANDLE_RESTORE = 10;
+  static DRAIN_PER_SECOND = 1;
   constructor(start = MAX_SANITY) {
     this.value = SanityModel.clamp(start);
   }
@@ -231,13 +237,17 @@ export class SafeNarrationProvider {
   constructor(primary, fallback) {
     this.primary = primary;
     this.fallback = fallback || new StaticNarrationProvider();
+    /** Why the last call fell back to offline text, or null (mirrors SafeNarrationProvider.LastError in C#). */
+    this.lastError = null;
   }
   narrate(locationId, dread) {
     try {
       const text = this.primary ? this.primary.narrate(locationId, dread) : null;
-      if (typeof text === 'string' && text.trim() !== '') return text;
-    } catch {
-      /* fall through to offline text */
+      if (typeof text === 'string' && text.trim() !== '') { this.lastError = null; return text; }
+      this.lastError = 'primary narration provider returned blank text';
+    } catch (err) {
+      this.lastError = `${err && err.name ? err.name : 'Error'}: ${err && err.message ? err.message : err}`;
+      console.warn(`[narration] primary provider failed, using offline text: ${this.lastError}`);
     }
     return this.fallback.narrate(locationId, dread);
   }
@@ -573,8 +583,6 @@ export function describeRitualStage(s) {
 
 // ---- DLNK adapter policy (DreadBuildingPolicy.cs) ----
 
-export const DOOR_BEHAVIORS = ['Normal', 'Creak', 'Slam', 'Refuse'];
-export const CAMERA_MODES = ['FirstPerson', 'ThirdPerson', 'TopDown'];
 export const MAX_DETAIL = 3;
 
 /** FNV-1a over UTF-16 code units, returned as a signed int32 like the C# version. */

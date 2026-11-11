@@ -68,7 +68,7 @@ namespace Frankenstein.Runtime
         public void Refresh()
         {
             if (Ritual == null || director == null) return;
-            int dreadPercent = Mathf.RoundToInt(director.Sanity.Dread * 100f);
+            int dreadPercent = DreadThresholds.Percent(director.Sanity.Dread);
             Progress = RitualChain.Progress(Ritual, NightNumber, dreadPercent);
             if (Progress.Effective > _lastStage && Progress.Effective >= 0)
             {
@@ -86,7 +86,7 @@ namespace Frankenstein.Runtime
         public void Save()
         {
             if (Ritual == null || director == null) return;
-            RitualSaveBridge.Save(RitualSaveState.From(Ritual, NightNumber, Mathf.RoundToInt(director.Sanity.Dread * 100f)));
+            RitualSaveBridge.Save(RitualSaveState.From(Ritual, NightNumber, DreadThresholds.Percent(director.Sanity.Dread)));
         }
     }
 }

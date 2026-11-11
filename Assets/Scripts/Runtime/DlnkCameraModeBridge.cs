@@ -48,7 +48,7 @@ namespace Frankenstein.Runtime
         /// </summary>
         public void RequestInt(int mode)
         {
-            var requested = (CameraMode)Mathf.Clamp(mode, 0, 2);
+            var requested = DreadBuildingPolicy.CameraFromInt(mode);
             if (!_hasDread) { Requested = requested; return; }
             Request(requested, _lastDread);
         }

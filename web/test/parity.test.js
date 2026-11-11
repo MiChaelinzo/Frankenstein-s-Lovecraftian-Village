@@ -1,4 +1,8 @@
 import { buildStory } from '../src/story.js';
+import { creatureOrder, codexEntries, unlockedIds, CREATURE_COUNT, OMEN_TIERS } from '../src/codex.js';
+import { ACHIEVEMENTS, JOURNAL_KINDS, earnedIds, journalCompletion, newStats } from '../src/achievements.js';
+import { dailyKey, seedFromKey } from '../src/daily.js';
+import { floorCountFor } from '../src/building.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -139,4 +143,48 @@ test('investigator routes and sanity hits match C# exactly', () => {
     assert.deepEqual(inv.route.map((c) => [c.x, c.z]), g.cells, `route seed ${g.seed}`);
     assert.deepEqual(simulateInvestigator(layout, 24, 24, g.seed).map(describeInvestigatorHit), g.hits, `hits seed ${g.seed}`);
   }
+});
+
+test('sanity action costs and drain rate match C# SanityModel', () => {
+  assert.deepEqual(
+    [SanityModel.FOCUS_COST, SanityModel.WHISPER_COST, SanityModel.CHURCH_COST, SanityModel.CANDLE_RESTORE, SanityModel.DRAIN_PER_SECOND],
+    golden.sanityRules);
+});
+
+test('floor counts match C# DreadBuildingPolicy.FloorCountFor', () => {
+  assert.ok(golden.buildings.floorCounts.length > 0);
+  for (const [id, roll, roll2, count] of golden.buildings.floorCounts) assert.equal(floorCountFor(id, roll, roll2), count, `${id} ${roll} ${roll2}`);
+});
+
+test('codex entries, creature order and unlocks match C# CodexModel', () => {
+  assert.equal(CREATURE_COUNT, 9);
+  assert.equal(OMEN_TIERS, 3);
+  assert.ok(golden.codex.length > 0);
+  for (const g of golden.codex) {
+    const ritual = generateRitual(generateCampaign(g.seed, g.requested));
+    assert.deepEqual(creatureOrder(ritual.seed), g.order, `order seed ${g.seed}`);
+    const entries = codexEntries(ritual).map((e) => (e.kind === 'stage' ? [e.id, 'stage', e.creature, e.sigil, e.stageName, e.night] : [e.id, 'omen', e.tier]));
+    assert.deepEqual(entries, g.entries, `entries seed ${g.seed} nights ${g.requested}`);
+    for (const [stage, tier, ids] of g.unlocked) assert.deepEqual(unlockedIds(ritual, stage, tier), ids, `unlocked ${g.seed} ${stage} ${tier}`);
+  }
+});
+
+test('achievement predicates and journal completion match C# AchievementRules', () => {
+  assert.deepEqual(ACHIEVEMENTS.map((a) => a.id), ['whisper', 'listener', 'doors', 'nights', 'journal', 'abyss', 'ritual', 'codexhalf', 'codexfull', 'wanderer']);
+  assert.ok(golden.achievements.length > 0);
+  for (const g of golden.achievements) {
+    const [whispers, listens, doors, nightsVisited, nightsTotal, mask, tier, stage, stageCount, codexCount, codexTotal, done] = g.stats;
+    const kinds = new Set(JOURNAL_KINDS.filter((_, k) => mask & (1 << k)));
+    if (mask & 16) kinds.add('unrelated');
+    const stats = { ...newStats(), whispers, listens, doors, nightsVisited, nightsTotal, kinds, tier, stage, stageCount, codexCount, codexTotal, investigatorDone: done === 1 };
+    assert.deepEqual(earnedIds(stats), g.earned, JSON.stringify(g.stats));
+    const c = journalCompletion(kinds);
+    assert.deepEqual([c.seen, c.total, c.percent], g.completion, JSON.stringify(g.stats));
+  }
+});
+
+test('daily key and seed match C# DailySeed', () => {
+  assert.ok(golden.daily.keys.length > 0 && golden.daily.seeds.length > 0);
+  for (const [iso, key] of golden.daily.keys) assert.equal(dailyKey(new Date(iso)), key, iso);
+  for (const [key, seed] of golden.daily.seeds) assert.equal(seedFromKey(key), seed, JSON.stringify(key));
 });

@@ -9,7 +9,7 @@ All footage is recorded by the author from this repo and the author's own Unity 
 | 1:30-2:20 | Kiro in action: `.kiro` specs, hooks firing on save, `dotnet test` property tests running, the `selftest.html` page passing | "Kiro turned requirements into correctness properties. Hooks run the tests and guard the paid assets. The self-test page checks the JS port against C# output." |
 | 2:20-2:50 | Short Unity clip if available (only if you have opened the project in Unity yourself), then repo link and #KiroweenHackathon26 | "Specs, steering, hooks and property tests, stitched together. Thanks for watching." |
 
-If you have no Unity footage, skip that clip and say so; the Unity side is code-complete but unverified in the editor.
+If you have no Unity footage, skip that clip and say so; the Unity side is Unverified in the editor.
 
 ## Tour and About scenes (optional, about 15 seconds)
 1. Open `http://localhost:8000/?intro=0&tour=1`. Let two or three stops play (or press Right arrow), say what each control does, then press Esc.
@@ -33,7 +33,7 @@ Headless captures at 1280x720 clip the bottom of the page; in a real browser thi
 If you cannot run Unity, open the browser demo (README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
 
 Extra shots, all in the browser:
-- Omen toasts at Uneasy, Dire and Abyss; tentacles at Dire, sky eye at Abyss.
+- Omen banners at Uneasy, Dire and Abyss (quiet, 4.5 s, rate-limited flashes; see the horror review in `docs/ARCHITECTURE_AUDIT.md`); tentacles at Dire, sky eye at Abyss.
 - Buildings panel: `theme`, `cam=top` with the floor slider, `O` to try doors.
 - Download the Markdown report; drive the demo from the keyboard (`W C L N [ ] D M T V F O ?`).
 - Reduced motion with `?reduced=1`.

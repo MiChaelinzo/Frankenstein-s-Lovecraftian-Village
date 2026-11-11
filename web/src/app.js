@@ -6,15 +6,16 @@ import {
 } from './core.js';
 import {
   computeView, buildWalkers,
-  reportFilename, wrapIndex, postcardFilename, nightFromHash,
+  reportFilename, wrapIndex, postcardFilename, nightFromHash, applyFlash, toastMayReplace,
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
 import { shouldShowIntro } from './intro.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
-  floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor,
+  floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor, meshesWanted,
 } from './building.js';
+import { loadMeshSet } from './glb.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
@@ -60,7 +61,7 @@ const mark = () => { dirty = true; start(); };
 
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
-  narrationLine: '', narrationAt: 0, flash: 0, drain: false,
+  narrationLine: '', narrationAt: 0, flash: 0, flashAt: null, flashLevel: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: newJournal(), toast: null, focus: -1, eye: 0, tentacle: 0,
   investigatorOn: false, investigator: null, cinema: null,
@@ -72,7 +73,9 @@ const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvid
 
 const tex = createTextures({ ctx, params, tr });
 const { pack, loadPack, ensureProcPatterns, hintLabel } = tex;
-const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $ });
+const meshes = new Map(); // filled only by ?meshes=1; empty means the procedural drawing
+const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $, meshes });
+if (meshesWanted(location.search, location.hash)) loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
 const { iso, doorPoint } = renderer;
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
@@ -217,13 +220,23 @@ function say(locationId) {
   const at = state.narrationAt; setTimeout(() => { if (state.narrationAt === at) $('narration').style.opacity = 0.35; }, 7000);
   log('narration', line);
 }
+/** Starts a full-screen flash through the shared gate (capped, never inside the minimum gap, never with reduced motion). */
+function requestFlash(level) {
+  if (reduceMotion) return;
+  applyFlash(state, level, performance.now());
+}
+/** Shows a banner unless a recent one should keep the screen. The screen reader announcement is separate and always happens. */
+function showToast(text, rising) {
+  const now = performance.now();
+  if (toastMayReplace(state.toast, { rising }, now)) state.toast = { text, at: now, rising };
+}
 function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
   const text = omenTextL(e, lang);
   if (e.rising) progress.note.tier(e.tier);
-  state.toast = { text, at: performance.now(), rising: e.rising };
+  showToast(text, e.rising);
   announce(text); mark();
-  if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
+  if (e.rising && state.live) requestFlash(0.1 + 0.05 * e.tier);
   log('omen', text);
 }
 function updateDesc() {
@@ -309,7 +322,7 @@ function stepInvestigator() {
   const hit = inv.step();
   if (hit) {
     state.sanity.apply(-hit.sanityLoss);
-    if (!reduceMotion) state.flash = Math.max(state.flash, 0.2);
+    requestFlash(0.2);
     syncUi(); pushHash();
     const text = tr('log.investigator', { site: tr(`kind.${hit.siteId}`), n: hit.sanityLoss });
     log('investigator', text); announce(text); updateDesc();
@@ -392,14 +405,14 @@ function tryDoor(p) {
   const behavior = doorOmen(state.sanity.dread, p.key, 0, attempt, state.seed);
   const text = doorMessageL(doorMessage(behavior, p.key), lang);
   state.shakes.set(p.key, { behavior, at: performance.now() });
-  state.toast = { text, at: performance.now(), rising: behavior >= 2 };
+  showToast(text, behavior >= 2);
   announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
   progress.note.door(); progress.update();
   mark();
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
-function adjust(delta, location) { progress.arm(); state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
+function adjust(delta, location) { progress.arm(); state.sanity.apply(delta); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); say(location); }
 function showNightClamp() {
   const el = $('nightClamp'); if (!el) return;
   const msg = state.campaign ? nightClampNoticeL(location.hash, state.campaign.nights.length, lang) : '';
@@ -422,7 +435,7 @@ function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) :
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   progress.note.listen();
-  setFocus(i); adjust(-2, p.id);
+  setFocus(i); adjust(-SanityModel.FOCUS_COST, p.id);
 }
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
@@ -474,7 +487,7 @@ canvas.addEventListener('click', (e) => {
   if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
   state.layout.forEach((p) => { const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2); const d = Math.hypot(c.x - mx, c.y - 12 - my); if (d < bd) { bd = d; best = p; } });
-  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-2, best.id); }
+  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-SanityModel.FOCUS_COST, best.id); }
 });
 canvas.addEventListener('keydown', (e) => {
   if (state.dlnk) return;
@@ -491,11 +504,11 @@ $('theme').addEventListener('change', () => setTheme($('theme').value));
 $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
-$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
+$('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
-const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
-const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
-const doCandle = () => adjust(10, 'the village');
+const doWhisper = () => { progress.note.whisper(); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
+const doChurch = () => { requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
+const doCandle = () => adjust(SanityModel.CANDLE_RESTORE, 'the village');
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
@@ -671,7 +684,8 @@ addEventListener('keydown', (e) => {
 addEventListener('hashchange', () => { progress.disarm(); applyHash(); });
 document.addEventListener?.('visibilitychange', () => { if (!document.hidden) mark(); });
 if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver((es) => { state.visible = es.some((e) => e.isIntersecting); if (state.visible) mark(); }).observe(canvas);
-setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-0.5); syncUi(); } }, 500);
+const DRAIN_TICK_MS = 500;
+setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-SanityModel.DRAIN_PER_SECOND * DRAIN_TICK_MS / 1000); syncUi(); } }, DRAIN_TICK_MS);
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
 // ---------- DLNK scene mode: ?pack=1&scene=<name>, only when local-pack/scene_layout.json exists ----------

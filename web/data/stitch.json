@@ -4,21 +4,21 @@
       "count": 1
     },
     "core": {
-      "count": 15
+      "count": 18
     },
     "golden": {
-      "count": 12,
-      "vectors": 214
+      "count": 16,
+      "vectors": 323
     },
     "js": {
       "count": 38,
-      "tests": 36
+      "tests": 38
     },
     "kiro": {
       "count": 3,
-      "steering": 4,
-      "tasksDone": 54,
-      "tasksTotal": 69
+      "steering": 6,
+      "tasksDone": 60,
+      "tasksTotal": 73
     },
     "pwa": {
       "count": 54

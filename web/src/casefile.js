@@ -1,6 +1,7 @@
 // Case file export: deterministic Markdown/HTML of a campaign. No timestamps, so the same inputs give identical output.
 import { buildStory } from './story.js';
 import { generateRitual, ritualProgress } from './core.js';
+import { esc } from './util.js';
 
 const one = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 export const caseFileName = (seed, ext) => `village-casefile-seed-${seed | 0}.${ext}`;
@@ -37,8 +38,6 @@ export function buildCaseFile({ campaign, seed, sanity, journal = [], report = n
   return L.join('\n') + '\n';
 }
 
-const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
 /** Small self-contained HTML page (inline style only, no scripts) built from the Markdown above. */
 export function caseFileHtml(markdown) {
   const out = []; let list = null;
@@ -46,15 +45,15 @@ export function caseFileHtml(markdown) {
   const open = (t) => { if (list !== t) { close(); out.push(`<${t}>`); list = t; } };
   for (const line of String(markdown).split('\n')) {
     let m;
-    if ((m = /^(#{1,3}) (.*)$/.exec(line))) { close(); out.push(`<h${m[1].length}>${escHtml(m[2])}</h${m[1].length}>`); }
-    else if ((m = /^- (.*)$/.exec(line))) { open('ul'); out.push(`<li>${escHtml(m[1])}</li>`); }
-    else if ((m = /^\d+\. (.*)$/.exec(line))) { open('ol'); out.push(`<li>${escHtml(m[1])}</li>`); }
-    else if ((m = /^> (.*)$/.exec(line))) { close(); out.push(`<blockquote>${escHtml(m[1])}</blockquote>`); }
+    if ((m = /^(#{1,3}) (.*)$/.exec(line))) { close(); out.push(`<h${m[1].length}>${esc(m[2])}</h${m[1].length}>`); }
+    else if ((m = /^- (.*)$/.exec(line))) { open('ul'); out.push(`<li>${esc(m[1])}</li>`); }
+    else if ((m = /^\d+\. (.*)$/.exec(line))) { open('ol'); out.push(`<li>${esc(m[1])}</li>`); }
+    else if ((m = /^> (.*)$/.exec(line))) { close(); out.push(`<blockquote>${esc(m[1])}</blockquote>`); }
     else close();
   }
   close();
   const title = (/^# (.*)$/m.exec(markdown) || [0, 'Case File'])[1];
-  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>${escHtml(title)}</title>` +
+  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title>` +
     '<style>body{font:16px/1.5 Georgia,serif;max-width:48em;margin:2em auto;padding:0 1em;background:#0b1012;color:#d8e0dc}blockquote{border-left:3px solid #4a6;margin-left:0;padding-left:1em;font-style:italic}</style>' +
     `</head><body>\n${out.join('\n')}\n</body></html>\n`;
 }

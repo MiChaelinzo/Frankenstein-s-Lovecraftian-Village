@@ -7,7 +7,7 @@
 - `e508f0c` Scenes fitted by percentile bounds, softer dread tint.
 - `abe8b32` Headless Blender scripts for original catalog meshes, sprites and local texturing.
 - `7a1e4e7` Original GLB meshes with a dependency-free web viewer and Blender docs.
-- Not verified: no Unity run, no MCP use, no live URL or deploy, EXR lightmaps not decoded, only headless Chrome used.
+- Unverified: no Unity run, no MCP use, no live URL or deploy, EXR lightmaps not decoded, only headless Chrome used.
 # Build log
 
 A short history of how this project was built, taken from `git log` on the `feat/innovations-round3` branch. Every hash below exists in this repository. Specs referenced live in `.kiro/specs/` (`requirements.md`, `design.md`, `tasks.md`). Run `git log --oneline` to check any line.
@@ -62,9 +62,9 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `d02428b` `web/src/music.js` and `web/src/intro.js` pure helpers with node tests.
 - `bef0d79` Story mode panel, intro dialog, opt-in procedural soundtrack with volume and mute, smoke test coverage. Headless screenshots of the intro and a night 3 story beat were checked; audio output was not listened to.
 
-## What is and is not verified
+## Verification status (Verified, Partially Verified, Unverified)
 - Verified by running them: the C# Core property tests (`dotnet test`), the JS tests (`node --test`), the golden parity between the two, the repo validator, and the self-test page in headless Chromium (`docs/media/selftest.png`).
-- Never compiled or run in the Unity editor: everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.
+- Unverified (never compiled or run in the Unity editor; compile against stubs is Partially Verified): everything under `Assets/Scripts/Runtime` and `Assets/Scripts/Editor`, including `WalkthroughController.cs`.
 - Real packages: downloaded, inspected and used for the local `?pack=1` mode here; pack content is never committed. Still not opened in Unity.
 
 ## Story sequencer
@@ -112,8 +112,14 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `0c43015` Story and Progress journal tabs with an unseen badge (`web/src/journal.js`, tests).
 - `bc2e65b` Opt-in judge tour, About dialog, static and perf budget tests, judge quick start in the README, `--blood` colour change, service worker cache `flv-shell-v4`.
 - `c9fa15c` Tour card placement fix: pure `tourCardPlacement`, max height with scroll, higher z-index, re-placed on resize. The clipping seen in a 1280x720 headless screenshot is mostly a capture artifact (about 50 px missing at that size; 1280x770 and 390x800 show the full card), so this is a guard, not a proven user bug. Node tests 208 passing at that point.
-- Not verified: no real browser session, no live URL, no Unity, GitHub Actions blocked by an account billing lock.
+- Unverified: no real browser session, no live URL, no Unity, GitHub Actions blocked by an account billing lock.
 - `eb8d406` Docs: round 11 changelog, build log, specs, steering, demo script and Devpost checklist.
 - `d8e833c` Review fixes: progress armed on keyboard paths, tour Escape stops propagation, pointerleave only restarts the timer, auto-advance paused while About is open. Node tests 210.
 - `5ceb841` Docs: changelog for the round 11 review fixes.
 - `45a1dce` Tour remembers a key or hover stop across About resume and pointerleave; fake-DOM tests of `createTourController` cover Escape propagation and pause/resume. Node tests 212, dotnet 64. Still no real browser session. Arming remains per call site (non-blocking, left as is).
+
+## Round 13 architecture audit
+- `9112c8f` Moved codex, achievement, daily seed, sanity cost, floor count, detail summary, ambience volume and dread percent rules into Core with property tests, golden entries and JS mirror tests. dotnet 80 passing, node 235. Fixed a half-rounding mismatch between Runtime (`Mathf.RoundToInt`) and Core/web.
+- `c706b1f` Logged swallowed errors, removed dead exports and duplicated helpers. UnityCompileCheck stub gained `UnityWebRequest.error`.
+- Unverified: Unity was never run; Runtime edits are compile checked against stubs only.
+- Horror design review (this commit, hash in `git log`): seeded lightning and shake, capped flash gate, coalesced shorter banners, `web/test/notice-policy.test.js`. Feel is Partially Verified; no real browser session.

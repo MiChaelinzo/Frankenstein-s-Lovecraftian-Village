@@ -2,6 +2,7 @@
 """Tests for tools/dlnk_scene.py. Fixtures are synthetic YAML written for this test; no pack content."""
 import math
 import os
+import re
 import sys
 import unittest
 
@@ -71,10 +72,31 @@ class SceneTests(unittest.TestCase):
     def test_classification(self):
         for name, kind in [("Church00", "church"), ("OldWell", "well"), ("Altar_Stone", "altar"), ("CandleHolder03", "lamp"), ("Lantern", "lamp"),
                            ("DeadTree02", "dead_tree"), ("ETP_Tree_3_01", "tree"), ("Boat00", "boat"), ("Rock_Small03b", "rock"),
-                           ("FenceWood", "fence"), ("Barrel00", "generic"), ("_Sp_ETP_Plants_05b Variant", "plant"), ("Wall04_Window01c", "part")]:
+                           ("FenceWood", "fence"), ("Barrel00", "prop"), ("Jar00b Variant", "prop"), ("Sack001b Variant", "prop"),
+                           ("FishHook01", "prop"), ("Decal01", "effect"), ("DecoWeb001", "effect"), ("LowFog3", "effect"), ("<Trigger> Exterior", "effect"),
+                           ("_Sp_MushroomGroup03", "plant"), ("Pinnacle00a", "rock"), ("Rowing00", "boat"), ("Cube", "generic"), ("Room3x3_g", "generic"), ("_Sp_ETP_Plants_05b Variant", "plant"), ("Wall04_Window01c", "part")]:
             self.assertEqual(d.classify(name), kind, name)
         self.assertIn(d.classify("BigHouse00"), ("house_a", "house_b"))
         self.assertEqual(d.classify("BigHouse00"), d.classify("BigHouse00"))
+
+    def test_unclassified_names_stay_generic_and_unknown_guid_is_generic(self):
+        lay = d.build_layout([{"name": "?", "x": 0, "y": 0, "z": 0, "rotY": 0, "scale": 1},
+                              {"name": "Quad", "x": 1, "y": 0, "z": 0, "rotY": 0, "scale": 1}])
+        self.assertEqual([o["kind"] for o in lay["objects"]], ["generic", "generic"])
+        self.assertEqual(d.KIND_UNCLASSIFIED, "generic")
+
+    def test_every_keyword_list_is_lowercase_and_kinds_are_unique(self):
+        kinds = [k for k, _ in d.KIND_KEYWORDS]
+        self.assertEqual(len(kinds), len(set(kinds)))
+        for _, words in d.KIND_KEYWORDS:
+            self.assertTrue(all(w == w.lower() for w in words))
+        self.assertEqual(len(d.KINDS), len(set(d.KINDS)))
+
+    def test_kinds_match_web_layout_kinds(self):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "src", "dlnk-layout.js"), encoding="utf-8") as f:
+            js = f.read()
+        listed = re.search(r"LAYOUT_KINDS = \[([^\]]*)\]", js).group(1)
+        self.assertEqual(sorted(re.findall(r"'([a-z_]+)'", listed)), sorted(d.KINDS))
 
     def test_bounds_cap_and_nonfinite(self):
         raw = [{"name": "Rock%d" % i, "x": float(i), "y": 0.0, "z": -float(i), "rotY": 0.0, "scale": 1.0} for i in range(50)]

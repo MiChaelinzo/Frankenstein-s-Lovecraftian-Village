@@ -1,7 +1,9 @@
 // Pure helpers for the optional "DLNK scene" mode (?pack=1&scene=<name>). No DOM access so node can test them.
 // scene_layout.json lives in the git-ignored web/local-pack/ folder and is never committed.
 
-export const LAYOUT_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp', 'tree', 'plant', 'boat', 'rock', 'fence', 'part', 'generic'];
+export const LAYOUT_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp', 'tree', 'plant', 'boat', 'rock', 'fence', 'effect', 'prop', 'part', 'generic'];
+/** The honest bucket for names no classification rule matched (see KIND_UNCLASSIFIED in tools/dlnk_scene.py). */
+export const UNCLASSIFIED_KIND = 'generic';
 export const MAX_SCENE_OBJECTS = 3000;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
@@ -19,6 +21,8 @@ export const KIND_STYLE = {
   boat: { size: 0.7, h: 4, role: 'wall_wood' },
   rock: { size: 0.3, h: 5, role: 'wall_stone' },
   fence: { size: 0.4, h: 4, role: 'wall_wood' },
+  effect: { size: 0.1, h: 1, role: 'ground' },
+  prop: { size: 0.12, h: 3, role: 'wall_wood' },
   part: { size: 0.2, h: 4, role: 'wall_wood' },
   generic: { size: 0.15, h: 3, role: 'ground' },
 };
@@ -102,6 +106,14 @@ export function kindCounts(scene) {
   return c;
 }
 
+/** Objects no rule classified, as { count, percent } of the scene's objects (percent rounded, 0 for an empty scene). */
+export function unclassifiedShare(scene) {
+  const count = scene.objects.filter((o) => o.kind === UNCLASSIFIED_KIND).length;
+  return { count, percent: scene.objects.length ? Math.round((100 * count) / scene.objects.length) : 0 };
+}
+
 export function sceneLabel(slug, scene) {
-  return `DLNK scene: ${scene.title} (${scene.objects.length}${scene.total > scene.objects.length ? ` of ${scene.total}` : ''} objects)`;
+  const u = unclassifiedShare(scene);
+  const base = `DLNK scene: ${scene.title} (${scene.objects.length}${scene.total > scene.objects.length ? ` of ${scene.total}` : ''} objects)`;
+  return u.count ? `${base}, ${u.count} unclassified (${u.percent}%) as hollow rings` : base;
 }

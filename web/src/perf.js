@@ -1,4 +1,5 @@
 // Frame-time statistics for the optional performance HUD. Pure; app.js feeds it timestamps.
+import { queryParam } from './util.js';
 export function createPerf(capacity = 120) {
   const times = []; let last = null;
   return {
@@ -14,5 +15,5 @@ export function createPerf(capacity = 120) {
     },
   };
 }
-export const perfWanted = (search, hash) => new URLSearchParams(String(search || '')).get('perf') === '1' || new URLSearchParams(String(hash || '').replace(/^#/, '')).get('perf') === '1';
+export const perfWanted = (search, hash) => queryParam(search, 'perf') === '1' || queryParam(hash, 'perf') === '1';
 export const perfText = (s) => (s.frames ? `${s.fps.toFixed(0)} fps | ${s.avgMs.toFixed(1)} ms avg | ${s.maxMs.toFixed(1)} ms max` : 'perf: waiting for frames');

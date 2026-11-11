@@ -192,3 +192,69 @@ export function ritualHudText(ritual, dreadPercent, nightNumber) {
   return `${ritual.name}: stage ${found + 1} of ${ritual.stages.length}, ${st.name} (sigil ${st.sigil}).${sched}` +
     (next ? ` Next: ${next.name} at ${next.dreadThresholdPercent}% dread.` : ' The rite is complete.');
 }
+
+// ---- Notice policy (round 13 horror review): quiet, rate-limited, seed-driven. See the Horror design review in docs/ARCHITECTURE_AUDIT.md. ----
+/** How long the omen banner stays up. Was 6000 before the round 13 review. */
+export const TOAST_MS = 4500;
+/** A banner shown less than this long ago is not replaced by a calmer one (the screen reader still hears every notice). */
+export const TOAST_MIN_HOLD_MS = 1500;
+/** Brightest full-screen flash allowed. Was 0.6 before the review. */
+export const FLASH_MAX = 0.3;
+/** No second flash inside this window, so flashes can never strobe. */
+export const FLASH_MIN_GAP_MS = 4000;
+/** Ambient lightning and dread shake sample a new seeded value this often. */
+export const AMBIENT_SLOT_MS = 250;
+export const JITTER_SLOT_MS = 60;
+/** Chance per ambient slot, scaled by dread. About the old per-frame odds at 60 fps. */
+export const AMBIENT_FLASH_ODDS = 0.02;
+export const AMBIENT_FLASH_LEVEL = 0.2;
+const MAX_JITTER_PX = 3;
+
+/** Integer hash to [0,1). Same inputs, same output, no Math.random. */
+export function unitHash(seed, slot, salt = 0) {
+  let h = (Math.imul(seed | 0, 2654435761) ^ Math.imul(slot | 0, 40503) ^ Math.imul(salt | 0, 668265263)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Whether `next` may replace the banner `current` right now. Rising notices always win over calm ones. */
+export function toastMayReplace(current, next, now) {
+  if (!current) return true;
+  if (next.rising && !current.rising) return true;
+  return now - current.at >= TOAST_MIN_HOLD_MS;
+}
+
+/**
+ * The flash level actually allowed: capped, and zero inside the minimum gap after the previous one,
+ * unless the new flash is stronger than the one that opened the gap (a light flash never masks a heavy one).
+ */
+export function gatedFlash(level, lastAt, now, lastLevel = 0) {
+  if (!(level > 0)) return 0;
+  const capped = Math.min(FLASH_MAX, level);
+  if (lastAt != null && now - lastAt < FLASH_MIN_GAP_MS && !(capped > lastLevel)) return 0;
+  return capped;
+}
+
+/** Requests a flash on `flashState` ({ flash, flashAt, flashLevel }) through the gate. Returns true if it started. */
+export function applyFlash(flashState, level, now) {
+  const f = gatedFlash(level, flashState.flashAt, now, flashState.flashLevel);
+  if (f <= 0) return false;
+  flashState.flash = Math.max(flashState.flash, f);
+  flashState.flashAt = now;
+  flashState.flashLevel = f;
+  return true;
+}
+
+/** Distant lightning at high dread, chosen by seed and time slot. Returns a flash level or 0. */
+export function ambientFlash(seed, nowMs, dread) {
+  if (!(dread > 0.4)) return 0;
+  return unitHash(seed, Math.floor(nowMs / AMBIENT_SLOT_MS), 1) < AMBIENT_FLASH_ODDS * dread ? AMBIENT_FLASH_LEVEL : 0;
+}
+
+/** Camera tremor at high dread, deterministic per seed and time slot. */
+export function dreadJitter(seed, nowMs, dread) {
+  if (!(dread > 0.5)) return { dx: 0, dy: 0 };
+  const slot = Math.floor(nowMs / JITTER_SLOT_MS), amp = (dread - 0.5) * MAX_JITTER_PX;
+  return { dx: (unitHash(seed, slot, 2) - 0.5) * amp, dy: (unitHash(seed, slot, 3) - 0.5) * amp };
+}

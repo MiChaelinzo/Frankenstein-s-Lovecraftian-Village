@@ -13,6 +13,15 @@ namespace Frankenstein.Core
             return t * t * (3f - 2f * t);
         }
 
+        public const float AmbienceFloor = 0.2f;
+        public const float AmbienceRange = 0.8f;
+
+        /// <summary>Ambient loop volume 0.2..1.0: never silent, loudest at full dread. Dread is sanitized first.</summary>
+        public static float AmbienceVolume(float dread)
+        {
+            return AmbienceFloor + AmbienceRange * DreadThresholds.Sanitize(dread);
+        }
+
         /// <summary>Linear blend from calm to dread by <see cref="Weight"/>.</summary>
         public static float Blend(float calm, float dreadValue, float dread)
         {

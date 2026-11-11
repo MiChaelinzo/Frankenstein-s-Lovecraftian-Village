@@ -63,7 +63,7 @@ export function createProgressController({ $, tr, state, log, announce, fetchJso
     stitchOn = on; setPanel('stitchPanel', 'stitchToggle', on);
     if (on && !stitchLoaded) {
       let model = null;
-      try { model = stitchModel(await fetchJson('data/stitch.json')); } catch { model = null; }
+      try { model = stitchModel(await fetchJson('data/stitch.json')); } catch (err) { console.warn(`[stitch] could not load data/stitch.json: ${err.message}`); model = null; }
       $('stitchBody').innerHTML = stitchHtml(model, tr);
       stitchLoaded = !!model;
     }

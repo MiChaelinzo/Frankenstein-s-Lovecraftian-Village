@@ -1,11 +1,11 @@
 // Session save/load and share links. Pure functions plus a storage wrapper that tolerates a missing localStorage.
 export const SESSION_KEY = 'flv.session.v1';
 import { cleanAchievementIds } from './achievements.js';
+import { clamp } from './util.js';
 export const CAMERAS = ['auto', 'first', 'third', 'top'];
 const THEME_RE = /^[a-z0-9_-]{1,32}$/;
 const int = (v) => (typeof v === 'number' || typeof v === 'string') && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
 export function parseSession(input) {
@@ -45,7 +45,6 @@ export function loadSession(storage) {
   if (!storage) return null;
   try { return parseSession(storage.getItem(SESSION_KEY)); } catch { return null; }
 }
-export function clearSession(storage) { try { storage?.removeItem(SESSION_KEY); } catch { /* ignore */ } }
 
 /** Hash fragment (leading #) for a session. Night is 1-based in links. Default values are omitted. */
 export function sessionHash(s) {

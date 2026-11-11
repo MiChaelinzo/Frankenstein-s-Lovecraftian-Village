@@ -76,7 +76,7 @@ class PngTests(unittest.TestCase):
         self.assertEqual(b.decode_png_channel(b.encode_gray_png(3, 2, rows), 0)[2], rows)
 
 
-class MaterialTests(unittest.TestCase):
+class TintTests(unittest.TestCase):
     def test_tint_prefers_basecolor(self):
         y = "  m_Colors:\n    - _BaseColorMap_MipInfo: {r: 0, g: 0, b: 0, a: 0}\n    - _Color: {r: 1, g: 0, b: 0, a: 1}\n    - _BaseColor: {r: 0.5, g: 1, b: 0, a: 1}\n"
         self.assertEqual(b.parse_tint(y), [128, 255, 0])
@@ -118,6 +118,68 @@ class MaterialTests(unittest.TestCase):
             self.assertEqual(list(lay["scenes"]), ["demo-one"])
             self.assertEqual(lay["scenes"]["demo-one"]["total"], 1)
             self.assertEqual(lay["scenes"]["demo-one"]["objects"][0]["x"], 3.0)
+
+
+def write_package(pkg, items):
+    with tarfile.open(pkg, "w:gz") as t:
+        for guid, path, data in items:
+            for name, body in [("pathname", path.encode()), ("asset", data)]:
+                ti = tarfile.TarInfo(f"{guid}/{name}")
+                ti.size = len(body)
+                t.addfile(ti, io.BytesIO(body))
+
+
+class FlavorTests(unittest.TestCase):
+    def test_flavor_from_file_name(self):
+        self.assertEqual(b.package_flavor("/x/Lovecraftian1.3_URP_Unity6.unitypackage"), "urp")
+        self.assertEqual(b.package_flavor("/x/Lovecraftian1.3_HDRP_Unity6.unitypackage"), "hdrp")
+        self.assertIs(b.roles_for("a_URP.unitypackage"), b.ROLES_URP)
+        self.assertIs(b.roles_for("a_HDRP.unitypackage"), b.ROLES_HDRP)
+
+    def test_urp_roles_are_material_only_and_share_materials(self):
+        self.assertEqual(set(b.ROLES_URP), set(b.ROLES_HDRP))
+        for role, (tex, _, mat) in b.ROLES_URP.items():
+            self.assertIsNone(tex, role)
+            self.assertEqual(mat, b.ROLES_HDRP[role][2])
+
+    def test_material_role_entry(self):
+        e = b.material_role_entry("a/b.mat", b.parse_material("- _Glossiness: 0.5\n- _Color: {r: 1, g: 1, b: 1, a: 1}\n"))
+        self.assertEqual(e, {"tint": [255, 255, 255], "sourcePathname": "a/b.mat", "smoothness": 0.5})
+        self.assertEqual(b.material_role_entry("m", {})["tint"], [255, 255, 255])
+
+    def test_manifest_material_only_key(self):
+        m = b.build_manifest("t", "abc", {}, {}, {}, {"roof": {"tint": [1, 2, 3], "sourcePathname": "m"}})
+        self.assertIn("materialOnlyRoles", m)
+        self.assertNotIn("materialOnlyRoles", b.build_manifest("t", "abc", {}, {}, {}))
+
+    def test_main_on_synthetic_urp_package_writes_material_only(self):
+        mat = "  m_Floats:\n    - _Glossiness: 0.3\n  m_Colors:\n    - _Color: {r: 0, g: 1, b: 0, a: 1}\n"
+        scratch = os.path.join(b.ROOT, "pack-scratch")
+        os.makedirs(scratch, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as d:
+            pkg = os.path.join(d, "Synthetic_URP.unitypackage")
+            write_package(pkg, [("m1", b.ROLES_URP["roof"][2], mat.encode())])
+            out = os.path.join(d, "out")
+            self.assertEqual(b.main([pkg, "--out", out]), 0)
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as f:
+                man = json.load(f)
+            self.assertEqual(man["roles"], {})
+            self.assertEqual(man["materialOnlyRoles"]["roof"]["tint"], [0, 255, 0])
+            self.assertEqual(man["materialOnlyRoles"]["roof"]["smoothness"], 0.3)
+
+    def test_main_on_synthetic_hdrp_package_still_extracts_textures(self):
+        png, _ = make_png(4, 4, 6, lambda x, y, c: 90, [0])
+        scratch = os.path.join(b.ROOT, "pack-scratch")
+        os.makedirs(scratch, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as d:
+            pkg = os.path.join(d, "Synthetic_HDRP.unitypackage")
+            write_package(pkg, [("t1", b.ROLES_HDRP["roof"][0], png)])
+            out = os.path.join(d, "out")
+            self.assertEqual(b.main([pkg, "--out", out]), 0)
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as f:
+                man = json.load(f)
+            self.assertEqual(man["roles"]["roof"]["texture"], "textures/roof.png")
+            self.assertNotIn("materialOnlyRoles", man)
 
 
 class PackageTests(unittest.TestCase):

@@ -1,6 +1,7 @@
 // Pure helpers for the web demo's DLNK-style building features: texture themes, floor counts, door
 // interactions, camera modes and omen-driven detail. No DOM access so node can test them. The shared
 // policy itself (detailLevel, doorOmen, allowedCamera, ...) lives in core.js and is golden-checked.
+import { queryParam } from './util.js';
 import { stableHash, allowedCamera, suggestedCamera, floorVisible, clampFloor } from './core.js';
 
 // Our own grouping of the pack's material families, using the three DLNK groups. The pack role is the
@@ -71,7 +72,7 @@ export const cameraOverridden = (choice, dread) => choice !== 'auto' && effectiv
 
 // ---- floors ----
 
-/** Floors per building. Deterministic from the id and the per-piece visual rolls (0..1). */
+/** Floors per building. Deterministic from the id and the per-piece visual rolls (0..1). Mirrors DreadBuildingPolicy.FloorCountFor (golden-checked). */
 export function floorCountFor(id, roll, roll2) {
   if (id === 'house_a') return roll < 0.5 ? 1 : 2;
   if (id === 'house_b') return roll2 < 0.35 ? 2 : 3;
@@ -137,3 +138,14 @@ export function doorShake(behavior, ageMs, reduced) {
   return { dx: Math.sin(ageMs / 40) * 1.6 * fade, dy: 0 };
 }
 export const DOOR_RING = ['rgba(95,143,120,.9)', 'rgba(230,180,90,.9)', 'rgba(220,60,60,.95)', 'rgba(160,100,220,.95)'];
+
+// ---- GLB mesh mode (?meshes=1, opt-in only) ----
+
+/** Village piece id to committed Blender mesh kind. Pieces without a mesh keep the procedural drawing. */
+const MESH_KINDS = { house_a: 'house_a', house_b: 'house_b', church: 'church', well: 'well', altar: 'altar', dead_tree: 'dead_tree' };
+export const meshKindFor = (pieceId) => MESH_KINDS[pieceId] || null;
+
+/** True only for an explicit meshes=1 in the query or hash. */
+export function meshesWanted(search, hash) {
+  return (queryParam(hash, 'meshes') ?? queryParam(search, 'meshes')) === '1';
+}

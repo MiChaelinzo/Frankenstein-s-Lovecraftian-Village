@@ -28,6 +28,9 @@ namespace Frankenstein.Core
         private readonly INarrationProvider _primary;
         private readonly INarrationProvider _fallback;
 
+        /// <summary>Message of the last primary provider failure, or null. Callers (Runtime) may log it; Core never swallows silently.</summary>
+        public string LastError { get; private set; }
+
         public SafeNarrationProvider(INarrationProvider primary, INarrationProvider fallback)
         {
             _primary = primary;
@@ -39,9 +42,10 @@ namespace Frankenstein.Core
             try
             {
                 var text = _primary?.Narrate(locationId, dread);
-                if (!string.IsNullOrWhiteSpace(text)) return text;
+                if (!string.IsNullOrWhiteSpace(text)) { LastError = null; return text; }
+                LastError = "primary narration provider returned blank text";
             }
-            catch (Exception) { /* fall through to offline text */ }
+            catch (Exception ex) { LastError = ex.GetType().Name + ": " + ex.Message; }
             return _fallback.Narrate(locationId, dread);
         }
     }

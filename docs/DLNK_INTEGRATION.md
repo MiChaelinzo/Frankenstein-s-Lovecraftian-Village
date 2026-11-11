@@ -2,7 +2,7 @@
 
 This project can drive the scripts of the [DLNK Myst Village](https://www.dlnkworks.com/asset-store/environments/myst-village/) environment pack by [DLNK Works](https://www.dlnkworks.com/). All credit for the pack and its scripts belongs to DLNK. Nothing from the pack is included in this repository.
 
-## Unverified in Unity
+## Unverified in Unity (label: Unverified)
 
 The adapter MonoBehaviours under `Assets/Scripts/Runtime` were **never compiled or run in Unity**. The decisions they forward come from `DreadBuildingPolicy` in Core, which is covered by C# property tests, JS tests and C#-to-JS golden parity. The real class names and public methods of the DLNK scripts are **unknown** to this project: the downloaded URP and HDRP editions contain no scripts and no meshes, so there was nothing to read. That is why the adapters use UnityEvents and an interface, with no compile-time dependency on any DLNK type and no reflection.
 
@@ -46,3 +46,7 @@ If a pack method signature does not match a UnityEvent (for example it takes no 
 ## Web demo
 
 The web demo uses the same decisions through `web/src/core.js` (`detailLevel`, `floorVisible`, `doorOmen`, `suggestedCamera`, `allowedCamera`), verified against the C# output.
+
+## Scene kinds and unclassified objects
+
+`tools/dlnk_scene.py` classifies prefab names with ordered keyword lists (house, church, tree, rock, plant, fence, boat, lamp, `prop` for loose household objects, `effect` for decals, cobwebs, fog and trigger volumes, `part`). Names no rule matches stay `generic`; the scene view draws them as hollow rings and the HUD line reports their count and share. On the local Coast Scene this dropped `generic` from 817 to 74 of 2628 objects (rebuild the pack to refresh `scene_layout.json`). The URP package has no material textures, so `tools/build_local_pack.py` writes material-only roles for it (`materialOnlyRoles`); use the HDRP package for textures. Visual judgment is Partially Verified (headless screenshot); the URP look in Unity is Unverified.

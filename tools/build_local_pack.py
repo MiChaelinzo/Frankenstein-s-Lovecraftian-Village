@@ -33,7 +33,7 @@ MAT = "Assets/_DLNK/Lovecraftian Village/Source/Materials/"
 ETP = "Assets/_DLNK/Essential Terrain Pack/Source/Materials/"
 
 # role -> texture pathname, channel index in RGBA (DetailMap R is desaturated albedo, MaskMap G is ambient occlusion), material
-ROLES = {
+ROLES_HDRP = {
     "wall_wood": (MAT + "Wood/WoodPlanks00_DetailMap.png", 0, MAT + "Wood/WoodPlanks00.mat"),
     "wall_brick": (MAT + "Brick/BrickWall01_DetailMap.png", 0, MAT + "Brick/BrickWall01.mat"),
     "wall_plaster": (MAT + "Plaster/Plaster01_DetailMap.png", 0, MAT + "Plaster/Plaster01.mat"),
@@ -43,6 +43,20 @@ ROLES = {
     "ground": (MAT + "Ground/GroundDirt00_MaskMap.png", 1, MAT + "Ground/GroundDirt00.mat"),
     "ground_stones": (MAT + "Ground/GroundStones00_MaskMap.png", 1, MAT + "Ground/GroundStones00.mat"),
 }
+
+# The URP package (verified by listing its pathnames) ships .mat files that reference BaseMap/BumpMap/OcclusionMap slots,
+# but none of those texture files are inside the package: its only images are lightmaps and reflection probes.
+# URP roles are therefore material-only (texture None): tint, smoothness, metallic and slot names, no PNG.
+ROLES_URP = {role: (None, 0, mat) for role, (_tex, _ch, mat) in ROLES_HDRP.items()}
+
+
+def package_flavor(package):
+    """'urp' when the file name says URP, else 'hdrp' (the pack ships both render pipelines under those names)."""
+    return "urp" if "URP" in os.path.basename(package).upper() else "hdrp"
+
+
+def roles_for(package):
+    return ROLES_URP if package_flavor(package) == "urp" else ROLES_HDRP
 
 
 # ---------- PNG (8 bit, non interlaced) ----------
@@ -219,8 +233,22 @@ def sha_prefix(path, n=12):
     return h.hexdigest()[:n]
 
 
-def build_manifest(package_name, sha, roles, hints, scene_stats):
-    return {"version": 1, "source": {"package": package_name, "sha256Prefix": sha}, "roles": roles, "prefabHints": hints, "sceneStats": scene_stats}
+def build_manifest(package_name, sha, roles, hints, scene_stats, material_only=None):
+    m = {"version": 1, "source": {"package": package_name, "sha256Prefix": sha}, "roles": roles, "prefabHints": hints, "sceneStats": scene_stats}
+    if material_only:
+        m["materialOnlyRoles"] = material_only  # roles with a .mat but no texture in the package (URP); the web demo ignores this key
+    return m
+
+
+def material_role_entry(mat_pathname, mp):
+    """Manifest entry for a role that has material data but no texture file."""
+    entry = {"tint": mp.get("tint") or [255, 255, 255], "sourcePathname": mat_pathname}
+    for key in ("smoothness", "metallic"):
+        if mp.get(key) is not None:
+            entry[key] = mp[key]
+    if mp.get("slots"):
+        entry["slots"] = mp["slots"]
+    return entry
 
 
 def catalog_hints(path=DEFAULT_CATALOG):
@@ -279,15 +307,22 @@ def main(argv=None):
         return 1
     out = os.path.abspath(args.out)
     require_ignored(out)
+    role_table = roles_for(package)
     wanted = []
-    for tex, _, mat in ROLES.values():
-        wanted += [tex, mat]
+    for tex, _, mat in role_table.values():
+        wanted += [t for t in (tex, mat) if t]
     t0 = time.time()
     print(f"reading {os.path.basename(package)} ...")
     assets = read_selected(package, wanted)
     os.makedirs(os.path.join(out, "textures"), exist_ok=True)
-    roles = {}
-    for role, (tex, ch, mat) in ROLES.items():
+    roles, material_only = {}, {}
+    for role, (tex, ch, mat) in role_table.items():
+        if tex is None:
+            if mat in assets:
+                material_only[role] = material_role_entry(mat, parse_material(assets[mat].decode("utf-8", "replace")))
+            else:
+                print(f"warning: {role}: {mat} not in this package, skipped", file=sys.stderr)
+            continue
         if tex not in assets:
             print(f"warning: {role}: {tex} not in this package, skipped", file=sys.stderr)
             continue
@@ -308,19 +343,22 @@ def main(argv=None):
         if mp.get("slots"):
             roles[role]["slots"] = mp["slots"]
         print(f"  {role}: {w}x{h} -> {ow}x{oh} tint {roles[role]['tint']}")
-    if not roles:
+    if not roles and not material_only:
         print("no textures extracted", file=sys.stderr)
         return 1
+    if not roles:
+        print(f"note: {package_flavor(package).upper()} package has no material textures; wrote {len(material_only)} material-only roles. "
+              "The web demo needs textures, so build the HDRP package for ?pack=1 texturing.")
     layout = build_scene_layout(package)
     if layout["scenes"]:
         with open(os.path.join(out, "scene_layout.json"), "w", encoding="utf-8") as f:
             json.dump(layout, f, separators=(",", ":"))
         for slug, sc in layout["scenes"].items():
             print(f"  scene {slug}: {sc['count']} of {sc['total']} objects")
-    manifest = build_manifest(os.path.basename(package), sha_prefix(package), roles, catalog_hints(), scene_stats_from_inventory(package))
+    manifest = build_manifest(os.path.basename(package), sha_prefix(package), roles, catalog_hints(), scene_stats_from_inventory(package), material_only)
     with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
-    print(f"wrote {out} ({len(roles)} roles, {time.time() - t0:.0f}s). Keep it uncommitted.")
+    print(f"wrote {out} ({len(roles)} texture roles, {len(material_only)} material-only, {time.time() - t0:.0f}s). Keep it uncommitted.")
     return 0
 
 
