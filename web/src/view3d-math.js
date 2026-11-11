@@ -353,7 +353,7 @@ export const POST_MIN_QUALITY = 0.75;
  * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
  */
 export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
-  const d = clamp(dread, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
     enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
     bloom: 0.45, bloomThreshold: 0.7, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
