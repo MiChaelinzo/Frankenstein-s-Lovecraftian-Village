@@ -21,6 +21,9 @@ import time
 import zlib
 from itertools import accumulate
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dlnk_scene  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DL = os.path.join(ROOT, "Assets", "ThirdParty", "LovecraftianVillage", "downloads")
 DEFAULT_PACKAGES = [os.path.join(DL, "Lovecraftian1.3_HDRP_Unity6.unitypackage"), os.path.join(DL, "Lovecraftian1.3_URP_Unity6.unitypackage")]
@@ -156,6 +159,25 @@ def parse_tint(yaml_text):
     return [max(0, min(255, round(float(v) * 255))) for v in pick]
 
 
+def parse_material(yaml_text):
+    """Return {tint, smoothness, metallic, slots} from a Unity .mat (HDRP and URP property names).
+
+    tint: _BaseColor else _Color as [r,g,b] 0..255 or None. smoothness: _Smoothness else _Glossiness else
+    _GlossMapScale else None. metallic: _Metallic or None. slots: sorted texture slot names that have a texture set.
+    """
+    def num(name):
+        m = re.search(r"-\s*%s:\s*(-?[0-9.]+(?:[eE][-+]?\d+)?)\s*$" % re.escape(name), yaml_text, re.M)
+        return max(0.0, min(1.0, round(float(m.group(1)), 3))) if m else None
+
+    smooth = next((v for v in (num("_Smoothness"), num("_Glossiness"), num("_GlossMapScale")) if v is not None), None)
+    slots = []
+    for m in re.finditer(r"-\s*(_[A-Za-z0-9]+(?:Map|Tex)):\s*\r?\n\s*m_Texture:\s*\{([^}]*)\}", yaml_text):
+        g = re.search(r"guid:\s*([0-9a-fA-F]{32})", m.group(2))
+        if g and g.group(1).strip("0"):
+            slots.append(m.group(1))
+    return {"tint": parse_tint(yaml_text), "smoothness": smooth, "metallic": num("_Metallic"), "slots": sorted(set(slots))}
+
+
 # ---------- safety ----------
 def is_git_ignored(path, repo=ROOT):
     probe = os.path.join(path, ".probe")
@@ -216,6 +238,35 @@ def scene_stats_from_inventory(package):
         return {}
 
 
+def read_scene_texts(package):
+    """One streaming pass: ({guid: pathname}, {scene pathname: text}). Scenes are parsed in memory only."""
+    paths, scenes = {}, {}
+    with tarfile.open(package, "r|gz") as tar:
+        for m in tar:
+            parts = m.name.split("/")
+            if m.isfile() and parts[-1] == "pathname":
+                line = tar.extractfile(m).read(4096).decode("utf-8", "replace").splitlines()
+                if line and line[0].strip():
+                    paths[parts[0]] = line[0].strip()
+            elif m.isfile() and parts[-1] == "asset" and 2000 < m.size <= 64 * 1024 * 1024:
+                data = tar.extractfile(m).read()
+                if data.startswith(b"%YAML") and b"OcclusionCullingSettings" in data[:2048]:
+                    scenes[parts[0]] = data
+            tar.members = []
+    return paths, {paths[g]: d.decode("utf-8", "replace") for g, d in scenes.items() if paths.get(g, "").lower().endswith(".unity")}
+
+
+def build_scene_layout(package):
+    paths, texts = read_scene_texts(package)
+    names = {g: os.path.splitext(os.path.basename(p))[0] for g, p in paths.items() if p.lower().endswith(".prefab")}
+    scenes = {}
+    for pathname, text in sorted(texts.items()):
+        lay = dlnk_scene.build_layout(dlnk_scene.parse_scene(text, names))
+        lay["title"] = os.path.splitext(os.path.basename(pathname))[0]
+        scenes[dlnk_scene.scene_slug(pathname)] = lay
+    return {"version": 1, "source": {"package": os.path.basename(package)}, "scenes": scenes}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("package", nargs="?")
@@ -249,12 +300,23 @@ def main(argv=None):
         rel = f"textures/{role}.png"
         with open(os.path.join(out, rel), "wb") as f:
             f.write(encode_gray_png(ow, oh, small))
-        tint = parse_tint(assets[mat].decode("utf-8", "replace")) if mat in assets else None
-        roles[role] = {"texture": rel, "tint": tint or [255, 255, 255], "sourcePathname": tex, "channel": "RGBA"[ch], "size": [ow, oh]}
+        mp = parse_material(assets[mat].decode("utf-8", "replace")) if mat in assets else {}
+        roles[role] = {"texture": rel, "tint": mp.get("tint") or [255, 255, 255], "sourcePathname": tex, "channel": "RGBA"[ch], "size": [ow, oh]}
+        for key in ("smoothness", "metallic"):
+            if mp.get(key) is not None:
+                roles[role][key] = mp[key]
+        if mp.get("slots"):
+            roles[role]["slots"] = mp["slots"]
         print(f"  {role}: {w}x{h} -> {ow}x{oh} tint {roles[role]['tint']}")
     if not roles:
         print("no textures extracted", file=sys.stderr)
         return 1
+    layout = build_scene_layout(package)
+    if layout["scenes"]:
+        with open(os.path.join(out, "scene_layout.json"), "w", encoding="utf-8") as f:
+            json.dump(layout, f, separators=(",", ":"))
+        for slug, sc in layout["scenes"].items():
+            print(f"  scene {slug}: {sc['count']} of {sc['total']} objects")
     manifest = build_manifest(os.path.basename(package), sha_prefix(package), roles, catalog_hints(), scene_stats_from_inventory(package))
     with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
