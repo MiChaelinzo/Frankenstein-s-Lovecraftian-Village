@@ -627,3 +627,77 @@ export function suggestedCamera(dread) {
 export function allowedCamera(requested, dread) {
   return tierFor(dread) >= 3 && requested === 2 ? 0 : requested;
 }
+
+// ---- Investigator (Investigator.cs) ----
+
+export const INVESTIGATOR_MAX_WAYPOINTS = 10;
+export const INVESTIGATOR_RANGE = 2;
+export const OMEN_SITE_IDS = ['altar', 'well', 'church', 'dead_tree'];
+
+const siteCenter = (p) => ({ x: p.x + Math.trunc(p.sizeX / 2), z: p.z + Math.trunc(p.sizeZ / 2) });
+
+export function buildInvestigatorRoute(layout, width, depth, rng) {
+  const route = [];
+  const count = Math.min(INVESTIGATOR_MAX_WAYPOINTS, layout.length);
+  const used = new Array(layout.length).fill(false);
+  const cur = rng.next(layout.length);
+  used[cur] = true;
+  const pos = siteCenter(layout[cur]);
+  route.push({ x: pos.x, z: pos.z });
+  const clamp = (c) => ({ x: Math.max(0, Math.min(width - 1, c.x)), z: Math.max(0, Math.min(depth - 1, c.z)) });
+  for (let w = 1; w < count; w++) {
+    let best = -1, bestDist = 2147483647;
+    for (let i = 0; i < layout.length; i++) {
+      if (used[i]) continue;
+      const c = siteCenter(layout[i]);
+      const d = Math.abs(c.x - pos.x) + Math.abs(c.z - pos.z);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    if (best < 0) break;
+    used[best] = true;
+    const target = siteCenter(layout[best]);
+    while (pos.x !== target.x) { pos.x += Math.sign(target.x - pos.x); route.push(clamp(pos)); }
+    while (pos.z !== target.z) { pos.z += Math.sign(target.z - pos.z); route.push(clamp(pos)); }
+  }
+  return route;
+}
+
+/** One cell per step(); the first cell within range of each omen site yields a sanity hit. */
+export class Investigator {
+  constructor(layout, width, depth, seed) {
+    this.rng = new SeededRandom(seed ^ 0x1abe11);
+    this.route = [];
+    this.tick = 0;
+    this.sites = [];
+    this.visited = [];
+    if (!layout || !layout.length || !(width > 0) || !(depth > 0)) return;
+    this.sites = layout.filter((p) => OMEN_SITE_IDS.includes(p.id));
+    this.visited = this.sites.map(() => false);
+    this.route = buildInvestigatorRoute(layout, width, depth, this.rng);
+  }
+  get finished() { return this.tick >= this.route.length; }
+  get position() { return this.route.length ? this.route[Math.min(this.tick, this.route.length - 1)] : { x: 0, z: 0 }; }
+  /** Returns a hit {tick, x, z, siteId, sanityLoss} or null. */
+  step() {
+    if (this.finished) return null;
+    const cell = this.route[this.tick];
+    const at = this.tick++;
+    for (let i = 0; i < this.sites.length; i++) {
+      if (this.visited[i]) continue;
+      const c = siteCenter(this.sites[i]);
+      if (Math.max(Math.abs(c.x - cell.x), Math.abs(c.z - cell.z)) > INVESTIGATOR_RANGE) continue;
+      this.visited[i] = true;
+      return { tick: at, x: cell.x, z: cell.z, siteId: this.sites[i].id, sanityLoss: 3 + this.rng.next(5) };
+    }
+    return null;
+  }
+}
+
+export function simulateInvestigator(layout, width, depth, seed) {
+  const inv = new Investigator(layout, width, depth, seed);
+  const hits = [];
+  while (!inv.finished) { const h = inv.step(); if (h) hits.push(h); }
+  return hits;
+}
+
+export const describeInvestigatorHit = (h) => `tick ${h.tick} at ${h.x},${h.z} ${h.siteId} -${h.sanityLoss}`;

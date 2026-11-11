@@ -3,6 +3,7 @@
 import {
   SeededRandom, PrefabCatalog, generateLayout, SanityModel, StaticNarrationProvider,
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
+  Investigator, simulateInvestigator, describeInvestigatorHit,
 } from './core.js';
 import { buildStory } from './story.js';
 
@@ -40,6 +41,12 @@ export function runSelfTest(golden, catalogEntries) {
     const c = generateCampaign(g.seed, g.requested);
     return c.villageName === g.villageName &&
       same(c.nights.map((n) => [n.number, n.title, n.dreadTargetPercent, n.sanityStart, n.sky, n.weather, n.rumor, n.lore]), g.nights);
+  });
+  for (const g of golden.investigators || []) check('Investigator', `seed ${g.seed}`, () => {
+    const layout = generateLayout(catalog, 24, 24, 40, g.seed);
+    const inv = new Investigator(layout, 24, 24, g.seed);
+    return inv.route.length === g.length && same(inv.route.map((c) => [c.x, c.z]), g.cells) &&
+      same(simulateInvestigator(layout, 24, 24, g.seed).map(describeInvestigatorHit), g.hits);
   });
   if (golden.matcher) {
     const names = [...new Set(golden.matcher.scores.map((s) => s[1]))];
