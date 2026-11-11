@@ -13,8 +13,9 @@ import { createAmbient } from './music.js';
 import { shouldShowIntro } from './intro.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
-  floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor,
+  floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor, meshesWanted,
 } from './building.js';
+import { loadMeshSet } from './glb.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
@@ -72,7 +73,9 @@ const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvid
 
 const tex = createTextures({ ctx, params, tr });
 const { pack, loadPack, ensureProcPatterns, hintLabel } = tex;
-const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $ });
+const meshes = new Map(); // filled only by ?meshes=1; empty means the procedural drawing
+const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $, meshes });
+if (meshesWanted(location.search, location.hash)) loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
 const { iso, doorPoint } = renderer;
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------

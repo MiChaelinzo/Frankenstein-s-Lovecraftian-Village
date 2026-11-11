@@ -30,6 +30,7 @@ Useful URLs (append to `http://localhost:8000/`; each feature is opt-in and a ba
 
 | URL | What you get |
 |-----|--------------|
+| `?meshes=1` | Opt-in: draws houses, church, well, altar and trees with the original Blender GLB meshes (`web/assets/meshes`) through the village projector; falls back to the procedural drawing with a console warning if a mesh fails to load |
 | `?tour=1` | Guided tour of the features, about a minute, skippable with Esc, keyboard accessible |
 | `?codex=1` | Necronomicon codex and achievements panel |
 | `?stitch=1` | How the parts are stitched together (generated from the repo) |

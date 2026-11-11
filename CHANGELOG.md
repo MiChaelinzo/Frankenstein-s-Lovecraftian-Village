@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Round 13
+- Feature: `?meshes=1` opt-in GLB mesh mode (`meshPolygons` and `loadMeshSet` in `glb.js`, `meshKindFor` and `meshesWanted` in `building.js`), node tests in `web/test/mesh-mode.test.js`; default view unchanged. Visual result Partially Verified by one headless screenshot (`docs/media/meshes-village.png`).
 - Architecture audit (`docs/ARCHITECTURE_AUDIT.md`): every `web/src` module classified. Moved to Core with property tests, golden parity and JS mirror tests: `CodexModel`, `AchievementRules`, `DailySeed`, sanity action costs and drain rate (`SanityModel`), `DreadBuildingPolicy.FloorCountFor`, `Summarize`, `CameraFromInt`, `DreadCurve.AmbienceVolume`, `DreadThresholds.Percent`.
 - Fix: Runtime and Editor rounded dread to a percent with `Mathf.RoundToInt` (halves to even) while Core and web round halves up; both now use `DreadThresholds.Percent`. Behavior change: the Unity drain default is now the shared 1.0 per second (it was 0.5; the web demo always used 1.0).
 - Fix: swallowed errors are logged (`SafeNarrationProvider.LastError`, music start, stitch load, share copy, `HttpNarrationProvider`); the validator rejects non UTF-8 tracked files.

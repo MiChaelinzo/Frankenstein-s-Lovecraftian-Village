@@ -104,3 +104,50 @@ export function projectModel(model, { yaw = 0.6, pitch = 0.5, w = 240, h = 240, 
     fill: 'rgb(' + it.color.map((c) => Math.min(255, lin2srgb(c * it.lit))).join(',') + ')',
   }));
 }
+
+// ---- village mesh mode (?meshes=1) ----
+
+/** Loads every kind through the injected fetch. Failures are logged once per kind and left out of the map, so callers fall back to procedural drawing. */
+export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.warn) {
+  const set = new Map();
+  for (const kind of kinds) {
+    try {
+      const res = await fetchFn(base + kind + '.glb');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      set.set(kind, loadGlbBuffer(await res.arrayBuffer()));
+    } catch (e) { warn(`[meshes] ${kind} failed (${e.message}); using the procedural drawing`); }
+  }
+  return set;
+}
+
+/**
+ * Places a parsed mesh on a village footprint and returns back to front polygons [{pts:[{x,y}*3], fill}].
+ * project(x, z) is the renderer's iso projector, so meshes share the board with the procedural pieces.
+ * piece {x, z, sizeX, sizeZ}; opts: hs (camera height scale), unitPx (pixels per world unit of height),
+ * dread 0..1, tint [r,g,b] 0..255 theme colour or null. Deterministic: no randomness, same input gives the same output.
+ */
+export function meshPolygons(model, project, piece, { hs = 1, unitPx = 32, dread = 0, tint = null } = {}) {
+  const { min, max } = model.bounds;
+  const s = 0.9 * Math.min(piece.sizeX / (max[0] - min[0] || 1), piece.sizeZ / (max[2] - min[2] || 1));
+  const cx = piece.x + piece.sizeX / 2, cz = piece.z + piece.sizeZ / 2;
+  const mx = (min[0] + max[0]) / 2, mz = (min[2] + max[2]) / 2;
+  const light = [-0.4, 0.8, -0.45], ll = Math.hypot(...light);
+  const wx = (p) => cx + (p[0] - mx) * s, wz = (p) => cz + (p[2] - mz) * s, ly = (p) => p[1] * s;
+  const out = model.triangles.map((t) => {
+    const a = t.p[0], b = t.p[1], c = t.p[2];
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const nl = Math.hypot(...n) || 1;
+    const lit = t.emissive ? 1 : 0.35 + 0.65 * Math.max(0, (n[0] * light[0] + n[1] * light[1] + n[2] * light[2]) / (nl * ll));
+    const rgb = t.color.map((k, i) => {
+      let v8 = lin2srgb(k * lit);
+      if (tint) v8 = v8 * 0.7 + tint[i] * lit * 0.3;
+      return Math.min(255, Math.round(v8 * (1 - 0.35 * dread) + [90, 20, 26][i] * 0.35 * dread * lit));
+    });
+    const pts = t.p.map((p) => { const q = project(wx(p), wz(p)); return { x: q.x, y: q.y - ly(p) * unitPx * hs }; });
+    const depth = (wx(a) + wz(a) + wx(b) + wz(b) + wx(c) + wz(c)) / 3 + (ly(a) + ly(b) + ly(c)) * 0.01;
+    return { pts, fill: 'rgb(' + rgb.join(',') + ')', depth };
+  });
+  out.sort((p, q) => p.depth - q.depth);
+  return out.map(({ pts, fill }) => ({ pts, fill }));
+}

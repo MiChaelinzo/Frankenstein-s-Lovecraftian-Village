@@ -137,3 +137,15 @@ export function doorShake(behavior, ageMs, reduced) {
   return { dx: Math.sin(ageMs / 40) * 1.6 * fade, dy: 0 };
 }
 export const DOOR_RING = ['rgba(95,143,120,.9)', 'rgba(230,180,90,.9)', 'rgba(220,60,60,.95)', 'rgba(160,100,220,.95)'];
+
+// ---- GLB mesh mode (?meshes=1, opt-in only) ----
+
+/** Village piece id to committed Blender mesh kind. Pieces without a mesh keep the procedural drawing. */
+const MESH_KINDS = { house_a: 'house_a', house_b: 'house_b', church: 'church', well: 'well', altar: 'altar', dead_tree: 'dead_tree' };
+export const meshKindFor = (pieceId) => MESH_KINDS[pieceId] || null;
+
+/** True only for an explicit meshes=1 in the query or hash. */
+export function meshesWanted(search, hash) {
+  const q = new URLSearchParams(String(search || '').replace(/^\?/, '')), h = new URLSearchParams(String(hash || '').replace(/^#/, ''));
+  return (h.get('meshes') ?? q.get('meshes')) === '1';
+}

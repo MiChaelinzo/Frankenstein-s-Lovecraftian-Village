@@ -68,7 +68,7 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 64. Round 12: headless Blender 4.2 LTS original GLB meshes, `meshes.html` viewer, link from About with en and fr parity
 - [ ] 65. Decode EXR lightmaps (stdlib) for local pack ground shading
 - [ ] 66. Use URP texture roles when a URP package carries them (currently HDRP only)
-- [ ] 67. Sprite mode (`?sprites`) from locally rendered Blender sprites
+- [x] 67. GLB mesh mode (`?meshes=1`, opt-in): committed original Blender meshes drawn through the village iso projector, procedural fallback with console.warn. Node tests Verified; the look is Partially Verified (one headless screenshot, `docs/media/meshes-village.png`)
 - [ ] 68. Better scene classification of generic objects (rocks, plants, walls)
 - [ ] 69. Run the compile check against a real Unity install and the MCP workflow (author only)
 - [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)

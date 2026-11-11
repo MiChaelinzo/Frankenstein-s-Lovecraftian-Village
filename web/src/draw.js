@@ -1,15 +1,16 @@
 // Canvas renderer for the isometric village. All drawing lives here; app.js only decides when to draw.
 import { SeededRandom } from './core.js';
+import { meshPolygons } from './glb.js';
 import { cameraTransform } from './cinematic.js';
 import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
-import { themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
+import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
 import { lerp, mix } from './util.js';
 import { locName } from './i18n-text.js';
 
 export function createRenderer(env) {
-  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $ } = env;
+  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $, meshes } = env;
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
   const TW = V.tw, TH = V.th;
   const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
@@ -65,7 +66,20 @@ export function createRenderer(env) {
   const topDownNow = () => cam.mode === 2;
   function doorPoint(p) { const m = 0.05; return lerpPt(iso(p.x + m, p.z + p.sizeZ - m), iso(p.x + p.sizeX - m, p.z + p.sizeZ - m), 0.2); }
 
+  // ?meshes=1: draws the committed Blender mesh through the same iso projector. Returns false to fall back to the procedural piece.
+  function drawMeshPiece(p, dread) {
+    const model = meshes && meshes.get(meshKindFor(p.id));
+    if (!model) return false;
+    const tc = state.theme !== 'auto' ? themeColors(state.theme) : null;
+    for (const t of meshPolygons(model, iso, p, { hs: cam.hs, unitPx: TW / 2, dread, tint: tc ? tc[0] : null })) {
+      ctx.beginPath(); ctx.moveTo(t.pts[0].x, t.pts[0].y); ctx.lineTo(t.pts[1].x, t.pts[1].y); ctx.lineTo(t.pts[2].x, t.pts[2].y); ctx.closePath();
+      ctx.fillStyle = t.fill; ctx.strokeStyle = t.fill; ctx.lineWidth = 0.6; ctx.fill(); ctx.stroke();
+    }
+    return true;
+  }
+
   function drawPiece(p, dread, time) {
+    if (meshes && meshes.size && drawMeshPiece(p, dread)) return;
     const v = p.vis;
     const feat = detailFeatures(p.detail);
     const topDown = topDownNow();
