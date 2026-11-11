@@ -43,7 +43,7 @@ Do not mix pipelines: wrong-pipeline materials render pink. Keep the default `As
 
 Controls: **WASD** walk, **mouse** look, **E** use what is under the crosshair (reach 3 m, 0.75 s cooldown, both from Core `InteractionRules`), **V** cycle first person, third person, top down. At Abyss dread the top-down view is taken away (Core `DreadBuildingPolicy.AllowedCamera`). **Esc** frees the cursor, click recaptures it.
 
-What happens on use: houses try their door through `DlnkDoorOmenBridge` (Core `DoorOmen`: creak, slam, refuse as dread rises), props whisper and landmarks are studied through `HorrorAmbienceDirector.Describe` and cost sanity (`SanityModel` costs), the candle at the start restores sanity. A quiet corner readout shows sanity and dread tier; there are no flashes or jump scares.
+What happens on use: houses try their door through `DlnkDoorOmenBridge` (Core `DoorOmen`: creak, slam, refuse as dread rises), props whisper and landmarks are studied through `HorrorAmbienceDirector.Describe` and cost sanity (`SanityModel` costs), the candle at the start restores sanity. The candle is deliberately repeatable (limited only by the interaction cooldown), matching the 2D web view; prompts show the raw target kind and are not localised. A quiet corner readout shows sanity and dread tier; there are no flashes or jump scares.
 
 The scene contains: `VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender` with calm and dread global Volumes, `WalkthroughController`, `RitualDirector`, the player (`FirstPersonExplorer`, `InteractionRaycaster`, `DlnkCameraModeBridge`) and `DreadHud`.
 

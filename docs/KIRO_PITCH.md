@@ -11,12 +11,12 @@ Read this verbatim at about 150 words per minute. It can be used as a voice-over
 >
 > Steering files, project and agent, carry my rules: logic lives in Core, randomness is seeded, and every claim is labeled verified or unverified. Three hooks guard the work. One runs the tests when Core changes. One refuses to add paid pack files. One validates the repository before I finish.
 >
-> The work ran as an orchestrator on Kiro Web. A planner wrote the feature plan, a coder implemented one feature at a time and committed it, and a reviewer checked the result. They used the GitHub CLI power, and the rounds merged as pull requests one to thirteen so far.
+> The work ran as an orchestrator on Kiro Web. A planner wrote the feature plan, a coder implemented one feature at a time and committed it, and a reviewer checked the result. They used the GitHub CLI power, and the rounds were merged round by round as pull requests.
 >
 > I set up Unity and Blender MCP on my own machine, but the cloud sandbox never ran them, so the Unity side is honestly marked unverified. The village is playable in your browser today.
 
 ## Devpost write-up (short)
-**How we used Kiro.** The project was built with Kiro Web. An orchestrator delegated to a planner (explored the repo, wrote `context.json` and feature files), a coder (implemented one feature, ran the tests, committed locally) and a reviewer. The agents used the GitHub CLI power for git and GitHub work. Rounds landed as pull requests #1 to #13 (merge commits in `git log`).
+**How we used Kiro.** The project was built with Kiro Web. An orchestrator delegated to a planner (explored the repo, wrote `context.json` and feature files), a coder (implemented one feature, ran the tests, committed locally) and a reviewer. The agents used the GitHub CLI power for git and GitHub work. Rounds were merged as pull requests, with #13 the latest merge commit at the time of writing (see `git log`).
 
 **Specs.** `.kiro/specs` has `requirements.md` (WHEN/THEN/SHALL), `design.md` (requirements mapped to testable properties) and `tasks.md`. Core rules (layout, catalog, sanity, dread, narration fallback, dread events, the village report) follow the spec-driven path; later Core additions such as rituals and interaction rules followed the same Core-first, property-test rule without new spec entries; Unity glue and atmosphere were vibe coded and are labeled as such.
 

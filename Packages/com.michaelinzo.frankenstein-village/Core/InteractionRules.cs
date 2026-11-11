@@ -43,6 +43,7 @@ namespace Frankenstein.Core
             {
                 case InteractionKind.Whisper: return -SanityModel.WhisperCost;
                 case InteractionKind.Landmark: return -SanityModel.FocusCost;
+                // Intentional: the candle is repeatable, limited only by the cooldown. This matches the 2D web view.
                 case InteractionKind.Candle: return SanityModel.CandleRestore;
                 default: return 0f;
             }
