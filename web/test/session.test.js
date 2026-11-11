@@ -1,5 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { decodeHash } from '../src/core.js';
+import { nightFromHash } from '../src/scene.js';
+import { parseTheme, parseCamera, parseFloor, meshesWanted } from '../src/building.js';
+import { view3dWanted } from '../src/view3d-math.js';
+import { cinematicWanted } from '../src/cinematic.js';
+import { shouldShowIntro } from '../src/intro.js';
+import { tourWanted } from '../src/tour.js';
+import { parseStoryParam } from '../src/story.js';
+import { parseLang } from '../src/i18n.js';
 import { parseSession, serializeSession, saveSession, loadSession, safeStorage, sessionHash, buildShareLink, SESSION_KEY } from '../src/session.js';
 
 const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'] };
@@ -49,4 +59,32 @@ test('old saves without codex or achievements still load, junk ids are dropped',
   assert.deepEqual(v.ach, ['abyss']);
   assert.deepEqual(parseSession({ seed: 5, sanity: 80, codex: 'oops', ach: { a: 1 } }).codex, []);
   assert.deepEqual(parseSession(serializeSession(good)), good);
+});
+
+const shareGolden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url), 'utf8')).shareLinks;
+
+test('Core WebShareLink hashes are parsed back by the web parsers', () => {
+  assert.ok(shareGolden.length > 0);
+  for (const g of shareGolden) {
+    const h = g.hash, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const d = decodeHash(h);
+    assert.equal(d.seed, g.seed | 0); assert.equal(d.sanity, clamp(g.sanity, 0, 100));
+    assert.equal(nightFromHash(h, 9), clamp(g.night, 0, 8));
+    assert.equal(parseTheme(new URLSearchParams(h.slice(1)).get('theme')), g.theme && /^[a-z0-9_-]{1,32}$/.test(g.theme) ? g.theme : 'auto');
+    const camOk = ['auto', 'first', 'third', 'top'].includes(g.cam) ? g.cam : 'third';
+    assert.equal(parseCamera(new URLSearchParams(h.slice(1)).get('cam')), camOk);
+    assert.equal(parseFloor(new URLSearchParams(h.slice(1)).get('floor')), clamp(g.floor, 0, 8));
+    assert.equal(view3dWanted('', h), g.view3d); assert.equal(cinematicWanted('', h), g.cinematic);
+    assert.equal(meshesWanted('', h), g.meshes); assert.equal(tourWanted('', h), g.tour);
+    assert.equal(shouldShowIntro('', h), false); // a link with a seed always skips the intro
+    assert.equal(parseStoryParam(h).on, g.story);
+    if (g.story) assert.equal(parseStoryParam(h).beat, clamp(g.beat, 0, 99));
+    assert.equal(parseLang(new URLSearchParams(h.slice(1)).get('lang')), g.lang === 'fr' ? 'fr' : 'en');
+  }
+});
+
+test('Core base share hash equals sessionHash when no extra flags are set', () => {
+  const g = shareGolden[1];
+  assert.equal(g.hash, sessionHash({ seed: g.seed, sanity: g.sanity, night: g.night, theme: g.theme, cam: g.cam, floor: g.floor }));
+  assert.equal(shareGolden[0].hash, sessionHash({ seed: 1818, sanity: 100, night: 0 }));
 });

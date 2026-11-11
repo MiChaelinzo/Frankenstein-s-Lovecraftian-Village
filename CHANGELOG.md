@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 16
+- Core: `FlythroughPath` (numeric mirror of `cinematicFrame` and `flythroughCamera` in `web/src/cinematic.js`), `WebShareLink` (hash builder matching `sessionHash` plus view, cinematic, meshes, intro, tour, story and lang flags) and `PromptStrings.PlaceName` / `PromptFor` (place names mirrored from the `loc.*` entries of `web/src/i18n.js`; `InteractionRaycaster` now localises the place). New golden sections `flythrough`, `shareLinks` and `places`, checked by JS tests (camera within 1e-9, golden links parsed by the web parsers) and a C# drift test for place names. dotnet tests 101 (was 94), node tests 289 (was 285). Unity side Unverified, compile checked only.
+
 ### Round 15
 - Unity depth (task 71): Core `ProgressionSession` and `PromptStrings`, Runtime `ProgressionTracker` (codex, achievements, opt-in daily seed, PlayerPrefs persistence), `InteractionRaycaster.Interacted` event and localized prompts (en, fr) checked against `web/src/i18n.js` by a C# test. dotnet tests 94 (was 87). glTFast GLB path deliberately not added (documented). Unity side Unverified, compile checked only.
 - Real-browser check: `tools/browser_check.mjs` drives local headless Chromium over the DevTools protocol (Node 22 WebSocket, no dependencies) through keyboard, journal tabs, doors, story mode, judge tour, 3D movement, pointer lock, drag-look fallback, cinematic 3D and real-time frame timing; 23 of 23 checks passed. `frameStats` is node tested. It found a real bug: `setPointerCapture` could throw `InvalidStateError` in `view3d.js` `onPointerDown`; now guarded. Timing is SwiftShader-indicative only.

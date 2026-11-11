@@ -117,6 +117,8 @@ test('gateAction lets only the exit action through during a take', () => {
 import { cinemaExitKey, showCinemaExit, normalizeDevice } from '../src/input.js';
 import { restoreAction, shouldStepInvestigator, snapshotPlayback } from '../src/investigator-state.js';
 import { t, STRINGS } from '../src/i18n.js';
+import { readFileSync } from 'node:fs';
+const golden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url), 'utf8'));
 
 test('exit hint matches the active input device', () => {
   assert.equal(cinemaExitKey('keyboard'), 'cinema.exit');
@@ -189,4 +191,19 @@ test('fly-through: reduced motion is one fixed still viewpoint, whatever the tim
   assert.notDeepEqual(flythroughCamera(5000, D, W), flythroughCamera(5001, D, W));
   assert.ok(FLY_ANGLE_STEP > 0.3 && FLY_ANGLE_STEP < 2, 'a visible but not dizzy move per beat');
   assert.ok(Object.values(flythroughCamera(5, [], W)).every(Number.isFinite), 'empty durations do not break the camera');
+});
+
+test('Core FlythroughPath matches cinematicFrame and flythroughCamera for every golden case', () => {
+  const near = (a, b, what) => assert.ok(Math.abs(a - b) <= 1e-9, `${what}: ${a} vs ${b}`);
+  assert.ok(golden.flythrough.cases.length > 0);
+  for (const c of golden.flythrough.cases) {
+    assert.equal(totalMs(c.durations), c.total);
+    const world = { gridW: c.gridW, gridD: c.gridD, seed: c.seed };
+    for (const [t, done, beat, beatT, cx, cy, zoom, x, y, z, yaw, pitch] of c.frames) {
+      const f = cinematicFrame(t, c.durations, c.reduced), cam = flythroughCamera(t, c.durations, world, c.reduced);
+      assert.equal(f.done, done === 1); assert.equal(f.beat, beat);
+      near(f.beatT, beatT, 'beatT'); near(f.cam.x, cx, 'camx'); near(f.cam.y, cy, 'camy'); near(f.cam.zoom, zoom, 'zoom');
+      near(cam.x, x, 'x'); near(cam.y, y, 'y'); near(cam.z, z, 'z'); near(cam.yaw, yaw, 'yaw'); near(cam.pitch, pitch, 'pitch');
+    }
+  }
 });

@@ -312,6 +312,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("]\n  },\n");
             AppendInteraction(sb, inv);
             AppendProgression(sb, inv);
+            AppendShowcase(sb, inv);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -427,7 +428,81 @@ namespace Frankenstein.Core.Tests
             sb.Append("],\n    \"seeds\": [");
             for (int i = 0; i < DailyKeys.Length; i++)
                 sb.Append(i > 0 ? ", " : "").Append('[').Append(JsonSerializer.Serialize(DailyKeys[i])).Append(", ").Append(DailySeed.SeedFromKey(DailyKeys[i]).ToString(inv)).Append(']');
-            sb.Append("]\n  }\n");
+            sb.Append("]\n  },\n");
+        }
+
+        private static readonly double[][] FlyDurations =
+        {
+            new[] { 3000.0, 4000.0, 2500.0 }, new[] { 1000.0 }, new[] { 0.0, 500.0, -5.0, 1500.0 }, new double[0],
+        };
+        private static readonly double[] FlyTimes = { -10, 0, 1, 999, 1500, 3000, 4321, 6999, 7000, 9499, 9500, 11499, 11500, 99999 };
+        private static readonly (int w, int d)[] FlyGrids = { (24, 24), (16, 12), (8, 8) };
+
+        private static WebShareOptions[] ShareCases()
+        {
+            return new[]
+            {
+                new WebShareOptions { Seed = 1818, Sanity = 100, Night = 0 },
+                new WebShareOptions { Seed = -7, Sanity = 55, Night = 2, Theme = "bricks", Cam = "top", Floor = 1 },
+                new WebShareOptions { Seed = 42, Sanity = 250, Night = 99, Theme = "auto", Cam = "third", Floor = 50, View3d = true, Cinematic = true },
+                new WebShareOptions { Seed = int.MinValue, Sanity = -5, Night = -1, Cam = "first", Meshes = true, SkipIntro = true, Lang = "fr" },
+                new WebShareOptions { Seed = 7, Sanity = 80, Night = 4, Story = true, Beat = 3, Tour = true, Lang = "en" },
+                new WebShareOptions { Seed = 9, Sanity = 10, Night = 1, Theme = "bad theme!", Cam = "bogus" },
+            };
+        }
+
+        private static readonly string[] PlaceIds = { "church", "altar", "well", "the walls", "the_walls", "", "house_a", "Church" };
+
+        /// <summary>Showcase sections: "flythrough" (cinematic frames and 3D camera), "shareLinks" and "places".</summary>
+        private static void AppendShowcase(StringBuilder sb, CultureInfo inv)
+        {
+            sb.Append("  \"flythrough\": {\n    \"cases\": [");
+            bool first = true;
+            foreach (var ds in FlyDurations)
+                foreach (var reduced in new[] { false, true })
+                    foreach (var g in FlyGrids)
+                        foreach (var seed in Seeds)
+                        {
+                            if (!first) sb.Append(",\n      ");
+                            first = false;
+                            sb.Append("{ \"durations\": [").Append(string.Join(", ", Array.ConvertAll(ds, d => d.ToString("R", inv))))
+                              .Append("], \"reduced\": ").Append(reduced ? "true" : "false").Append(", \"gridW\": ").Append(g.w).Append(", \"gridD\": ").Append(g.d)
+                              .Append(", \"seed\": ").Append(seed.ToString(inv)).Append(", \"total\": ").Append(FlythroughPath.TotalMs(ds).ToString("R", inv)).Append(", \"frames\": [");
+                            for (int k = 0; k < FlyTimes.Length; k++)
+                            {
+                                var f = FlythroughPath.Frame(FlyTimes[k], ds, reduced);
+                                var c = FlythroughPath.Camera(FlyTimes[k], ds, g.w, g.d, seed, reduced);
+                                sb.Append(k > 0 ? ", " : "").Append('[').Append(FlyTimes[k].ToString("R", inv)).Append(", ").Append(f.Done ? 1 : 0).Append(", ").Append(f.Beat)
+                                  .Append(", ").Append(f.BeatT.ToString("R", inv)).Append(", ").Append(f.CamX.ToString("R", inv)).Append(", ").Append(f.CamY.ToString("R", inv))
+                                  .Append(", ").Append(f.Zoom.ToString("R", inv)).Append(", ").Append(c.X.ToString("R", inv)).Append(", ").Append(c.Y.ToString("R", inv))
+                                  .Append(", ").Append(c.Z.ToString("R", inv)).Append(", ").Append(c.Yaw.ToString("R", inv)).Append(", ").Append(c.Pitch.ToString("R", inv)).Append(']');
+                            }
+                            sb.Append("] }");
+                        }
+            sb.Append("]\n  },\n  \"shareLinks\": [\n");
+            var cases = ShareCases();
+            for (int i = 0; i < cases.Length; i++)
+            {
+                var o = cases[i];
+                sb.Append("    { \"seed\": ").Append(o.Seed.ToString(inv)).Append(", \"sanity\": ").Append(o.Sanity).Append(", \"night\": ").Append(o.Night)
+                  .Append(", \"theme\": ").Append(o.Theme == null ? "null" : JsonSerializer.Serialize(o.Theme))
+                  .Append(", \"cam\": ").Append(o.Cam == null ? "null" : JsonSerializer.Serialize(o.Cam))
+                  .Append(", \"floor\": ").Append(o.Floor).Append(", \"story\": ").Append(o.Story ? "true" : "false").Append(", \"beat\": ").Append(o.Beat)
+                  .Append(", \"view3d\": ").Append(o.View3d ? "true" : "false").Append(", \"cinematic\": ").Append(o.Cinematic ? "true" : "false")
+                  .Append(", \"meshes\": ").Append(o.Meshes ? "true" : "false").Append(", \"skipIntro\": ").Append(o.SkipIntro ? "true" : "false")
+                  .Append(", \"tour\": ").Append(o.Tour ? "true" : "false").Append(", \"lang\": ").Append(o.Lang == null ? "null" : JsonSerializer.Serialize(o.Lang))
+                  .Append(", \"hash\": ").Append(JsonSerializer.Serialize(WebShareLink.Hash(o))).Append(" }").Append(i < cases.Length - 1 ? ",\n" : "\n");
+            }
+            sb.Append("  ],\n  \"places\": [");
+            first = true;
+            foreach (var lang in new[] { "en", "fr", "xx" })
+                foreach (var id in PlaceIds)
+                {
+                    if (!first) sb.Append(", ");
+                    first = false;
+                    sb.Append('[').Append(JsonSerializer.Serialize(lang)).Append(", ").Append(JsonSerializer.Serialize(id)).Append(", ").Append(JsonSerializer.Serialize(PromptStrings.PlaceName(lang, id))).Append(']');
+                }
+            sb.Append("]\n");
         }
 
         [Fact]

@@ -29,7 +29,7 @@ namespace Frankenstein.Runtime
         private void Update()
         {
             Focus = Probe();
-            if (hud != null) hud.SetPrompt(Focus != null ? "E  " + PromptStrings.Prompt(language, Focus.kind, Focus.locationId) : "");
+            if (hud != null) hud.SetPrompt(Focus != null ? "E  " + PromptStrings.PromptFor(language, Focus.kind, Focus.locationId) : "");
         }
 
         /// <summary>Returns the in-range target in front of the eye, or null.</summary>

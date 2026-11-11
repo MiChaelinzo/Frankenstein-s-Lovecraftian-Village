@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { locName } from '../src/i18n-text.js';
 import { STRINGS, LANGS, t, parseLang, extraKeys, missingKeys } from '../src/i18n.js';
 
 test('every non-English key exists in English', () => {
@@ -80,4 +81,10 @@ test('every placeholder written in en is passed by some call site', () => {
 });
 test('the tour and About keys exist in both languages', () => {
   for (const l of LANGS) for (const k of ['tour.step', 'tour.hint', 'btn.tourdone', 'btn.tourskip', 'btn.about', 'btn.close', 'about.title', 'about.html', 'keys.about', 'keys.tour']) assert.ok(STRINGS[l][k], `${l}: ${k}`);
+});
+
+test('Core PromptStrings.PlaceName matches locName for every golden case', () => {
+  const places = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).places;
+  assert.ok(places.length > 0);
+  for (const [lang, id, name] of places) assert.equal(locName(parseLang(lang), id), name, `${lang}/${id}`);
 });

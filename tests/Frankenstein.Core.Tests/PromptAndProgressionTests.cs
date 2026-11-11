@@ -48,6 +48,38 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Place_names_match_the_web_i18n_loc_entries_for_every_language()
+        {
+            var text = File.ReadAllText(Path.Combine(RepoRoot(), "web", "src", "i18n.js"));
+            foreach (var language in PromptStrings.Languages)
+            {
+                var start = Regex.Match(text, "^  " + language + ": \\{", RegexOptions.Multiline);
+                var end = Regex.Match(text.Substring(start.Index + start.Length), "^  \\},?\\s*$", RegexOptions.Multiline);
+                var block = text.Substring(start.Index, start.Length + end.Index);
+                var web = new Dictionary<string, string>();
+                foreach (Match m in Regex.Matches(block, "'(loc\\.[a-z_]+)': (?:'((?:[^'\\\\]|\\\\.)*)'|\"(.*?)\"),\\s*$", RegexOptions.Multiline))
+                    web[m.Groups[1].Value] = (m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value).Replace("\\'", "'");
+                Assert.Equal(PromptStrings.PlaceKeys.Length, web.Count);
+                foreach (var key in PromptStrings.PlaceKeys)
+                {
+                    Assert.True(web.ContainsKey(key), language + " is missing " + key + " in i18n.js");
+                    Assert.Equal(web[key], PromptStrings.PlaceName(language, key.Substring(4).Replace('_', ' ')));
+                }
+            }
+        }
+
+        [Fact]
+        public void Place_names_fall_back_to_the_village_the_raw_id_and_english()
+        {
+            Assert.Equal("the village", PromptStrings.PlaceName("en", null));
+            Assert.Equal("le village", PromptStrings.PlaceName("fr", ""));
+            Assert.Equal("house_a", PromptStrings.PlaceName("en", "house_a"));
+            Assert.Equal("church", PromptStrings.PlaceName("xx", "church"));
+            Assert.Equal("Listen to the walls", PromptStrings.PromptFor("en", InteractionKind.Whisper, "the walls"));
+            Assert.Equal("Ecouter le puits", PromptStrings.PromptFor("fr", InteractionKind.Whisper, "well"));
+        }
+
+        [Fact]
         public void Prompts_substitute_the_name_and_fall_back_to_english()
         {
             Assert.Equal("Listen to the chapel", PromptStrings.Prompt("en", InteractionKind.Whisper, "the chapel"));
