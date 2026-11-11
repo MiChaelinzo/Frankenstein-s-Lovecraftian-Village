@@ -283,3 +283,63 @@ test('view3d wiring for round 15: fly camera replaces walking, pack textures onl
   assert.match(v, /s\.fly \? \{ \.\.\.s\.fly \}/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
   assert.ok(!/fetch\(/.test(v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '')), 'pack textures load through Image, not fetch');
 });
+
+test('round 16 omen framing: eye and tentacles fit the frame at Dire and Abyss for many seeds, deterministically', () => {
+  for (const [gridW, gridD] of [[24, 24], [16, 16], [32, 24]]) for (const aspect of [16 / 9, 4 / 3]) {
+    for (let seed = 1; seed <= 120; seed++) {
+      for (const [tier, grow, eyeOpen] of [[2, 0.4, 0], [3, 1, 1]]) {
+        const args = { gridW, gridD, seed, nightNumber: 1 + (seed % 5), grow, eyeOpen, aspect };
+        assert.deepEqual(omenTargets(tier), { eye: eyeOpen, tentacle: grow }, 'framing inputs match the shared omen strengths');
+        const cam = M.omenFraming(args);
+        assert.ok(cam.fits, `seed ${seed} ${gridW}x${gridD} tier ${tier} aspect ${aspect.toFixed(2)} must fit`);
+        assert.deepEqual(cam, M.omenFraming(args));
+        const vp = M.viewProjection(cam, aspect);
+        for (const q of M.omenPoints(args).filter((p) => p.p)) {
+          const n = M.projectPoint(vp, q.p);
+          assert.ok(n && Math.abs(n[0]) <= 0.88 && Math.abs(n[1]) <= 0.88, 'tentacle point inside the frame');
+        }
+      }
+    }
+  }
+});
+
+test('round 16 omen framing: the eye hangs over the sea and blendCamera takes the short way round', () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const e = M.eyeParams(seed, 2, 24, 24), f = M.coastFrame(24, 24, seed), sea = f.axis === 'x' ? [f.dir, 0] : [0, f.dir];
+    assert.ok((e.dir[0] * sea[0] + e.dir[2] * sea[1]) / Math.cos(Math.asin(e.dir[1])) > 0.93, 'eye faces the sea');
+    assert.ok(e.dir[1] > 0.3 && e.dir[1] < 0.55);
+  }
+  assert.deepEqual(M.eyeParams(7, 2), M.eyeParams(7, 2));
+  const a = { x: 0, y: 0, z: 0, yaw: 3.0, pitch: 0 }, b = { x: 10, y: 4, z: 0, yaw: -3.0, pitch: 0.2 };
+  const mid = M.blendCamera(a, b, 0.5);
+  assert.ok(Math.abs(Math.abs(mid.yaw) - Math.PI) < 0.2, 'yaw crosses +-PI, not zero');
+  assert.deepEqual(M.blendCamera(a, b, 0), { ...a }); assert.equal(M.blendCamera(a, b, 2).x, 10);
+  const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(v, /omenFraming\(/); assert.match(v, /blendCamera\(cam, framing/);
+});
+
+test('round 16 props: coastProps and lampKind are seeded and in range', async () => {
+  const { KINDS, PROP_KINDS } = await import('../src/glb.js');
+  for (const k of PROP_KINDS) assert.ok(KINDS.includes(k), k);
+  for (let seed = 1; seed <= 40; seed++) {
+    const p = M.coastProps(24, 24, seed), f = M.coastFrame(24, 24, seed);
+    assert.deepEqual(p, M.coastProps(24, 24, seed));
+    assert.ok(p.dockSegments.length >= 4 && p.dockSegments.length <= 7);
+    assert.ok(p.fences.length >= 2 && p.fences.every((q) => q.u >= f.lo && q.u <= f.hi && q.v < 0));
+  }
+  for (const phase of [0, 0.3, 1.7, 9.9, -2]) assert.ok(M.LAMP_KINDS.includes(M.lampKind({ phase })));
+  assert.deepEqual(new Set([0, 0.4, 0.8].map((phase) => M.lampKind({ phase }))), new Set(M.LAMP_KINDS));
+});
+
+test('round 16 props: the committed prop GLBs load, are small, and replace the procedural coast boxes', () => {
+  const dir = join(web, 'assets', 'meshes'), models = new Map();
+  for (const k of ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double', 'lamp']) {
+    const b = readFileSync(join(dir, k + '.glb'));
+    assert.ok(b.length < 200 * 1024, k + ' under 200 KB');
+    models.set(k, loadGlbBuffer(b));
+  }
+  const plain = buildCoast({ gridW: 24, gridD: 24, seed: 5 }), meshed = buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models });
+  assert.notEqual(plain.length, meshed.length);
+  assert.deepEqual(Array.from(meshed), Array.from(buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models })));
+  assert.ok(meshed.every(Number.isFinite) && meshed.length % 11 === 0);
+});

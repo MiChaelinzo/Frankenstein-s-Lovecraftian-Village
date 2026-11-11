@@ -146,6 +146,50 @@ async function main() {
     rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
     await special('Escape', 27, undefined); await sleep(400);
 
+    // 3D: stand 2.5 m south of the house at layout cell (18, 21) of seed 1818 facing it, then interact with the door (E; a click would first take the pointer lock)
+    await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=74,90.5,0,0');
+    await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
+    const promptText = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const j0 = await ev(`document.getElementById('whispers').children.length`);
+    if (promptText) { await key('e'); await sleep(500); }
+    const j1 = await ev(`document.getElementById('whispers').children.length`);
+    rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', !!promptText && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
+    await special('Escape', 27, undefined); await sleep(300);
+
+    // ?meshes=1 on the 2D board and the meshes page
+    await nav('?intro=0&meshes=1#seed=1818&sanity=100');
+    const glbs = await ev(`performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length`);
+    rec('meshes: ?meshes=1 fetches all 13 original GLBs without an exception', glbs >= 13 && errs.length === 0, { glbRequests: glbs });
+    await nav('meshes.html');
+    let mp = await text('summary');
+    for (let i = 0; i < 20 && !/loaded/.test(mp); i++) { await sleep(500); mp = await text('summary'); }
+    rec('meshes: meshes.html loads every mesh', /^13 of 13 meshes loaded/.test(mp), { summary: mp });
+
+    // codex and achievements
+    await nav('?intro=0#seed=1818&sanity=100');
+    await key('k'); await sleep(200); await ev(`document.getElementById('tab-progress').click()`); await sleep(200);
+    const cdx = await ev(`({codex:!document.getElementById('codexPanel').hidden,progressPane:!document.getElementById('pane-progress').hidden,log:document.getElementById('progressLog').children.length})`);
+    rec('codex: K opens the codex and the Progress tab shows the log', cdx.codex && cdx.progressPane && cdx.log >= 1, cdx);
+
+    // high contrast
+    await nav('?intro=0&contrast=1#seed=1818&sanity=100');
+    const hc1 = await ev(`[document.documentElement.classList.contains('hc'),document.getElementById('contrastToggle').getAttribute('aria-pressed')]`);
+    await key('h'); await sleep(200);
+    const hc2 = await ev(`document.documentElement.classList.contains('hc')`);
+    rec('contrast: ?contrast=1 turns the hc theme on and H toggles it off', hc1[0] && hc1[1] === 'true' && hc2 === false, { initial: hc1, afterH: hc2 });
+
+    // French
+    await nav('?intro=0&lang=fr#seed=1818&sanity=100');
+    const fr = await ev(`[document.documentElement.lang,document.getElementById('contrastToggle').textContent]`);
+    rec('i18n: ?lang=fr switches the page language and labels', fr[0] === 'fr' && fr[1] === 'Contraste eleve (H)', { lang: fr[0], contrast: fr[1] });
+
+    // 3D fly-through at the Abyss (night 5 opens near the bottom of the sanity range). The framing itself is proven by the node tests and docs/media/r16-omen.png.
+    await nav('?intro=0&view=3d&cinematic=1#seed=1818&night=5');
+    const oa = await shotHash(); await sleep(2000); const ob = await shotHash();
+    const sanityNow = Number((await text('sanityOut')).replace(/\D+/g, ''));
+    rec('cinematic 3D: night 5 fly-through runs at low sanity with the omen view moving', oa !== ob && !(await hidden('view3d')) && sanityNow <= 30, { before: oa, after: ob, sanity: sanityNow, caption: (await text('cinemaCaption')).slice(0, 60) });
+    await special('Escape', 27, undefined); await sleep(400);
+
     // real-time frame timing
     await nav('?intro=0&view=3d#seed=1818&sanity=60');
     await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
