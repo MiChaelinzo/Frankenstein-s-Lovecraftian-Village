@@ -1,7 +1,8 @@
 // Story mode controller (beats from story.js; deep link #story=1&night=N&beat=N, beat is 0-based within the night).
-import { buildStory, clampBeat, nextBeat, prevBeat, nightStartIndex, parseStoryParam } from './story.js';
+import { storyMetaL } from './i18n-text.js';
+import { buildStory, clampBeat, nextBeat, nightStartIndex, parseStoryParam } from './story.js';
 
-export function createStoryController({ $, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash }) {
+export function createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash }) {
   const story = { on: false, beats: [], idx: 0, playing: false, timer: 0, ramp: 0 };
   function storyBeats() {
     if (!story.beats.length && state.campaign) story.beats = buildStory(state.campaign);
@@ -24,7 +25,7 @@ export function createStoryController({ $, state, reduceMotion, optParam, render
     rampSanity(100 - b.dreadPercent);
     const start = nightStartIndex(beats, b.nightNumber);
     $('storyText').textContent = b.text;
-    $('storyMeta').textContent = `Night ${b.nightNumber} of ${state.campaign.nights.length}, beat ${story.idx - start + 1} of ${beats.filter((x) => x.nightNumber === b.nightNumber).length} (${b.kind}). Sky ${b.sky}, weather ${b.weather}, dread target ${b.dreadPercent}%.`;
+    $('storyMeta').textContent = storyMetaL({ n: b.nightNumber, total: state.campaign.nights.length, b: story.idx - start + 1, c: beats.filter((x) => x.nightNumber === b.nightNumber).length, kind: b.kind, sky: b.sky, weather: b.weather, pct: b.dreadPercent }, lang);
     $('storyPrev').disabled = story.idx === 0;
     $('storyNext').disabled = story.idx >= beats.length - 1;
     pushHash();
@@ -40,7 +41,7 @@ export function createStoryController({ $, state, reduceMotion, optParam, render
   }
   function setPlaying(p) {
     story.playing = p;
-    $('storyPlay').textContent = p ? 'Pause' : 'Play';
+    $('storyPlay').textContent = tr(p ? 'btn.pause' : 'btn.play');
     $('storyPlay').setAttribute?.('aria-pressed', String(p));
     if (!p) clearTimeout(story.timer); else schedulePlay();
   }

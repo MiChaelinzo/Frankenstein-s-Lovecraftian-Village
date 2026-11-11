@@ -3,7 +3,7 @@ import { SeededRandom } from './core.js';
 import { validateManifest, hintFor, tintChannel } from './pack.js';
 import { THEMES, themeColors } from './building.js';
 
-export function createTextures({ ctx, params }) {
+export function createTextures({ ctx, params, tr }) {
   // ---------- optional local pack mode (?pack=1), textures come from the git-ignored web/local-pack/ ----------
   const pack = { want: params.get('pack') === '1', manifest: null, roles: {}, patterns: {}, notice: '' };
   const PACK_SCALE = { wall_wood: 0.3, wall_brick: 0.3, wall_plaster: 0.3, wall_stone: 0.3, roof: 0.3, trunk: 0.25, ground: 0.5, ground_stones: 0.5 };
@@ -28,7 +28,7 @@ export function createTextures({ ctx, params }) {
       pack.roles = v.roles; pack.manifest = json;
     } catch (err) {
       pack.patterns = {}; pack.manifest = null;
-      pack.notice = 'Pack mode requested but no local pack found. Showing the procedural demo.';
+      pack.notice = tr('msg.packmissing');
       console.warn(`[pack] ${err.message}`);
     }
   }

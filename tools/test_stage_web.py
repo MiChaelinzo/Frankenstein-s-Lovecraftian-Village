@@ -15,7 +15,7 @@ try:
     files = stage_web.stage(os.path.join(root, "web"), out)
     assert os.path.isfile(os.path.join(out, "index.html"))
     assert os.path.isfile(os.path.join(out, "_headers"))
-    for need in ("sw.js", "manifest.webmanifest", "icon.svg", "src/session.js", "src/minimap.js", "src/casefile.js", "src/i18n.js", "src/perf.js", "src/draw.js", "src/story-ui.js", "src/intro-ui.js", "src/textures.js", "src/util.js"):
+    for need in ("sw.js", "manifest.webmanifest", "icon.svg", "src/session.js", "src/minimap.js", "src/casefile.js", "src/i18n.js", "src/perf.js", "src/draw.js", "src/i18n-text.js", "src/story-ui.js", "src/intro-ui.js", "src/textures.js", "src/util.js"):
         assert need in files, f"{need} not staged"
     sw = open(os.path.join(out, "sw.js"), encoding="utf-8").read()
     assert "local-pack" in sw and "PRECACHE" in sw

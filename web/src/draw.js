@@ -3,10 +3,11 @@ import { SeededRandom } from './core.js';
 import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
-import { lerp, mix, prettyId } from './util.js';
+import { lerp, mix } from './util.js';
+import { locName } from './i18n-text.js';
 
 export function createRenderer(env) {
-  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, $ } = env;
+  const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $ } = env;
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
   const TW = V.tw, TH = V.th;
   const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
@@ -307,7 +308,7 @@ export function createRenderer(env) {
     ctx.strokeStyle = `rgba(160,255,200,${pulse.toFixed(2)})`; ctx.lineWidth = 2; ctx.stroke();
     const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2);
     const hint = hintLabel(p.id);
-    const label = hint ? `${prettyId(p.id)} (${hint})` : prettyId(p.id);
+    const label = hint ? `${locName(lang, p.id)} (${hint})` : locName(lang, p.id);
     ctx.font = '600 20px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(label, c.x + 1, c.y + 26); ctx.fillStyle = 'rgb(190,255,220)'; ctx.fillText(label, c.x, c.y + 25);
   }
 

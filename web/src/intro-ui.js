@@ -1,20 +1,21 @@
 // Skippable title sequence (?intro=0 disables, deep links skip it). Owns the dialog's focus handling and key map.
-import { buildIntroSlides, advanceSlide, slideDelayMs } from './intro.js';
+import { advanceSlide, slideDelayMs } from './intro.js';
+import { introSlidesL } from './i18n-text.js';
 
-export function createIntroController({ $, canvas, state, reduceMotion }) {
+export function createIntroController({ $, tr, lang, canvas, state, reduceMotion }) {
   const intro = { slides: [], i: 0, timer: 0, prevFocus: null };
   function renderSlide() {
     const sl = intro.slides[intro.i];
     $('introTitle').textContent = sl.title; $('introText').textContent = sl.text;
-    $('introStep').textContent = `${intro.i + 1} of ${intro.slides.length}.`;
-    $('introNext').textContent = intro.i === intro.slides.length - 1 ? 'Begin' : 'Next';
+    $('introStep').textContent = tr('intro.step', { i: intro.i + 1, n: intro.slides.length });
+    $('introNext').textContent = intro.i === intro.slides.length - 1 ? tr('btn.begin') : tr('btn.next');
     clearTimeout(intro.timer);
     const delay = slideDelayMs(reduceMotion);
     if (delay && intro.i < intro.slides.length - 1) intro.timer = setTimeout(introAdvance, delay);
   }
   function introAdvance() { const r = advanceSlide(intro.i, intro.slides.length); if (r.done) closeIntro(); else { intro.i = r.index; renderSlide(); } }
   function openIntro() {
-    intro.slides = buildIntroSlides(state.campaign); intro.i = 0;
+    intro.slides = introSlidesL(state.campaign, lang); intro.i = 0;
     intro.prevFocus = document.activeElement || null;
     $('intro').hidden = false; renderSlide(); $('introNext').focus?.();
   }

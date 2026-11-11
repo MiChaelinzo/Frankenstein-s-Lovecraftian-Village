@@ -1,19 +1,19 @@
 import {
-  PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, DREAD_THRESHOLDS, tierFor,
+  PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
-  StaticNarrationProvider, SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
+  SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
   detailLevel, doorOmen, generateRitual, ritualStageForDread,
 } from './core.js';
 import {
-  computeView, buildWalkers, omenText, addEntry, entryLabel,
-  reportFilename, wrapIndex, describeScene, postcardFilename, postcardCaption, nightFromHash, nightClampNotice, ritualHudText,
+  computeView, buildWalkers, addEntry,
+  reportFilename, wrapIndex, postcardFilename, nightFromHash,
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
 import { shouldShowIntro } from './intro.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
-  floorCountFor, maxFloors, parseFloor, DOOR_NAMES, doorMessage, buildingKey, nearestDoor, CAMERA_LABELS,
+  floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor,
 } from './building.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
@@ -24,7 +24,11 @@ import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
-import { esc, prettyId } from './util.js';
+import { esc } from './util.js';
+import {
+  LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
+  describeSceneL, ritualHudTextL, nightClampNoticeL, postcardCaptionL,
+} from './i18n-text.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
 const $ = (id) => document.getElementById(id);
@@ -53,11 +57,11 @@ const state = {
 
 // ?narrator=https://... plugs in an AI endpoint; Safe wrapper falls back to offline text on any failure.
 const narratorUrl = params.get('narrator');
-const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvider(narratorUrl) : null, new StaticNarrationProvider());
+const narrator = new SafeNarrationProvider(narratorUrl ? new HttpNarrationProvider(narratorUrl) : null, new LocalizedNarrationProvider(lang));
 
-const tex = createTextures({ ctx, params });
+const tex = createTextures({ ctx, params, tr });
 const { pack, loadPack, ensureProcPatterns, hintLabel } = tex;
-const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), $ });
+const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $ });
 const { iso, doorPoint } = renderer;
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
@@ -77,7 +81,7 @@ function stopAudio() { if (ambient) ambient.stop(); }
 function setMuted(m) {
   muted = m;
   if (ambient) (m ? ambient.mute() : ambient.unmute());
-  $('mute').textContent = m ? 'Unmute (U)' : 'Mute (U)';
+  $('mute').textContent = tr(m ? 'btn.unmute' : 'btn.mute');
   $('mute').setAttribute?.('aria-pressed', String(m));
 }
 function setVolume(v) { volume = Math.max(0, Math.min(1, v)); if (ambient) ambient.setVolume(volume); }
@@ -115,10 +119,10 @@ function rebuild() {
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
   showNightClamp();
   renderCampaign();
-  $('listen').innerHTML = '<option value="">Choose a landmark</option>' +
-    state.landmarks.map((p, i) => `<option value="${i}">${esc(prettyId(p.id))}${hintLabel(p.id) ? ` [${esc(hintLabel(p.id))}]` : ''} at (${p.x}, ${p.z})</option>`).join('');
+  $('listen').innerHTML = `<option value="">${esc(tr('opt.landmark'))}</option>` +
+    state.landmarks.map((p, i) => `<option value="${i}">${esc(tr('opt.landmarkitem', { name: locName(lang, p.id), hint: hintLabel(p.id) ? ` [${hintLabel(p.id)}]` : '', x: p.x, z: p.z }))}</option>`).join('');
   const area = state.layout.reduce((a, p) => a + p.sizeX * p.sizeZ, 0);
-  $('stats').textContent = `Seed ${state.seed}: ${state.layout.length} pieces stitched onto a ${GRID_W}x${GRID_D} grid (${area} of ${GRID_W * GRID_D} cells used). Same generator as the Unity project, so the same seed and settings (set pieceCount to ${PIECES} there) give the same layout.`;
+  $('stats').textContent = tr('msg.stats', { seed: state.seed, pieces: state.layout.length, w: GRID_W, d: GRID_D, area, cells: GRID_W * GRID_D, count: PIECES });
   updateDesc();
   say(null);
   if (story.on) showBeat(story.idx);
@@ -132,23 +136,23 @@ const currentNight = () => state.campaign && state.campaign.nights[state.night];
 function renderCampaign() {
   const c = state.campaign; if (!c) return;
   $('villageName').textContent = c.villageName;
-  $('night').innerHTML = c.nights.map((n, i) => `<option value="${i}">Night ${n.number}: ${esc(n.title)}</option>`).join('');
+  $('night').innerHTML = c.nights.map((n, i) => `<option value="${i}">${esc(tr('opt.nightitem', { n: n.number, title: n.title }))}</option>`).join('');
   $('night').value = String(state.night);
   const n = currentNight();
-  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> (dread target ${n.dreadTargetPercent}%, ${esc(n.sky)}, ${esc(n.weather)}).<br>Rumor: ${esc(n.rumor)}<br>Lore: ${esc(n.lore)}<br>Ritual: <span id="ritualInfo"></span>`;
+  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> ${esc(tr('night.target', { pct: n.dreadTargetPercent, sky: n.sky, weather: n.weather }))}.<br>${esc(tr('label.rumor'))}: ${esc(n.rumor)}<br>${esc(tr('label.lore'))}: ${esc(n.lore)}<br>${esc(tr('label.ritual'))}: <span id="ritualInfo"></span>`;
   renderRitual();
   updateDesc();
 }
 function renderRitual() {
   const el = $('ritualInfo'); if (!el) return;
-  const text = ritualHudText(state.ritual, Math.round(state.sanity.dread * 100));
+  const text = ritualHudTextL(state.ritual, Math.round(state.sanity.dread * 100), lang);
   if (el.textContent !== text) el.textContent = text;
 }
 function trackRitual() {
   const stage = ritualStageForDread(state.ritual, Math.round(state.sanity.dread * 100));
   if (stage > state.ritualStage && stage >= 0) {
     const st = state.ritual.stages[stage];
-    log('omen', `The ritual advances: ${st.name} (sigil ${st.sigil}).`);
+    log('omen', tr('log.ritual', { name: st.name, sigil: st.sigil }));
   }
   state.ritualStage = stage;
   renderRitual();
@@ -163,7 +167,7 @@ function selectNight(i, quiet) {
 // ---------- narration + journal ----------
 function log(kind, text) {
   state.journal = addEntry(state.journal, { kind, text, sanity: state.sanity.value });
-  $('whispers').innerHTML = state.journal.map((e) => `<li class="e-${e.kind}">${esc(entryLabel(e))}</li>`).join('');
+  $('whispers').innerHTML = state.journal.map((e) => `<li class="e-${e.kind}">${esc(entryLabelL(e, lang))}</li>`).join('');
 }
 function say(locationId) {
   const line = narrator.narrate(locationId, state.sanity.dread);
@@ -176,7 +180,7 @@ function say(locationId) {
 }
 function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
-  const text = omenText(e);
+  const text = omenTextL(e, lang);
   state.toast = { text, at: performance.now(), rising: e.rising };
   announce(text); mark();
   if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
@@ -186,10 +190,10 @@ function updateDesc() {
   drawMinimap();
   const d = state.sanity.dread;
   const f = state.landmarks[state.focus];
-  $('viewDesc').textContent = describeScene({
-    seed: state.seed, pieces: state.layout.length, tierName: DREAD_THRESHOLDS.tierNames[tierFor(d)], dreadPercent: Math.round(d * 100),
-    focus: f ? `${prettyId(f.id)} at ${f.x}, ${f.z}` : '',
-  }) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
+  $('viewDesc').textContent = describeSceneL({
+    seed: state.seed, pieces: state.layout.length, tier: tierFor(d), dreadPercent: Math.round(d * 100),
+    focus: f ? tr('desc.focus', { name: locName(lang, f.id), x: f.x, z: f.z }) : '',
+  }, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
 }
 
 let running = false;
@@ -247,11 +251,14 @@ function caseMarkdown() {
   const r = report();
   return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, journal: [...state.journal].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
 }
+// Applies the language to every static label declared in index.html. English is the markup itself, so it is left untouched.
 function applyI18n() {
   document.documentElement?.setAttribute?.('lang', lang);
-  const map = { reroll: 'btn.reroll', share: 'btn.share', whisper: 'btn.whisper', church: 'btn.church', candle: 'btn.candle', postcard: 'btn.postcard', saveSession: 'btn.save', loadSession: 'btn.load', mapToggle: 'btn.map' };
-  for (const [id, key] of Object.entries(map)) $(id).textContent = tr(key);
-  $('dlCase').textContent = tr('btn.casefile'); $('mapTitle').textContent = tr('title.map'); $('journalTitle').textContent = tr('title.whispers');
+  if (lang === 'en') return;
+  document.title = `${tr('page.title')} | Kiroween 2026`;
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = tr(el.getAttribute('data-i18n'));
+  for (const el of document.querySelectorAll('[data-i18n-html]')) el.innerHTML = tr(el.getAttribute('data-i18n-html'));
+  for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', tr(el.getAttribute('data-i18n-aria')));
 }
 const isSecureHost = (loc) => loc.protocol === 'https:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
 function registerOffline() {
@@ -283,19 +290,19 @@ function syncViewUi() {
   const mode = effectiveCamera(state.camChoice, state.sanity.dread);
   $('camera').value = state.camChoice; $('theme').value = state.theme;
   const note = cameraOverridden(state.camChoice, state.sanity.dread) ? ' Top-down is refused at Abyss dread, so the view drops to the ground.' : '';
-  $('cameraNote').textContent = `Looking: ${CAMERA_LABELS[mode]}.${note}`;
+  $('cameraNote').textContent = tr('note.looking', { mode: cameraLabel(lang, mode) }) + note;
   const td = mode === 2;
-  $('floor').disabled = !td; $('floorOut').textContent = td ? `Floor ${state.floor + 1}` : 'Floor (top-down only)';
+  $('floor').disabled = !td; $('floorOut').textContent = td ? tr('label.floor', { n: state.floor + 1 }) : tr('label.floortop');
   const base = THEMES.find((t) => t.id === state.theme);
-  $('themeNote').textContent = base ? `${base.label}, DLNK group ${base.group}. ${themeSource(base)}` : 'Default mixed look.';
+  $('themeNote').textContent = base ? tr('note.theme', { label: themeLabel(lang, base), group: tr(`group.${base.group}`), source: themeSource(base) }) : tr('note.themedefault');
 }
-function themeSource(t) { return t.packRole && pack.patterns[t.packRole] ? 'Using the local pack texture.' : 'Using the procedural pattern.'; }
+function themeSource(t) { return t.packRole && pack.patterns[t.packRole] ? tr('note.srcpack') : tr('note.srcproc'); }
 function pushHash() {
   const extra = (state.theme !== 'auto' ? `&theme=${state.theme}` : '') + (state.camChoice !== 'third' ? `&cam=${state.camChoice}` : '') + (state.floor ? `&floor=${state.floor}` : '') + (story.on ? `&story=1&beat=${story.idx - nightStartIndex(story.beats, state.night + 1)}` : '');
   autosave();
   history.replaceState(null, '', `${encodeHash({ seed: state.seed, sanity: state.sanity.value })}&night=${state.night + 1}${extra}`);
 }
-function setTheme(id) { state.theme = parseTheme(id); syncViewUi(); pushHash(); mark(); announce(`Texture theme: ${state.theme === 'auto' ? 'default' : state.theme}.`); }
+function setTheme(id) { state.theme = parseTheme(id); syncViewUi(); pushHash(); mark(); announce(tr('announce.theme', { name: state.theme === 'auto' ? tr('theme.default') : tr(`theme.${state.theme}`) })); }
 function setCamera(choice) { state.camChoice = parseCamera(choice); state.snap = reduceMotion; syncViewUi(); pushHash(); mark(); announce($('cameraNote').textContent); }
 function setFloor(f) { state.floor = parseFloor(f, Number($('floor').max) || 0); $('floor').value = String(state.floor); syncViewUi(); pushHash(); mark(); }
 function cycle(list, cur, dir = 1) { return list[(list.indexOf(cur) + dir + list.length) % list.length]; }
@@ -305,10 +312,10 @@ function tryDoor(p) {
   const attempt = state.attempts.get(p.key) || 0;
   state.attempts.set(p.key, attempt + 1);
   const behavior = doorOmen(state.sanity.dread, p.key, 0, attempt, state.seed);
-  const text = doorMessage(behavior, p.key);
+  const text = doorMessageL(doorMessage(behavior, p.key), lang);
   state.shakes.set(p.key, { behavior, at: performance.now() });
   state.toast = { text, at: performance.now(), rising: behavior >= 2 };
-  announce(`${text} (${DOOR_NAMES[behavior]})`);
+  announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
   mark();
 }
@@ -316,7 +323,7 @@ function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); push
 function adjust(delta, location) { state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
 function showNightClamp() {
   const el = $('nightClamp'); if (!el) return;
-  const msg = state.campaign ? nightClampNotice(location.hash, state.campaign.nights.length) : '';
+  const msg = state.campaign ? nightClampNoticeL(location.hash, state.campaign.nights.length, lang) : '';
   el.textContent = msg; el.hidden = !msg;
 }
 function applyHash() {
@@ -351,7 +358,7 @@ function postcard() {
   c2.drawImage(canvas, 0, 0);
   c2.fillStyle = '#0c1214'; c2.fillRect(0, canvas.height, out.width, 56);
   c2.textAlign = 'center'; c2.fillStyle = '#cfd8d3'; c2.font = 'italic 24px Georgia, serif';
-  c2.fillText(postcardCaption({ villageName: state.campaign.villageName, seed: state.seed, night: n.number, title: n.title }), out.width / 2, canvas.height + 36);
+  c2.fillText(postcardCaptionL({ villageName: state.campaign.villageName, seed: state.seed, night: n.number, title: n.title }, lang), out.width / 2, canvas.height + 36);
   out.toBlob((blob) => { if (blob) download(postcardFilename(state.seed, n.number), blob, 'image/png'); }, 'image/png');
 }
 function tryNextDoor() {
@@ -361,8 +368,8 @@ function tryNextDoor() {
 }
 function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $('sound').checked = false; syncUi(); } else stopAudio(); }
 
-const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
-const { openIntro, introOpen } = createIntroController({ $, canvas, state, reduceMotion });
+const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
+const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
@@ -463,15 +470,16 @@ setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.ap
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
 (async function init() {
-  try { await loadCatalog(); } catch (err) { $('stats').textContent = `Could not load the catalog (${err.message}). Serve this folder over HTTP, for example: python3 -m http.server -d web`; return; }
+  applyI18n();
+  applyI18n();
+  try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); return; }
   ensureProcPatterns();
-  $('theme').innerHTML = '<option value="auto">Default (mixed)</option>' + THEME_GROUPS.map((g) =>
-    `<optgroup label="DLNK group: ${g}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</optgroup>`).join('');
+  $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
+    `<optgroup label="${esc(tr('opt.group', { g: tr(`group.${g}`) }))}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${esc(themeLabel(lang, t))}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
   const resumed = resumeIfBare();
   applyHash(); pushHash(); start();
-  if (resumed) $('sessionNote').textContent = tr('msg.loaded') + ' (resumed)';
-  if (lang !== 'en') applyI18n();
+  if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);
   registerOffline();
