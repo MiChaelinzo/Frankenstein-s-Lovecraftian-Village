@@ -74,3 +74,7 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `a9d4138` Core `ScheduledStageForNight`, `Progress`, `RitualSaveState`, JS port, golden `progress` parity, xunit and node tests.
 - `cbaa3b6` Web: HUD, journal, case file and session show night schedule, dread-reached and effective stage (en and fr).
 - `6bf7297` Unity `RitualDirector`, `RitualStateAsset`, `RitualSaveBridge`. Not compiled: Unity is not installed here.
+
+## Round 9 investigator
+- `20d139d` Core `Investigator.cs`, JS port, property tests, golden `investigators` parity, self-test group.
+- Web wiring (toggle, canvas, minimap, journal, screen reader text) and docs: see the next commit. Screenshot `docs/media/investigator.png` shows the web demo only.

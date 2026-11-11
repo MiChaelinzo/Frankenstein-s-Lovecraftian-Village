@@ -2,7 +2,7 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
-  detailLevel, doorOmen, generateRitual, ritualProgress,
+  detailLevel, doorOmen, generateRitual, ritualProgress, Investigator,
 } from './core.js';
 import {
   computeView, buildWalkers, addEntry,
@@ -27,7 +27,7 @@ import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
-  describeSceneL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
+  describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
 } from './i18n-text.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
@@ -53,6 +53,7 @@ const state = {
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
+  investigatorOn: false, investigator: null,
 };
 
 // ?narrator=https://... plugs in an AI endpoint; Safe wrapper falls back to offline text on any failure.
@@ -112,6 +113,7 @@ function rebuild() {
   state.landmarks = state.layout.filter((p) => p.id === 'church' || p.id === 'altar' || p.id === 'well');
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
   state.focus = -1;
+  stopInvestigator();
   state.campaign = generateCampaign(state.seed);
   state.ritual = generateRitual(state.campaign);
   state.ritualStage = -1;
@@ -123,6 +125,7 @@ function rebuild() {
     state.landmarks.map((p, i) => `<option value="${i}">${esc(tr('opt.landmarkitem', { name: locName(lang, p.id), hint: hintLabel(p.id) ? ` [${hintLabel(p.id)}]` : '', x: p.x, z: p.z }))}</option>`).join('');
   const area = state.layout.reduce((a, p) => a + p.sizeX * p.sizeZ, 0);
   $('stats').textContent = tr('msg.stats', { seed: state.seed, pieces: state.layout.length, w: GRID_W, d: GRID_D, area, cells: GRID_W * GRID_D, count: PIECES });
+  if (state.investigatorOn) startInvestigator();
   updateDesc();
   say(null);
   if (story.on) showBeat(story.idx);
@@ -194,7 +197,7 @@ function updateDesc() {
   $('viewDesc').textContent = describeSceneL({
     seed: state.seed, pieces: state.layout.length, tier: tierFor(d), dreadPercent: Math.round(d * 100),
     focus: f ? tr('desc.focus', { name: locName(lang, f.id), x: f.x, z: f.z }) : '',
-  }, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
+  }, lang) + describeVillageL(state.layout, lang) + describeInvestigatorL(state.investigator, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
 }
 
 let running = false;
@@ -240,7 +243,41 @@ function drawMinimap() {
   g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0b1012'; g.fillRect(0, 0, c.width, c.height);
   for (const k of m.cells) { g.fillStyle = k.color; g.fillRect(k.x, k.y, k.w, k.h); }
   for (const k of m.cells) if (k.selected) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(k.x - 1, k.y - 1, k.w + 2, k.h + 2); }
+  if (state.investigator && state.investigator.route.length) {
+    const sc = c.width / GRID_W, pos = state.investigator.position;
+    g.fillStyle = '#ffd68c'; g.beginPath(); g.arc((pos.x + 0.5) * sc, (pos.z + 0.5) * sc, Math.max(3, sc * 0.7), 0, 6.283); g.fill();
+    g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
+  }
   $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
+}
+// ---------- investigator (Core Investigator, off by default) ----------
+const INV_STEP_MS = 700;
+let invTimer = 0;
+function stopInvestigator() { clearInterval(invTimer); invTimer = 0; state.investigator = null; }
+function startInvestigator() {
+  stopInvestigator();
+  state.investigator = new Investigator(state.layout, GRID_W, GRID_D, state.seed);
+  log('investigator', tr('log.investigatorstart'));
+  invTimer = setInterval(stepInvestigator, INV_STEP_MS);
+}
+function setInvestigator(on) {
+  state.investigatorOn = on;
+  $('invToggle').setAttribute?.('aria-pressed', String(on));
+  if (on) startInvestigator(); else stopInvestigator();
+  updateDesc(); mark();
+}
+function stepInvestigator() {
+  const inv = state.investigator; if (!inv || document.hidden) return;
+  const hit = inv.step();
+  if (hit) {
+    state.sanity.apply(-hit.sanityLoss);
+    if (!reduceMotion) state.flash = Math.max(state.flash, 0.2);
+    syncUi(); pushHash();
+    const text = tr('log.investigator', { site: tr(`kind.${hit.siteId}`), n: hit.sanityLoss });
+    log('investigator', text); announce(text); updateDesc();
+  }
+  if (inv.finished) { clearInterval(invTimer); invTimer = 0; log('investigator', tr('log.investigatorend')); updateDesc(); }
+  drawMinimap(); mark();
 }
 function setMap(on) { mapOn = on; $('mapPanel').hidden = !on; $('mapToggle').setAttribute?.('aria-pressed', String(on)); drawMinimap(); }
 function setPerf(on) { perfOn = on; perf.reset(); $('perfHud').hidden = !on; $('perfHud').textContent = perfText(perf.stats()); $('perfToggle').setAttribute?.('aria-pressed', String(on)); if (on) mark(); }
@@ -426,6 +463,7 @@ $('saveSession').addEventListener('click', () => sessionNote(saveSession(storage
 $('loadSession').addEventListener('click', () => { const s = loadSession(storage); if (s) { applySession(s); sessionNote('msg.loaded'); } else sessionNote('msg.nosave'); });
 $('mapToggle').addEventListener('click', () => setMap(!mapOn));
 $('perfToggle').addEventListener('click', () => setPerf(!perfOn));
+$('invToggle').addEventListener('click', () => setInvestigator(!state.investigatorOn));
 
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -456,6 +494,7 @@ addEventListener('keydown', (e) => {
     case '.': selectNight(state.night + 1); break;
     case 'p': case 'P': postcard(); break;
     case 'g': case 'G': setMap(!mapOn); break;
+    case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
     case 'x': case 'X': setPerf(!perfOn); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
@@ -479,6 +518,8 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
     `<optgroup label="${esc(tr('opt.group', { g: tr(`group.${g}`) }))}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${esc(themeLabel(lang, t))}</option>`).join('')}</optgroup>`).join('');
   if (pack.want) await loadPack();
+  state.investigatorOn = optParam('investigator') === '1';
+  $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
   const resumed = resumeIfBare();
   applyHash(); pushHash(); start();
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

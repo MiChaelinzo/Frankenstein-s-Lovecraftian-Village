@@ -300,6 +300,22 @@ export function createRenderer(env) {
     if (dread > 0.75) { ctx.fillStyle = `rgba(120,0,10,${((dread - 0.75) * 0.35).toFixed(3)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
   }
 
+  // The investigator and the lantern route trail they have already walked. Only drawn while state.investigator is set.
+  function drawInvestigator(time) {
+    const inv = state.investigator; if (!inv || !inv.route.length) return;
+    const trailFrom = Math.max(0, inv.tick - 24);
+    for (let i = trailFrom; i < Math.min(inv.tick, inv.route.length); i++) {
+      const c = inv.route[i], s = iso(c.x + 0.5, c.z + 0.5);
+      ctx.fillStyle = `rgba(255,200,120,${(0.08 + 0.2 * (i - trailFrom) / 24).toFixed(2)})`; ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, 6.283); ctx.fill();
+    }
+    const pos = inv.position, s = iso(pos.x + 0.5, pos.z + 0.5);
+    const flick = reduceMotion ? 1 : 0.85 + 0.15 * Math.sin(time / 120);
+    glow(s.x, s.y - 14, 34 * flick, '255,205,120', 0.45, 0.6);
+    ctx.fillStyle = '#141018'; ctx.fillRect(s.x - 4, s.y - 22, 8, 16);
+    ctx.fillStyle = '#d8c8a8'; ctx.beginPath(); ctx.arc(s.x, s.y - 25, 4, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(255,214,140)'; ctx.fillRect(s.x + 5, s.y - 16, 4, 5);
+  }
+
   function drawFocus(time) {
     const p = state.landmarks[state.focus]; if (!p) return;
     const pulse = reduceMotion ? 0.9 : 0.65 + 0.3 * Math.sin(time / 260);
@@ -393,6 +409,7 @@ export function createRenderer(env) {
       else drawPiece(p, dread, time);
     }
     while (ai < active.length) drawCultist(active[ai++], dread, time);
+    drawInvestigator(time);
     drawFocus(time);
     drawDoorMarks(real);
     drawTentacles(dread, time);

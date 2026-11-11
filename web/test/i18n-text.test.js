@@ -70,3 +70,13 @@ test('french helpers are really translated and never throw on odd input', () => 
   assert.match(nightClampNoticeL('#night=9', 5, 'fr'), /n'existe pas/);
   assert.equal(entryLabelL({ kind: 'omen', text: 'x', sanity: 3 }, 'fr'), '[raison 3] Presage : x');
 });
+
+test('village and investigator descriptions are localized and empty when there is nothing to say', async () => {
+  const { describeVillageL, describeInvestigatorL } = await import('../src/i18n-text.js');
+  const layout = [{ id: 'church' }, { id: 'house_a' }, { id: 'house_a' }];
+  assert.equal(describeVillageL(layout, 'en'), ' The village holds 1 church, 2 house.');
+  assert.match(describeVillageL(layout, 'fr'), /2 maison/);
+  assert.equal(describeVillageL([], 'en'), '');
+  assert.equal(describeInvestigatorL(null, 'en'), '');
+  assert.match(describeInvestigatorL({ route: [{ x: 1, z: 2 }, { x: 1, z: 3 }], tick: 0, position: { x: 1, z: 2 } }, 'en'), /at 1, 2, step 1 of 2/);
+});
