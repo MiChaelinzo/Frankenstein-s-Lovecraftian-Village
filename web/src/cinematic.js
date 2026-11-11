@@ -58,7 +58,7 @@ const FLY_MIN_HEIGHT = 4.6;         // above the 3 m houses so the camera never 
 /** The camera stop for beat index i (any integer). Seed picks the starting bearing so different villages open differently. */
 export function flyStop(i, { gridW, gridD, seed = 0, cell = 4 }) {
   const cx = (gridW * cell) / 2, cz = (gridD * cell) / 2, half = Math.hypot(cx, cz);
-  const start = ((((seed | 0) * 2654435761) >>> 0) % 6283) / 1000;
+  const start = ((Math.imul(seed | 0, 2654435761) >>> 0) % 6283) / 1000;
   const angle = start + i * FLY_ANGLE_STEP;
   const radius = half * (i % 2 === 0 ? 0.78 : 0.58);
   const height = FLY_MIN_HEIGHT + 1.6 + Math.sin(i * 1.7) * 1.4;

@@ -150,3 +150,10 @@ A short history of how this project was built, taken from `git log` on the `feat
 - Real bug found by an earlier run of the same driver: `canvas.setPointerCapture` threw `InvalidStateError` in `onPointerDown`. Fixed with a guard in `web/src/view3d.js`; the rerun was clean.
 - Frame time (real time, rAF timestamps over a 6 s walk, 259 frames): mean 23.2 ms (about 43 fps), median 16.7, p95 33.5, max 100 on ANGLE SwiftShader software GL. Indicative of CPU rendering only, not GPUs.
 - Not exercised: clicking a specific door in 3D (E was run with no door in reach), touch, gamepad, other browsers, the live Vercel host in a real browser (`python3 tools/check_live.py` passed 10/10 at HTTP level), Unity. The live host does not yet include round 15.
+
+### Round 15 review follow-up
+
+- `flyStop` seed hash now uses `Math.imul(seed | 0, 2654435761) >>> 0`, so large seeds no longer lose low bits (matches an integer-wrapping port).
+- Known gap (not fixed): Unity interaction prompts pass `Focus.locationId` to `PromptStrings.Prompt`, so names are raw ids while the web shows `locName`. Localized place names in Core would need a name table mirrored from `i18n-text.js` plus a drift test; deferred. Unverified in Unity.
+- Daily seed ordering: not changed. `ProgressionTracker.Awake` sets `walkthrough.seed`, and `WalkthroughController` generates in `Start`; Unity runs every `Awake` before any `Start`, so the order holds. Unverified in Unity.
+- `tools/browser_check.mjs` is a manual, environment-specific tool (Chromium path default and `--no-sandbox`), not part of the pre-merge suite or CI.
