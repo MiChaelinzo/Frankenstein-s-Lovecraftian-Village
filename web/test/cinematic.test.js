@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cinematicFrame, totalMs, TAIL_MS, WAYPOINTS, cameraTransform, cinematicWanted, waypoint } from '../src/cinematic.js';
+import { flythroughCamera, flyStop, FLY_ANGLE_STEP, cinematicFrame, totalMs, TAIL_MS, WAYPOINTS, cameraTransform, cinematicWanted, waypoint } from '../src/cinematic.js';
 import { gateAction, mapGamepad, mapSwipe, snapshotPad, BUTTON_ACTIONS } from '../src/input.js';
 
 const D = [3000, 4000, 2500];
@@ -156,4 +156,37 @@ test('page description is translated and index.html carries the same English tex
   assert.ok(html.includes(`content="${t('page.description', 'en')}"`));
   assert.notEqual(t('page.description', 'fr'), t('page.description', 'en'));
   assert.ok(t('page.title', 'fr') !== t('page.title', 'en'));
+});
+
+// ---------- 3D fly-through ----------
+const W = { gridW: 24, gridD: 24, seed: 1818 };
+test('fly-through: identical elapsed ms give an identical camera, for any seed', () => {
+  for (const t of [0, 1, 1500, 3000, 4321, 9499, 9500, 11000, 99999]) {
+    assert.deepEqual(flythroughCamera(t, D, W), flythroughCamera(t, D, { ...W }));
+    assert.deepEqual(flythroughCamera(t, D, W, true), flythroughCamera(t, D, W, true));
+  }
+  assert.notDeepEqual(flythroughCamera(1500, D, W), flythroughCamera(1500, D, { ...W, seed: 5 }));
+});
+test('fly-through: starts on stop 0, reaches the next stop at each beat boundary, ends on the last stop', () => {
+  const at = (t) => flythroughCamera(t, D, W), pos = (c) => [c.x, c.y, c.z];
+  const near3 = (a, b) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-6, `${a} vs ${b}`));
+  near3(pos(at(0)), flyStop(0, W).pos); near3(pos(at(3000)), flyStop(1, W).pos); near3(pos(at(7000)), flyStop(2, W).pos);
+  near3(pos(at(9500 + TAIL_MS)), flyStop(3, W).pos);
+  const a = pos(at(1500)); assert.notDeepEqual(a, flyStop(0, W).pos); assert.notDeepEqual(a, flyStop(1, W).pos);
+});
+test('fly-through: stays over the roofs, looks at the village, yaw and pitch are finite and pitch is bounded', () => {
+  for (let t = 0; t <= totalMs(D); t += 250) {
+    const c = flythroughCamera(t, D, W);
+    assert.ok(Object.values(c).every(Number.isFinite)); assert.ok(c.y >= 4.6, 'above the 3 m houses'); assert.ok(Math.abs(c.pitch) < 1.2);
+    const cx = 48, cz = 48, toward = Math.hypot(c.x - cx, c.z - cz); assert.ok(toward > 20 && toward < 90);
+  }
+  const c = flythroughCamera(0, D, W), s = flyStop(0, W), dx = s.look[0] - s.pos[0], dz = s.look[2] - s.pos[2];
+  assert.ok(Math.abs(Math.sin(c.yaw) * Math.hypot(dx, dz) - dx) < 1e-6 && Math.abs(-Math.cos(c.yaw) * Math.hypot(dx, dz) - dz) < 1e-6);
+});
+test('fly-through: reduced motion is one fixed still viewpoint, whatever the time or beat', () => {
+  const still = flythroughCamera(0, D, W, true);
+  for (const t of [1, 3000, 5000, 9000, 20000]) assert.deepEqual(flythroughCamera(t, D, W, true), still);
+  assert.notDeepEqual(flythroughCamera(5000, D, W), flythroughCamera(5001, D, W));
+  assert.ok(FLY_ANGLE_STEP > 0.3 && FLY_ANGLE_STEP < 2, 'a visible but not dizzy move per beat');
+  assert.ok(Object.values(flythroughCamera(5, [], W)).every(Number.isFinite), 'empty durations do not break the camera');
 });

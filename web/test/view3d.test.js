@@ -7,7 +7,10 @@ import { PrefabCatalog, generateLayout, InteractionRules } from '../src/core.js'
 import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../src/glb.js';
 import { padAxes3d, touchDrive, isTap } from '../src/input.js';
 import * as M from '../src/view3d-math.js';
-import { buildWorld, createGlRenderer } from '../src/view3d.js';
+import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer } from '../src/view3d.js';
+import { omenTargets } from '../src/scene.js';
+import { texturePlan } from '../src/pack.js';
+import { tierFor } from '../src/core.js';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = new PrefabCatalog(JSON.parse(readFileSync(join(web, 'data', 'village_catalog.json'), 'utf8')).entries);
@@ -168,10 +171,11 @@ test('smoke: the GL renderer runs a frame against a recording stub context', () 
   const r = createGlRenderer(gl), l = layout(7);
   const meshes = new Map([['house_a', mesh('house_a')]]);
   r.setWorld(buildWorld({ layout: l, meshes, seed: 7, gridW: 24, gridD: 24 })); r.setParticles(M.particleSeeds(7, 30, 1), M.particleSeeds(7, 10, 2)); r.resize(320, 180);
-  const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.skyColors('night', 'rain', 0.4);
+  const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'rain', 0.4, 2);
+  r.setTentacles(buildTentacles({ bases: M.tentacleBases(24, 24, 7), grow: 1, dread: 0.9, timeSec: 1 }));
   r.draw({ vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'rain'),
-    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90 });
-  assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 5);
+    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90 });
+  assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 8, 'sky, sea, ground, buildings, coast, tentacles, halos, rain/mist');
 });
 test('view3d wiring: precached, no CDN, no inline script, interaction via core rules', () => {
   const app = readFileSync(join(web, 'src', 'app.js'), 'utf8'), v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
@@ -180,4 +184,102 @@ test('view3d wiring: precached, no CDN, no inline script, interaction via core r
   assert.match(app, /InteractionRules\.sanityDelta\(kind\)/);
   assert.ok(!/https?:\/\//.test(v) && !/https?:\/\//.test(readFileSync(join(web, 'src', 'view3d-math.js'), 'utf8')));
   assert.match(readFileSync(join(web, 'sw.js'), 'utf8'), /src\/view3d\.js/);
+});
+
+// ---------- round 15: atmosphere, coast, omens, pack textures, budget ----------
+const meshSet = () => new Map(['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'].map((k) => [k, mesh(k)]));
+
+test('each night has its own haze, the cycle repeats, and the fog follows the hazed horizon', () => {
+  assert.notDeepEqual(M.nightHaze(1), M.nightHaze(2));
+  assert.deepEqual(M.nightHaze(1), M.nightHaze(1 + M.NIGHT_HAZE.length)); assert.deepEqual(M.nightHaze(0), M.nightHaze(1));
+  const a = M.hazedSky('night', 'clear', 0.2, 1), b = M.hazedSky('night', 'clear', 0.2, 2);
+  assert.notDeepEqual(a.horizon, b.horizon); assert.deepEqual(a.horizon, M.hazedSky('night', 'clear', 0.2, 1).horizon);
+  a.fog.forEach((v, i) => near(v, a.horizon[i] * 0.85));
+  assert.ok([...a.horizon, ...a.fog].every((v) => v >= 0 && v <= 1));
+});
+test('fog is layered: ground mist is thicker in fog, rises with dread, breathes, and holds still when reduced', () => {
+  const clear = M.fogLayers({ weather: 'clear' }), fog = M.fogLayers({ weather: 'fog' });
+  assert.ok(fog.ground > clear.ground && fog.density > clear.density);
+  assert.ok(M.fogLayers({ dread: 1 }).groundHeight > M.fogLayers({ dread: 0 }).groundHeight);
+  assert.notEqual(M.fogLayers({ timeSec: 0 }).ground, M.fogLayers({ timeSec: 4 }).ground);
+  assert.equal(M.fogLayers({ timeSec: 0, reduced: true }).ground, M.fogLayers({ timeSec: 4, reduced: true }).ground);
+});
+test('lantern halos: one per light, with the lamp post wider than the door lantern', () => {
+  const lights = M.lanternLights(layout(5)), h = M.haloSprites(lights);
+  assert.equal(h.length, lights.length * M.HALO_FLOATS); assert.ok(lights.length > 0);
+  lights.forEach((l, i) => { near(h[i * M.HALO_FLOATS + 1], l.pos[1]); near(h[i * M.HALO_FLOATS + 4], M.haloSize(l)); });
+  assert.ok(M.haloSize({ post: true }) > M.haloSize({ post: false }));
+  assert.equal(buildWorld({ layout: layout(5), meshes: null, seed: 5, gridW: 24, gridD: 24 }).halos.length, h.length);
+});
+test('coast: the frame sits on the sea side, features are seeded, and the dock, boats and cliffs are well formed', () => {
+  for (const seed of [1, 7, 1818, 99, 4242, 31337]) {
+    const f = M.coastFrame(24, 24, seed), t = M.terrainRects(24, 24, seed);
+    assert.equal(f.side, t.side); assert.notEqual(f.side, 3, 'never the south spawn edge');
+    const c = M.coastFeatures(24, 24, seed);
+    assert.deepEqual(c, M.coastFeatures(24, 24, seed));
+    assert.equal(c.boats.length, 2); assert.equal(c.cliffs.length, 2);
+    assert.ok(c.dock.u > f.lo && c.dock.u < f.hi && c.dock.length >= 14 && c.dock.posts >= 5);
+    const w = M.coastToWorld(f, c.dock.u, c.dock.length);
+    if (f.axis === 'x') assert.ok(f.dir < 0 ? w.x < t.ground.minX : w.x > t.ground.maxX); else assert.ok(w.z < t.ground.minZ);
+  }
+  assert.notDeepEqual(M.coastFeatures(24, 24, 1), M.coastFeatures(24, 24, 2));
+});
+test('coast and church geometry: deterministic, finite, unit normals, church stands opposite the sea', () => {
+  for (const seed of [3, 1818, 777]) {
+    const a = buildCoast({ gridW: 24, gridD: 24, seed }), b = buildCoast({ gridW: 24, gridD: 24, seed }), ch = buildChurchHill({ gridW: 24, gridD: 24, seed });
+    assert.deepEqual(a, b); assert.ok(a.length > 0 && a.length % (3 * VERTEX_FLOATS) === 0 && ch.length % (3 * VERTEX_FLOATS) === 0);
+    for (const arr of [a, ch]) for (let i = 0; i < arr.length; i += VERTEX_FLOATS) { assert.ok(arr.slice(i, i + VERTEX_FLOATS).every(Number.isFinite)); near(Math.hypot(arr[i + 3], arr[i + 4], arr[i + 5]), 1, 1e-3); }
+    const site = M.churchSite(24, 24, seed), side = M.coastSide(seed);
+    if (side === 0) assert.ok(site.x > 24 * 4); if (side === 1) assert.ok(site.x < 0);
+    assert.ok(Math.max(...ch.filter((_, i) => i % VERTEX_FLOATS === 1)) > site.hill + 15, 'steeple rises above the hill');
+    assert.ok(ch.some((v, i) => i % VERTEX_FLOATS === 9 && v > 0), 'lit windows');
+  }
+});
+test('omens in 3D use the same decision function as the 2D canvas', () => {
+  assert.deepEqual(omenTargets(0), { eye: 0, tentacle: 0 }); assert.deepEqual(omenTargets(1), { eye: 0, tentacle: 0 });
+  assert.deepEqual(omenTargets(2), { eye: 0, tentacle: 0.4 }); assert.deepEqual(omenTargets(3), { eye: 1, tentacle: 1 });
+  const draw = readFileSync(join(web, 'src', 'draw.js'), 'utf8'), v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(draw, /omenTargets\(tier\)/); assert.match(v, /omenTargets\(tierFor\(s\.dread\)\)/);
+  assert.ok(tierFor(0.95) >= 3 && omenTargets(tierFor(0.95)).eye === 1);
+});
+test('tentacles: absent below tier 2, grow with the omen, deterministic, sway only when motion is allowed', () => {
+  const bases = M.tentacleBases(24, 24, 1818), args = { bases, grow: 1, dread: 0.8, timeSec: 2 };
+  assert.equal(bases.length, 3); assert.deepEqual(bases, M.tentacleBases(24, 24, 1818));
+  assert.equal(buildTentacles({ ...args, grow: 0 }).length, 0);
+  const small = buildTentacles({ ...args, grow: 0.1 }), full = buildTentacles(args);
+  assert.ok(small.length > 0 && full.length > small.length, 'more tentacles stand as the omen strengthens');
+  const top = (a) => Math.max(...a.filter((_, i) => i % VERTEX_FLOATS === 1));
+  assert.ok(top(full) > top(small)); assert.deepEqual(full, buildTentacles(args));
+  assert.notDeepEqual(buildTentacles({ ...args, timeSec: 3 }), full);
+  assert.deepEqual(buildTentacles({ ...args, timeSec: 3, reduced: true }), buildTentacles({ ...args, timeSec: 9, reduced: true }));
+  const eye = M.eyeParams(1818, 3); near(Math.hypot(...eye.dir), 1, 1e-9); assert.ok(eye.dir[1] > 0.3); assert.deepEqual(eye, M.eyeParams(1818, 3));
+});
+test('pack textures in 3D: planned only from the manifest roles, as local-pack URLs, null when absent', () => {
+  assert.deepEqual(texturePlan({}), { wall: null, ground: null });
+  const roles = { wall_stone: { texture: 'textures/s.png' }, ground_stones: { texture: 'textures/g.png' } };
+  assert.deepEqual(texturePlan(roles), { wall: 'local-pack/textures/s.png', ground: 'local-pack/textures/g.png' });
+  assert.equal(texturePlan({ wall_plaster: { texture: 'textures/p.png' }, wall_stone: roles.wall_stone }).wall, 'local-pack/textures/p.png');
+  const app = readFileSync(join(web, 'src', 'app.js'), 'utf8');
+  assert.match(app, /packTextures: \(\) => \(pack\.want && pack\.roles \? texturePlan\(pack\.roles\) : null\)/);
+});
+test('frame budget (pure counts, not timings): worst case weather, dread and lights stay within FRAME_BUDGET', () => {
+  for (const seed of [1818, 7, 4242]) {
+    const w = buildWorld({ layout: layout(seed), meshes: meshSet(), seed, gridW: 24, gridD: 24 });
+    const tent = buildTentacles({ bases: M.tentacleBases(24, 24, seed), grow: 1, dread: 1 });
+    const parts = M.particleCounts({ weather: 'rain', dread: 1, reduced: false }), mist = M.particleCounts({ weather: 'fog', dread: 1, reduced: false });
+    const cost = M.frameCost({
+      vertices: { building: w.building.length / VERTEX_FLOATS, ground: w.ground.length / VERTEX_FLOATS, sea: w.sea.length / VERTEX_FLOATS, coast: w.coast.length / VERTEX_FLOATS, tentacle: tent.length / VERTEX_FLOATS },
+      rain: parts.rain, mist: mist.mist, halos: w.halos.length / M.HALO_FLOATS, lights: w.lights.length,
+    });
+    const B = M.FRAME_BUDGET;
+    assert.ok(cost.drawCalls <= B.drawCalls, `draw calls ${cost.drawCalls}`); assert.ok(cost.triangles <= B.triangles, `triangles ${cost.triangles}`);
+    assert.ok(cost.points <= B.points, `points ${cost.points}`); assert.ok(cost.lights <= B.lights); assert.ok(cost.halos <= B.halos, `halos ${cost.halos}`);
+  }
+  assert.equal(M.frameCost({ vertices: { building: 30 }, rain: 5 }).drawCalls, 3);
+  assert.equal(M.particleCounts({ weather: 'rain', dread: 1, reduced: true }).rain, 0, 'reduced motion draws no particles');
+});
+test('view3d wiring for round 15: fly camera replaces walking, pack textures only via the plan, no network', () => {
+  const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), app = readFileSync(join(web, 'src', 'app.js'), 'utf8');
+  assert.match(v, /s\.fly \? \{ \.\.\.s\.fly \}/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
+  assert.ok(!/fetch\(/.test(v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '')), 'pack textures load through Image, not fetch');
 });

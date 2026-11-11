@@ -258,3 +258,8 @@ export function dreadJitter(seed, nowMs, dread) {
   const slot = Math.floor(nowMs / JITTER_SLOT_MS), amp = (dread - 0.5) * MAX_JITTER_PX;
   return { dx: (unitHash(seed, slot, 2) - 0.5) * amp, dy: (unitHash(seed, slot, 3) - 0.5) * amp };
 }
+
+/** Omen strength targets (0..1) for a dread tier: the sky eye opens at tier 3, tentacles rise at tier 2 (partly) and 3. Shared by the 2D canvas and the 3D view. */
+export function omenTargets(tier) {
+  return { eye: tier >= 3 ? 1 : 0, tentacle: tier >= 3 ? 1 : tier >= 2 ? 0.4 : 0 };
+}

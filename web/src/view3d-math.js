@@ -300,3 +300,104 @@ export function nextScale(scale, avgMs, frames) {
   if (avgMs < 15 && scale < 1) return Math.min(1, scale + 0.25);
   return scale;
 }
+
+// ---------- atmosphere layers: haze per night, ground mist, lantern halos ----------
+
+/** One haze tint per campaign night, cycled. Cold sea green, bruised violet, tallow amber, drowned blue, sick olive. */
+export const NIGHT_HAZE = [[0.1, 0.3, 0.3], [0.3, 0.14, 0.34], [0.38, 0.28, 0.1], [0.1, 0.18, 0.4], [0.28, 0.32, 0.1]];
+export const nightHaze = (nightNumber) => NIGHT_HAZE[(((Math.floor(nightNumber) || 1) - 1) % NIGHT_HAZE.length + NIGHT_HAZE.length) % NIGHT_HAZE.length];
+
+/** skyColors with the night's haze mixed into the horizon and fog (a quarter, a little more at dread) so each night reads differently. */
+export function hazedSky(sky, weather, dread, nightNumber) {
+  const s = skyColors(sky, weather, dread), haze = nightHaze(nightNumber), k = 0.22 + 0.1 * clamp(dread, 0, 1);
+  const horizon = mixc(s.horizon, haze, k);
+  return { ...s, horizon, fog: horizon.map((v) => v * 0.85), haze };
+}
+
+/**
+ * Two fog layers: the existing exponential squared distance fog, plus a ground mist that hugs the lowest metres and thins with height.
+ * Returns { density, ground: per-metre density of the low layer, groundHeight: scale height in metres }. The mist breathes unless reduced.
+ */
+export function fogLayers({ dread = 0, weather = 'clear', timeSec = 0, reduced = false } = {}) {
+  const density = fogDensity({ dread, weather, timeSec, reduced });
+  const d = clamp(dread, 0, 1), breath = reduced ? 0 : Math.sin((timeSec * Math.PI * 2) / 17) * 0.15;
+  const ground = (weather === 'fog' ? 0.05 : weather === 'rain' ? 0.032 : 0.02) * (1 + d * 0.6) * (1 + breath);
+  return { density, ground, groundHeight: 2.2 + d * 1.4 };
+}
+
+/** Halo size in world metres. Lamp posts glow wider than door lanterns. */
+export const haloSize = (light) => (light.post ? 3.4 : 2.4);
+export const HALO_FLOATS = 5;
+/** Billboard halo per lantern: flat [x, y, z, phase, size, ...]. Every light gets one, the lit window and the lamp post alike. */
+export function haloSprites(lights) {
+  const out = new Float32Array(lights.length * HALO_FLOATS);
+  lights.forEach((l, i) => out.set([l.pos[0], l.pos[1], l.pos[2], l.phase || 0, haloSize(l)], i * HALO_FLOATS));
+  return out;
+}
+
+// ---------- coast frame, docks, boats, cliffs and the church on the hill ----------
+
+/**
+ * The coast as a local frame so features are described along the shore (u) and out to sea (v >= 0) and placed on any side.
+ * { side, axis: 'x'|'z', edge: world coordinate of the shoreline, dir: +1 or -1 toward the sea, lo/hi: shoreline extent along u }.
+ */
+export function coastFrame(gridW, gridD, seed, cell = CELL) {
+  const side = coastSide(seed), shore = 6;
+  if (side === 0) return { side, axis: 'x', edge: -shore, dir: -1, lo: 0, hi: gridD * cell };
+  if (side === 1) return { side, axis: 'x', edge: gridW * cell + shore, dir: 1, lo: 0, hi: gridD * cell };
+  return { side, axis: 'z', edge: -shore, dir: -1, lo: 0, hi: gridW * cell };
+}
+/** Local (u along shore, v out to sea) to world x and z. */
+export const coastToWorld = (f, u, v) => (f.axis === 'x' ? { x: f.edge + f.dir * v, z: u } : { x: u, z: f.edge + f.dir * v });
+
+/**
+ * Seeded dock, boats and cliff rocks on the coast, all in local (u, v) metres. Always: one dock, two boats, two cliffs flanking the
+ * shoreline. Same seed and grid give the same set, so the harbour is part of the village's identity.
+ */
+export function coastFeatures(gridW, gridD, seed, cell = CELL) {
+  const f = coastFrame(gridW, gridD, seed, cell), rng = new SeededRandom(((seed | 0) ^ 0x51ed) | 0), span = f.hi - f.lo;
+  const dockU = f.lo + span * (0.3 + rng.next(40) / 100), dockLen = 14 + rng.next(8);
+  const dock = { u: dockU, length: dockLen, width: 2.4, deck: 0.45, posts: Math.floor(dockLen / 3) + 1 };
+  const boats = [0, 1].map((i) => ({ u: dockU + (i ? 4.2 : -4.2) + (rng.next(10) - 5) / 10, v: 5 + rng.next(60) / 10 + i * 4, len: 3.4 + rng.next(20) / 10, wid: 1.4 + rng.next(6) / 10, tilt: i ? 1 : -1 }));
+  const cliffs = [f.lo - 8, f.hi + 8].map((u, i) => ({
+    u, v: -2 - rng.next(4), w: 9 + rng.next(6), d: 10 + rng.next(6), h: 7 + rng.next(6), step: i ? 1 : -1,
+  }));
+  return { frame: f, dock, boats, cliffs };
+}
+
+/** Where the church on the hill stands: opposite the sea (east or west for a north coast), beyond the village edge. Metres. */
+export function churchSite(gridW, gridD, seed, cell = CELL) {
+  const side = coastSide(seed), w = gridW * cell, d = gridD * cell;
+  const east = side === 0 ? true : side === 1 ? false : (((seed | 0) ^ 0x3c3c) & 1) === 0;
+  return { x: east ? w + 30 : -30, z: d * 0.35, faceX: east ? -1 : 1, hill: 9 };
+}
+
+// ---------- omens in the 3D world (decisions come from omenTargets in scene.js, same as the 2D canvas) ----------
+
+/** Seeded direction of the eye in the sky, away from the moon's usual arc: unit vector. */
+export function eyeParams(seed, nightNumber) {
+  const rng = new SeededRandom(((seed | 0) * 17 + (nightNumber | 0) * 104729 + 5) | 0);
+  const az = (rng.next(360) * Math.PI) / 180, el = (0.38 + rng.next(25) / 100);
+  return { dir: [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)], width: 0.26, height: 0.085 };
+}
+
+/** Three tentacle roots standing in the sea off the coast: world x, z, phase, lean (radians). Seeded. */
+export function tentacleBases(gridW, gridD, seed, cell = CELL) {
+  const f = coastFrame(gridW, gridD, seed, cell), rng = new SeededRandom(((seed | 0) ^ 0x7e57) | 0), span = f.hi - f.lo;
+  return [0, 1, 2].map((i) => {
+    const p = coastToWorld(f, f.lo + span * (0.2 + 0.3 * i) + rng.next(40) / 10, 16 + i * 5 + rng.next(30) / 10);
+    return { x: p.x, z: p.z, phase: 0.9 + i * 0.6, lean: (rng.next(100) / 100 - 0.5) * 0.8 };
+  });
+}
+
+// ---------- frame budget (counts, not timings: those depend on the GPU) ----------
+
+export const FRAME_BUDGET = Object.freeze({ drawCalls: 14, triangles: 60000, points: 1300, lights: MAX_LIGHTS, halos: 120 });
+
+/** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
+export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0 }) {
+  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle'];
+  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0);
+  const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
+  return { drawCalls, triangles, points: rain + mist + halos, lights: Math.min(lights, MAX_LIGHTS), halos };
+}

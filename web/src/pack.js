@@ -51,3 +51,9 @@ export function badgeText(json) {
 
 /** Multiplies a grayscale value (0..255) by a tint channel (0..255). */
 export const tintChannel = (gray, tint) => Math.round((gray * tint) / 255);
+
+/** Which local pack textures the 3D view uses: a wall texture for buildings and a ground texture, as URLs under local-pack/. Pure. */
+export function texturePlan(roles, base = 'local-pack/') {
+  const wall = pickRole(roles, 'wall_plaster', 'wall_wood', 'wall_brick', 'wall_stone'), ground = pickRole(roles, 'ground', 'ground_stones');
+  return { wall: wall ? base + roles[wall].texture : null, ground: ground ? base + roles[ground].texture : null };
+}
