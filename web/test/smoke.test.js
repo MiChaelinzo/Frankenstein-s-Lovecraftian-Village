@@ -38,6 +38,10 @@ test('app renders frames at several sanity levels without throwing', async () =>
   await import('../src/app.js');
   await new Promise((r) => setTimeout(r, 20));
   assert.match(els.stats.textContent, /Seed 42: \d+ pieces/);
+  // a deep link only previews progress: no codex or achievement lines until the player acts
+  assert.doesNotMatch(els.progressLog.innerHTML, /e-codex|e-achievement/);
+  assert.match(els.whispers.innerHTML, /<li class="e-/);
+  assert.equal(els['tab-progress'].tabIndex, -1);
   for (const s of [100, 60, 30, 0]) {
     els.sanity.value = String(s);
     els.sanity.listeners.input();

@@ -5,7 +5,7 @@ import {
   detailLevel, doorOmen, generateRitual, ritualProgress, Investigator,
 } from './core.js';
 import {
-  computeView, buildWalkers, addEntry,
+  computeView, buildWalkers,
   reportFilename, wrapIndex, postcardFilename, nightFromHash,
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
@@ -24,8 +24,11 @@ import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
+import { tourWanted } from './tour.js';
+import { createTourController } from './tour-ui.js';
 import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
+import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
 import { dailyVillage, dailyWanted } from './daily.js';
 import { contrastWanted, loadContrast, saveContrast } from './access.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
@@ -58,7 +61,7 @@ const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
   narrationLine: '', narrationAt: 0, flash: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
-  campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: [], toast: null, focus: -1, eye: 0, tentacle: 0,
+  campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: newJournal(), toast: null, focus: -1, eye: 0, tentacle: 0,
   investigatorOn: false, investigator: null, cinema: null,
 };
 
@@ -73,7 +76,8 @@ const { iso, doorPoint } = renderer;
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
-const introWanted = shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
+const tourOn = tourWanted(location.search, location.hash); // opt-in only: ?tour=1
+const introWanted = !tourOn && shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
 const cinemaWanted = cinematicWanted(location.search, location.hash);
 function startAudio() {
   if (ambient && ambientSeed !== state.seed) { ambient.dispose(); ambient = null; }
@@ -170,6 +174,7 @@ function trackRitual() {
   renderRitual();
   progress.update();
 }
+function playerNight(i) { progress.arm(); selectNight(i); }
 function selectNight(i, quiet) {
   if (!state.campaign) return;
   state.night = Math.max(0, Math.min(state.campaign.nights.length - 1, i));
@@ -181,8 +186,26 @@ function selectNight(i, quiet) {
 // ---------- narration + journal ----------
 function log(kind, text) {
   progress.note.kind(kind);
-  state.journal = addEntry(state.journal, { kind, text, sanity: state.sanity.value });
-  $('whispers').innerHTML = state.journal.map((e) => `<li class="e-${e.kind}">${esc(entryLabelL(e, lang))}</li>`).join('');
+  state.journal = addJournalEntry(state.journal, { kind, text, sanity: state.sanity.value });
+  renderJournal();
+}
+function renderJournal() {
+  const j = state.journal;
+  const fill = (id, list, empty) => { $(id).innerHTML = list.length ? list.map((e) => `<li class="e-${e.kind}">${esc(entryLabelL(e, lang))}</li>`).join('') : `<li class="empty">${esc(tr(empty))}</li>`; };
+  fill('whispers', j.story, 'empty.whispers');
+  fill('progressLog', j.progress, 'empty.progresslog');
+  for (const tab of TABS) {
+    const on = j.tab === tab;
+    $(`tab-${tab}`).setAttribute?.('aria-selected', String(on)); $(`tab-${tab}`).tabIndex = on ? 0 : -1;
+    $(`pane-${tab}`).hidden = !on;
+  }
+  $('progressBadge').hidden = j.unseen === 0;
+  $('progressBadge').textContent = tr('journal.badge', { n: j.unseen });
+}
+function pickJournalTab(tab, focus) { state.journal = selectJournalTab(state.journal, tab); renderJournal(); if (focus) $(`tab-${tab}`).focus?.(); }
+for (const tab of TABS) {
+  $(`tab-${tab}`).addEventListener('click', () => pickJournalTab(tab));
+  $(`tab-${tab}`).addEventListener('keydown', (e) => { const next = tabForKey(tab, e.key); if (next) { e.preventDefault(); pickJournalTab(next, true); } });
 }
 function say(locationId) {
   const line = narrator.narrate(locationId, state.sanity.dread);
@@ -242,6 +265,7 @@ function autosave() { if (!pack.want && state.live) saveSession(storage, current
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
 function applySession(s) {
   const v = parseSession(s); if (!v) return;
+  progress.disarm(); // restoring is a preview: saved ids return, nothing new is awarded or announced
   history.replaceState(null, '', sessionHash(v));
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
@@ -301,7 +325,7 @@ function tickPerf(now) {
 }
 function caseMarkdown() {
   const r = report();
-  return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, night: state.night + 1, journal: [...state.journal].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
+  return buildCaseFile({ campaign: state.campaign, seed: state.seed, sanity: state.sanity.value, night: state.night + 1, journal: [...state.journal.story].reverse(), report: { pieces: r.pieces, tier: r.tier, dreadPercent: r.dreadPercent, omen: r.omen } });
 }
 // Applies the language to every static label declared in index.html. English is the markup itself, so it is left untouched.
 function applyI18n() {
@@ -374,7 +398,7 @@ function tryDoor(p) {
   mark();
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
-function adjust(delta, location) { state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
+function adjust(delta, location) { progress.arm(); state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
 function showNightClamp() {
   const el = $('nightClamp'); if (!el) return;
   const msg = state.campaign ? nightClampNoticeL(location.hash, state.campaign.nights.length, lang) : '';
@@ -426,6 +450,20 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
+const { openTour, closeTour, tourOpen, pauseTour, resumeTour } = createTourController({ $, tr, canvas, reduceMotion, announce });
+// About dialog: native <dialog> (focus trap and Esc come from the browser); falls back to the open attribute.
+let aboutIsOpen = false; // the dialog's 'close' event (Esc, button) resets it
+const aboutOpen = () => aboutIsOpen;
+function setAbout(on) {
+  const d = $('about');
+  aboutIsOpen = on;
+  if (on) pauseTour(); else resumeTour();
+  if (on) { if (d.showModal) d.showModal(); else d.setAttribute?.('open', ''); $('aboutClose').focus?.(); }
+  else if (d.close) d.close(); else d.removeAttribute?.('open');
+}
+$('about').addEventListener('close', () => { aboutIsOpen = false; resumeTour(); });
+$('aboutBtn').addEventListener('click', () => setAbout(true));
+$('aboutClose').addEventListener('click', () => setAbout(false));
 
 canvas.addEventListener('click', (e) => {
   const r = canvas.getBoundingClientRect();
@@ -451,7 +489,7 @@ $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
-$('sanity').addEventListener('input', () => setSanity(Number($('sanity').value)));
+$('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
 const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
 const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
 const doCandle = () => adjust(10, 'the village');
@@ -460,15 +498,15 @@ $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
 $('drain').addEventListener('change', (e) => { state.drain = e.target.checked; });
 $('sound').addEventListener('change', (e) => setSound(e.target.checked));
-$('night').addEventListener('change', () => selectNight(Number($('night').value)));
-$('nightPrev').addEventListener('click', () => selectNight(state.night - 1));
-$('nightNext').addEventListener('click', () => selectNight(state.night + 1));
+$('night').addEventListener('change', () => playerNight(Number($('night').value)));
+$('nightPrev').addEventListener('click', () => playerNight(state.night - 1));
+$('nightNext').addEventListener('click', () => playerNight(state.night + 1));
 $('postcard').addEventListener('click', postcard);
 $('storyOpen').addEventListener('click', toggleStory);
 $('storyExit').addEventListener('click', closeStory);
-$('storyPrev').addEventListener('click', () => showBeat(prevBeat(story.idx, storyBeats().length), true));
-$('storyNext').addEventListener('click', () => showBeat(nextBeat(story.idx, storyBeats().length), true));
-$('storyPlay').addEventListener('click', () => setPlaying(!story.playing));
+$('storyPrev').addEventListener('click', () => { progress.arm(); showBeat(prevBeat(story.idx, storyBeats().length), true); });
+$('storyNext').addEventListener('click', () => { progress.arm(); showBeat(nextBeat(story.idx, storyBeats().length), true); });
+$('storyPlay').addEventListener('click', () => { progress.arm(); setPlaying(!story.playing); });
 $('volume').addEventListener('input', () => setVolume(Number($('volume').value) / 100));
 $('mute').addEventListener('click', () => setMuted(!muted));
 $('dlMd').addEventListener('click', () => download(reportFilename(state.seed, 'md'), reportToMarkdown(report()), 'text/markdown'));
@@ -582,15 +620,17 @@ addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (introOpen()) return;
+  if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
+  if (aboutOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
   if (story.on) {
     const n = storyBeats().length, onCanvas = e.target === canvas;
-    if (e.key === 'ArrowRight' && !onCanvas) { showBeat(nextBeat(story.idx, n), true); return; }
-    if (e.key === 'ArrowLeft' && !onCanvas) { showBeat(prevBeat(story.idx, n), true); return; }
-    if (e.key === '.') { showBeat(nextBeat(story.idx, n), true); return; }
-    if (e.key === ',') { showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === 'ArrowRight' && !onCanvas) { progress.arm(); showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === 'ArrowLeft' && !onCanvas) { progress.arm(); showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === '.') { progress.arm(); showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === ',') { progress.arm(); showBeat(prevBeat(story.idx, n), true); return; }
     if (e.key === ' ' && tag !== 'BUTTON' && !onCanvas) { setPlaying(!story.playing); e.preventDefault(); return; }
     if (e.key === 'Escape') { closeStory(); return; }
   }
@@ -601,12 +641,12 @@ addEventListener('keydown', (e) => {
     case 'c': case 'C': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
     case 'n': case 'N': reroll(); break;
-    case '[': setSanity(state.sanity.value - 5); break;
-    case ']': setSanity(state.sanity.value + 5); break;
+    case '[': progress.arm(); setSanity(state.sanity.value - 5); break;
+    case ']': progress.arm(); setSanity(state.sanity.value + 5); break;
     case 'd': case 'D': $('drain').checked = !$('drain').checked; state.drain = $('drain').checked; break;
     case 'm': case 'M': setSound(!$('sound').checked); break;
-    case ',': selectNight(state.night - 1); break;
-    case '.': selectNight(state.night + 1); break;
+    case ',': playerNight(state.night - 1); break;
+    case '.': playerNight(state.night + 1); break;
     case 'p': case 'P': postcard(); break;
     case 'g': case 'G': setMap(!mapOn); break;
     case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
@@ -616,6 +656,7 @@ addEventListener('keydown', (e) => {
     case 'y': case 'Y': progress.setStitch(!progress.isStitchOn()); break;
     case 'h': case 'H': setContrast(!document.documentElement.classList.contains('hc'), true); break;
     case 'z': case 'Z': applyDaily(); break;
+    case 'a': case 'A': setAbout(true); break;
     case 'o': case 'O': tryNextDoor(); break;
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
@@ -624,14 +665,14 @@ addEventListener('keydown', (e) => {
     default:
   }
 });
-addEventListener('hashchange', applyHash);
+addEventListener('hashchange', () => { progress.disarm(); applyHash(); });
 document.addEventListener?.('visibilitychange', () => { if (!document.hidden) mark(); });
 if (typeof IntersectionObserver !== 'undefined') new IntersectionObserver((es) => { state.visible = es.some((e) => e.isIntersecting); if (state.visible) mark(); }).observe(canvas);
 setInterval(() => { if (state.drain && state.sanity.value > 0) { state.sanity.apply(-0.5); syncUi(); } }, 500);
 setInterval(() => { if (state.drain) say(null); }, 9000);
 
 (async function init() {
-  applyI18n();
+  applyI18n(); renderJournal();
   try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); return; }
   ensureProcPatterns();
   $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
@@ -656,5 +697,6 @@ setInterval(() => { if (state.drain) say(null); }, 9000);
   requestAnimationFrame(pollPad);
   if (cinemaWanted) setCinematic(true);
   registerOffline();
+  if (tourOn) openTour();
   if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
 })();

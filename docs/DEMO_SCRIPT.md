@@ -11,6 +11,11 @@ All footage is recorded by the author from this repo and the author's own Unity 
 
 If you have no Unity footage, skip that clip and say so; the Unity side is code-complete but unverified in the editor.
 
+## Tour and About scenes (optional, about 15 seconds)
+1. Open `http://localhost:8000/?intro=0&tour=1`. Let two or three stops play (or press Right arrow), say what each control does, then press Esc.
+2. Press `A` to show the About dialog (credits and license), then close it.
+Headless captures at 1280x720 clip the bottom of the page; in a real browser this is not an issue. Not recorded yet.
+
 ## Cinematic mode for a clean take
 1. Serve the demo locally (`python3 -m http.server -d web 8000`) and open `http://localhost:8000/?intro=0&cinematic=1#seed=1818&night=3` in a full-screen browser window at 1920x1080.
 2. The page hides its chrome, shows a large caption and pans and zooms through that night's story beats. Timings are fixed (the story beat reading times), so every take of the same seed and night is identical; rehearse once, then record.

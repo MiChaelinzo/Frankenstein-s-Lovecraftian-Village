@@ -17,6 +17,29 @@ A Unity 6 cosmic-horror village environment, built for **Kiroween 2026** in the 
 
 This project combines Unity 6, AI-assisted development workflows, and a modular Lovecraftian environment to create a dark fantasy village inspired by cosmic horror and environmental storytelling.
 
+## Judge quick start
+No live URL is confirmed (see [`docs/HOSTING.md`](docs/HOSTING.md)), so run it locally. You need Python 3 for the server; the demo itself has no dependencies and no build step.
+
+```bash
+cd web
+python3 -m http.server 8000
+# open http://localhost:8000/
+```
+
+Useful URLs (append to `http://localhost:8000/`; each feature is opt-in and a bare URL starts none of them):
+
+| URL | What you get |
+|-----|--------------|
+| `?tour=1` | Guided tour of the features, about a minute, skippable with Esc, keyboard accessible |
+| `?codex=1` | Necronomicon codex and achievements panel |
+| `?stitch=1` | How the parts are stitched together (generated from the repo) |
+| `?cinematic=1` | Cinematic capture mode with a scripted camera |
+| `?contrast=1` | High-contrast theme |
+| `?daily=1` | Today's village: one seed for everyone on the same date |
+| `?pack=1` | Textures from your own local pack, only if you built `web/local-pack/` yourself (see below); otherwise a notice |
+
+Press `A` or use the About button for credits and license. `?lang=fr` switches to French. Checks: `python3 tools/validate_repo.py`, `node --test "web/test/*.test.js"` and `dotnet test tests/Frankenstein.Core.Tests`. Nothing here was run inside the Unity editor.
+
 ## Play it in your browser (no Unity, no download)
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
 

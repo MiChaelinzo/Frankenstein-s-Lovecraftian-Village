@@ -54,3 +54,30 @@ test('unknown languages fall back to English, per key', () => {
   assert.equal(t('btn.door', 'zz'), STRINGS.en['btn.door']);
 });
 test('no em dashes in strings', () => { assert.ok(!JSON.stringify(STRINGS).includes('\u2014')); });
+const attrKeys = [...html.matchAll(/\sdata-i18n(?:-html|-aria)?="([^"]+)"/g)].map((m) => m[1]);
+test('every data-i18n key in index.html exists in en and fr with non-empty text', () => {
+  assert.ok(attrKeys.length > 80, `${attrKeys.length} keys`);
+  for (const k of attrKeys) for (const l of LANGS) assert.ok(STRINGS[l][k] && STRINGS[l][k].trim(), `${l}: ${k}`);
+});
+test('fr html strings keep the same tags as en (kbd, links) and the same link targets', () => {
+  const tags = (v) => (v.match(/<\/?\w+/g) || []).join(',');
+  const hrefs = (v) => (v.match(/href="[^"]+"/g) || []).join(',');
+  for (const k of Object.keys(STRINGS.en)) {
+    assert.equal(tags(STRINGS.fr[k]), tags(STRINGS.en[k]), k);
+    assert.equal(hrefs(STRINGS.fr[k]), hrefs(STRINGS.en[k]), k);
+  }
+});
+test('plain strings contain no markup; only html keys may', () => {
+  const htmlKeys = new Set(attrKeys.filter((k) => new RegExp(`data-i18n-html="${k.replace(/\./g, '\\.')}"`).test(html)));
+  for (const [k, v] of Object.entries(STRINGS.en)) if (!htmlKeys.has(k)) assert.ok(!/<[a-z]/i.test(v), `${k} has markup but is not data-i18n-html`);
+});
+test('every placeholder written in en is passed by some call site', () => {
+  // each {name} must appear as a key in some call in src; a typo like {nn} would render literally
+  const seen = new Set();
+  for (const v of Object.values(STRINGS.en)) for (const m of v.matchAll(/\{(\w+)\}/g)) seen.add(m[1]);
+  const src = readdirSync(join(web, 'src')).filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(web, 'src', f), 'utf8')).join('\n');
+  for (const name of seen) assert.ok(new RegExp(`\\b${name}\\s*[:,}]`).test(src), `placeholder {${name}} never passed anywhere`);
+});
+test('the tour and About keys exist in both languages', () => {
+  for (const l of LANGS) for (const k of ['tour.step', 'tour.hint', 'btn.tourdone', 'btn.tourskip', 'btn.about', 'btn.close', 'about.title', 'about.html', 'keys.about', 'keys.tour']) assert.ok(STRINGS[l][k], `${l}: ${k}`);
+});

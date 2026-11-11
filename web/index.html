@@ -121,6 +121,7 @@
             <button id="stitchToggle" type="button" aria-pressed="false" aria-controls="stitchPanel" data-i18n="btn.stitch">Stitch (Y)</button>
             <button id="contrastToggle" type="button" aria-pressed="false" data-i18n="btn.contrast">High contrast (H)</button>
             <button id="dailyBtn" type="button" data-i18n="btn.daily">Today's village (Z)</button>
+            <button id="aboutBtn" type="button" aria-haspopup="dialog" data-i18n="btn.about">About (A)</button>
           </div>
           <p id="sessionNote" class="stats" role="status" aria-live="polite"></p>
           <p id="stats" class="stats"></p>
@@ -130,7 +131,16 @@
       <aside class="side" aria-label="Journal, map and keys">
         <section class="panel journal" aria-labelledby="journalTitle">
           <h2 id="journalTitle" data-i18n="title.whispers">Whispers</h2>
-          <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
+          <div class="jtabs" role="tablist" aria-labelledby="journalTitle">
+            <button type="button" role="tab" id="tab-story" aria-selected="true" aria-controls="pane-story" data-i18n="tab.story">Story</button>
+            <button type="button" role="tab" id="tab-progress" aria-selected="false" aria-controls="pane-progress" tabindex="-1"><span data-i18n="tab.progress">Progress</span> <span id="progressBadge" class="jbadge" hidden></span></button>
+          </div>
+          <div id="pane-story" role="tabpanel" aria-labelledby="tab-story">
+            <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
+          </div>
+          <div id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden>
+            <ol id="progressLog" class="whispers"><li class="empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
+          </div>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
@@ -170,6 +180,8 @@
             <li data-i18n-html="keys.stitch"><kbd>Y</kbd> how the parts are stitched together (also ?stitch=1)</li>
             <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
             <li data-i18n-html="keys.daily"><kbd>Z</kbd> today's village, the same seed for everyone on this date (also ?daily=1)</li>
+            <li data-i18n-html="keys.about"><kbd>A</kbd> about and credits (Esc closes)</li>
+            <li data-i18n-html="keys.tour">Guided tour of the features, about a minute, only when you ask for it with ?tour=1</li>
             <li data-i18n-html="keys.perf"><kbd>X</kbd> performance readout (also ?perf=1)</li>
             <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
             <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
@@ -195,6 +207,21 @@
         <button id="introNext" type="button" data-i18n="btn.next">Next</button>
         <button id="introSkip" type="button" data-i18n="btn.skipintro">Skip intro</button>
       </div>
+    </div>
+  </div>
+  <dialog id="about" class="about" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle" data-i18n="about.title">About and credits</h2>
+    <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo uses only procedural shapes and an original procedural soundtrack. Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
+    <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
+  </dialog>
+  <div id="tour" class="tour" role="dialog" aria-modal="false" aria-labelledby="tourTitle" aria-describedby="tourText" hidden>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <p class="stats"><span id="tourStep"></span> <span data-i18n="tour.hint">Enter, Space or Right arrow for the next stop, Left arrow to go back, Escape to skip.</span></p>
+    <div class="row">
+      <button id="tourPrev" type="button" data-i18n="btn.prev">Previous</button>
+      <button id="tourNext" type="button" data-i18n="btn.next">Next</button>
+      <button id="tourSkip" type="button" data-i18n="btn.tourskip">Skip tour</button>
     </div>
   </div>
   <script type="module" src="src/app.js"></script>

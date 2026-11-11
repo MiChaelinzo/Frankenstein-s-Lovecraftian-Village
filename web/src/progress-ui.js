@@ -1,12 +1,13 @@
 // Codex, achievements and Stitch panels. Owns the progress state (the logic is pure and lives in codex.js, achievements.js, stitch.js).
-import { codexEntries, unlockedIds, unlockInto } from './codex.js';
-import { ACHIEVEMENTS, award, journalCompletion, newStats } from './achievements.js';
+import { codexEntries, unlockedIds } from './codex.js';
+import { settleProgress } from './progress-gate.js';
+import { ACHIEVEMENTS, journalCompletion, newStats } from './achievements.js';
 import { stitchModel, stitchHtml } from './stitch.js';
 import { esc } from './util.js';
 
 export function createProgressController({ $, tr, state, log, announce, fetchJson }) {
   const codex = new Set(), earned = new Set();
-  let stats = newStats(), codexSeed = null, stitchLoaded = false;
+  let stats = newStats(), codexSeed = null, stitchLoaded = false, armed = false;
 
   const statsNow = () => {
     const entries = codexEntries(state.ritual);
@@ -38,18 +39,21 @@ export function createProgressController({ $, tr, state, log, announce, fetchJso
     if (!state.ritual) return;
     if (codexSeed !== state.seed) { codex.clear(); stats.tier = 0; stats.visited = new Set(); codexSeed = state.seed; }
     stats.nightsVisited = stats.visited ? stats.visited.size : 0;
-    const fresh = unlockInto(codex, state.ritual, unlockedIds(state.ritual, state.ritualStage, stats.tier));
+    const unlockable = unlockedIds(state.ritual, state.ritualStage, stats.tier);
     const byId = new Map(codexEntries(state.ritual).map((e) => [e.id, e]));
-    // A deep link can unlock many at once; then one summary line keeps the journal readable.
+    statsNow();
+    const { fresh, won } = settleProgress({ armed, codex, earned, ritual: state.ritual, unlockable, stats });
+    // A batch (a deep link after the first action can unlock many) gets short journal lines and one announcement.
+    const s = statsNow();
+    const lines = [];
     const report = (kind, names, summary) => {
       if (!names.length) return;
       const text = names.length > 2 ? summary : names.join(' ');
-      log(kind, text); announce(text);
+      log(kind, text); lines.push(text);
     };
-    const s = statsNow();
     report('codex', fresh.map((id) => tr('codex.unlocked', { name: nameOf(byId.get(id)) })), tr('codex.progress', { n: s.codexCount, total: s.codexTotal }));
-    const won = award(earned, s);
     report('achievement', won.map((id) => tr('ach.earnedlog', { name: tr(`ach.${id}`) })), tr('ach.progress', { n: earned.size, total: ACHIEVEMENTS.length }));
+    if (lines.length) announce(lines[lines.length - 1]);
     render();
   }
 
@@ -67,11 +71,11 @@ export function createProgressController({ $, tr, state, log, announce, fetchJso
   function setCodex(on) { codexOn = on; setPanel('codexPanel', 'codexToggle', on); if (on) render(); }
 
   return {
-    update, render, setStitch, setCodex, isStitchOn: () => stitchOn, isCodexOn: () => codexOn,
+    update, render, arm() { armed = true; }, disarm() { armed = false; }, isArmed: () => armed, setStitch, setCodex, isStitchOn: () => stitchOn, isCodexOn: () => codexOn,
     note: {
-      whisper() { stats.whispers++; }, door() { stats.doors++; }, listen() { stats.listens++; },
+      whisper() { armed = true; stats.whispers++; }, door() { armed = true; stats.doors++; }, listen() { armed = true; stats.listens++; },
       kind(k) { stats.kinds.add(k); }, tier(n) { stats.tier = Math.max(stats.tier, n); },
-      night(i) { (stats.visited ||= new Set()).add(i); }, investigatorDone() { stats.investigatorDone = true; },
+      night(i) { (stats.visited ||= new Set()).add(i); }, investigatorDone() { armed = true; stats.investigatorDone = true; },
     },
     snapshot: () => ({ codex: [...codex], ach: [...earned] }),
     restore(s) {
