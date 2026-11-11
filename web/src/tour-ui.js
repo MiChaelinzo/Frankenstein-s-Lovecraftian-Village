@@ -29,6 +29,9 @@ export function createTourController({ $, tr, canvas, reduceMotion, announce }) 
     highlight(s.target);
     place();
     announce?.(`${tr('tour.step', { i: tour.i + 1, n: TOUR_STEPS.length })}: ${tr(`tour.${s.id}`)}`);
+    startTimer();
+  }
+  function startTimer() {
     clearTimeout(tour.timer);
     const delay = tourDelayMs(tour.i, reduceMotion);
     if (delay) tour.timer = setTimeout(next, delay);
@@ -50,12 +53,12 @@ export function createTourController({ $, tr, canvas, reduceMotion, announce }) 
   $('tourSkip').addEventListener('click', close);
   // reading time: hovering or any key press stops the auto-advance
   $('tour').addEventListener('pointerenter', () => clearTimeout(tour.timer));
-  $('tour').addEventListener('pointerleave', () => { if (isOpen()) render(); });
+  $('tour').addEventListener('pointerleave', () => { if (isOpen()) startTimer(); });
   $('tour').addEventListener('keydown', () => clearTimeout(tour.timer), true);
   $('tour').addEventListener('keydown', (e) => {
     const onButton = e.target === $('tourNext') || e.target === $('tourPrev') || e.target === $('tourSkip');
     const a = tourKeyAction(e.key, onButton);
-    if (a === 'skip') close(); else if (a === 'next') next(); else if (a === 'prev') { if (tour.i > 0) prev(); }
+    if (a === 'skip') { e.stopPropagation(); close(); } else if (a === 'next') next(); else if (a === 'prev') { if (tour.i > 0) prev(); }
     else if (e.key === 'Tab') {
       const btns = [$('tourPrev'), $('tourNext'), $('tourSkip')].filter((b) => !b.disabled);
       const at = btns.indexOf(e.target), to = btns[(at + (e.shiftKey ? -1 : 1) + btns.length) % btns.length];
@@ -63,5 +66,7 @@ export function createTourController({ $, tr, canvas, reduceMotion, announce }) 
     } else return;
     e.preventDefault();
   });
-  return { openTour: open, closeTour: close, tourOpen: isOpen };
+  const pauseTour = () => clearTimeout(tour.timer);
+  const resumeTour = () => { if (isOpen()) startTimer(); };
+  return { pauseTour, resumeTour, openTour: open, closeTour: close, tourOpen: isOpen };
 }

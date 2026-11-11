@@ -450,17 +450,18 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
-const { openTour, closeTour, tourOpen } = createTourController({ $, tr, canvas, reduceMotion, announce });
+const { openTour, closeTour, tourOpen, pauseTour, resumeTour } = createTourController({ $, tr, canvas, reduceMotion, announce });
 // About dialog: native <dialog> (focus trap and Esc come from the browser); falls back to the open attribute.
 let aboutIsOpen = false; // the dialog's 'close' event (Esc, button) resets it
 const aboutOpen = () => aboutIsOpen;
 function setAbout(on) {
   const d = $('about');
   aboutIsOpen = on;
+  if (on) pauseTour(); else resumeTour();
   if (on) { if (d.showModal) d.showModal(); else d.setAttribute?.('open', ''); $('aboutClose').focus?.(); }
   else if (d.close) d.close(); else d.removeAttribute?.('open');
 }
-$('about').addEventListener('close', () => { aboutIsOpen = false; });
+$('about').addEventListener('close', () => { aboutIsOpen = false; resumeTour(); });
 $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));
 
@@ -488,7 +489,7 @@ $('camera').addEventListener('change', () => setCamera($('camera').value));
 $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch { $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
-$('sanity').addEventListener('input', () => progress.arm() || setSanity(Number($('sanity').value)));
+$('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
 const doWhisper = () => { progress.note.whisper(); adjust(-8, 'the walls'); };
 const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-15, 'church'); };
 const doCandle = () => adjust(10, 'the village');
@@ -503,9 +504,9 @@ $('nightNext').addEventListener('click', () => playerNight(state.night + 1));
 $('postcard').addEventListener('click', postcard);
 $('storyOpen').addEventListener('click', toggleStory);
 $('storyExit').addEventListener('click', closeStory);
-$('storyPrev').addEventListener('click', () => progress.arm() || showBeat(prevBeat(story.idx, storyBeats().length), true));
-$('storyNext').addEventListener('click', () => progress.arm() || showBeat(nextBeat(story.idx, storyBeats().length), true));
-$('storyPlay').addEventListener('click', () => progress.arm() || setPlaying(!story.playing));
+$('storyPrev').addEventListener('click', () => { progress.arm(); showBeat(prevBeat(story.idx, storyBeats().length), true); });
+$('storyNext').addEventListener('click', () => { progress.arm(); showBeat(nextBeat(story.idx, storyBeats().length), true); });
+$('storyPlay').addEventListener('click', () => { progress.arm(); setPlaying(!story.playing); });
 $('volume').addEventListener('input', () => setVolume(Number($('volume').value) / 100));
 $('mute').addEventListener('click', () => setMuted(!muted));
 $('dlMd').addEventListener('click', () => download(reportFilename(state.seed, 'md'), reportToMarkdown(report()), 'text/markdown'));
@@ -626,10 +627,10 @@ addEventListener('keydown', (e) => {
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
   if (story.on) {
     const n = storyBeats().length, onCanvas = e.target === canvas;
-    if (e.key === 'ArrowRight' && !onCanvas) { showBeat(nextBeat(story.idx, n), true); return; }
-    if (e.key === 'ArrowLeft' && !onCanvas) { showBeat(prevBeat(story.idx, n), true); return; }
-    if (e.key === '.') { showBeat(nextBeat(story.idx, n), true); return; }
-    if (e.key === ',') { showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === 'ArrowRight' && !onCanvas) { progress.arm(); showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === 'ArrowLeft' && !onCanvas) { progress.arm(); showBeat(prevBeat(story.idx, n), true); return; }
+    if (e.key === '.') { progress.arm(); showBeat(nextBeat(story.idx, n), true); return; }
+    if (e.key === ',') { progress.arm(); showBeat(prevBeat(story.idx, n), true); return; }
     if (e.key === ' ' && tag !== 'BUTTON' && !onCanvas) { setPlaying(!story.playing); e.preventDefault(); return; }
     if (e.key === 'Escape') { closeStory(); return; }
   }
@@ -640,8 +641,8 @@ addEventListener('keydown', (e) => {
     case 'c': case 'C': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
     case 'n': case 'N': reroll(); break;
-    case '[': setSanity(state.sanity.value - 5); break;
-    case ']': setSanity(state.sanity.value + 5); break;
+    case '[': progress.arm(); setSanity(state.sanity.value - 5); break;
+    case ']': progress.arm(); setSanity(state.sanity.value + 5); break;
     case 'd': case 'D': $('drain').checked = !$('drain').checked; state.drain = $('drain').checked; break;
     case 'm': case 'M': setSound(!$('sound').checked); break;
     case ',': playerNight(state.night - 1); break;

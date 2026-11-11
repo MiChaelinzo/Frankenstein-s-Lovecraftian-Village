@@ -91,3 +91,18 @@ test('focus styles exist for keyboard users', () => {
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /forced-colors: active/);
 });
+
+// Wiring guards for player-input paths (DOM glue is not unit-testable without a browser).
+const appSrc = readFileSync(join(web, 'src', 'app.js'), 'utf8');
+const tourSrc = readFileSync(join(web, 'src', 'tour-ui.js'), 'utf8');
+test('keyboard sanity and story keys arm progress like their mouse equivalents', () => {
+  for (const k of ["case '['", "case ']'", "e.key === 'ArrowRight' && !onCanvas", "e.key === 'ArrowLeft' && !onCanvas", "e.key === '.'", "e.key === ','"]) {
+    const line = appSrc.split('\n').find((l) => l.includes(k) && /setSanity|showBeat/.test(l));
+    assert.ok(line && line.includes('progress.arm();'), k);
+  }
+});
+test('tour: skip stops propagation, pointerleave only restarts the timer, About pauses it', () => {
+  assert.match(tourSrc, /'skip'\) \{ e\.stopPropagation\(\); close\(\)/);
+  assert.match(tourSrc, /pointerleave', \(\) => \{ if \(isOpen\(\)\) startTimer\(\)/);
+  assert.match(appSrc, /if \(on\) pauseTour\(\); else resumeTour\(\)/);
+});
