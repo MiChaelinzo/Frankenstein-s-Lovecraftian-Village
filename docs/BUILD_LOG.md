@@ -95,3 +95,4 @@ A short history of how this project was built, taken from `git log` on the `feat
 
 ## Round 10 editor window and invariants
 - `02a7309` Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
+- `692a59e` Review fixes: nights achievement hook wired, restore before first autosave, controller test, CONTRIBUTING notes on stitch regen and `capture=1`. Journal flooding left as is: at most 1-2 lines per action, deep links collapse to one summary line.
