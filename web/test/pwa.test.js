@@ -52,7 +52,7 @@ test('index.html offline fallback applies only to navigation requests', () => {
 test('every asset and module reachable from index.html and selftest.html is precached', () => {
   const seen = new Set(), queue = [];
   const add = (p) => { if (!seen.has(p)) { seen.add(p); queue.push(p); } };
-  for (const page of ['index.html', 'selftest.html']) {
+  for (const page of ['index.html', 'selftest.html', 'meshes.html']) {
     const html = readFileSync(join(web, page), 'utf8');
     add(page);
     for (const m of html.matchAll(/(?:src|href)="((?!https?:|#|data:)[^"]+)"/g)) add(m[1].replace(/^\.\//, ''));

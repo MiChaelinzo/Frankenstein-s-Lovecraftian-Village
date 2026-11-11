@@ -12,7 +12,7 @@ const PREFIX = '/Frankenstein-s-Lovecraftian-Village/';
 const isBad = (spec) => spec.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(spec) && !/^https:\/\//i.test(spec);
 
 test('html src/href are relative (external https links allowed)', () => {
-  for (const f of ['index.html', 'selftest.html']) {
+  for (const f of ['index.html', 'selftest.html', 'meshes.html']) {
     const html = readFileSync(join(webDir, f), 'utf8');
     const specs = [...html.matchAll(/\b(?:src|href)\s*=\s*"([^"]*)"/g)].map((m) => m[1]);
     assert.ok(specs.length > 0, f);

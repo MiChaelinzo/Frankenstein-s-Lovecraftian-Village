@@ -46,11 +46,11 @@ Prerequisite: open the project in Unity 6 and import the pack you own. The local
 
 ## Blender prompts
 
-The headless Blender pipeline is planned under `tools/blender/` (round 12, FEAT-003). It produces original meshes only. Until it lands, only the generic prompts apply.
+The headless Blender pipeline lives in `tools/blender/` (see [docs/BLENDER.md](BLENDER.md)). It produces original meshes only, and it was run with a plain headless Blender, not through MCP.
 
 1. `Open a new scene in Blender, delete the default cube, and build a simple low-poly gabled house from primitives (original geometry, no imported pack assets).`
 2. `Export the selection as FBX with Y up and apply transforms, to a folder outside Assets/ThirdParty.`
-3. `Run the script tools/blender/<script>.py in background mode and report its stdout.` (use the real script name once FEAT-003 is merged)
+3. `Run tools/blender/gen_meshes.py in background mode with --out pack-scratch/blender-out and report its stdout.` Then, for sprites, `tools/blender/render_sprites.py`.
 
 Never feed pack meshes or textures into Blender sessions that produce files you intend to commit.
 
