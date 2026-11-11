@@ -18,7 +18,7 @@ namespace Frankenstein.Runtime
         public int seed = 1818;
         public int gridWidth = 24;
         public int gridDepth = 24;
-        public float cellSize = 6f;
+        public float cellSize = (float)FlythroughPath.DefaultCell;
         [Tooltip("Beat durations in milliseconds, same meaning as the web story beats. Core adds a 2 s tail.")]
         public float[] beatDurationsMs = { 6000f, 6000f, 6000f, 6000f, 6000f };
         [Tooltip("Hold one still viewpoint, like the web reduced-motion setting.")]

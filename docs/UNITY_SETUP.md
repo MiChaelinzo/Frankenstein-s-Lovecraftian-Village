@@ -64,8 +64,10 @@ Status for all four tools: **Partially Verified** (compile checked against stubs
 
 **Showcase camera (`VillageFlythroughCamera`)**
 1. Add a GameObject with a Camera, then add the `VillageFlythroughCamera` component (or use the helper below).
-2. Either assign `villageBuilder` (seed, grid size and cell size are read from it) or set `seed`, `gridWidth`, `gridDepth` and `cellSize` by hand. The defaults match the web demo (seed 1818, 24x24).
-3. Edit `beatDurationsMs` (milliseconds, same meaning as the web story beats). Core adds a 2 second tail.
+2. Either assign `villageBuilder` (seed, grid size and cell size are read from it) or set `seed`, `gridWidth`, `gridDepth` and `cellSize` by hand. The defaults match the web demo (seed 1818, 24x24, `cellSize` = Core `FlythroughPath.DefaultCell` 4). `VillageBuilder.cellSize` defaults to 6 and wins when a builder is assigned; camera height (4.6 m) and look-at height (1.6 m) do not scale with it, so set the builder to 4 as well for the same shot as the web. Unverified in Unity.
+3. Edit `beatDurationsMs` (milliseconds, same meaning as the web story beats). Core adds a 2 second tail. The default is five 6000 ms beats; the web uses `beatDurationMs(text length)` per beat, so copy those values for matching pacing.
+
+**Web-only exception: omen framing.** At Dire and Abyss the web fly-through blends toward `omenFraming` so the sea tentacles and the eye are in frame. This is web presentation over the unchanged Core path (`FlythroughPath`). Unity renders no tentacles or eye, so the Unity camera never frames omens and has nothing to frame. Do not port it to Core unless Unity gains those visuals.
 4. Press Play. Elapsed time advances by `Time.deltaTime` only, so for a repeatable take open Window > General > Recorder, choose a fixed frame rate (for example 30) and record. Tick `reducedMotion` for one still viewpoint, `loop` to repeat.
 
 **Copy Matching Web Demo URL**

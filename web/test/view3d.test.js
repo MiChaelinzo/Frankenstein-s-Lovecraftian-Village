@@ -314,8 +314,11 @@ test('round 16 omen framing: the eye hangs over the sea and blendCamera takes th
   const mid = M.blendCamera(a, b, 0.5);
   assert.ok(Math.abs(Math.abs(mid.yaw) - Math.PI) < 0.2, 'yaw crosses +-PI, not zero');
   assert.deepEqual(M.blendCamera(a, b, 0), { ...a }); assert.equal(M.blendCamera(a, b, 2).x, 10);
-  const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
-  assert.match(v, /omenFraming\(/); assert.match(v, /blendCamera\(cam, framing/);
+  assert.equal(M.omenBlendWeight(false, 1), 0, 'no framing outside the fly-through');
+  assert.equal(M.omenBlendWeight(true, 0), 0); assert.equal(M.omenBlendWeight(true, 0.01), 0);
+  assert.ok(Math.abs(M.omenBlendWeight(true, 0.2) - 0.5) < 1e-9);
+  assert.equal(M.omenBlendWeight(true, 0.4), 1); assert.equal(M.omenBlendWeight(true, 1), 1);
+  assert.equal(M.omenBlendWeight(true, NaN), 0);
 });
 
 test('round 16 props: coastProps and lampKind are seeded and in range', async () => {
@@ -340,6 +343,23 @@ test('round 16 props: the committed prop GLBs load, are small, and replace the p
   }
   const plain = buildCoast({ gridW: 24, gridD: 24, seed: 5 }), meshed = buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models });
   assert.notEqual(plain.length, meshed.length);
+  for (const seed of [5, 6, 7, 8]) {
+    const f = M.coastFrame(24, 24, seed), props = M.coastProps(24, 24, seed);
+    const withKind = (k) => buildCoast({ gridW: 24, gridD: 24, seed, meshes: new Map([[k, models.get(k)]]) });
+    const base = buildCoast({ gridW: 24, gridD: 24, seed });
+    const one = []; appendMeshVertices(one, models.get('fence'), null, M.CELL, { at: [0, 0], scale: 1 });
+    // fence has no procedural fallback, so the extra vertices are exactly one mesh per fence slot
+    assert.equal(withKind('fence').length - base.length, props.fences.length * one.length, 'fence count seed ' + seed);
+    for (const k of ['dock', 'boat', 'cliff_rock', 'fence']) assert.notDeepEqual(Array.from(withKind(k)), Array.from(base), k + ' is placed');
+    // every vertex stays near the coast: along the shore within 30 m of its extent, out to sea within 45 m, up to 40 m high
+    const out = buildCoast({ gridW: 24, gridD: 24, seed, meshes: models });
+    for (let i = 0; i < out.length; i += 11) {
+      const u = f.axis === 'x' ? out[i + 2] : out[i], v = f.axis === 'x' ? (out[i] - f.edge) * f.dir : (out[i + 2] - f.edge) * f.dir;
+      assert.ok(u >= f.lo - 30 && u <= f.hi + 30, 'along shore ' + u);
+      assert.ok(v >= -15 && v <= 45, 'out to sea ' + v);
+      assert.ok(out[i + 1] >= -2 && out[i + 1] <= 40, 'height ' + out[i + 1]);
+    }
+  }
   assert.deepEqual(Array.from(meshed), Array.from(buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models })));
   assert.ok(meshed.every(Number.isFinite) && meshed.length % 11 === 0);
 });

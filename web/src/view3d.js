@@ -7,7 +7,7 @@ import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.j
 import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
-  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenFraming,
+  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, parseCamParam, pickBox, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
@@ -492,9 +492,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (Math.abs(omen.tentacle - targets.tentacle) < 0.01) omen.tentacle = targets.tentacle;
     // Fly-through at Dire and Abyss: turn toward the sea so the risen tentacles and the open eye are both in frame.
     let view = cam;
-    if (s.fly && omen.tentacle > 0.01) {
+    const omenW = omenBlendWeight(!!s.fly, omen.tentacle);
+    if (omenW > 0) {
       const framing = omenFraming({ gridW: s.gridW, gridD: s.gridD, seed: s.seed, nightNumber: s.night.number, grow: omen.tentacle, eyeOpen: omen.eye, aspect });
-      view = blendCamera(cam, framing, omen.tentacle / 0.4);
+      view = blendCamera(cam, framing, omenW);
     }
     const eye = { ...view, y: view.y + headBob(bobPhase, 1, reduced) };
     const sk = hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon = moonParams(s.seed, s.night.number, s.night.sky, s.night.weather);

@@ -491,3 +491,9 @@ export function blendCamera(a, b, w) {
   const k = clamp(w, 0, 1), lerp = (p, q) => p + (q - p) * k;
   return { x: lerp(a.x, b.x), y: lerp(a.y, b.y), z: lerp(a.z, b.z), yaw: a.yaw + wrapPi(b.yaw - a.yaw) * k, pitch: lerp(a.pitch, b.pitch) };
 }
+
+/** Weight 0..1 for blending the fly-through toward omenFraming: 0 when not flying or the tentacles are down, 1 from tentacle 0.4 (Dire) up. */
+export function omenBlendWeight(flying, tentacle) {
+  if (!flying || !(tentacle > 0.01)) return 0;
+  return clamp(tentacle / 0.4, 0, 1);
+}
