@@ -22,10 +22,13 @@ namespace Frankenstein.Core
         private readonly HashSet<string> _codex = new HashSet<string>();
         private readonly HashSet<string> _earned = new HashSet<string>();
         private Ritual _ritual;
+        private VigilState _vigil;
 
         public IReadOnlyCollection<string> UnlockedCodexIds { get { return _codex; } }
         public IReadOnlyCollection<string> EarnedAchievementIds { get { return _earned; } }
         public AchievementStats Stats { get { return _stats; } }
+        /// <summary>The running vigil, or null before <see cref="StartVigil"/>.</summary>
+        public VigilState Vigil { get { return _vigil; } }
         public JournalCompletion Journal { get { return AchievementRules.Completion(_stats.Kinds); } }
 
         /// <summary>Sets the ritual whose codex is tracked. A different ritual seed resets codex, tier and stage; counts and earned ids stay.</summary>
@@ -36,6 +39,7 @@ namespace Frankenstein.Core
                 _codex.Clear();
                 _stats.Tier = 0;
                 _stats.Stage = -1;
+                _vigil = null;
             }
             _ritual = ritual;
             _stats.StageCount = ritual == null ? 0 : ritual.Stages.Count;
@@ -52,6 +56,40 @@ namespace Frankenstein.Core
                 case InteractionKind.Landmark: _stats.Listens++; _stats.Kinds.Add("narration"); break;
             }
             return Refresh();
+        }
+
+        /// <summary>Starts a fresh vigil over the campaign and the current ritual. The ritual must be set first.</summary>
+        public void StartVigil(Campaign campaign) { _vigil = new VigilState(campaign, _ritual); }
+
+        /// <summary>Forwards a heard clue source. Returns true when it was new this night.</summary>
+        public bool RecordVigilClue(string sourceId, out ProgressionUpdate update)
+        {
+            bool fresh = _vigil != null && _vigil.RecordClue(sourceId);
+            update = Refresh();
+            return fresh;
+        }
+
+        /// <summary>Forwards a lit lamp. Returns true when it was new this night. The sanity gain is applied by the caller.</summary>
+        public bool RecordVigilLantern(string lampId, out ProgressionUpdate update)
+        {
+            bool fresh = _vigil != null && _vigil.LightLantern(lampId);
+            update = Refresh();
+            return fresh;
+        }
+
+        /// <summary>Forwards current sanity points; a collapse or a finish can award the vigil achievements.</summary>
+        public ProgressionUpdate RecordVigilSanity(int sanity)
+        {
+            if (_vigil != null) _vigil.RecordSanity(sanity);
+            return Refresh();
+        }
+
+        /// <summary>Ends the night if its clues are met. Returns the next night's sanity, or -1 when refused.</summary>
+        public int EndureVigilNight(int carriedSanity, out ProgressionUpdate update)
+        {
+            int next = _vigil == null ? -1 : _vigil.EndureNight(carriedSanity);
+            update = Refresh();
+            return next;
         }
 
         /// <summary>Records the omen tier reached (0 Calm .. 3 Abyss). The highest tier seen is kept.</summary>
@@ -91,6 +129,9 @@ namespace Frankenstein.Core
             var update = new ProgressionUpdate();
             update.CodexIds = CodexModel.UnlockInto(_codex, _ritual, CodexModel.UnlockedIds(_ritual, _stats.Stage, _stats.Tier));
             _stats.CodexCount = _codex.Count;
+            var outcome = _vigil == null ? null : _vigil.Outcome(_codex.Count);
+            _stats.VigilDone = outcome != null;
+            _stats.NamerDone = outcome != null && outcome.EndingId == VigilRules.NameSpoken;
             update.AchievementIds = AchievementRules.Award(_earned, _stats);
             return update;
         }
