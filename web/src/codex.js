@@ -1,4 +1,4 @@
-// Mirror of Assets/Scripts/Core/CodexModel.cs (golden-checked in web/test/parity.test.js). Necronomicon codex and bestiary. Entries are seeded from the ritual chain and the dread omens, so each village
+// Mirror of Packages/com.michaelinzo.frankenstein-village/Core/CodexModel.cs (golden-checked in web/test/parity.test.js). Necronomicon codex and bestiary. Entries are seeded from the ritual chain and the dread omens, so each village
 // reveals its own order of creatures. Pure: no DOM. Texts live in i18n (codex.creature.N, codex.omen.N, codex.sigil.X).
 import { SeededRandom } from './core.js';
 

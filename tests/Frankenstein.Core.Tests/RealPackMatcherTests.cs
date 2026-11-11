@@ -73,7 +73,7 @@ namespace Frankenstein.Core.Tests
         {
             string dir = AppContext.BaseDirectory;
             while (dir != null && !File.Exists(Path.Combine(dir, "tools", "validate_repo.py"))) dir = Path.GetDirectoryName(dir);
-            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "Assets", "Data", "village_catalog.json")));
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")));
             var hints = new Dictionary<string, string>();
             foreach (var e in doc.RootElement.GetProperty("entries").EnumerateArray())
                 hints[e.GetProperty("id").GetString()] = e.TryGetProperty("prefabHint", out var h) ? h.GetString() : null;

@@ -20,7 +20,7 @@ Two assemblies. `Frankenstein.Core` has no engine references and holds all rules
 - `DreadEventTracker` (`DreadEvents.cs`): turns dread into one-shot threshold events (Uneasy 0.34, Dire 0.67, Abyss 0.9) with a 0.05 hysteresis margin.
 - `VillageReport`: Markdown and JSON report of a seed, sanity and layout.
 - `PrefabNameMatcher`: pure name matching used by the editor auto-binder; `Resolve(id, hint, candidates)` prefers the hint.
-- `CatalogAutoBinder` (`Assets/Scripts/Editor`, `Frankenstein.Editor` asmdef): editor-only menu that binds catalog ids to pack prefabs. Unverified in Unity.
+- `CatalogAutoBinder` (`Packages/com.michaelinzo.frankenstein-village/Editor`, `Frankenstein.Editor` asmdef): editor-only menu that binds catalog ids to pack prefabs. Unverified in Unity.
 
 ## Web demo (`web/`)
 `web/src/core.js` is a dependency-free JS port of Core (same xorshift32 integer math, same placement order). `web/src/app.js` renders an isometric procedural village on a canvas and maps dread to vignette, fog, flicker, moon and optional WebAudio drone. State is shareable through the URL hash (`#seed=1818&sanity=70`). `GoldenParity` in the xunit project emits `web/test/golden.json`; `node --test` asserts the JS output equals it, so the two implementations cannot drift silently.

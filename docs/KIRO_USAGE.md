@@ -29,7 +29,7 @@ No custom agent was defined. A natural next step is a "Cultist Reviewer" that ch
 
 Three hooks live in [`.kiro/hooks`](../.kiro/hooks), all enabled and committed:
 
-- **Run Core Tests On Save** (`test-on-save.kiro.hook`): on `fileEdited` for `Assets/Scripts/Core/**/*.cs` or `tests/**/*.cs`, asks the agent to run `dotnet test tests/Frankenstein.Core.Tests` and, on a failing property, report the failing seed and decide whether the code or the property is wrong.
+- **Run Core Tests On Save** (`test-on-save.kiro.hook`): on `fileEdited` for `Packages/com.michaelinzo.frankenstein-village/Core/**/*.cs` or `tests/**/*.cs`, asks the agent to run `dotnet test tests/Frankenstein.Core.Tests` and, on a failing property, report the failing seed and decide whether the code or the property is wrong.
 - **Paid Asset Guard** (`asset-guard.kiro.hook`): on `preToolUse` for write and shell tools, asks the agent to refuse adding, staging or committing files from the third-party Lovecraftian Village or Essential Terrain packs, anything under `Assets/ThirdParty` besides its README, and any `git add -f` on ignored paths.
 - **Validate Repo Before Finish** (`validate-repo.kiro.hook`): user-triggered, runs `python3 tools/validate_repo.py` and `git check-ignore`.
 
@@ -48,7 +48,7 @@ In practice the spec forced edge cases (empty catalog, NaN sanity) to be decided
 
 ## Steering docs
 
-[`.kiro/steering`](../.kiro/steering) holds three files: `product.md` (goal, audience, gothic tone with no explicit violence, legal stance on the pack), `tech.md` (Unity 6, pure logic in `Assets/Scripts/Core` with no `UnityEngine` reference, deterministic `SeededRandom`, narration behind `INarrationProvider` wrapped in `SafeNarrationProvider`, how to run tests, no em dashes in docs) and `structure.md` (folder layout and the rule that new logic goes in Core first with a property test). Steering means these rules did not have to be repeated in each prompt.
+[`.kiro/steering`](../.kiro/steering) holds three files: `product.md` (goal, audience, gothic tone with no explicit violence, legal stance on the pack), `tech.md` (Unity 6, pure logic in `Packages/com.michaelinzo.frankenstein-village/Core` with no `UnityEngine` reference, deterministic `SeededRandom`, narration behind `INarrationProvider` wrapped in `SafeNarrationProvider`, how to run tests, no em dashes in docs) and `structure.md` (folder layout and the rule that new logic goes in Core first with a property test). Steering means these rules did not have to be repeated in each prompt.
 
 ## MCP
 

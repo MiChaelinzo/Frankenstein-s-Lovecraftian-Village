@@ -30,9 +30,9 @@ def build(root=ROOT):
     sw = read(sw_path) if os.path.isfile(sw_path) else ""
     m = re.search(r"const PRECACHE = (\[[\s\S]*?\]);", sw)
     precache = len(re.findall(r"'[^']+'", m.group(1))) if m else 0
-    runtime = files(root, "Assets/Scripts/Runtime", ".cs")
+    runtime = files(root, "Packages/com.michaelinzo.frankenstein-village/Runtime", ".cs")
     parts = {
-        "core": {"count": len(files(root, "Assets/Scripts/Core", ".cs"))},
+        "core": {"count": len(files(root, "Packages/com.michaelinzo.frankenstein-village/Core", ".cs"))},
         "golden": {"count": len(golden), "vectors": sum(len(v) for v in golden.values() if isinstance(v, list))},
         "js": {"count": len(files(root, "web/src", ".js")), "tests": len(files(root, "web/test", ".test.js"))},
         "unity": {"count": len(runtime), "bridges": len([f for f in runtime if f.startswith("Dlnk")])},

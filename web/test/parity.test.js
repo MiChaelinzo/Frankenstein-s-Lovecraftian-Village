@@ -18,7 +18,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8'));
 const catalogJson = JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8'));
-const unityCatalogJson = JSON.parse(readFileSync(join(here, '..', '..', 'Assets', 'Data', 'village_catalog.json'), 'utf8'));
+const unityCatalogJson = JSON.parse(readFileSync(join(here, '..', '..', 'Packages', 'com.michaelinzo.frankenstein-village', 'Data', 'village_catalog.json'), 'utf8'));
 const catalog = new PrefabCatalog(catalogJson.entries);
 
 test('web catalog copy is identical to the Unity catalog', () => {

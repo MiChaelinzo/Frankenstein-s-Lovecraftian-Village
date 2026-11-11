@@ -58,7 +58,7 @@ namespace Frankenstein.Core.Tests
 
         private static PrefabCatalog LoadCatalog(string root)
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "Assets", "Data", "village_catalog.json")));
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")));
             var list = new List<CatalogEntry>();
             foreach (var e in doc.RootElement.GetProperty("entries").EnumerateArray())
                 list.Add(new CatalogEntry

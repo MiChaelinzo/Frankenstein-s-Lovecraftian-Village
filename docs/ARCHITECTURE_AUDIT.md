@@ -1,11 +1,11 @@
 # Architecture and parity audit (round 13)
 
-Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code that reimplements Core, and decide for each whether it belongs in `Assets/Scripts/Core`. Rules follow `.kiro/steering/project.md` (Core is the source of truth, Web mirrors, tests validate) and `.kiro/steering/agent.md`.
+Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code that reimplements Core, and decide for each whether it belongs in `Packages/com.michaelinzo.frankenstein-village/Core`. Rules follow `.kiro/steering/project.md` (Core is the source of truth, Web mirrors, tests validate) and `.kiro/steering/agent.md`.
 
 ## Method
 
 1. Read every module in `web/src` (38 files including generated `golden-data.js`) and its test in `web/test`.
-2. Read every script in `Assets/Scripts/Runtime` and `Assets/Scripts/Editor` for logic that duplicates or bypasses Core.
+2. Read every script in `Packages/com.michaelinzo.frankenstein-village/Runtime` and `Packages/com.michaelinzo.frankenstein-village/Editor` for logic that duplicates or bypasses Core.
 3. Classify each rule: **Core** (a rule that changes what the player experiences or what a seed produces), **already Core** (mirror with golden parity), **UI-only** (input mapping, persistence validation, DOM glue) or **pure presentation** (drawing, text, timing of effects).
 4. Move real rules into Core with xunit property tests, extend the golden emitter (`GoldenParity.cs`), and make the JS module a mirror verified in `web/test/parity.test.js`.
 5. Grep for swallowed errors (`catch`), unused exports, duplicated helpers.

@@ -1,4 +1,4 @@
-// Dependency-free JS port of Assets/Scripts/Core. Keep behavior identical to the C# source;
+// Dependency-free JS port of Packages/com.michaelinzo.frankenstein-village/Core. Keep behavior identical to the C# source;
 // test/parity.test.js checks it against test/golden.json emitted by the C# tests.
 
 import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';

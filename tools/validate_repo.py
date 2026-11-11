@@ -63,8 +63,8 @@ for f in tracked:
         errors.append(f"native or managed binary tracked (no Unity DLLs allowed): {f}")
 
 import filecmp
-if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Assets/Data/village_catalog.json", shallow=False):
-    errors.append("web/data/village_catalog.json differs from Assets/Data/village_catalog.json")
+if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json", shallow=False):
+    errors.append("web/data/village_catalog.json differs from Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json")
 
 if os.path.isfile(".gitattributes") and "filter=lfs" in open(".gitattributes").read():
     errors.append(".gitattributes routes files to Git LFS (filter=lfs); LFS is not used")

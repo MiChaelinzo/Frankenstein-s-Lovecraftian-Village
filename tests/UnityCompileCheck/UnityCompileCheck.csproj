@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Syntax and type check of Assets/Scripts/Runtime and Assets/Scripts/Editor WITHOUT Unity.
+    Syntax and type check of Packages/com.michaelinzo.frankenstein-village/Runtime and Packages/com.michaelinzo.frankenstein-village/Editor WITHOUT Unity.
     The files in Stubs/ are original, hand-written minimal declarations of only the Unity APIs
     the scripts call. They prove syntax and type consistency against those declarations. They do NOT
     prove runtime behavior, serialization, or that the real Unity API has the same signatures.
@@ -17,8 +17,8 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../Assets/Scripts/Core/**/*.cs" Link="Core/%(Filename)%(Extension)" />
-    <Compile Include="../../Assets/Scripts/Runtime/**/*.cs" Link="Runtime/%(Filename)%(Extension)" />
-    <Compile Include="../../Assets/Scripts/Editor/**/*.cs" Link="Editor/%(Filename)%(Extension)" />
+    <Compile Include="../../Packages/com.michaelinzo.frankenstein-village/Core/**/*.cs" Link="Core/%(Filename)%(Extension)" />
+    <Compile Include="../../Packages/com.michaelinzo.frankenstein-village/Runtime/**/*.cs" Link="Runtime/%(Filename)%(Extension)" />
+    <Compile Include="../../Packages/com.michaelinzo.frankenstein-village/Editor/**/*.cs" Link="Editor/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

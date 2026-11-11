@@ -4,7 +4,7 @@ This project can drive the scripts of the [DLNK Myst Village](https://www.dlnkwo
 
 ## Unverified in Unity (label: Unverified)
 
-The adapter MonoBehaviours under `Assets/Scripts/Runtime` were **never compiled or run in Unity**. The decisions they forward come from `DreadBuildingPolicy` in Core, which is covered by C# property tests, JS tests and C#-to-JS golden parity. The real class names and public methods of the DLNK scripts are **unknown** to this project: the downloaded URP and HDRP editions contain no scripts and no meshes, so there was nothing to read. That is why the adapters use UnityEvents and an interface, with no compile-time dependency on any DLNK type and no reflection.
+The adapter MonoBehaviours under `Packages/com.michaelinzo.frankenstein-village/Runtime` were **never compiled or run in Unity**. The decisions they forward come from `DreadBuildingPolicy` in Core, which is covered by C# property tests, JS tests and C#-to-JS golden parity. The real class names and public methods of the DLNK scripts are **unknown** to this project: the downloaded URP and HDRP editions contain no scripts and no meshes, so there was nothing to read. That is why the adapters use UnityEvents and an interface, with no compile-time dependency on any DLNK type and no reflection.
 
 ## Confirmed vs guessed
 

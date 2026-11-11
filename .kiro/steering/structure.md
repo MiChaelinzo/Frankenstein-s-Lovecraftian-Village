@@ -4,10 +4,10 @@ See `project.md` for the Core, Runtime and Web responsibilities; this file lists
 
 ```
 .kiro/                 specs, hooks, steering (always committed, never ignored)
-Assets/Scripts/Core    pure C# logic (testable without Unity)
-Assets/Scripts/Runtime Unity glue (MonoBehaviour, ScriptableObject)
-Assets/Scripts/Editor  editor-only tools (CatalogAutoBinder), unverified in Unity
-Assets/Data            catalog JSON describing stitchable pieces
+Packages/com.michaelinzo.frankenstein-village/Core    pure C# logic (testable without Unity)
+Packages/com.michaelinzo.frankenstein-village/Runtime Unity glue (MonoBehaviour, ScriptableObject)
+Packages/com.michaelinzo.frankenstein-village/Editor  editor-only tools (CatalogAutoBinder), unverified in Unity
+Packages/com.michaelinzo.frankenstein-village/Data  catalog JSON describing stitchable pieces
 Assets/ThirdParty      placeholder only; paid packs are gitignored
 Packages/ ProjectSettings/   Unity project config
 web/                   browser demo: JS port of Core + canvas UI (static; host configs in netlify.toml, vercel.json, web/_headers; see docs/HOSTING.md)
@@ -26,7 +26,7 @@ Assets/_DLNK/          Unity import location of the real packages (ignored)
 tools/screenshot.sh    renders the web demo to docs/media with headless Chromium
 ```
 
-Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Assets/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`, `Assets/_DLNK` or `web/local-pack`.
+Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`, `Assets/_DLNK` or `web/local-pack`.
 tools/stage_web.py     stages web/ into git-ignored dist/ without local-pack (only safe local-folder deploy)
 tests/UnityCompileCheck  stub-based compile check of Runtime and Editor scripts (dotnet build; syntax and types only, see docs/MCP.md for Unity/Blender MCP prompts)
 tools/dlnk_scene.py, tools/blender/   scene layout parser and headless Blender scripts

@@ -14,7 +14,7 @@ Frankenstein's monster was never one thing. It was parts that did not belong tog
 
 ## Keep the engine out of the logic
 
-The most useful decision was architectural. All rules live in `Assets/Scripts/Core`, which never references `UnityEngine`. The Unity side (`VillageBuilder`, `HorrorAmbienceDirector`) is thin glue. That means the rules can be tested with a plain `dotnet test` and no Unity install, which also made them testable inside a cloud agent sandbox.
+The most useful decision was architectural. All rules live in `Packages/com.michaelinzo.frankenstein-village/Core`, which never references `UnityEngine`. The Unity side (`VillageBuilder`, `HorrorAmbienceDirector`) is thin glue. That means the rules can be tested with a plain `dotnet test` and no Unity install, which also made them testable inside a cloud agent sandbox.
 
 ## Specs became properties
 

@@ -102,7 +102,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 80 passing property tests |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 80 passing property tests |
 | JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 247 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
@@ -192,14 +192,14 @@ Unlike parts, one creature:
 | Kiro | Specs, steering, hooks and agents that built and guard the project |
 
 ## Repository layout
-See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Assets/Scripts/Core` (no Unity dependency), Unity glue in `Assets/Scripts/Runtime`.
+See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Packages/com.michaelinzo.frankenstein-village/Core` (no Unity dependency), Unity glue in `Packages/com.michaelinzo.frankenstein-village/Runtime`.
 
 ## Setup
 1. Install **Unity 6** (6000.0.x). Use the HDRP template modules for the HDRP package, or URP for the URP package.
 2. Clone this repo and open it as a Unity project.
 3. Download the package that matches your render pipeline from the Downloads section above (the OneDrive links are the only supported source; the packages are imported locally and never committed).
 4. Import it: `Assets > Import Package > Custom Package...`, pick the `.unitypackage`, and import everything. Keep the default `Assets/Lovecraftian Village*` location; those folders are gitignored.
-5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Assets/Scripts/Editor`, matches catalog ids to imported prefab names; Unverified in Unity) or add bindings by hand (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
+5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Packages/com.michaelinzo.frankenstein-village/Editor`, matches catalog ids to imported prefab names; Unverified in Unity) or add bindings by hand (ids from `Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json`) and assign the imported prefabs.
 6. Add a `VillageBuilder` and a `HorrorAmbienceDirector` to a scene.
 7. Optional: create two global Volumes (calm and dread, same overrides) and assign them to a `DreadVolumeBlender`, then reference it from the director. Set `narrationEndpoint` on the director for HTTP AI narration.
 
@@ -211,7 +211,7 @@ The Unity-side pieces (catalog binding, scene, `DreadVolumeBlender`, `HttpNarrat
 | HDRP (this repo's default) | `Lovecraftian1.3 HDRP(Unity6).unitypackage` | `Packages/manifest.json` references `com.unity.render-pipelines.high-definition`, so it works as is. |
 | URP | `Lovecraftian1.3 URP(Unity6).unitypackage` | The scaffold manifest targets HDRP. Swap `com.unity.render-pipelines.high-definition` for `com.unity.render-pipelines.universal` in `Packages/manifest.json` (or create a URP project and copy `Assets/Scripts`, `Assets/Data`), then import the URP package. |
 
-Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Assets/Scripts` do not depend on a render pipeline.
+Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Packages/com.michaelinzo.frankenstein-village` do not depend on a render pipeline.
 
 ### Legal and asset-handling note
 The Lovecraftian Village pack is third-party content by DLNK Artworks. It is **not** committed to this repository: `.unitypackage` files and the imported pack folders are gitignored, and `tools/validate_repo.py` fails if pack files are added. Respect the pack's license and obtain it only from the OneDrive links in the Downloads section and import it locally. Git LFS is not used and is not needed. The repo's own code and docs are Apache-2.0.
