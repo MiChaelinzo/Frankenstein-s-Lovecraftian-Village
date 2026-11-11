@@ -21,6 +21,9 @@ namespace Frankenstein.Runtime
         /// <summary>Raised after a successful interaction with the kind that was used.</summary>
         public event Action<InteractionKind> Interacted;
 
+        /// <summary>Raised with the target that was used, so listeners can key clues and lamps by its location id.</summary>
+        public event Action<InteractionTarget> InteractedTarget;
+
         private float _lastUse = float.NegativeInfinity;
 
         /// <summary>The target under the crosshair this frame, or null.</summary>
@@ -64,6 +67,7 @@ namespace Frankenstein.Runtime
             director.Sanity.Apply(InteractionRules.SanityDelta(target.kind));
             if (hud != null) hud.ShowMessage(text);
             if (Interacted != null) Interacted(target.kind);
+            if (InteractedTarget != null) InteractedTarget(target);
             return true;
         }
     }

@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 17
+- Core: `VillageVigil.cs` adds the Vigil game loop (`VigilRules`, `VigilState`, `VigilOutcome`): per-night clue targets, lanterns, seeded name reveal, six endings (`hollowing`, `name_spoken`, `dawn`, `fever`, `witness`, `vessel`), integer score and rank, result code `V1-<seed>-<ending>-<score>` and a compact save string. `ProgressionSession` owns the vigil; `AchievementRules.Ids` appends `vigil` and `namer`. JS mirror in `web/src/core.js` (`VigilState`, `clueTarget`, `nameReveal`, `endingFor`, `vigilScore`, `parseVigilResultCode`), golden section `vigil`, `web/test/vigil.test.js`. Runtime: `ProgressionTracker` forwards clue and lantern events (new `InteractionRaycaster.InteractedTarget`). Core and JS Verified by tests; Unity Partially Verified (compile check only).
+
 ### Round 16
 - Core: `FlythroughPath` (numeric mirror of `cinematicFrame` and `flythroughCamera` in `web/src/cinematic.js`), `WebShareLink` (hash builder matching `sessionHash` plus view, cinematic, meshes, intro, tour, story and lang flags) and `PromptStrings.PlaceName` / `PromptFor` (place names mirrored from the `loc.*` entries of `web/src/i18n.js`; `InteractionRaycaster` now localises the place). New golden sections `flythrough`, `shareLinks` and `places`, checked by JS tests (camera within 1e-9, golden links parsed by the web parsers) and a C# drift test for place names. dotnet tests 101 (was 94), node tests 289 (was 285). Unity side Unverified, compile checked only.
 

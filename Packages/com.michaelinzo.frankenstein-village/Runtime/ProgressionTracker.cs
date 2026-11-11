@@ -29,6 +29,9 @@ namespace Frankenstein.Runtime
 
         private Ritual _boundRitual;
 
+        /// <summary>The finished vigil's outcome, or null while it is running or not started. Rules live in Core VigilState.</summary>
+        public VigilOutcome VigilOutcome { get { return Session.Vigil == null ? null : Session.Vigil.Outcome(Session.UnlockedCodexIds.Count); } }
+
         private void Awake()
         {
             if (useDailySeed && walkthrough != null)
@@ -37,13 +40,13 @@ namespace Frankenstein.Runtime
 
         private void OnEnable()
         {
-            if (interactor != null) interactor.Interacted += OnInteracted;
+            if (interactor != null) { interactor.Interacted += OnInteracted; interactor.InteractedTarget += OnInteractedTarget; }
             if (director != null) director.OmenCrossed += OnOmenCrossed;
         }
 
         private void OnDisable()
         {
-            if (interactor != null) interactor.Interacted -= OnInteracted;
+            if (interactor != null) { interactor.Interacted -= OnInteracted; interactor.InteractedTarget -= OnInteractedTarget; }
             if (director != null) director.OmenCrossed -= OnOmenCrossed;
         }
 
@@ -61,6 +64,18 @@ namespace Frankenstein.Runtime
         }
 
         private void OnInteracted(InteractionKind kind) { Publish(Session.RecordInteraction(kind)); }
+
+        // Forwards clue and lantern events by location id, then the new sanity. Core decides what counts.
+        private void OnInteractedTarget(InteractionTarget target)
+        {
+            if (target == null || Session.Vigil == null || director == null) return;
+            ProgressionUpdate update;
+            if (target.kind == InteractionKind.Candle) Session.RecordVigilLantern(target.locationId, out update);
+            else if (target.kind != InteractionKind.Door) Session.RecordVigilClue(target.locationId, out update);
+            else return;
+            Publish(update);
+            Publish(Session.RecordVigilSanity(VigilRules.SanityPoints(director.Sanity.Value)));
+        }
 
         private void OnOmenCrossed(DreadEvent e) { if (e.Rising) Publish(Session.RecordOmenTier(e.Tier)); }
 
