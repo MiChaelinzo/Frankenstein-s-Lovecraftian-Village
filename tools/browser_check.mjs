@@ -282,6 +282,35 @@ async function main() {
     await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
     const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
     rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });
+    // title screen: bare URL shows it with both entries, nothing plays until opted in; ?webgl=0 is the documented no-WebGL switch
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('');
+    const ti = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {open:!g('title').hidden,heading:g('titleHeading').textContent,enter3d:!g('titleEnter3d').disabled,map2d:!!g('titleMap2d'),sound:g('titleSound').checked,musicOn:g('sound').checked,rumor:g('titleRumor').textContent.length>10,endings:g('titleEndings').textContent,inert:document.getElementById('main').inert,veilHidden:g('loading').hidden,focus:document.activeElement&&document.activeElement.id,help:!!g('titleHelp')}})()`);
+    rec('title: a bare URL shows the title screen with both CTAs, an unchecked sound toggle and the endings line', ti.open && /Frankenstein/.test(ti.heading) && ti.enter3d && ti.map2d && ti.help && !ti.sound && !ti.musicOn && ti.rumor && /^Endings found \d\/6$/.test(ti.endings) && ti.inert && ti.veilHidden && ti.focus === 'titleEnter3d', ti);
+    const meta = await ev(`['og:title','og:description','og:image','og:url','og:image:alt'].map((p)=>!!document.querySelector('meta[property="'+p+'"]')).concat(['twitter:card','twitter:image'].map((n)=>!!document.querySelector('meta[name="'+n+'"]')),[!!document.querySelector('link[rel=canonical]')])`);
+    rec('title: Open Graph, Twitter and canonical tags are present', meta.every(Boolean), { meta });
+    await special('Escape', 27); await sleep(300);
+    const ts2 = await ev(`[document.getElementById('title').hidden, document.getElementById('view3d').hidden, document.getElementById('main').inert]`);
+    rec('title: Escape opens the 2D map view', ts2[0] === true && ts2[1] === true && ts2[2] === false, { ts2 });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('');
+    await ev(`document.getElementById('titleEnter3d').click()`); await sleep(1500);
+    const ts3 = await ev(`[document.getElementById('title').hidden, document.getElementById('view3d').hidden, document.getElementById('view3dBtn').getAttribute('aria-pressed')]`);
+    rec('title: Enter the village (3D) starts the first-person view', ts3[0] === true && ts3[1] === false && ts3[2] === 'true', { ts3 });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?webgl=0');
+    const ts4 = await ev(`[document.getElementById('titleEnter3d').disabled, document.getElementById('titleReason').textContent, document.activeElement.id]`);
+    rec('title: without WebGL the 3D entry is disabled with a reason and 2D is focused', ts4[0] === true && /WebGL/.test(ts4[1]) && ts4[2] === 'titleMap2d', { ts4 });
+    await key('Enter', 'Enter', 13, '\r'); await sleep(300);
+    rec('title: Enter on the title activates the 2D entry when 3D is unavailable', await hidden('title') && await hidden('view3d'), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0');
+    rec('title: ?intro=0 skips it', await hidden('title'), {});
+    await key('?', 'Slash', 191, '?'); await sleep(300);
+    const hp = await ev(`[document.getElementById('help').open, document.querySelectorAll('#help .help-group').length, !!document.getElementById('keys'), document.getElementById('helpDevice').textContent]`);
+    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 5 && hp[2] === false && /Last used/.test(hp[3]), { hp });
+    await special('Escape', 27); await sleep(300);
+    rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;
