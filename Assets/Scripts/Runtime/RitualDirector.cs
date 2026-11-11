@@ -71,7 +71,10 @@ namespace Frankenstein.Runtime
             int dreadPercent = Mathf.RoundToInt(director.Sanity.Dread * 100f);
             Progress = RitualChain.Progress(Ritual, NightNumber, dreadPercent);
             if (Progress.Effective > _lastStage && Progress.Effective >= 0)
+            {
                 OnStageAdvanced.Invoke(Progress.Effective, Ritual.Stages[Progress.Effective].Name);
+                Save();
+            }
             _lastStage = Progress.Effective;
             if (stateAsset != null)
             {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cinematicFrame, totalMs, TAIL_MS, WAYPOINTS, cameraTransform, cinematicWanted, waypoint } from '../src/cinematic.js';
-import { mapGamepad, mapSwipe, snapshotPad, BUTTON_ACTIONS } from '../src/input.js';
+import { gateAction, mapGamepad, mapSwipe, snapshotPad, BUTTON_ACTIONS } from '../src/input.js';
 
 const D = [3000, 4000, 2500];
 
@@ -102,4 +102,14 @@ test('swipes map to actions and reject slow, short or diagonal gestures', () => 
   assert.equal(mapSwipe(-80, 70, 100), null);
   assert.equal(mapSwipe(-80, 0, 2000), null);
   assert.equal(mapSwipe(NaN, 0, 100), null);
+});
+
+test('gateAction lets only the exit action through during a take', () => {
+  for (const a of ['listen', 'door', 'whisper', 'candle', 'focusNext', 'focusPrev', 'story', 'nextBeat', 'prevBeat']) {
+    assert.equal(gateAction(a, true), null);
+    assert.equal(gateAction(a, false), a);
+  }
+  assert.equal(gateAction('cinematic', true), 'cinematic');
+  assert.equal(gateAction('cinematic', false), 'cinematic');
+  assert.equal(gateAction(null, false), null);
 });

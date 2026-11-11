@@ -26,7 +26,7 @@ import { createStoryController } from './story-ui.js';
 import { createIntroController } from './intro-ui.js';
 import { esc } from './util.js';
 import { cinematicFrame, cinematicWanted } from './cinematic.js';
-import { mapGamepad, mapSwipe, snapshotPad } from './input.js';
+import { gateAction, mapGamepad, mapSwipe, snapshotPad } from './input.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
@@ -270,7 +270,7 @@ function setInvestigator(on) {
   updateDesc(); mark();
 }
 function stepInvestigator() {
-  const inv = state.investigator; if (!inv || document.hidden) return;
+  const inv = state.investigator; if (!inv || document.hidden || cine.on) return; // paused during a cinematic take so it stays repeatable
   const hit = inv.step();
   if (hit) {
     state.sanity.apply(-hit.sanityLoss);
@@ -470,7 +470,7 @@ $('invToggle').addEventListener('click', () => setInvestigator(!state.investigat
 $('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
 
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
-const cine = { on: false, beats: [], durations: [], t0: 0, beat: -1, timer: 0, hadStory: false };
+const cine = { on: false, beats: [], durations: [], t0: 0, beat: -1, timer: 0, hadStory: false, hadPlaying: false };
 function cinemaStep() {
   const f = cinematicFrame(performance.now() - cine.t0, cine.durations, reduceMotion);
   state.cinema = f.cam;
@@ -489,11 +489,11 @@ function setCinematic(on) {
   document.documentElement?.classList?.toggle?.('cinema', on);
   $('cinemaCaption').hidden = !on;
   clearInterval(cine.timer);
-  if (!on) { state.cinema = null; cine.beat = -1; if (!cine.hadStory) closeStory(); mark(); return; }
+  if (!on) { state.cinema = null; cine.beat = -1; if (!cine.hadStory) closeStory(); else if (cine.hadPlaying) setPlaying(true); mark(); return; }
   const all = storyBeats(), start = nightStartIndex(all, state.night + 1);
   cine.beats = all.filter((b) => b.nightNumber === all[start].nightNumber);
   cine.durations = cine.beats.map((b) => b.durationMs);
-  cine.hadStory = story.on; cine.beat = -1; cine.t0 = performance.now();
+  cine.hadStory = story.on; cine.hadPlaying = story.playing; cine.beat = -1; cine.t0 = performance.now();
   if (!story.on) openStory(start);
   setPlaying(false);
   announce(tr('cinema.exit'));
@@ -502,7 +502,8 @@ function setCinematic(on) {
 }
 
 // ---------- gamepad (polled in rAF) and touch swipes, mapped by the pure functions in input.js ----------
-function doAction(a) {
+function doAction(raw) {
+  const a = gateAction(raw, cine.on); if (!a) return;
   const n = state.landmarks.length;
   switch (a) {
     case 'listen': if (state.focus >= 0) listen(state.focus); break;
@@ -530,6 +531,7 @@ function pollPad() {
 }
 let touch0 = null;
 canvas.addEventListener('touchstart', (e) => { const p = e.changedTouches[0]; touch0 = e.touches.length === 1 && p ? { x: p.clientX, y: p.clientY, t: performance.now() } : null; }, { passive: true });
+canvas.addEventListener('touchcancel', () => { touch0 = null; }, { passive: true });
 canvas.addEventListener('touchend', (e) => {
   const p = e.changedTouches[0]; if (!touch0 || !p) return;
   const a = mapSwipe(p.clientX - touch0.x, p.clientY - touch0.y, performance.now() - touch0.t); touch0 = null;

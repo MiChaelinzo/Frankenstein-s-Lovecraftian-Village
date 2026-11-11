@@ -41,3 +41,9 @@ export function mapSwipe(dx, dy, ms) {
   if (ay >= SWIPE_MIN_PX && ay >= ax * 1.5) return dy < 0 ? 'candle' : 'whisper';
   return null;
 }
+
+/** While a cinematic take runs only the exit action is accepted, matching the keyboard handler. */
+export function gateAction(action, cinematicOn) {
+  if (!action) return null;
+  return cinematicOn && action !== 'cinematic' ? null : action;
+}

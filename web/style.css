@@ -73,7 +73,7 @@ html.reduced .intro { animation: none; }
 
 .skip-link { position: absolute; left: 8px; top: -60px; z-index: 20; padding: 8px 14px; background: #e6eee9; color: #05080a; font: inherit; }
 .skip-link:focus { top: 8px; }
-canvas { touch-action: pan-y; }
+canvas { touch-action: none; }
 .cinema-caption { position: absolute; left: 0; right: 0; top: 16px; text-align: center; padding: 0 32px; font-size: clamp(1.1rem, 2.6vw, 1.7rem); font-style: italic; color: #f1f6f3; text-shadow: 0 2px 10px #000, 0 0 16px #000; pointer-events: none; }
 .cinema-caption[hidden] { display: none; }
 html.cinema header, html.cinema footer, html.cinema .side, html.cinema .hint, html.cinema .skip-link, html.cinema .layout .panel, html.cinema .primary > .panel { display: none; }
