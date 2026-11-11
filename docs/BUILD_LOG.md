@@ -103,3 +103,7 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `bc2e65b` Opt-in judge tour, About dialog, static and perf budget tests, judge quick start in the README, `--blood` colour change, service worker cache `flv-shell-v4`.
 - `c9fa15c` Tour card placement fix: pure `tourCardPlacement`, max height with scroll, higher z-index, re-placed on resize. The clipping seen in a 1280x720 headless screenshot is mostly a capture artifact (about 50 px missing at that size; 1280x770 and 390x800 show the full card), so this is a guard, not a proven user bug. Node tests 208 passing at that point.
 - Not verified: no real browser session, no live URL, no Unity, GitHub Actions blocked by an account billing lock.
+- `eb8d406` Docs: round 11 changelog, build log, specs, steering, demo script and Devpost checklist.
+- `d8e833c` Review fixes: progress armed on keyboard paths, tour Escape stops propagation, pointerleave only restarts the timer, auto-advance paused while About is open. Node tests 210.
+- `5ceb841` Docs: changelog for the round 11 review fixes.
+- `45a1dce` Tour remembers a key or hover stop across About resume and pointerleave; fake-DOM tests of `createTourController` cover Escape propagation and pause/resume. Node tests 212, dotnet 64. Still no real browser session. Arming remains per call site (non-blocking, left as is).
