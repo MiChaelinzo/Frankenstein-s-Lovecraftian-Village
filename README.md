@@ -98,7 +98,7 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 ```
 
 ### Verification status
-Labels: **Verified** = executed by an automated test or command here; **Partially Verified** = checked by inspection, screenshots or a stub-based compile only; **Unverified** = not executed. Nothing that needs the Unity editor is Verified. A validator check (`tools/verification_labels.py`) keeps the Status column to these three labels.
+Labels: **Verified** = executed by an automated test or command here; **Partially Verified** = checked by inspection, screenshots or a stub-based compile only; **Unverified** = not executed. Nothing that needs the Unity editor is Verified. A validator check (`tools/verification_labels.py`) keeps the Status column of this README table to these three labels (other docs that use the same words are not checked).
 
 | Area | Status | Evidence |
 |------|--------|----------|

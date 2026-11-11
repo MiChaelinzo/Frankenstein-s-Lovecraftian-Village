@@ -1,6 +1,7 @@
 // Pure helpers for the web demo's DLNK-style building features: texture themes, floor counts, door
 // interactions, camera modes and omen-driven detail. No DOM access so node can test them. The shared
 // policy itself (detailLevel, doorOmen, allowedCamera, ...) lives in core.js and is golden-checked.
+import { queryParam } from './util.js';
 import { stableHash, allowedCamera, suggestedCamera, floorVisible, clampFloor } from './core.js';
 
 // Our own grouping of the pack's material families, using the three DLNK groups. The pack role is the
@@ -146,6 +147,5 @@ export const meshKindFor = (pieceId) => MESH_KINDS[pieceId] || null;
 
 /** True only for an explicit meshes=1 in the query or hash. */
 export function meshesWanted(search, hash) {
-  const q = new URLSearchParams(String(search || '').replace(/^\?/, '')), h = new URLSearchParams(String(hash || '').replace(/^#/, ''));
-  return (h.get('meshes') ?? q.get('meshes')) === '1';
+  return (queryParam(hash, 'meshes') ?? queryParam(search, 'meshes')) === '1';
 }

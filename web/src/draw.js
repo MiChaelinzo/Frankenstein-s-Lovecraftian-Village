@@ -2,7 +2,7 @@
 import { SeededRandom } from './core.js';
 import { meshPolygons } from './glb.js';
 import { cameraTransform } from './cinematic.js';
-import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, gatedFlash } from './scene.js';
+import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, applyFlash } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
 import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
@@ -502,7 +502,7 @@ export function createRenderer(env) {
     drawFog(dread, time);
     ctx.restore();
     if (state.flash > 0) { ctx.fillStyle = `rgba(210,230,255,${state.flash.toFixed(2)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); state.flash = Math.max(0, state.flash - 0.04); }
-    else if (!reduceMotion) { const f = gatedFlash(ambientFlash(state.seed, real, dread), state.flashAt, real); if (f > 0) { state.flash = f; state.flashAt = real; } }
+    else if (!reduceMotion) applyFlash(state, ambientFlash(state.seed, real, dread), real);
     drawWeather(dread, time);
     drawVignette(dread, time);
     drawToast(performance.now());

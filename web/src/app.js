@@ -6,7 +6,7 @@ import {
 } from './core.js';
 import {
   computeView, buildWalkers,
-  reportFilename, wrapIndex, postcardFilename, nightFromHash, gatedFlash, toastMayReplace,
+  reportFilename, wrapIndex, postcardFilename, nightFromHash, applyFlash, toastMayReplace,
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
@@ -61,7 +61,7 @@ const mark = () => { dirty = true; start(); };
 
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
-  narrationLine: '', narrationAt: 0, flash: 0, flashAt: null, drain: false,
+  narrationLine: '', narrationAt: 0, flash: 0, flashAt: null, flashLevel: 0, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: newJournal(), toast: null, focus: -1, eye: 0, tentacle: 0,
   investigatorOn: false, investigator: null, cinema: null,
@@ -223,8 +223,7 @@ function say(locationId) {
 /** Starts a full-screen flash through the shared gate (capped, never inside the minimum gap, never with reduced motion). */
 function requestFlash(level) {
   if (reduceMotion) return;
-  const now = performance.now(), f = gatedFlash(level, state.flashAt, now);
-  if (f > 0) { state.flash = Math.max(state.flash, f); state.flashAt = now; }
+  applyFlash(state, level, performance.now());
 }
 /** Shows a banner unless a recent one should keep the screen. The screen reader announcement is separate and always happens. */
 function showToast(text, rising) {

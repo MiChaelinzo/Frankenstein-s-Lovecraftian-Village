@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  unitHash, toastMayReplace, gatedFlash, ambientFlash, dreadJitter,
+  unitHash, toastMayReplace, gatedFlash, applyFlash, ambientFlash, dreadJitter,
   TOAST_MIN_HOLD_MS, FLASH_MAX, FLASH_MIN_GAP_MS, AMBIENT_SLOT_MS,
 } from '../src/scene.js';
 import { t } from '../src/i18n.js';
@@ -27,8 +27,21 @@ test('a recent banner is kept unless the new one is rising', () => {
 test('flashes are capped and cannot strobe', () => {
   assert.equal(gatedFlash(0, null, 0), 0);
   assert.equal(gatedFlash(5, null, 0), FLASH_MAX);
-  assert.equal(gatedFlash(0.2, 100, 100 + FLASH_MIN_GAP_MS - 1), 0);
+  assert.equal(gatedFlash(0.2, 100, 100 + FLASH_MIN_GAP_MS - 1, 0.2), 0);
   assert.equal(gatedFlash(0.2, 100, 100 + FLASH_MIN_GAP_MS), 0.2);
+});
+
+test('a light flash never masks a heavy one inside the gap', () => {
+  assert.equal(gatedFlash(0.3, 100, 200, 0.15), 0.3);
+  assert.equal(gatedFlash(0.15, 100, 200, 0.3), 0);
+  assert.equal(gatedFlash(0.3, 100, 200, 0.3), 0);
+  const st = { flash: 0, flashAt: null, flashLevel: 0 };
+  assert.equal(applyFlash(st, 0.15, 1000), true);
+  assert.equal(applyFlash(st, 0.15, 1500), false);
+  assert.equal(applyFlash(st, 0.3, 2000), true, 'church flash passes after a focus flash');
+  assert.deepEqual([st.flash, st.flashAt, st.flashLevel], [0.3, 2000, 0.3]);
+  assert.equal(applyFlash(st, 0.2, 2500), false);
+  assert.equal(applyFlash(st, 0.2, 2000 + FLASH_MIN_GAP_MS), true);
 });
 
 test('ambient lightning and jitter are seed-driven and quiet at low dread', () => {

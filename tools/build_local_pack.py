@@ -48,7 +48,6 @@ ROLES_HDRP = {
 # but none of those texture files are inside the package: its only images are lightmaps and reflection probes.
 # URP roles are therefore material-only (texture None): tint, smoothness, metallic and slot names, no PNG.
 ROLES_URP = {role: (None, 0, mat) for role, (_tex, _ch, mat) in ROLES_HDRP.items()}
-ROLES = ROLES_HDRP  # kept for callers that predate package flavors
 
 
 def package_flavor(package):

@@ -225,11 +225,25 @@ export function toastMayReplace(current, next, now) {
   return now - current.at >= TOAST_MIN_HOLD_MS;
 }
 
-/** The flash level actually allowed: capped, and zero inside the minimum gap after the previous one. */
-export function gatedFlash(level, lastAt, now) {
+/**
+ * The flash level actually allowed: capped, and zero inside the minimum gap after the previous one,
+ * unless the new flash is stronger than the one that opened the gap (a light flash never masks a heavy one).
+ */
+export function gatedFlash(level, lastAt, now, lastLevel = 0) {
   if (!(level > 0)) return 0;
-  if (lastAt != null && now - lastAt < FLASH_MIN_GAP_MS) return 0;
-  return Math.min(FLASH_MAX, level);
+  const capped = Math.min(FLASH_MAX, level);
+  if (lastAt != null && now - lastAt < FLASH_MIN_GAP_MS && !(capped > lastLevel)) return 0;
+  return capped;
+}
+
+/** Requests a flash on `flashState` ({ flash, flashAt, flashLevel }) through the gate. Returns true if it started. */
+export function applyFlash(flashState, level, now) {
+  const f = gatedFlash(level, flashState.flashAt, now, flashState.flashLevel);
+  if (f <= 0) return false;
+  flashState.flash = Math.max(flashState.flash, f);
+  flashState.flashAt = now;
+  flashState.flashLevel = f;
+  return true;
 }
 
 /** Distant lightning at high dread, chosen by seed and time slot. Returns a flash level or 0. */

@@ -108,3 +108,11 @@ Scope: omen banner, door banner, full-screen flashes, screen shake, ambient ligh
 | Tour, cinematic caption, investigator, whisper selection | No change: tour is opt-in and manual under reduced motion, cinematic is a pure timeline, investigator route and whisper choice are seeded | Checked by reading; their existing node tests cover determinism |
 
 Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, coalescing, no `Math.random` in `draw.js`) is **Verified**. How the quieter banner and flashes feel is **Partially Verified** (inspection and headless reasoning only; no screenshot judges motion and nobody has played it in a real browser). The policy lives in the web layer only because it is presentation timing, not a gameplay rule; if Unity needs the same pacing, move it to Core first.
+
+## Round 13 review follow-up
+
+- Flash gate: a flash stronger than the one that opened the 4 s gap now passes (`applyFlash`, `web/test/notice-policy.test.js`). Status: Verified by node tests; the `app.js` wrapper is one line over the tested function.
+- Parity wording: `DreadCurve.AmbienceVolume` and `DreadThresholds.Percent` have Core property tests only. No golden entry or JS mirror, because `music.js` is independent presentation. Status: Verified (C# tests).
+- `CodexModel`, `AchievementRules`, `DailySeed` stay in Core: their JS mirrors are golden-checked against them, so they are the source of truth, but Runtime has no consumer yet. Deferred, not wired.
+- Unity drain default 0.5 to 1.0: no serialized `sanityDrainPerSecond` found in the repo by grep; Unity itself was not opened. Status: Unverified in Unity.
+- Classifier keywords such as "tea", "web", "log": not spot-checked against real pack names, because packs are gitignored and absent here. Status: Unverified; the unclassified percentage in the scene label is the runtime check.
