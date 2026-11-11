@@ -47,6 +47,28 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Every_catalog_category_maps_to_a_kind_and_unknown_categories_whisper()
+        {
+            Assert.Equal(InteractionKind.Door, InteractionRules.KindForCategory("House"));
+            Assert.Equal(InteractionKind.Landmark, InteractionRules.KindForCategory("Landmark"));
+            Assert.Equal(InteractionKind.Whisper, InteractionRules.KindForCategory("Prop"));
+            Assert.Equal(InteractionKind.Whisper, InteractionRules.KindForCategory(null));
+            Assert.Equal(InteractionKind.Whisper, InteractionRules.KindForCategory("anything else"));
+        }
+
+        [Fact]
+        public void Door_messages_exist_and_differ_per_behavior()
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (DoorBehavior b in Enum.GetValues(typeof(DoorBehavior)))
+            {
+                string text = InteractionRules.DoorMessage(b);
+                Assert.False(string.IsNullOrWhiteSpace(text));
+                Assert.True(seen.Add(text), "duplicate message for " + b);
+            }
+        }
+
+        [Fact]
         public void Sanity_stays_in_range_for_any_interaction_sequence()
         {
             Property.ForAll((r, seed) =>

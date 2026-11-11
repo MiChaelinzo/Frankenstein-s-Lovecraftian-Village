@@ -49,6 +49,9 @@ namespace UnityEditor
         public static string GUIDToAssetPath(string guid) { return ""; }
         public static T LoadAssetAtPath<T>(string path) where T : Object { return null; }
         public static void SaveAssets() { }
+        public static void CreateAsset(Object asset, string path) { }
+        public static void AddObjectToAsset(Object obj, Object assetObject) { }
+        public static string CreateFolder(string parent, string newFolderName) { return ""; }
     }
 
     public enum MessageType { None, Info, Warning, Error }
@@ -73,5 +76,17 @@ namespace UnityEditor
         public static Vector2 BeginScrollView(Vector2 scroll) { return scroll; }
         public static void EndScrollView() { }
         public static void SelectableLabel(string text, GUIStyle style, params GUILayoutOption[] options) { }
+    }
+}
+
+namespace UnityEditor.SceneManagement
+{
+    public enum NewSceneSetup { EmptyScene, DefaultGameObjects }
+    public enum NewSceneMode { Single, Additive }
+    public struct Scene { }
+    public static class EditorSceneManager
+    {
+        public static Scene NewScene(NewSceneSetup setup, NewSceneMode mode) { return default; }
+        public static bool SaveScene(Scene scene, string path) { return true; }
     }
 }

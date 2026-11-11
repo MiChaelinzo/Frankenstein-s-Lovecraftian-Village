@@ -48,6 +48,26 @@ namespace Frankenstein.Core
             }
         }
 
+        /// <summary>What a catalog category does when touched: houses have doors, landmarks are studied, everything else whispers.</summary>
+        public static InteractionKind KindForCategory(string category)
+        {
+            if (category == "House") return InteractionKind.Door;
+            if (category == "Landmark") return InteractionKind.Landmark;
+            return InteractionKind.Whisper;
+        }
+
+        /// <summary>Line shown when a door is tried. Matches the behavior chosen by <see cref="DreadBuildingPolicy.DoorOmen"/>.</summary>
+        public static string DoorMessage(DoorBehavior behavior)
+        {
+            switch (behavior)
+            {
+                case DoorBehavior.Creak: return "The door creaks open on its own time.";
+                case DoorBehavior.Slam: return "The door opens, then slams behind the dark.";
+                case DoorBehavior.Refuse: return "The door will not open. Something holds it from within.";
+                default: return "The door gives.";
+            }
+        }
+
         /// <summary>
         /// Next camera in the cycle first person, third person, top down. The result always passes
         /// <see cref="DreadBuildingPolicy.AllowedCamera"/>, so Abyss never offers the overview.

@@ -6,35 +6,130 @@ namespace UnityEngine
 {
     public class Object
     {
+        public string name { get; set; }
         public static T Instantiate<T>(T original, Vector3 position, Quaternion rotation, Transform parent) where T : Object { return original; }
+        public static void DestroyImmediate(Object obj) { }
+        public static implicit operator bool(Object o) { return o != null; }
     }
     public class Component : Object
     {
         public Transform transform { get { return null; } }
+        public GameObject gameObject { get { return null; } }
+        public T GetComponent<T>() { return default; }
+        public T GetComponentInParent<T>() { return default; }
+        public T[] GetComponentsInChildren<T>() { return new T[0]; }
     }
-    public class Behaviour : Component { }
+    public class Behaviour : Component { public bool enabled { get; set; } }
     public class MonoBehaviour : Behaviour { }
-    public class ScriptableObject : Object { }
-    public sealed class GameObject : Object { }
+    public class ScriptableObject : Object
+    {
+        public static T CreateInstance<T>() where T : ScriptableObject, new() { return new T(); }
+    }
+    public enum PrimitiveType { Sphere, Capsule, Cylinder, Cube, Plane, Quad }
+    public sealed class GameObject : Object
+    {
+        public GameObject() { }
+        public GameObject(string name) { }
+        public Transform transform { get { return null; } }
+        public string tag { get; set; }
+        public T AddComponent<T>() where T : Component, new() { return new T(); }
+        public T GetComponent<T>() { return default; }
+        public T GetComponentInChildren<T>() { return default; }
+        public T[] GetComponentsInChildren<T>() { return new T[0]; }
+        public static GameObject CreatePrimitive(PrimitiveType type) { return null; }
+    }
     public sealed class Transform : Component
     {
         public Vector3 position { get { return default; } set { } }
+        public Quaternion rotation { get { return default; } set { } }
+        public Vector3 localScale { get { return default; } set { } }
+        public Vector3 forward { get { return default; } }
+        public Vector3 right { get { return default; } }
+        public void SetParent(Transform parent, bool worldPositionStays) { }
+        public void SetPositionAndRotation(Vector3 position, Quaternion rotation) { }
+    }
+    public class Renderer : Component { public bool enabled { get; set; } }
+    public class Mesh : Object { }
+    public sealed class MeshFilter : Component { public Mesh sharedMesh { get; set; } }
+    public class Collider : Component { }
+    public sealed class MeshCollider : Collider { public Mesh sharedMesh { get; set; } }
+    public sealed class CapsuleCollider : Collider { }
+    public sealed class CharacterController : Collider
+    {
+        public bool isGrounded { get { return false; } }
+        public int Move(Vector3 motion) { return 0; }
+    }
+    public struct Ray { }
+    public struct RaycastHit { public float distance { get { return 0f; } } public Collider collider { get { return null; } } }
+    public static class Physics
+    {
+        public static bool Raycast(Vector3 origin, Vector3 direction, out RaycastHit hit, float maxDistance) { hit = default; return false; }
+    }
+    public enum CameraClearFlags { Skybox, SolidColor }
+    public sealed class Camera : Behaviour
+    {
+        public CameraClearFlags clearFlags { get; set; }
+        public Color backgroundColor { get; set; }
+        public float farClipPlane { get; set; }
+    }
+    public sealed class AudioListener : Behaviour { }
+    public enum LightType { Spot, Directional, Point }
+    public sealed class Light : Behaviour
+    {
+        public LightType type { get; set; }
+        public Color color { get; set; }
+        public float intensity { get; set; }
+    }
+    public struct Color
+    {
+        public float r, g, b, a;
+        public Color(float r, float g, float b) { this.r = r; this.g = g; this.b = b; a = 1f; }
+        public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+    }
+    public enum CursorLockMode { None, Locked, Confined }
+    public static class Cursor { public static CursorLockMode lockState { get; set; } }
+    public class Font : Object { }
+    public static class Resources
+    {
+        public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
+    }
+    public class TextAsset : Object { public string text { get { return ""; } } }
+    public enum TextAnchor { UpperLeft, MiddleCenter, LowerCenter }
+    public enum RenderMode { ScreenSpaceOverlay }
+    public sealed class Canvas : Behaviour { public RenderMode renderMode { get; set; } }
+    public sealed class RectTransform : Component
+    {
+        public Vector2 anchorMin { get; set; }
+        public Vector2 anchorMax { get; set; }
+        public Vector2 pivot { get; set; }
+        public Vector2 anchoredPosition { get; set; }
+        public Vector2 sizeDelta { get; set; }
     }
     public sealed class AudioSource : Behaviour
     {
         public float volume { get; set; }
     }
 
-    public struct Vector2 { }
+    public struct Vector2
+    {
+        public float x, y;
+        public Vector2(float x, float y) { this.x = x; this.y = y; }
+        public static Vector2 zero { get { return default; } }
+    }
     public struct Vector3
     {
         public float x, y, z;
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
+        public static Vector3 forward { get { return default; } }
         public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z); }
+        public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
+        public static Vector3 operator *(Vector3 a, float f) { return new Vector3(a.x * f, a.y * f, a.z * f); }
     }
     public struct Quaternion
     {
         public static Quaternion identity { get { return default; } }
+        public static Quaternion Euler(float x, float y, float z) { return default; }
+        public static Vector3 operator *(Quaternion q, Vector3 v) { return v; }
     }
 
     public static class Mathf
@@ -49,6 +144,7 @@ namespace UnityEngine
     public static class Time
     {
         public static float deltaTime { get { return 0f; } }
+        public static float time { get { return 0f; } }
     }
 
     public static class Debug
@@ -91,14 +187,52 @@ namespace UnityEngine
     public sealed class GUILayoutOption { }
 }
 
+namespace UnityEngine.UI
+{
+    public class Text : Behaviour
+    {
+        public Font font { get; set; }
+        public int fontSize { get; set; }
+        public TextAnchor alignment { get; set; }
+        public Color color { get; set; }
+        public bool raycastTarget { get; set; }
+        public string text { get; set; }
+    }
+}
+
+namespace UnityEngine.InputSystem
+{
+    public sealed class ButtonControl { public bool isPressed { get { return false; } } public bool wasPressedThisFrame { get { return false; } } }
+    public sealed class Vector2Control { public Vector2 ReadValue() { return default; } }
+    public sealed class Keyboard
+    {
+        public static Keyboard current { get { return null; } }
+        public ButtonControl wKey { get { return null; } }
+        public ButtonControl aKey { get { return null; } }
+        public ButtonControl sKey { get { return null; } }
+        public ButtonControl dKey { get { return null; } }
+        public ButtonControl eKey { get { return null; } }
+        public ButtonControl vKey { get { return null; } }
+        public ButtonControl escapeKey { get { return null; } }
+    }
+    public sealed class Mouse
+    {
+        public static Mouse current { get { return null; } }
+        public Vector2Control delta { get { return null; } }
+        public ButtonControl leftButton { get { return null; } }
+    }
+}
+
 namespace UnityEngine.Events
 {
+    public delegate void UnityAction<T0>(T0 a);
     public class UnityEvent
     {
         public void Invoke() { }
     }
     public class UnityEvent<T0>
     {
+        public void AddListener(UnityAction<T0> call) { }
         public void Invoke(T0 a) { }
     }
     public class UnityEvent<T0, T1>
@@ -112,6 +246,14 @@ namespace UnityEngine.Rendering
     public class Volume : MonoBehaviour
     {
         public float weight { get; set; }
+        public bool isGlobal { get; set; }
+        public VolumeProfile sharedProfile { get; set; }
+    }
+    public class VolumeComponent : ScriptableObject { }
+    public abstract class VolumeParameter { public bool overrideState { get; set; } }
+    public sealed class VolumeProfile : ScriptableObject
+    {
+        public VolumeComponent Add(Type type, bool overrides) { return null; }
     }
 }
 
