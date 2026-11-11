@@ -38,7 +38,7 @@ Useful URLs (append to `http://localhost:8000/`; each feature is opt-in and a ba
 | `?daily=1` | Today's village: one seed for everyone on the same date |
 | `?pack=1` | Textures from your own local pack, only if you built `web/local-pack/` yourself (see below); otherwise a notice |
 
-Press `A` or use the About button for credits and license. `?lang=fr` switches to French. Checks: `python3 tools/validate_repo.py`, `node --test "web/test/*.test.js"` and `dotnet test tests/Frankenstein.Core.Tests`. Nothing here was run inside the Unity editor.
+Press `A` or use the About button for credits and license. `?lang=fr` switches to French. Which logic lives in Core and which is UI-only: [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md). Checks: `python3 tools/validate_repo.py`, `node --test "web/test/*.test.js"` and `dotnet test tests/Frankenstein.Core.Tests`. Nothing here was run inside the Unity editor.
 
 ## Play it in your browser (no Unity, no download)
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).

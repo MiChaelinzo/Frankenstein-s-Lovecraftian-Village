@@ -117,3 +117,8 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `d8e833c` Review fixes: progress armed on keyboard paths, tour Escape stops propagation, pointerleave only restarts the timer, auto-advance paused while About is open. Node tests 210.
 - `5ceb841` Docs: changelog for the round 11 review fixes.
 - `45a1dce` Tour remembers a key or hover stop across About resume and pointerleave; fake-DOM tests of `createTourController` cover Escape propagation and pause/resume. Node tests 212, dotnet 64. Still no real browser session. Arming remains per call site (non-blocking, left as is).
+
+## Round 13 architecture audit
+- `9112c8f` Moved codex, achievement, daily seed, sanity cost, floor count, detail summary, ambience volume and dread percent rules into Core with property tests, golden entries and JS mirror tests. dotnet 80 passing, node 235. Fixed a half-rounding mismatch between Runtime (`Mathf.RoundToInt`) and Core/web.
+- `c706b1f` Logged swallowed errors, removed dead exports and duplicated helpers. UnityCompileCheck stub gained `UnityWebRequest.error`.
+- Not verified: Unity was never run; Runtime edits are compile checked against stubs only.

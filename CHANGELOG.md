@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 13
+- Architecture audit (`docs/ARCHITECTURE_AUDIT.md`): every `web/src` module classified. Moved to Core with property tests, golden parity and JS mirror tests: `CodexModel`, `AchievementRules`, `DailySeed`, sanity action costs and drain rate (`SanityModel`), `DreadBuildingPolicy.FloorCountFor`, `Summarize`, `CameraFromInt`, `DreadCurve.AmbienceVolume`, `DreadThresholds.Percent`.
+- Fix: Runtime and Editor rounded dread to a percent with `Mathf.RoundToInt` (halves to even) while Core and web round halves up; both now use `DreadThresholds.Percent`. Behavior change: the Unity drain default is now the shared 1.0 per second (it was 0.5; the web demo always used 1.0).
+- Fix: swallowed errors are logged (`SafeNarrationProvider.LastError`, music start, stitch load, share copy, `HttpNarrationProvider`); the validator rejects non UTF-8 tracked files.
+- Removed unused `parseIntroParam`, `prettyId`, `clearSession`, `DOOR_BEHAVIORS`, `CAMERA_MODES`; shared `clamp` and `queryParam` helpers in `util.js`.
+- Tests: dotnet 80 (was 64), node 235 (was 230). UnityCompileCheck 0 errors, 1 warning (stub gained `UnityWebRequest.error`). Unity was not run.
+
 ### Round 12
 - Unity compile check: `tests/UnityCompileCheck` builds the Runtime and Editor scripts against original hand-written Unity stubs (`dotnet build`, CI job `unity-compile-check`). Result: 0 errors, one CS0649 warning (JsonUtility DTO field). The only fix needed was a missing `FileUtil` stub. This proves syntax and type consistency against the stubs only; Unity was never installed or run.
 - MCP preparation only: `docs/MCP.md` and `.kiro/steering/mcp.md` document prompts and the config format. No MCP server was run and no `mcp.json` is shipped.

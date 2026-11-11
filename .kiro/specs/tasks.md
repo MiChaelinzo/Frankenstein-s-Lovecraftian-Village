@@ -72,3 +72,5 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 68. Better scene classification of generic objects (rocks, plants, walls)
 - [ ] 69. Run the compile check against a real Unity install and the MCP workflow (author only)
 - [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)
+- [x] 70. Round 13: architecture and parity audit (`docs/ARCHITECTURE_AUDIT.md`); codex, achievements, daily seed, sanity costs, floor counts moved to Core with golden parity; silent catches and dead code removed
+- [ ] 71. Wire `CodexModel`, `AchievementRules` and `DailySeed` into Unity Runtime (Core only today; Unity never run)
