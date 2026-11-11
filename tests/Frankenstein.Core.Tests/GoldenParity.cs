@@ -313,6 +313,9 @@ namespace Frankenstein.Core.Tests
             AppendInteraction(sb, inv);
             AppendProgression(sb, inv);
             AppendShowcase(sb, inv);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendVigil(sb);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -503,6 +506,99 @@ namespace Frankenstein.Core.Tests
                     sb.Append('[').Append(JsonSerializer.Serialize(lang)).Append(", ").Append(JsonSerializer.Serialize(id)).Append(", ").Append(JsonSerializer.Serialize(PromptStrings.PlaceName(lang, id))).Append(']');
                 }
             sb.Append("]\n");
+        }
+
+
+        private static readonly int[] VigilSeeds = { 1, 42, -7, 1818, 123456789 };
+        private static readonly string[] VigilBadCodes =
+        {
+            "", "V1", "V1-5-dawn", "V2-5-dawn-10", "V1-5-nobody-10", "V1-5-dawn--10", "V1-5-dawn-+10", "V1-05-dawn-10", "V1--0-dawn-10",
+            "V1-5-dawn-010", "V1-abc-dawn-10", "V1-99999999999-dawn-10", "V1-5-dawn-10-", "V1--7-name_spoken-3400", "V1-2147483647-vessel-0",
+        };
+
+        /// <summary>Top level key "vigil": clue targets, endings, scores, result codes, name reveals and scripted playthroughs.</summary>
+        private static void AppendVigil(StringBuilder sb)
+        {
+            string J(object o) { return JsonSerializer.Serialize(o); }
+            sb.Append("  \"vigil\": {\n    \"targets\": [");
+            for (int n = -2; n <= 12; n++)
+                sb.Append(n > -2 ? ", " : "").Append('[').Append(n).Append(", ").Append(VigilRules.ClueTarget(n)).Append(", ").Append(VigilRules.SourcesOffered(n))
+                  .Append(", ").Append(VigilRules.NightCreep(n)).Append(", ").Append(VigilRules.TotalClues(Math.Max(0, n))).Append(']');
+            sb.Append("],\n    \"constants\": [").Append(VigilRules.DawnRecovery).Append(", ").Append(VigilRules.LampsPerNight).Append(", ").Append(VigilRules.SteadySanity)
+              .Append(", ").Append(VigilRules.SpareSources).Append("],\n    \"endingIds\": ").Append(J(VigilRules.EndingIds))
+              .Append(",\n    \"epitaphs\": ").Append(J(VigilRules.Epitaphs)).Append(",\n    \"ranks\": ").Append(J(VigilRules.RankNames))
+              .Append(",\n    \"rankThresholds\": ").Append(J(VigilRules.RankThresholds)).Append(",\n    \"endings\": [");
+            bool first = true;
+            foreach (var sanity in new[] { 0, 1, 49, 50, 51, 100 })
+                foreach (var collapsed in new[] { false, true })
+                    foreach (var named in new[] { false, true })
+                        foreach (var complete in new[] { false, true })
+                        {
+                            sb.Append(first ? "" : ", ").Append('[').Append(sanity).Append(", ").Append(collapsed ? 1 : 0).Append(", ").Append(named ? 1 : 0)
+                              .Append(", ").Append(complete ? 1 : 0).Append(", ").Append(J(VigilRules.EndingFor(sanity, collapsed, named, complete))).Append(']');
+                            first = false;
+                        }
+            sb.Append("],\n    \"scores\": [");
+            for (int i = 0; i < 24; i++)
+            {
+                var r = new SeededRandom(i * 104729 + 3);
+                int c = r.Next(30), l = r.Next(20), san = r.Next(101), nn = r.Next(10), x = r.Next(14);
+                string end = VigilRules.EndingIds[r.Next(VigilRules.EndingIds.Length)];
+                int score = VigilRules.Score(c, l, san, nn, x, end);
+                sb.Append(i > 0 ? ", " : "").Append('[').Append(c).Append(", ").Append(l).Append(", ").Append(san).Append(", ").Append(nn).Append(", ").Append(x)
+                  .Append(", ").Append(J(end)).Append(", ").Append(score).Append(", ").Append(VigilRules.RankFor(score)).Append(']');
+            }
+            sb.Append("],\n    \"sanityPoints\": [");
+            var raw = new[] { -5f, 0f, 0.49f, 0.5f, 49.5f, 99.5f, 100f, 250f, float.NaN };
+            for (int i = 0; i < raw.Length; i++) sb.Append(i > 0 ? ", " : "").Append(VigilRules.SanityPoints(raw[i]));
+            sb.Append("],\n    \"codes\": [");
+            first = true;
+            foreach (var seed in new[] { 0, 5, -7, int.MaxValue, int.MinValue + 1 })
+                foreach (var end in VigilRules.EndingIds)
+                {
+                    string code = VigilRules.ResultCode(seed, end, 1234);
+                    sb.Append(first ? "" : ", ").Append('[').Append(seed).Append(", ").Append(J(end)).Append(", 1234, ").Append(J(code)).Append(']');
+                    first = false;
+                }
+            sb.Append("],\n    \"badCodes\": ").Append(J(VigilBadCodes)).Append(",\n    \"goodCodes\": [");
+            first = true;
+            foreach (var text in VigilBadCodes)
+            {
+                VigilResultCode parsed;
+                if (!VigilRules.TryParseResultCode(text, out parsed)) continue;
+                sb.Append(first ? "" : ", ").Append('[').Append(J(text)).Append(", ").Append(parsed.Seed).Append(", ").Append(J(parsed.EndingId)).Append(", ").Append(parsed.Score).Append(']');
+                first = false;
+            }
+            sb.Append("],\n    \"reveals\": [");
+            first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var nights in new[] { 1, 5, 9 })
+                {
+                    var ritual = RitualChain.Generate(CampaignGenerator.Generate(seed, nights));
+                    int total = VigilRules.TotalClues(nights);
+                    sb.Append(first ? "" : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": ").Append(nights).Append(", \"name\": ").Append(J(ritual.Name))
+                      .Append(", \"total\": ").Append(total).Append(", \"masks\": [");
+                    for (int f = 0; f <= total + 1; f++) sb.Append(f > 0 ? ", " : "").Append(J(VigilRules.NameReveal(ritual, f, total)));
+                    sb.Append("] }");
+                    first = false;
+                }
+            sb.Append("],\n    \"plays\": [");
+            first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var careful in new[] { true, false })
+                {
+                    var log = new List<VigilEvent>();
+                    var v = VigilPlayer.Play(seed, VigilPlayer.NightsForBalance, careful, log);
+                    var o = v.Outcome(3);
+                    sb.Append(first ? "" : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": ").Append(VigilPlayer.NightsForBalance).Append(", \"events\": [");
+                    for (int e = 0; e < log.Count; e++)
+                        sb.Append(e > 0 ? ", " : "").Append('[').Append(J(log[e].Kind)).Append(", ").Append(J(log[e].Id ?? "")).Append(", ").Append(log[e].Value).Append(']');
+                    sb.Append("], \"save\": ").Append(J(v.Serialize())).Append(", \"name\": ").Append(J(v.RevealedName)).Append(", \"ending\": ").Append(J(o.EndingId))
+                      .Append(", \"score\": ").Append(o.Score).Append(", \"rank\": ").Append(o.Rank).Append(", \"code\": ").Append(J(o.Code))
+                      .Append(", \"named\": ").Append(o.Named ? "true" : "false").Append(", \"ritualComplete\": ").Append(o.RitualComplete ? "true" : "false").Append(" }");
+                    first = false;
+                }
+            sb.Append("]\n  }\n");
         }
 
         [Fact]
