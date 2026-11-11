@@ -110,6 +110,8 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 | Unity Runtime and Editor scripts compile check (`tests/UnityCompileCheck`, `dotnet build`) | Stub based: compiles against original hand-written Unity stubs, so it proves syntax and type consistency only, not Unity runtime behavior or real API fidelity |
 | Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
 
+Round 12 additions: `tools/dlnk_scene.py` plus `?pack=1&scene=<name>` render real scene placements from the owner's local pack (git-ignored, EXR lightmaps not decoded); `tools/blender/` builds seven original low-poly GLB meshes headless with Blender 4.2 LTS (viewer: `web/meshes.html`, linked from About); `tests/UnityCompileCheck` is a stub-based compile check (0 errors, 1 warning, not a Unity run). MCP for Unity and Blender is documented in [docs/MCP.md](docs/MCP.md) but was never run here, and no `mcp.json` is shipped. No live URL exists yet.
+
 The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.
 
 ## Downloads

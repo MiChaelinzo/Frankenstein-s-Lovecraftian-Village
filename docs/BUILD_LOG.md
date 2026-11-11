@@ -1,3 +1,13 @@
+
+## Round 12 DLNK scene, Blender, Unity compile check
+- `31c9139` Stub-based Unity compile check with CI and validator wiring (0 errors, one CS0649 warning, one missing `FileUtil` stub added).
+- `2c81654` MCP preparation prompts and steering note (MCP not run, no `mcp.json`).
+- `e13ea24` DLNK scene layout parser and material properties in the local pack builder.
+- `3eb6a3c` DLNK scene mode (`?pack=1&scene=`) with validated layout and material-driven tint.
+- `e508f0c` Scenes fitted by percentile bounds, softer dread tint.
+- `abe8b32` Headless Blender scripts for original catalog meshes, sprites and local texturing.
+- `7a1e4e7` Original GLB meshes with a dependency-free web viewer and Blender docs.
+- Not verified: no Unity run, no MCP use, no live URL or deploy, EXR lightmaps not decoded, only headless Chrome used.
 # Build log
 
 A short history of how this project was built, taken from `git log` on the `feat/innovations-round3` branch. Every hash below exists in this repository. Specs referenced live in `.kiro/specs/` (`requirements.md`, `design.md`, `tasks.md`). Run `git log --oneline` to check any line.

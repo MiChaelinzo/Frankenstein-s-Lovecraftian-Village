@@ -26,3 +26,6 @@ tools/screenshot.sh    renders the web demo to docs/media with headless Chromium
 Rules: new logic goes in Core first with a property test; new MonoBehaviours only wrap Core. If you change Core behavior, regenerate the parity contract with `UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests` and update `web/src/core.js`; `web/data/village_catalog.json` must stay identical to `Assets/Data/village_catalog.json`. Never add files under `Assets/Lovecraftian Village*`, `Assets/_DLNK` or `web/local-pack`.
 tools/stage_web.py     stages web/ into git-ignored dist/ without local-pack (only safe local-folder deploy)
 tests/UnityCompileCheck  stub-based compile check of Runtime and Editor scripts (dotnet build; syntax and types only, see docs/MCP.md for Unity/Blender MCP prompts)
+tools/dlnk_scene.py, tools/blender/   scene layout parser and headless Blender scripts
+tests/UnityCompileCheck   stub-based compile check
+web/assets/meshes/   original GLB meshes (only .glb allowed here); web/meshes.html viewer

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 12
+- Unity compile check: `tests/UnityCompileCheck` builds the Runtime and Editor scripts against original hand-written Unity stubs (`dotnet build`, CI job `unity-compile-check`). Result: 0 errors, one CS0649 warning (JsonUtility DTO field). The only fix needed was a missing `FileUtil` stub. This proves syntax and type consistency against the stubs only; Unity was never installed or run.
+- MCP preparation only: `docs/MCP.md` and `.kiro/steering/mcp.md` document prompts and the config format. No MCP server was run and no `mcp.json` is shipped.
+- DLNK scene mode: `tools/dlnk_scene.py` parses scene PrefabInstance placements into a git-ignored `web/local-pack/scene_layout.json`; `build_local_pack.py` also reads material properties into the manifest. The web demo gets `?pack=1&scene=<name>` (pure `web/src/dlnk-layout.js`, node tested; picker only when a layout exists). Run locally against the real HDRP package: coast-scene, assets-1-0, mystvillage (downsampled to 3000 objects). EXR lightmaps are not decoded. Most house prefabs are not in the packages, so many objects classify as generic.
+- Blender: official Blender 4.2.23 LTS run headless from git-ignored `pack-scratch/blender` (download.blender.org gave 403, so a mirror was used; sha256 verified). `tools/blender/gen_meshes.py` builds seven original low-poly GLBs (committed in `web/assets/meshes/`, 5-9 KB each), `render_sprites.py` renders sprites via Cycles CPU (Workbench and Eevee need GL, unavailable), `texture_with_pack.py` is for local use only. `web/meshes.html` is a dependency-free software-projected viewer (`web/src/glb.js`), now linked from the About dialog (en and fr). The catalog has 6 entries and no lamp; the lamp is an extra mesh.
+- Service worker cache bumped to `flv-shell-v5`.
+
 ### Round 11
 - Web: opt-in judge tour (`?tour=1`, `web/src/tour.js` pure step model, `web/src/tour-ui.js` DOM glue): 12 stops, about a minute, auto-advance stops on hover or key press, manual only under reduced motion, Esc skips, focus returns to the previous control. A pure `tourCardPlacement` keeps the card inside the viewport (capped height, scrolls if needed, moves to the top edge when the highlighted control would sit under it). Never starts on a bare URL.
 - Web: About dialog (`A` or button) with credits and license. Story and Progress tabs in the journal with an unseen badge (`web/src/journal.js`).
