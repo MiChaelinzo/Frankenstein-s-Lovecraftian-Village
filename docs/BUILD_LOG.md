@@ -88,3 +88,7 @@ A short history of how this project was built, taken from `git log` on the `feat
 
 ## Round 10 minor review notes
 - `7acbb4f` Input-aware cinematic exit hint, touch Exit button, `web/src/investigator-state.js` with tests, translated page title and meta description, precache reachability test. Node tests 138, selftest 270 of 270 passing headless. Terrain cache (task 52) revisited and rejected: not pixel-identical possible.
+
+## Round 10 judge-facing features
+- `f16567b` Stitch panel from `tools/gen_stitch.py` repo data (validator checks freshness), seeded codex and achievements saved in the session (backward compatible), high-contrast theme, opt-in daily village with injectable clock. Node tests 159, selftest 273 of 273 headless, tools tests and dotnet 58 pass. Headless screenshots occasionally exit 124 under virtual time on the unchanged base too; retrying succeeds.
+- `c702b0a` Docs and web-demo screenshots `docs/media/stitch.png`, `codex.png`, `contrast.png` (each under 700 KB).
