@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Syntax and type check of Assets/Scripts/Runtime and Assets/Scripts/Editor WITHOUT Unity.
+    The files in Stubs/ are original, hand-written minimal declarations of only the Unity APIs
+    the scripts call. They prove syntax and type consistency against those declarations. They do NOT
+    prove runtime behavior, serialization, or that the real Unity API has the same signatures.
+    No Unity DLLs are used or vendored. See README.md in this folder.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <LangVersion>9.0</LangVersion>
+    <RollForward>Major</RollForward>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <DefineConstants>$(DefineConstants);UNITY_EDITOR;ENABLE_LEGACY_INPUT_MANAGER</DefineConstants>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/Scripts/Core/**/*.cs" Link="Core/%(Filename)%(Extension)" />
+    <Compile Include="../../Assets/Scripts/Runtime/**/*.cs" Link="Runtime/%(Filename)%(Extension)" />
+    <Compile Include="../../Assets/Scripts/Editor/**/*.cs" Link="Editor/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

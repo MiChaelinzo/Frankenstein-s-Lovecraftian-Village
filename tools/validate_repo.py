@@ -13,7 +13,10 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           "docs/media/calm.png", "docs/media/dread.png", "docs/media/abyss.png", "docs/media/mobile.png",
           "README.md", "LICENSE", "NOTICE", "docs/KIRO_USAGE.md", "docs/DEMO_SCRIPT.md",
           "docs/DEVPOST_SUBMISSION.md", "docs/BUILD_LOG.md", "web/selftest.html", "web/src/selftest.js", "web/src/golden-data.js", "docs/media/selftest.png", "docs/BLOG_POST.md", "Packages/manifest.json", "ProjectSettings/ProjectVersion.txt",
-          "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py", "tools/gen_stitch.py", "web/data/stitch.json"]:
+          "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py", "tools/gen_stitch.py", "web/data/stitch.json",
+          "tests/UnityCompileCheck/UnityCompileCheck.csproj", "tests/UnityCompileCheck/README.md",
+          "tests/UnityCompileCheck/Stubs/UnityEngine.cs", "tests/UnityCompileCheck/Stubs/UnityEditor.cs",
+          "docs/MCP.md", ".kiro/steering/mcp.md"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
@@ -47,6 +50,10 @@ for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "prob
 for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py"):
     if not os.path.isfile(f):
         errors.append(f"missing {f}")
+
+for f in tracked:
+    if f.lower().endswith((".dll", ".so", ".dylib")) and os.path.isfile(f):
+        errors.append(f"native or managed binary tracked (no Unity DLLs allowed): {f}")
 
 import filecmp
 if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Assets/Data/village_catalog.json", shallow=False):
