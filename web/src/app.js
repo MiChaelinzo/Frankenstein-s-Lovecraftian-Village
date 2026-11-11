@@ -6,7 +6,7 @@ import {
 } from './core.js';
 import {
   computeView, buildWalkers,
-  reportFilename, wrapIndex, postcardFilename, nightFromHash,
+  reportFilename, wrapIndex, postcardFilename, nightFromHash, gatedFlash, toastMayReplace,
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
@@ -61,7 +61,7 @@ const mark = () => { dirty = true; start(); };
 
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
-  narrationLine: '', narrationAt: 0, flash: 0, drain: false,
+  narrationLine: '', narrationAt: 0, flash: 0, flashAt: null, drain: false,
   theme: 'auto', camChoice: 'third', floor: 0, attempts: new Map(), shakes: new Map(), doorFocus: -1, doors: [], visible: true,
   campaign: null, ritual: null, ritualStage: -1, night: 0, tracker: new DreadEventTracker(), live: false, snap: true, journal: newJournal(), toast: null, focus: -1, eye: 0, tentacle: 0,
   investigatorOn: false, investigator: null, cinema: null,
@@ -220,13 +220,24 @@ function say(locationId) {
   const at = state.narrationAt; setTimeout(() => { if (state.narrationAt === at) $('narration').style.opacity = 0.35; }, 7000);
   log('narration', line);
 }
+/** Starts a full-screen flash through the shared gate (capped, never inside the minimum gap, never with reduced motion). */
+function requestFlash(level) {
+  if (reduceMotion) return;
+  const now = performance.now(), f = gatedFlash(level, state.flashAt, now);
+  if (f > 0) { state.flash = Math.max(state.flash, f); state.flashAt = now; }
+}
+/** Shows a banner unless a recent one should keep the screen. The screen reader announcement is separate and always happens. */
+function showToast(text, rising) {
+  const now = performance.now();
+  if (toastMayReplace(state.toast, { rising }, now)) state.toast = { text, at: now, rising };
+}
 function announce(text) { const el = $('toastLive'); el.textContent = ''; el.textContent = text; }
 function omen(e) {
   const text = omenTextL(e, lang);
   if (e.rising) progress.note.tier(e.tier);
-  state.toast = { text, at: performance.now(), rising: e.rising };
+  showToast(text, e.rising);
   announce(text); mark();
-  if (e.rising && !reduceMotion && state.live) state.flash = Math.max(state.flash, 0.3 + 0.1 * e.tier);
+  if (e.rising && state.live) requestFlash(0.1 + 0.05 * e.tier);
   log('omen', text);
 }
 function updateDesc() {
@@ -312,7 +323,7 @@ function stepInvestigator() {
   const hit = inv.step();
   if (hit) {
     state.sanity.apply(-hit.sanityLoss);
-    if (!reduceMotion) state.flash = Math.max(state.flash, 0.2);
+    requestFlash(0.2);
     syncUi(); pushHash();
     const text = tr('log.investigator', { site: tr(`kind.${hit.siteId}`), n: hit.sanityLoss });
     log('investigator', text); announce(text); updateDesc();
@@ -395,14 +406,14 @@ function tryDoor(p) {
   const behavior = doorOmen(state.sanity.dread, p.key, 0, attempt, state.seed);
   const text = doorMessageL(doorMessage(behavior, p.key), lang);
   state.shakes.set(p.key, { behavior, at: performance.now() });
-  state.toast = { text, at: performance.now(), rising: behavior >= 2 };
+  showToast(text, behavior >= 2);
   announce(`${text} (${doorName(lang, behavior)})`);
   log('door', text);
   progress.note.door(); progress.update();
   mark();
 }
 function setSanity(v, quiet) { state.sanity = new SanityModel(v); syncUi(); pushHash(); if (!quiet) say(null); }
-function adjust(delta, location) { progress.arm(); state.sanity.apply(delta); if (delta < 0 && !reduceMotion) state.flash = 0.25; syncUi(); pushHash(); say(location); }
+function adjust(delta, location) { progress.arm(); state.sanity.apply(delta); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); say(location); }
 function showNightClamp() {
   const el = $('nightClamp'); if (!el) return;
   const msg = state.campaign ? nightClampNoticeL(location.hash, state.campaign.nights.length, lang) : '';
@@ -497,7 +508,7 @@ $('door').addEventListener('click', tryNextDoor);
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
 const doWhisper = () => { progress.note.whisper(); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
-const doChurch = () => { if (!reduceMotion) state.flash = 0.6; adjust(-SanityModel.CHURCH_COST, 'church'); };
+const doChurch = () => { requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
 const doCandle = () => adjust(SanityModel.CANDLE_RESTORE, 'the village');
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);

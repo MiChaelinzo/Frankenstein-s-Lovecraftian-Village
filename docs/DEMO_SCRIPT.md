@@ -33,7 +33,7 @@ Headless captures at 1280x720 clip the bottom of the page; in a real browser thi
 If you cannot run Unity, open the browser demo (README, "Play it in your browser"). A 40 second cut: load `#seed=1818&sanity=100`, drag sanity to 0 while clicking the church, then paste `#seed=42&sanity=20` to show seed sharing.
 
 Extra shots, all in the browser:
-- Omen toasts at Uneasy, Dire and Abyss; tentacles at Dire, sky eye at Abyss.
+- Omen banners at Uneasy, Dire and Abyss (quiet, 4.5 s, rate-limited flashes; see the horror review in `docs/ARCHITECTURE_AUDIT.md`); tentacles at Dire, sky eye at Abyss.
 - Buildings panel: `theme`, `cam=top` with the floor slider, `O` to try doors.
 - Download the Markdown report; drive the demo from the keyboard (`W C L N [ ] D M T V F O ?`).
 - Reduced motion with `?reduced=1`.

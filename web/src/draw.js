@@ -2,7 +2,7 @@
 import { SeededRandom } from './core.js';
 import { meshPolygons } from './glb.js';
 import { cameraTransform } from './cinematic.js';
-import { cultistCount, walkerPos, windowState, skyTint, weatherFor } from './scene.js';
+import { cultistCount, walkerPos, windowState, skyTint, weatherFor, TOAST_MS, ambientFlash, dreadJitter, gatedFlash } from './scene.js';
 import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
 import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
@@ -446,11 +446,11 @@ export function createRenderer(env) {
     setHintHidden(!!t);
     if (!t) return;
     const age = now - t.at;
-    if (age > 6000) { state.toast = null; setHintHidden(false); return; }
-    const a = reduceMotion ? 1 : Math.min(1, age / 400, (6000 - age) / 800);
-    ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.font = 'italic 26px Georgia, serif'; ctx.textAlign = 'center';
+    if (age > TOAST_MS) { state.toast = null; setHintHidden(false); return; }
+    const a = reduceMotion ? 1 : Math.min(1, age / 400, (TOAST_MS - age) / 800);
+    ctx.save(); ctx.globalAlpha = Math.max(0, a) * 0.85; ctx.font = 'italic 26px Georgia, serif'; ctx.textAlign = 'center';
     const w = Math.min(canvas.width - 20, (ctx.measureText ? ctx.measureText(t.text).width : 400) + 48);
-    ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(canvas.width / 2 - w / 2, 22, w, 44);
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(canvas.width / 2 - w / 2, 22, w, 44);
     ctx.strokeStyle = t.rising ? 'rgba(200,60,60,.8)' : 'rgba(95,143,120,.8)'; ctx.lineWidth = 1; ctx.strokeRect(canvas.width / 2 - w / 2, 22, w, 44);
     ctx.fillStyle = t.rising ? 'rgb(240,170,170)' : 'rgb(190,230,210)'; ctx.fillText(t.text, canvas.width / 2, 52); ctx.restore();
   }
@@ -478,7 +478,7 @@ export function createRenderer(env) {
     drawSky(dread, time);
     ctx.save();
     if (state.cinema) { const ct = cameraTransform(state.cinema, canvas.width, canvas.height); ctx.translate(ct.tx, ct.ty); ctx.scale(ct.scale, ct.scale); }
-    if (!reduceMotion && dread > 0.5) ctx.translate((Math.random() - 0.5) * (dread - 0.5) * 3, (Math.random() - 0.5) * (dread - 0.5) * 3);
+    if (!reduceMotion) { const j = dreadJitter(state.seed, real, dread); ctx.translate(j.dx, j.dy); }
     drawSea(dread, time);
     drawGround(dread);
     active.length = 0;
@@ -502,7 +502,7 @@ export function createRenderer(env) {
     drawFog(dread, time);
     ctx.restore();
     if (state.flash > 0) { ctx.fillStyle = `rgba(210,230,255,${state.flash.toFixed(2)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); state.flash = Math.max(0, state.flash - 0.04); }
-    else if (!reduceMotion && dread > 0.4 && Math.random() < 0.0015 * dread) state.flash = 0.5;
+    else if (!reduceMotion) { const f = gatedFlash(ambientFlash(state.seed, real, dread), state.flashAt, real); if (f > 0) { state.flash = f; state.flashAt = real; } }
     drawWeather(dread, time);
     drawVignette(dread, time);
     drawToast(performance.now());

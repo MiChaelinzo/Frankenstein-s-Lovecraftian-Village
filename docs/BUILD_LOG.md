@@ -122,3 +122,4 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `9112c8f` Moved codex, achievement, daily seed, sanity cost, floor count, detail summary, ambience volume and dread percent rules into Core with property tests, golden entries and JS mirror tests. dotnet 80 passing, node 235. Fixed a half-rounding mismatch between Runtime (`Mathf.RoundToInt`) and Core/web.
 - `c706b1f` Logged swallowed errors, removed dead exports and duplicated helpers. UnityCompileCheck stub gained `UnityWebRequest.error`.
 - Unverified: Unity was never run; Runtime edits are compile checked against stubs only.
+- Horror design review (this commit, hash in `git log`): seeded lightning and shake, capped flash gate, coalesced shorter banners, `web/test/notice-policy.test.js`. Feel is Partially Verified; no real browser session.

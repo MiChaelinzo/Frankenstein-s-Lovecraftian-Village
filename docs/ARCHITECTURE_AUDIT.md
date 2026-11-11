@@ -83,7 +83,7 @@ Not merged: `access.js`, `perf.js`, `minimap.js`, `investigator-state.js`, `prog
 
 ## Open risks
 
-- `scene.js` (walker count per tier, window lighting) is a seeded rule with no C# twin. If Unity needs matching crowds, move it to Core first.
+- `scene.js` (walker count per tier, window lighting, notice pacing) is a seeded rule with no C# twin. If Unity needs matching crowds, move it to Core first.
 - `session.js` bounds duplicate `CampaignGenerator` limits (night 8) as literals; a future change to the night range needs both updated.
 - The Unity drain default changed from 0.5 to 1.0 per second for new components. Serialized scene values are not touched.
 - Core files `CodexModel`, `AchievementRules`, `DailySeed` have no Runtime consumer yet. They exist so Unity and Web share one definition; wiring them is future work and is not claimed here.
@@ -93,3 +93,18 @@ Not merged: `access.js`, `perf.js`, `minimap.js`, `investigator-state.js`, `prog
 - Spec task 65 (stdlib EXR lightmap decoder) is skipped. Nothing in the web demo consumes lightmaps, so it would be infrastructure for a hypothetical need.
 - Spec task 66: the URP package contains 230 materials but no material textures (its images are lightmaps and reflection probes), so URP roles are material-only. Texturing in `?pack=1` still needs the HDRP package.
 - Spec task 68: classification lives only in Python (`tools/dlnk_scene.py`); the JS side validates kinds against `LAYOUT_KINDS`, and `tools/test_dlnk_scene.py` checks both lists match. Unmatched names stay `generic` and are shown, not hidden.
+
+## Horror design review (round 13)
+
+Scope: omen banner, door banner, full-screen flashes, screen shake, ambient lightning, achievement and codex notices, tour, cinematic caption, investigator hits, whisper selection. Goal from the steering: subtle dread, no jump scares as a primary mechanic, no excessive UI intrusion, no randomness without narrative purpose.
+
+| Finding | Change | Why |
+|---|---|---|
+| Ambient lightning and dread shake used `Math.random` in `draw.js`, so the same seed and dread looked different on every run | `ambientFlash` and `dreadJitter` in `scene.js` hash seed, time slot and dread (`unitHash`); `draw.js` has no `Math.random` left (test) | Deterministic horror: the village's weather is a function of the seed. The remaining `Math.random` is the explicit Reroll button, a player action |
+| Flashes came from five call sites with levels up to 0.6 and could repeat back to back | One `requestFlash` gate: level capped at `FLASH_MAX` 0.3, nothing inside `FLASH_MIN_GAP_MS` 4000, none under reduced motion. Omen flash is now 0.15 to 0.30 by tier, drain 0.15, church 0.3 | Avoids strobing and shock flashes; escalation stays readable as dread rather than as a startle |
+| Banner stayed 6 s, opaque black box, and any door try replaced it at once | `TOAST_MS` 4500, lighter background and 0.85 alpha; `toastMayReplace` keeps a banner for `TOAST_MIN_HOLD_MS` 1500 unless the new one is rising | Quieter, and rapid door tries coalesce instead of flickering. The aria-live announcement still fires for every notice |
+| Achievement and codex notices | No change needed: they were already a journal line plus one live-region announcement, batched when several unlock, with no popup | Checked in `progress-ui.js` |
+| Omen text versus dread tier | No change: rising text is keyed by the Core event name (the tier), falling text prints the tier label | Checked in `omenTextL`; no contradiction found |
+| Tour, cinematic caption, investigator, whisper selection | No change: tour is opt-in and manual under reduced motion, cinematic is a pure timeline, investigator route and whisper choice are seeded | Checked by reading; their existing node tests cover determinism |
+
+Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, coalescing, no `Math.random` in `draw.js`) is **Verified**. How the quieter banner and flashes feel is **Partially Verified** (inspection and headless reasoning only; no screenshot judges motion and nobody has played it in a real browser). The policy lives in the web layer only because it is presentation timing, not a gameplay rule; if Unity needs the same pacing, move it to Core first.

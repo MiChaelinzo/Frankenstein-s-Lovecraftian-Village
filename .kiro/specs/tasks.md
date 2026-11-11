@@ -74,3 +74,5 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 61. Author: connect a host and paste the verified URL (same as 42), record the video, publish the social post and blog (same as 14, 26, 27, 28)
 - [x] 70. Round 13: architecture and parity audit (`docs/ARCHITECTURE_AUDIT.md`); codex, achievements, daily seed, sanity costs, floor counts moved to Core with golden parity; silent catches and dead code removed
 - [ ] 71. Wire `CodexModel`, `AchievementRules` and `DailySeed` into Unity Runtime (Core only today; Unity never run)
+- [x] 72. Round 13: horror design review. Seeded ambient lightning and shake (no `Math.random` in the render path), one capped and rate-limited flash gate, shorter and coalesced banners (`scene.js`, `web/test/notice-policy.test.js`); visual feel Partially Verified
+- [ ] 73. Real-browser check of the quieter banner and flash pacing (author only)

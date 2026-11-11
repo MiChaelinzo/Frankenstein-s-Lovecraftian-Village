@@ -10,7 +10,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Fix: Runtime and Editor rounded dread to a percent with `Mathf.RoundToInt` (halves to even) while Core and web round halves up; both now use `DreadThresholds.Percent`. Behavior change: the Unity drain default is now the shared 1.0 per second (it was 0.5; the web demo always used 1.0).
 - Fix: swallowed errors are logged (`SafeNarrationProvider.LastError`, music start, stitch load, share copy, `HttpNarrationProvider`); the validator rejects non UTF-8 tracked files.
 - Removed unused `parseIntroParam`, `prettyId`, `clearSession`, `DOOR_BEHAVIORS`, `CAMERA_MODES`; shared `clamp` and `queryParam` helpers in `util.js`.
-- Tests: dotnet 80 (was 64), node 235 (was 230). UnityCompileCheck 0 errors, 1 warning (stub gained `UnityWebRequest.error`). Unity was not run.
+- Horror review (`docs/ARCHITECTURE_AUDIT.md`): ambient lightning and dread shake are now seeded (`ambientFlash`, `dreadJitter`), all flashes go through one gate (max 0.3, 4 s apart, none under reduced motion), banners last 4.5 s and are not replaced within 1.5 s by calmer ones. Behavior change: flashes are weaker and rarer. Feel is Partially Verified.
+- Tests: dotnet 80 (was 64), node 247 (was 230). UnityCompileCheck 0 errors, 1 warning (stub gained `UnityWebRequest.error`). Unity was not run.
 
 ### Round 12
 - Unity compile check: `tests/UnityCompileCheck` builds the Runtime and Editor scripts against original hand-written Unity stubs (`dotnet build`, CI job `unity-compile-check`). Result: 0 errors, one CS0649 warning (JsonUtility DTO field). The only fix needed was a missing `FileUtil` stub. This proves syntax and type consistency against the stubs only; Unity was never installed or run.
