@@ -83,6 +83,7 @@ python3 -m http.server -d web 8000   # then open http://localhost:8000
 | Web demo visuals | Checked with headless Chromium screenshots (`docs/media`); not tested across browsers |
 | Repo guardrails (`tools/validate_repo.py`) and CI (`ci.yml`) | Verified locally; CI has not yet been observed running on GitHub |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | **Unverified**: never run in the Unity editor |
+| Unity Editor window `VillageCoreInspectorWindow` (`Tools > Frankenstein > Village Core Inspector`, previews Core village report and campaign) | **Unverified**: never compiled or run in the Unity editor |
 | Unity Editor script `CatalogAutoBinder` (`Tools > Frankenstein > Auto-bind Catalog Prefabs`) | **Unverified**: never compiled or run in the Unity editor |
 
 The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.

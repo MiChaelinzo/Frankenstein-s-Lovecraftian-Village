@@ -11,6 +11,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - Web: opt-in daily village (`Z`, button, `?daily=1`): seed from the UTC date via FNV-1a, injectable clock, pinned values in `web/test/daily.test.js`. Never used on a bare URL.
 - All new labels in en and fr. New modules are in the service worker precache (cache name bumped to `flv-shell-v2`); three web-only checks added to the self-test page (273 checks). Web-only logic, so no C# mirror or golden vectors.
 
+- Unity Editor window `VillageCoreInspectorWindow` (`Tools > Frankenstein > Village Core Inspector`): read-only preview of the Core village report, dread tier and seeded campaign for a seed and sanity. Uses only Core APIs. Written by inspection, **not compiled or run in Unity**.
+- Invariant tests: six new dotnet properties (`InvariantProperties.cs`, 64 total) and six node counterparts (`web/test/invariants.test.js`): layout bounds and no overlap, target count cap, dread monotone in sanity, tier monotone in dread, campaign numbering and non-lightening sky, report landmark and average-horror bounds. No Core change, so no golden regeneration.
+
 ### Changed
 - Web: the cinematic exit hint now matches the active input device (keyboard "B or Escape", gamepad "Select", touch "Tap Exit"), touch users get a visible Exit button during a take, and the page `<title>` and meta description follow `?lang=` (en and fr). Investigator pause and cinematic playback restore moved into `web/src/investigator-state.js` with node tests. New test that every module and asset reachable from `index.html` and `selftest.html` is in the service worker precache. Spec task 52 (offscreen terrain cache) revisited and again not implemented: sea waves and reeds animate with time and ground colour varies continuously with dread, so no cache would be pixel-identical. Not tried on a real touch device or gamepad.
 

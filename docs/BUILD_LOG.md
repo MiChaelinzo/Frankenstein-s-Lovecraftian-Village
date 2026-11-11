@@ -92,3 +92,6 @@ A short history of how this project was built, taken from `git log` on the `feat
 ## Round 10 judge-facing features
 - `f16567b` Stitch panel from `tools/gen_stitch.py` repo data (validator checks freshness), seeded codex and achievements saved in the session (backward compatible), high-contrast theme, opt-in daily village with injectable clock. Node tests 159, selftest 273 of 273 headless, tools tests and dotnet 58 pass. Headless screenshots occasionally exit 124 under virtual time on the unchanged base too; retrying succeeds.
 - `c702b0a` Docs and web-demo screenshots `docs/media/stitch.png`, `codex.png`, `contrast.png` (each under 700 KB).
+
+## Round 10 editor window and invariants
+- Added `VillageCoreInspectorWindow` (Unity Editor, uncompiled, unverified in Unity) and six dotnet plus six node invariant tests. dotnet 64 passing. No Core change, golden untouched.
