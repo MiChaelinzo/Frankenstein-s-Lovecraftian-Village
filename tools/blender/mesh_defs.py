@@ -1,11 +1,13 @@
-"""Original low-poly mesh definitions for the seven catalog kinds. Pure Python, no bpy.
+"""Original low-poly mesh definitions: the seven catalog kinds plus the round 16 props (boat, dock, fence, cliff_rock, two lamp variants). Pure Python, no bpy.
 
 Coordinates are Z-up metres (Blender convention). Every part is (name, verts, faces, rgba).
 Deterministic: no randomness, same input gives byte-identical geometry. Original work, no pack data.
 """
 import math
 
-KINDS = ("house_a", "house_b", "church", "well", "altar", "dead_tree", "lamp")
+CATALOG_KINDS = ("house_a", "house_b", "church", "well", "altar", "dead_tree", "lamp")
+PROP_KINDS = ("boat", "dock", "fence", "cliff_rock", "lamp_tall", "lamp_double")
+KINDS = CATALOG_KINDS + PROP_KINDS
 
 PALETTE = {
     "stone": (0.30, 0.31, 0.34, 1.0),
@@ -17,6 +19,8 @@ PALETTE = {
     "iron": (0.12, 0.12, 0.14, 1.0),
     "glow": (0.95, 0.70, 0.30, 1.0),
     "rune": (0.35, 0.80, 0.55, 1.0),
+    "rock": (0.21, 0.21, 0.23, 1.0),
+    "cloth": (0.50, 0.46, 0.38, 1.0),
 }
 
 
@@ -147,7 +151,85 @@ def lamp():
     ]
 
 
-BUILDERS = {"house_a": house_a, "house_b": house_b, "church": church, "well": well, "altar": altar, "dead_tree": dead_tree, "lamp": lamp}
+def hull(length, width, depth, z0, bottom=0.55):
+    """Open boat hull along X: pentagon rings (square stern, pointed bow); the bottom ring is narrower. Faces are the outer sides and the keel."""
+    hl, hw = length / 2, width / 2
+    ring = [(-hl, -1.0), (0.0, -1.0), (hl, 0.0), (0.0, 1.0), (-hl, 1.0)]
+    v = [(x, y * hw * bottom, z0) for x, y in ring] + [(x, y * hw, z0 + depth) for x, y in ring]
+    f = [(i, (i + 1) % 5, 5 + (i + 1) % 5, 5 + i) for i in range(5)]
+    f.append((0, 4, 3, 2, 1))
+    return v, f
+
+
+def boat():
+    return [
+        _part("hull", hull(3.6, 1.5, 0.7, 0.0), "wood"),
+        _part("floor", box(-0.1, 0, 0.25, 2.4, 0.8, 0.06), "bark"),
+        _part("seat_a", box(-0.7, 0, 0.45, 0.3, 1.3, 0.08), "wood"),
+        _part("seat_b", box(0.5, 0, 0.45, 0.3, 1.1, 0.08), "wood"),
+        _part("rail_l", box(-0.2, -0.74, 0.7, 2.6, 0.08, 0.1), "bark"),
+        _part("rail_r", box(-0.2, 0.74, 0.7, 2.6, 0.08, 0.1), "bark"),
+        _part("mast", cylinder(0.3, 0, 0.3, 0.06, 0.04, 2.6, 5), "bark"),
+        _part("furled_sail", box(0.3, 0, 2.2, 0.08, 0.9, 0.5), "cloth"),
+        _part("bow_lantern", box(1.5, 0, 0.7, 0.2, 0.2, 0.25), "glow"),
+    ]
+
+
+def dock():
+    """One 4 m segment along X: deck planks on a frame, four tall posts, and a rune lit post cap at one end."""
+    parts = [_part("beam_l", box(0, -1.0, 0.25, 4.0, 0.2, 0.2), "bark"), _part("beam_r", box(0, 1.0, 0.25, 4.0, 0.2, 0.2), "bark")]
+    for i in range(5):
+        parts.append(_part("plank_%d" % i, box(-1.6 + i * 0.8, 0, 0.45, 0.7, 2.4, 0.12), "wood"))
+    for i, (x, y) in enumerate([(-1.8, -1.1), (-1.8, 1.1), (1.8, -1.1), (1.8, 1.1)]):
+        parts.append(_part("post_%d" % i, cylinder(x, y, -0.8, 0.13, 0.11, 1.9, 5), "bark"))
+    parts.append(_part("post_cap", box(1.8, 1.1, 1.1, 0.22, 0.22, 0.06), "rune"))
+    return parts
+
+
+def fence():
+    """A 3 m run of broken picket fence along X: four posts, two rails and one fallen picket."""
+    parts = [_part("post_%d" % i, box(-1.35 + i * 0.9, 0, 0, 0.12, 0.12, 1.1 - 0.2 * (i == 2)), "wood") for i in range(4)]
+    parts.append(_part("rail_low", box(0, 0.08, 0.35, 3.0, 0.05, 0.08), "bark"))
+    parts.append(_part("rail_high", box(0, 0.08, 0.8, 3.0, 0.05, 0.08), "bark"))
+    parts.append(_part("fallen", tilt(box(0.4, 0.4, 0, 0.1, 0.05, 0.9), 0.6, 0.0, 0.9), "wood"))
+    return parts
+
+
+def cliff_rock():
+    """Three stacked, narrowing rock tiers shifted a little each step, with two boulders at the foot. About 9 m wide and 8 m tall."""
+    return [
+        _part("tier_1", cylinder(0, 0, -0.5, 4.6, 3.7, 3.5, 7), "rock"),
+        _part("tier_2", cylinder(0.7, 0.3, 3.0, 3.2, 2.5, 2.8, 7), "stone"),
+        _part("tier_3", cylinder(1.3, 0.5, 5.8, 2.1, 1.2, 2.2, 6), "rock"),
+        _part("boulder_a", cylinder(-4.2, 1.5, -0.4, 1.2, 0.8, 1.1, 6), "stone"),
+        _part("boulder_b", cylinder(3.6, -2.4, -0.4, 1.0, 0.6, 0.9, 5), "rock"),
+    ]
+
+
+def lamp_tall():
+    return [
+        _part("base", cylinder(0, 0, 0, 0.35, 0.22, 0.5, 6), "iron"),
+        _part("pole", cylinder(0, 0, 0.5, 0.09, 0.05, 4.2, 6), "iron"),
+        _part("ring", cylinder(0, 0, 4.2, 0.28, 0.28, 0.08, 6), "iron"),
+        _part("cage", cylinder(0, 0, 4.3, 0.2, 0.2, 0.55, 6), "glow"),
+        _part("cap", cylinder(0, 0, 4.85, 0.32, 0.0, 0.4, 6), "iron"),
+    ]
+
+
+def lamp_double():
+    return [
+        _part("base", cylinder(0, 0, 0, 0.35, 0.22, 0.4, 6), "iron"),
+        _part("pole", cylinder(0, 0, 0.4, 0.08, 0.05, 2.9, 6), "iron"),
+        _part("arm", box(0, 0, 3.15, 1.5, 0.06, 0.06), "iron"),
+        _part("cage_l", cylinder(-0.7, 0, 2.7, 0.16, 0.16, 0.42, 6), "glow"),
+        _part("cage_r", cylinder(0.7, 0, 2.7, 0.16, 0.16, 0.42, 6), "glow"),
+        _part("cap_l", cylinder(-0.7, 0, 3.12, 0.22, 0.0, 0.26, 6), "iron"),
+        _part("cap_r", cylinder(0.7, 0, 3.12, 0.22, 0.0, 0.26, 6), "iron"),
+    ]
+
+
+BUILDERS = {"house_a": house_a, "house_b": house_b, "church": church, "well": well, "altar": altar, "dead_tree": dead_tree, "lamp": lamp,
+            "boat": boat, "dock": dock, "fence": fence, "cliff_rock": cliff_rock, "lamp_tall": lamp_tall, "lamp_double": lamp_double}
 
 
 def build(kind):

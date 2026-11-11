@@ -67,7 +67,7 @@ Extra shots, all in the browser:
 - Codex and achievements: `?intro=0&codex=1#seed=1818&sanity=40&night=3`, then press `W` and `O` a few times to earn achievements.
 - High contrast: press `H` (or `?contrast=1`). Today's village: press `Z` (opt-in daily seed).
 - Cinematic take of a night: `?intro=0&cinematic=1#seed=1818&night=3` (see above).
-- Original Blender meshes: open the About dialog (`A`) and follow the meshes link, or open `meshes.html` directly. Shows seven original low-poly models, not pack assets.
+- Original Blender meshes: open the About dialog (`A`) and follow the meshes link, or open `meshes.html` directly. Shows thirteen original low-poly models (seven village pieces plus a boat, dock, fence, cliff rock and two lamp variants), not pack assets.
 - DLNK scene mode (local only, needs the owner's pack built into `web/local-pack/`): `?pack=1&scene=coast-scene`. Never show this in a public recording unless licensed to.
 
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.
