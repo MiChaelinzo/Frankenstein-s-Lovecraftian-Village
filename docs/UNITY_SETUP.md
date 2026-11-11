@@ -55,6 +55,31 @@ The builder adds HDRP Fog and Vignette overrides to the two Volume profiles by r
 
 The scene builder does not load GLB files. Adding a `com.unity.cloud.gltfast` path would be code that cannot be exercised without Unity and the package, so it stays out until someone can run it. If you want the committed Blender meshes in Unity, install glTFast yourself and assign them to the catalog by hand. Status: Unverified, deliberately deferred.
 
+## 3b. Showcase tools (record Unity next to the web demo)
+
+Status for all four tools: **Partially Verified** (compile checked against stubs) and **Unverified at runtime** (never run in Unity). The path and link maths they call are **Verified** in Core (`FlythroughPath`, `WebShareLink`, `PrefabNameMatcher`; golden parity with `web/src/cinematic.js` and `web/src/session.js`). The scripts hold no path, link or matching logic of their own.
+
+**Showcase camera (`VillageFlythroughCamera`)**
+1. Add a GameObject with a Camera, then add the `VillageFlythroughCamera` component (or use the helper below).
+2. Either assign `villageBuilder` (seed, grid size and cell size are read from it) or set `seed`, `gridWidth`, `gridDepth` and `cellSize` by hand. The defaults match the web demo (seed 1818, 24x24).
+3. Edit `beatDurationsMs` (milliseconds, same meaning as the web story beats). Core adds a 2 second tail.
+4. Press Play. Elapsed time advances by `Time.deltaTime` only, so for a repeatable take open Window > General > Recorder, choose a fixed frame rate (for example 30) and record. Tick `reducedMotion` for one still viewpoint, `loop` to repeat.
+
+**Copy Matching Web Demo URL**
+1. Open your scene (with a `VillageBuilder` or a `VillageFlythroughCamera`).
+2. Menu **Tools > Frankenstein > Copy Matching Web Demo URL**.
+3. Paste. The link carries the scene seed, sanity 100, `view=3d`, and `cinematic=1` when a showcase camera exists. Open it next to Unity for the side-by-side take. It never carries `?pack`.
+
+**DLNK Pack Explorer**
+1. Import the pack you own so prefabs sit under `Assets/_DLNK` (git-ignored).
+2. Menu **Tools > Frankenstein > DLNK Pack Explorer**, press **Rescan**.
+3. Prefabs are grouped House, Landmark, Prop or Other by the catalog id their name best matches (`PrefabNameMatcher`). Type in **Search** to filter. **Ping** selects the prefab in the Project window. **Place** instantiates it at the Scene view pivot (undoable) and frames it.
+
+**Open DLNK Demo Scene And Add Showcase Camera**
+1. Import the pack under `Assets/_DLNK`.
+2. Menu **Tools > Frankenstein > Open DLNK Demo Scene And Add Showcase Camera**. It asks to save the current scene, opens the first scene under `Assets/_DLNK` whose name contains "demo" (otherwise the first by path), and adds a `Frankenstein Showcase Camera`.
+3. Disable the scene's other cameras and AudioListeners, adjust the camera fields, press Play.
+
 ## 4. Troubleshooting
 
 | Symptom | Likely cause |

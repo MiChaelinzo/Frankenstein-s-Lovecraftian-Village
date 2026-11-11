@@ -21,6 +21,23 @@ namespace UnityEditor
         public static void SetDirty(Object target) { }
     }
 
+    public static class EditorGUIUtility
+    {
+        public static void PingObject(Object obj) { }
+    }
+
+    public static class PrefabUtility
+    {
+        public static Object InstantiatePrefab(Object assetComponentOrGameObject) { return null; }
+    }
+
+    public sealed class SceneView
+    {
+        public static SceneView lastActiveSceneView { get { return null; } }
+        public Vector3 pivot { get { return default; } }
+        public static bool FrameLastActiveSceneView() { return false; }
+    }
+
     public static class EditorPrefs
     {
         public static string GetString(string key, string defaultValue) { return defaultValue; }
@@ -35,11 +52,12 @@ namespace UnityEditor
     public static class Undo
     {
         public static void RecordObject(Object target, string name) { }
+        public static void RegisterCreatedObjectUndo(Object objectToUndo, string name) { }
     }
 
     public static class Selection
     {
-        public static Object activeObject { get { return null; } }
+        public static Object activeObject { get { return null; } set { } }
     }
 
     public static class AssetDatabase
@@ -69,6 +87,9 @@ namespace UnityEditor
         public static void LabelField(string label) { }
         public static void LabelField(string label, string text) { }
         public static void LabelField(string label, GUIStyle style) { }
+        public static string TextField(string label, string text) { return text; }
+        public static void BeginHorizontal() { }
+        public static void EndHorizontal() { }
         public static Object ObjectField(string label, Object obj, Type objType, bool allowSceneObjects) { return obj; }
         public static int IntField(string label, int value) { return value; }
         public static float Slider(string label, float value, float left, float right) { return value; }
@@ -83,10 +104,14 @@ namespace UnityEditor.SceneManagement
 {
     public enum NewSceneSetup { EmptyScene, DefaultGameObjects }
     public enum NewSceneMode { Single, Additive }
+    public enum OpenSceneMode { Single, Additive }
     public struct Scene { }
     public static class EditorSceneManager
     {
         public static Scene NewScene(NewSceneSetup setup, NewSceneMode mode) { return default; }
         public static bool SaveScene(Scene scene, string path) { return true; }
+        public static Scene OpenScene(string path, OpenSceneMode mode) { return default; }
+        public static bool SaveCurrentModifiedScenesIfUserWantsTo() { return true; }
+        public static bool MarkSceneDirty(Scene scene) { return true; }
     }
 }

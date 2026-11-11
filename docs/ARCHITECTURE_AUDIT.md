@@ -60,6 +60,7 @@ Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code 
 | `RitualDirector`, `VillageCoreInspectorWindow` | `Mathf.RoundToInt(dread * 100)` rounds halves to even; Core and web round halves up | **Bug.** Both use `DreadThresholds.Percent` now. `VillageReport` uses the same function (golden unchanged). |
 | `HorrorAmbienceDirector` | Magic numbers `0.2f + 0.8f * dread`; drain default 0.5 per second while the web demo drained 1.0 per second | `DreadCurve.AmbienceVolume` and `SanityModel.DrainPerSecond` (1.0, the value players of the web demo see). **Behavior change for Unity's default drain**, documented here; existing scenes with a serialized value keep it. |
 | `HttpNarrationProvider` | Empty `catch` | Logs `Debug.LogWarning` with URL and reason. |
+| `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow`, `DlnkShowcaseSceneHelper` | Thin wrappers. The fly-through maths moved to Core `FlythroughPath` (mirror of `cinematic.js`, golden parity), links come from Core `WebShareLink`, grouping from `PrefabNameMatcher`. | Only unit conversion (radians to Unity heading) and Editor GUI remain outside Core. Partially Verified (compile checked), Unverified in Unity. |
 | Other Runtime scripts | Thin glue (`VillageBuilder`, `WalkthroughController`, `DlnkDoorOmenBridge`, `DlnkBuildingFloorBridge`, `RitualSave*`, `DreadVolumeBlender`) | No change needed. |
 
 ## Removed or fixed

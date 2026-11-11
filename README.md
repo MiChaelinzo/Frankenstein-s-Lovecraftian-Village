@@ -116,6 +116,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
 | Unity playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`, package `.meta` files) | Unverified | Compile checked against stubs only; never run in Unity. Its rules (`InteractionRules`) are Verified in Core |
 | Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
+| Unity showcase tools (`VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow`, `DlnkShowcaseSceneHelper`, see [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md)) | Partially Verified | Compile checked against stubs (0 errors); never run in Unity, so runtime behavior is Unverified. The Core path (`FlythroughPath`) and link (`WebShareLink`) they call are Verified by dotnet tests and golden parity |
 | HDRP look and URP roles | Unverified | No Unity run |
 | Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
 | Hosted web demo | Verified | HTTP 200 on all entry pages and modules plus served CSP, checked by curl (`python3 tools/check_live.py`, 10/10 checks) |
