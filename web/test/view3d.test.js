@@ -390,7 +390,7 @@ test('contact rings: nested, darker toward the wall, drawn above the ground, det
 test('postParams: documented ranges, clamps, dread grows vignette and chroma, reduced motion has no grain motion and no chroma', () => {
   const calm = M.postParams({ dread: 0 }), dire = M.postParams({ dread: 1 });
   assert.ok(dire.vignette > calm.vignette && dire.chroma > calm.chroma && dire.grain > calm.grain);
-  assert.ok(calm.vignette >= 0.3 && dire.vignette <= 0.6 && dire.grain <= 0.06 && dire.chroma <= 0.004 && calm.chroma > 0);
+  assert.ok(calm.vignette >= 0.3 && dire.vignette <= 0.6 + 1e-9 && dire.grain <= 0.06 + 1e-9 && dire.chroma <= 0.004 + 1e-9 && calm.chroma > 0);
   assert.deepEqual(M.postParams({ dread: 9 }), dire); assert.deepEqual(M.postParams({ dread: -3 }), calm); assert.deepEqual(M.postParams({ dread: NaN }), calm);
   const still = M.postParams({ dread: 1, reduced: true });
   assert.equal(still.chroma, 0); assert.equal(still.grainMotion, false); assert.equal(dire.grainMotion, true);
