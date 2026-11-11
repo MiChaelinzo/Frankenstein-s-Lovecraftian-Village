@@ -7,7 +7,7 @@ import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.j
 import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
-  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenBlendWeight, omenFraming,
+  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
@@ -262,6 +262,29 @@ void main(){
 const PART_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uAlpha; varying float vFade;
 void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = clamp(1.0 - r, 0.0, 1.0) * uAlpha * vFade; gl_FragColor = vec4(uColor, a); }`;
 
+const POST_VS = 'attribute vec2 aPos; varying vec2 vUv; void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }';
+// One pass: thresholded multi-tap bloom (two spiral rings), radial chromatic shift, teal shadow and warm highlight grade, vignette, film grain.
+const POST_FS = `${FRAG_HEAD}varying vec2 vUv; uniform sampler2D uScene; uniform float uAspect; uniform float uVignette; uniform float uGrain; uniform float uGrainT;
+uniform float uBloom; uniform float uThreshold; uniform float uChroma;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+vec3 bright(vec2 uv){ vec3 c = texture2D(uScene, uv).rgb; float l = max(c.r, max(c.g, c.b)); return c * max(l - uThreshold, 0.0) / max(1.0 - uThreshold, 0.1); }
+void main(){
+  vec2 uv = vUv, dir = uv - 0.5;
+  vec3 col = vec3(texture2D(uScene, uv + dir * uChroma).r, texture2D(uScene, uv).g, texture2D(uScene, uv - dir * uChroma).b);
+  vec2 px = vec2(1.0 / uAspect, 1.0); vec3 glow = vec3(0.0);
+  for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; float r = sqrt((float(i) + 0.5) / 10.0);
+    glow += bright(uv + vec2(cos(a), sin(a)) * r * 0.022 * px) * 1.1 + bright(uv + vec2(cos(a + 1.0), sin(a + 1.0)) * r * 0.06 * px) * 0.55; }
+  col += glow * (uBloom / 10.0) * vec3(1.0, 0.92, 0.8);
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  col = mix(col * vec3(0.9, 1.0, 1.1), col * vec3(1.06, 1.0, 0.92), smoothstep(0.15, 0.7, lum));
+  col = col * 1.06;
+  col = (col - 0.5) * 1.1 + 0.5 + 0.0;
+  float v = smoothstep(0.35, 0.95, length(dir * vec2(uAspect * 0.8, 1.0)) * 1.25);
+  col *= 1.0 - uVignette * v;
+  col += (hash(gl_FragCoord.xy + uGrainT) - 0.5) * uGrain;
+  gl_FragColor = vec4(max(col, 0.0), 1.0);
+}`;
+
 function program(gl, vs, fs) {
   const mk = (type, src) => {
     const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -279,6 +302,29 @@ function program(gl, vs, fs) {
 /** Owns the GL programs and buffers. frame = the per-frame values computed by the controller; nothing here decides gameplay. */
 export function createGlRenderer(gl) {
   const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS);
+  const post = (() => { try { return program(gl, POST_VS, POST_FS); } catch (err) { console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return null; } })();
+  let fbo = null, fboTex = null, fboDepth = null, fboSize = '', postBroken = !post;
+  // Offscreen target for the post pass. Any failure (incomplete framebuffer, allocation error) disables post for good and warns once.
+  function ensureTarget(w, h) {
+    if (postBroken) return false;
+    if (fbo && fboSize === `${w}x${h}`) return true;
+    try {
+      fbo ||= gl.createFramebuffer(); fboTex ||= gl.createTexture(); fboDepth ||= gl.createRenderbuffer();
+      gl.bindTexture(gl.TEXTURE_2D, fboTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, fboDepth); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fboTex, 0);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, fboDepth);
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer status ' + status);
+      fboSize = `${w}x${h}`; return true;
+    } catch (err) {
+      postBroken = true; gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return false;
+    }
+  }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer() };
   const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, rain: 0, mist: 0, halo: 0 };
@@ -286,6 +332,7 @@ export function createGlRenderer(gl) {
   const makeTex = (unit) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255])); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return t; };
   const texs = [makeTex(0), makeTex(1)], hasTex = [0, 0];
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
+  let size = [1, 1];
   const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS };
   const upload = (name, data, usage = gl.STATIC_DRAW) => { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]); gl.bufferData(gl.ARRAY_BUFFER, data, usage); counts[name] = data.length / (FLOATS[name] || VERTEX_FLOATS); };
   const attrs = [['aPos', 3, 0], ['aNormal', 3, 3], ['aColor', 3, 6], ['aGlow', 1, 9], ['aPhase', 1, 10]];
@@ -318,10 +365,27 @@ export function createGlRenderer(gl) {
       });
     },
     setParticles(rainSeeds, mistSeeds) { upload('rain', rainSeeds); upload('mist', mistSeeds); },
-    resize(w, h) { gl.viewport(0, 0, w, h); },
+    resize(w, h) { size = [w, h]; gl.viewport(0, 0, w, h); },
+    /** True when the post pass is available (shader compiled and the framebuffer is complete). */
+    get postReady() { return !postBroken; },
     /** Vertex, point and draw-call counts of what was uploaded: feeds frameCost for the budget test and the perf label. */
     counts: () => ({ ...counts }),
+    /** Draws the frame; with f.post.enabled the scene goes through the offscreen target and the single post pass, else straight to the canvas. */
     draw(f) {
+      const usePost = !!(f.post && f.post.enabled) && ensureTarget(size[0], size[1]);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, usePost ? fbo : null); gl.viewport(0, 0, size[0], size[1]);
+      this.drawScene(f);
+      if (!usePost) return;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.useProgram(post.p);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fboTex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
+      const pl = gl.getAttribLocation(post.p, 'aPos'); gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl, 2, gl.FLOAT, false, 8, 0);
+      gl.uniform1i(post.u('uScene'), 0); gl.uniform1f(post.u('uAspect'), f.aspect); gl.uniform1f(post.u('uVignette'), f.post.vignette); gl.uniform1f(post.u('uGrain'), f.post.grain);
+      gl.uniform1f(post.u('uGrainT'), f.post.grainMotion ? (Math.floor(f.time * 24) % 97) * 13.7 : 0);
+      gl.uniform1f(post.u('uBloom'), f.post.bloom); gl.uniform1f(post.u('uThreshold'), f.post.bloomThreshold); gl.uniform1f(post.u('uChroma'), f.post.chroma);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    },
+    drawScene(f) {
       gl.clearColor(f.fogColor[0], f.fogColor[1], f.fogColor[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // sky
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.useProgram(sky.p);
@@ -527,10 +591,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
+    const postP = postParams({ dread: s.dread, reduced, quality: scale });
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
     renderer.draw({
       vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, pointScale: canvas.height * 0.5,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, post: postP, pointScale: canvas.height * 0.5,
     });
   }
 

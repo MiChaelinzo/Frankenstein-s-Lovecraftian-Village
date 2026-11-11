@@ -269,7 +269,7 @@ test('frame budget (pure counts, not timings): worst case weather, dread and lig
     const parts = M.particleCounts({ weather: 'rain', dread: 1, reduced: false }), mist = M.particleCounts({ weather: 'fog', dread: 1, reduced: false });
     const cost = M.frameCost({
       vertices: { building: w.building.length / VERTEX_FLOATS, ground: w.ground.length / VERTEX_FLOATS, sea: w.sea.length / VERTEX_FLOATS, coast: w.coast.length / VERTEX_FLOATS, tentacle: tent.length / VERTEX_FLOATS },
-      rain: parts.rain, mist: mist.mist, halos: w.halos.length / M.HALO_FLOATS, lights: w.lights.length,
+      rain: parts.rain, mist: mist.mist, halos: w.halos.length / M.HALO_FLOATS, lights: w.lights.length, post: true,
     });
     const B = M.FRAME_BUDGET;
     assert.ok(cost.drawCalls <= B.drawCalls, `draw calls ${cost.drawCalls}`); assert.ok(cost.triangles <= B.triangles, `triangles ${cost.triangles}`);
@@ -385,4 +385,20 @@ test('contact rings: nested, darker toward the wall, drawn above the ground, det
   assert.equal(rings.length, lay.length * 3 + 2); assert.deepEqual(rings, M.contactRings(lay, [{ pos: [4, 3, 4], post: true }, { pos: [8, 2, 8] }]));
   const [outer, mid, inner] = [rings[0], rings[lay.length], rings[lay.length * 2]];
   assert.ok(outer.x0 < mid.x0 && mid.x0 < inner.x0 && outer.shade > mid.shade && mid.shade > inner.shade && inner.y > outer.y && outer.y > 0);
+});
+
+test('postParams: documented ranges, clamps, dread grows vignette and chroma, reduced motion has no grain motion and no chroma', () => {
+  const calm = M.postParams({ dread: 0 }), dire = M.postParams({ dread: 1 });
+  assert.ok(dire.vignette > calm.vignette && dire.chroma > calm.chroma && dire.grain > calm.grain);
+  assert.ok(calm.vignette >= 0.3 && dire.vignette <= 0.6 && dire.grain <= 0.06 && dire.chroma <= 0.004 && calm.chroma > 0);
+  assert.deepEqual(M.postParams({ dread: 9 }), dire); assert.deepEqual(M.postParams({ dread: -3 }), calm); assert.deepEqual(M.postParams({ dread: NaN }), calm);
+  const still = M.postParams({ dread: 1, reduced: true });
+  assert.equal(still.chroma, 0); assert.equal(still.grainMotion, false); assert.equal(dire.grainMotion, true);
+  assert.equal(M.postParams({ quality: 1 }).enabled, true); assert.equal(M.postParams({ quality: M.POST_MIN_QUALITY }).enabled, true);
+  assert.equal(M.postParams({ quality: 0.5 }).enabled, false, 'governor below the threshold falls back to direct rendering');
+});
+test('post pass wiring: one pass, fallback warns once and never silently', () => {
+  const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(v, /post pass disabled, drawing directly/); assert.match(v, /postBroken = true/); assert.match(v, /f\.post\.grainMotion/);
+  assert.equal(M.frameCost({ vertices: { building: 30 }, post: true }).drawCalls, M.frameCost({ vertices: { building: 30 } }).drawCalls + 1);
 });

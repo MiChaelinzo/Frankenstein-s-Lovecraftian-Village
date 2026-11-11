@@ -343,6 +343,23 @@ export function particleSeeds(seed, n, salt = 0) {
   return out;
 }
 
+// ---------- post processing ----------
+
+/** Below this render scale (the dynamic resolution governor's nextScale) the scene is drawn directly: the post pass costs fill rate. */
+export const POST_MIN_QUALITY = 0.75;
+/**
+ * Parameters of the single fullscreen post pass. quality is the governor's render scale 0.5..1.
+ * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.7 luminance threshold, chroma 0..0.004 (uv offset).
+ * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
+ */
+export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
+  const d = clamp(dread, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
+  return {
+    enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
+    bloom: 0.45, bloomThreshold: 0.7, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
+  };
+}
+
 // ---------- performance ----------
 
 /** Backing store size: css size times device ratio times scale, capped at MAX_PIXELS. */
@@ -481,14 +498,16 @@ export function tentacleBases(gridW, gridD, seed, cell = CELL) {
 
 // ---------- frame budget (counts, not timings: those depend on the GPU) ----------
 
-export const FRAME_BUDGET = Object.freeze({ drawCalls: 14, triangles: 60000, points: 1300, lights: MAX_LIGHTS, halos: 120 });
+// Round 17: drawCalls 14 -> 12 is a tighter ceiling, not a loosening: the worst frame is now sky + 5 triangle buffers + rain or mist + halos
+// + fireflies + the one post pass = 11. points grew 1300 -> 1400 for the (at most 100) fireflies; rain and fireflies share the budget.
+export const FRAME_BUDGET = Object.freeze({ drawCalls: 12, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
 
 /** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
-export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0 }) {
+export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false }) {
   const tri = ['building', 'ground', 'sea', 'coast', 'tentacle'];
-  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0);
+  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
-  return { drawCalls, triangles, points: rain + mist + halos, lights: Math.min(lights, MAX_LIGHTS), halos };
+  return { drawCalls, triangles, points: rain + mist + halos + fireflies, lights: Math.min(lights, MAX_LIGHTS), halos };
 }
 
 // ---------- omen framing: a fly-through viewpoint that keeps the eye and the tentacles inside the frame ----------
