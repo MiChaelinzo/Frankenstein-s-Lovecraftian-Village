@@ -28,7 +28,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DL = os.path.join(ROOT, "Assets", "ThirdParty", "LovecraftianVillage", "downloads")
 DEFAULT_PACKAGES = [os.path.join(DL, "Lovecraftian1.3_HDRP_Unity6.unitypackage"), os.path.join(DL, "Lovecraftian1.3_URP_Unity6.unitypackage")]
 DEFAULT_OUT = os.path.join(ROOT, "web", "local-pack")
-DEFAULT_CATALOG = os.path.join(ROOT, "Assets", "Data", "village_catalog.json")
+DEFAULT_CATALOG = os.path.join(ROOT, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")
 MAT = "Assets/_DLNK/Lovecraftian Village/Source/Materials/"
 ETP = "Assets/_DLNK/Essential Terrain Pack/Source/Materials/"
 

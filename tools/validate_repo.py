@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Repo guardrails: .kiro tracked and not ignored, no paid asset files committed, docs present."""
-import subprocess, sys, os
+import subprocess, sys, os, json, glob
 
 root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 os.chdir(root)
@@ -16,7 +16,7 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py", "tools/gen_stitch.py", "web/data/stitch.json",
           "tests/UnityCompileCheck/UnityCompileCheck.csproj", "tests/UnityCompileCheck/README.md",
           "tests/UnityCompileCheck/Stubs/UnityEngine.cs", "tests/UnityCompileCheck/Stubs/UnityEditor.cs",
-          "docs/MCP.md", ".kiro/steering/mcp.md"]:
+          "docs/MCP.md", ".kiro/steering/mcp.md", "docs/UNITY_SETUP.md", "tools/gen_package_meta.py"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
@@ -51,20 +51,39 @@ for f in tracked:
         errors.append(f"pack-derived path must not be tracked: {f}")
 
 for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "probe.unitypackage",
-              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "web/local-pack/manifest.json", "dist/index.html"):
+              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "Packages/Lovecraftian Village/x.prefab", "Packages/com.dlnk.village/package.json", "web/local-pack/manifest.json", "dist/index.html"):
     if subprocess.run(["git", "check-ignore", "-q", probe]).returncode != 0:
         errors.append(f"{probe} must be gitignored")
 for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py"):
     if not os.path.isfile(f):
         errors.append(f"missing {f}")
 
+PKG = "Packages/com.michaelinzo.frankenstein-village/"
+for f in tracked:
+    if f.startswith("Packages/") and f != "Packages/manifest.json" and not f.startswith(PKG):
+        errors.append(f"unexpected path under Packages/ (only the Frankenstein package and manifest.json are allowed): {f}")
+    if f.startswith(PKG) and f.lower().endswith(banned):
+        errors.append(f"binary asset in package needs review: {f}")
+for p in (PKG + "package.json", PKG + "Core/Frankenstein.Core.asmdef", PKG + "Runtime/Frankenstein.Runtime.asmdef", PKG + "Editor/Frankenstein.Editor.asmdef"):
+    if not os.path.isfile(p):
+        errors.append(f"missing {p}")
+if os.path.isfile(PKG + "package.json"):
+    pkg = json.load(open(PKG + "package.json"))
+    if pkg.get("name") != "com.michaelinzo.frankenstein-village" or not pkg.get("unity") or not pkg.get("version"):
+        errors.append("package.json needs name com.michaelinzo.frankenstein-village, version and unity")
+if subprocess.run([sys.executable, "tools/gen_package_meta.py", "--check"], capture_output=True).returncode != 0:
+    errors.append("package .meta files are missing or stale: run python3 tools/gen_package_meta.py")
+for core_file in glob.glob(PKG + "Core/*.cs"):
+    if "UnityEngine" in open(core_file, encoding="utf-8").read():
+        errors.append(f"Core must not reference UnityEngine: {core_file}")
+
 for f in tracked:
     if f.lower().endswith((".dll", ".so", ".dylib")) and os.path.isfile(f):
         errors.append(f"native or managed binary tracked (no Unity DLLs allowed): {f}")
 
 import filecmp
-if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Assets/Data/village_catalog.json", shallow=False):
-    errors.append("web/data/village_catalog.json differs from Assets/Data/village_catalog.json")
+if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json", shallow=False):
+    errors.append("web/data/village_catalog.json differs from Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json")
 
 if os.path.isfile(".gitattributes") and "filter=lfs" in open(".gitattributes").read():
     errors.append(".gitattributes routes files to Git LFS (filter=lfs); LFS is not used")

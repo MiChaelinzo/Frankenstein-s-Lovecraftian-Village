@@ -123,3 +123,17 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `c706b1f` Logged swallowed errors, removed dead exports and duplicated helpers. UnityCompileCheck stub gained `UnityWebRequest.error`.
 - Unverified: Unity was never run; Runtime edits are compile checked against stubs only.
 - Horror design review (this commit, hash in `git log`): seeded lightning and shake, capped flash gate, coalesced shorter banners, `web/test/notice-policy.test.js`. Feel is Partially Verified; no real browser session.
+
+## Round 14 Unity package
+- `d5376b9` Moved Core, Runtime, Editor and the catalog into `Packages/com.michaelinzo.frankenstein-village`; fixed test csproj, tools, hooks, docs path references. Tests unchanged (dotnet 80, node 248).
+- `3ba196a` Core `InteractionRules` and property tests (dotnet 87 after follow-up tests).
+- `20b6a51` Playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`), package `.meta` generator, validator checks. UnityCompileCheck 0 errors.
+- `f4667e1` `docs/UNITY_SETUP.md`, MCP prompt, README Play in Unity.
+- Unverified: Unity was not installed or run; nothing here ran in the editor.
+
+## Round 14
+- `c083174` JS `InteractionRules` mirrored in `core.js` with golden parity section `interaction`.
+- `56cc0c7` Opt-in WebGL first-person view (`view3d-math.js`, `view3d.js`, `glb.js` buffers, input mappings, 20 node tests). Headless Chromium rendered it with SwiftShader (`docs/media/view3d-village.png`, `view3d-dread.png`). Interactive controls (pointer lock, touch, gamepad) were not exercised in a browser.
+- Live deployment at https://frankensteinlovecraftianvillage.vercel.app/. `python3 tools/check_live.py` passed 10/10 (HTTP 200 and content types, CSP, HSTS, 404 for the local pack). Unverified: real-browser behavior on the host, Unity.
+
+- Docs for the demo video: timed `docs/DEMO_SCRIPT.md`, `docs/KIRO_PITCH.md` (spoken script and Devpost write-up). Documentation only; nothing was recorded or run in Unity.

@@ -1,0 +1,33 @@
+{
+  "name": "com.michaelinzo.frankenstein-village",
+  "version": "0.14.0",
+  "displayName": "Frankenstein's Lovecraftian Village",
+  "description": "Deterministic cosmic-horror village logic (engine-free Core), thin Unity runtime glue, DLNK pack bridges and a one-click playable village scene builder. Contains no third-party pack assets.",
+  "unity": "6000.0",
+  "documentationUrl": "https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/docs/UNITY_SETUP.md",
+  "keywords": [
+    "horror",
+    "procedural",
+    "village",
+    "lovecraft",
+    "hdrp",
+    "dlnk"
+  ],
+  "author": {
+    "name": "MiChaelinzo",
+    "url": "https://github.com/MiChaelinzo"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "com.unity.render-pipelines.core": "17.0.3",
+    "com.unity.inputsystem": "1.11.2",
+    "com.unity.ugui": "2.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "Playable Village",
+      "description": "Readme and menu walkthrough for building the playable village scene.",
+      "path": "Samples~/PlayableVillage"
+    }
+  ]
+}

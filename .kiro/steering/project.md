@@ -21,7 +21,7 @@ The project prioritizes deterministic behavior, testability, reproducibility, an
 
 ### 1. Logic First
 
-All gameplay rules belong in `Assets/Scripts/Core`.
+All gameplay rules belong in `Packages/com.michaelinzo.frankenstein-village/Core`.
 
 Core systems must:
 
@@ -69,13 +69,13 @@ Examples:
 
 ## Code Organization
 
-### Core (`Assets/Scripts/Core`)
+### Core (`Packages/com.michaelinzo.frankenstein-village/Core`)
 
 Contains VillageLayoutGenerator, dread systems, sanity systems, procedural generation, reports, policies and data models.
 
 Must not reference `UnityEngine`, `MonoBehaviour` or `ScriptableObject`.
 
-### Runtime (`Assets/Scripts/Runtime`)
+### Runtime (`Packages/com.michaelinzo.frankenstein-village/Runtime`)
 
 Contains scene behavior, visual effects, audio, HDRP integration and AI narration integration. Runtime consumes Core.
 

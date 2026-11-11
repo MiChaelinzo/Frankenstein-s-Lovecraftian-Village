@@ -1,8 +1,14 @@
 {
   "name": "Frankenstein.Editor",
   "rootNamespace": "Frankenstein.Editor",
-  "references": ["Frankenstein.Core", "Frankenstein.Runtime"],
-  "includePlatforms": ["Editor"],
+  "references": [
+    "Frankenstein.Core",
+    "Frankenstein.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,

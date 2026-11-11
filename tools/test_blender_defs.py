@@ -17,7 +17,7 @@ class MeshDefs(unittest.TestCase):
 
     def test_catalog_ids_covered(self):
         import json
-        with open(os.path.join(ROOT, "Assets", "Data", "village_catalog.json")) as fh:
+        with open(os.path.join(ROOT, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")) as fh:
             cat = json.load(fh)
         for e in cat["entries"]:
             self.assertIn(e["id"], mesh_defs.KINDS)

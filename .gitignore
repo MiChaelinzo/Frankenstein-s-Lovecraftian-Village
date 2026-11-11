@@ -145,6 +145,12 @@ crashlytics-build.properties
 /Assets/[Ee]ssential [Tt]errain [Pp]ack*
 /Assets/_DLNK/
 /Assets/_DLNK.meta
+# Pack data must never land in Packages/ either (embedded copies of the pack)
+/Packages/*[Ll]ovecraftian*/
+/Packages/*[Dd][Ll][Nn][Kk]*/
+# Files Unity generates when the scene builder runs inside a consuming project
+/Assets/Frankenstein/
+/Assets/Frankenstein.meta
 # Local demo pack data and screenshots derived from the pack
 /web/local-pack/
 /pack-scratch/

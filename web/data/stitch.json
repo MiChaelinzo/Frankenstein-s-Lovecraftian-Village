@@ -4,28 +4,28 @@
       "count": 1
     },
     "core": {
-      "count": 18
+      "count": 19
     },
     "golden": {
-      "count": 16,
+      "count": 17,
       "vectors": 323
     },
     "js": {
-      "count": 38,
-      "tests": 38
+      "count": 40,
+      "tests": 39
     },
     "kiro": {
       "count": 3,
       "steering": 6,
-      "tasksDone": 60,
-      "tasksTotal": 73
+      "tasksDone": 63,
+      "tasksTotal": 77
     },
     "pwa": {
-      "count": 54
+      "count": 56
     },
     "unity": {
       "bridges": 4,
-      "count": 14
+      "count": 18
     }
   },
   "version": 1

@@ -4,7 +4,7 @@
 
 ![The village at full sanity](docs/media/calm.png)
 
-**Play in your browser:** no live URL is confirmed yet (`<YOUR-LIVE-URL>`). The GitHub Pages workflow is currently blocked by an account billing lock, so the Pages site is not available. The live URL depends on the host the author connects; see [`docs/HOSTING.md`](docs/HOSTING.md). Until then run it locally (see below).
+**Play in your browser:** [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) (deep link: [seed 1818, sanity 100, night 1](https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1)). Deployed on Vercel; HTTP-level checks are recorded below (`python3 tools/check_live.py`). The GitHub Pages workflow is blocked by an account billing lock. See [`docs/HOSTING.md`](docs/HOSTING.md). You can also run it locally (see below).
 
 | Dread | Abyss |
 |-------|-------|
@@ -18,7 +18,7 @@ A Unity 6 cosmic-horror village environment, built for **Kiroween 2026** in the 
 This project combines Unity 6, AI-assisted development workflows, and a modular Lovecraftian environment to create a dark fantasy village inspired by cosmic horror and environmental storytelling.
 
 ## Judge quick start
-No live URL is confirmed (see [`docs/HOSTING.md`](docs/HOSTING.md)), so run it locally. You need Python 3 for the server; the demo itself has no dependencies and no build step.
+Open the live site above, or run it locally. You need Python 3 for the server; the demo itself has no dependencies and no build step.
 
 ```bash
 cd web
@@ -42,9 +42,11 @@ Useful URLs (append to `http://localhost:8000/`; each feature is opt-in and a ba
 Press `A` or use the About button for credits and license. `?lang=fr` switches to French. Which logic lives in Core and which is UI-only: [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md). Checks: `python3 tools/validate_repo.py`, `node --test "web/test/*.test.js"` and `dotnet test tests/Frankenstein.Core.Tests`. Nothing here was run inside the Unity editor.
 
 ## Play it in your browser (no Unity, no download)
+
+**First-person 3D (opt-in):** add `?view=3d` to the URL or press "First-person 3D view". Dependency-free WebGL with dread-driven fog, a dusk or night sky per campaign night, moon, lantern light, sea and rain; WASD and mouse, touch or gamepad; E or click interacts using the same rules as the Unity layer. The isometric view stays the default. Status: Partially Verified (see the table below).
 A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as the Unity project, ported to dependency-free JavaScript and verified against C# output, and draws a procedural isometric village with only canvas shapes (no paid assets).
 
-- Live: not confirmed (`<YOUR-LIVE-URL>`). Free static hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md), untested against real hosts. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
+- Live: [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) on Vercel. Hosting configs for Netlify, Vercel and Cloudflare Pages plus a safe staging script are in [`docs/HOSTING.md`](docs/HOSTING.md); only Vercel has been deployed. [`pages.yml`](.github/workflows/pages.yml) is blocked by a GitHub billing lock.
 - Change the **seed** for a new village, drag **sanity** down to watch the vignette close in, the fog thicken, the moon redden and the narrator turn on you. Click buildings for whispers. Open **Story mode** (`S`) to step or autoplay through every beat of every night. A skippable intro plays on a bare URL. Tick **Music** to opt in to an original procedural WebAudio soundtrack (no audio files, silent until you opt in, with volume and mute).
 - Story deep links: `#seed=1818&story=1&night=3&beat=2` (beat is 0-based within the night); `?story=1&autoplay=1` starts playing. `?intro=0` or `#intro=0` skips the intro, and any `#seed=`, `#story=`, `#sanity=` or `#night=` link skips it automatically.
 - Share a state with the URL hash, for example `#seed=1818&sanity=35`.
@@ -102,18 +104,21 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Assets/Scripts/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 80 passing property tests |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 247 passing, including golden parity with C# output |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 87 passing property tests |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 269 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
+| Web 3D view (`?view=3d`, `view3d.js`) | Partially Verified | Camera, collision, picking, fog, sky, lantern maths and a stub-GL render smoke test are node-tested; a headless SwiftShader render was inspected (`docs/media/view3d-village.png`). Pointer lock, touch, gamepad and real GPUs were not exercised |
 | Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |
 | Unity Runtime scripts (`VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlender`, `HttpNarrationProvider`, `WalkthroughController`, `Dlnk*Bridge`, see [docs/DLNK_INTEGRATION.md](docs/DLNK_INTEGRATION.md)) | Unverified | Never run in the Unity editor |
+| Unity playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`, package `.meta` files) | Unverified | Compile checked against stubs only; never run in Unity. Its rules (`InteractionRules`) are Verified in Core |
 | Unity Editor tools (`VillageCoreInspectorWindow`, `CatalogAutoBinder`) | Unverified | Never run in the Unity editor |
 | HDRP look and URP roles | Unverified | No Unity run |
 | Unity and Blender MCP | Unverified | Never run here, see [docs/MCP.md](docs/MCP.md) |
-| Hosting, live URL, offline shell on a host | Unverified | No deploy exists, see [docs/HOSTING.md](docs/HOSTING.md) |
+| Hosted web demo | Verified | HTTP 200 on all entry pages and modules plus served CSP, checked by curl (`python3 tools/check_live.py`, 10/10 checks) |
+| Hosted demo in a real browser, offline shell on a host | Unverified | Only HTTP responses were checked, see [docs/HOSTING.md](docs/HOSTING.md) |
 | Gamepad on real hardware | Unverified | Only logic is node-tested |
 
 Round 12 additions: `tools/dlnk_scene.py` plus `?pack=1&scene=<name>` render real scene placements from the owner's local pack (git-ignored, EXR lightmaps not decoded); `tools/blender/` builds seven original low-poly GLB meshes headless with Blender 4.2 LTS (viewer: `web/meshes.html`, linked from About); `tests/UnityCompileCheck` is a stub-based compile check (0 errors, 1 warning, not a Unity run). MCP for Unity and Blender is documented in [docs/MCP.md](docs/MCP.md) but was never run here, and no `mcp.json` is shipped. No live URL exists yet.
@@ -191,14 +196,24 @@ Unlike parts, one creature:
 | Kiro | Specs, steering, hooks and agents that built and guard the project |
 
 ## Repository layout
-See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Assets/Scripts/Core` (no Unity dependency), Unity glue in `Assets/Scripts/Runtime`.
+See [.kiro/steering/structure.md](.kiro/steering/structure.md). Pure logic is in `Packages/com.michaelinzo.frankenstein-village/Core` (no Unity dependency), Unity glue in `Packages/com.michaelinzo.frankenstein-village/Runtime`.
+
+## Play in Unity
+Install the Unity package, run one menu item and walk the village in first person (WASD, mouse, E to use, V to switch camera). Full steps for HDRP and URP, and what the downloaded pack editions do and do not contain, are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+
+```
+Package Manager > Add package from git URL:
+https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village.git?path=/Packages/com.michaelinzo.frankenstein-village
+Then: Tools > Frankenstein > Create Playable Village Scene
+```
+Without the DLNK pack the village is plain blocks; the pack is never in this repo. The playable layer (`FirstPersonExplorer`, `InteractionRaycaster`, `DreadHud`, `PlayableVillageSceneBuilder`) is compile checked against stubs only and has never run in Unity (Unverified). Visual reference for the intended mood is the pack author's own trailer; none of its footage or assets are used here.
 
 ## Setup
 1. Install **Unity 6** (6000.0.x). Use the HDRP template modules for the HDRP package, or URP for the URP package.
 2. Clone this repo and open it as a Unity project.
 3. Download the package that matches your render pipeline from the Downloads section above (the OneDrive links are the only supported source; the packages are imported locally and never committed).
 4. Import it: `Assets > Import Package > Custom Package...`, pick the `.unitypackage`, and import everything. Keep the default `Assets/Lovecraftian Village*` location; those folders are gitignored.
-5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Assets/Scripts/Editor`, matches catalog ids to imported prefab names; Unverified in Unity) or add bindings by hand (ids from `Assets/Data/village_catalog.json`) and assign the imported prefabs.
+5. Create a `Frankenstein > Village Catalog` asset, then either run the auto-binder (`CatalogAutoBinder` in `Packages/com.michaelinzo.frankenstein-village/Editor`, matches catalog ids to imported prefab names; Unverified in Unity) or add bindings by hand (ids from `Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json`) and assign the imported prefabs.
 6. Add a `VillageBuilder` and a `HorrorAmbienceDirector` to a scene.
 7. Optional: create two global Volumes (calm and dread, same overrides) and assign them to a `DreadVolumeBlender`, then reference it from the director. Set `narrationEndpoint` on the director for HTTP AI narration.
 
@@ -208,9 +223,9 @@ The Unity-side pieces (catalog binding, scene, `DreadVolumeBlender`, `HttpNarrat
 | Your project | Package | Notes |
 |--------------|---------|-------|
 | HDRP (this repo's default) | `Lovecraftian1.3 HDRP(Unity6).unitypackage` | `Packages/manifest.json` references `com.unity.render-pipelines.high-definition`, so it works as is. |
-| URP | `Lovecraftian1.3 URP(Unity6).unitypackage` | The scaffold manifest targets HDRP. Swap `com.unity.render-pipelines.high-definition` for `com.unity.render-pipelines.universal` in `Packages/manifest.json` (or create a URP project and copy `Assets/Scripts`, `Assets/Data`), then import the URP package. |
+| URP | `Lovecraftian1.3 URP(Unity6).unitypackage` | The scaffold manifest targets HDRP. Swap `com.unity.render-pipelines.high-definition` for `com.unity.render-pipelines.universal` in `Packages/manifest.json` (the package itself works in URP), then import the URP package. |
 
-Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Assets/Scripts` do not depend on a render pipeline.
+Do not import the HDRP package into a URP project or the reverse: materials and shaders will render pink. The scripts in `Packages/com.michaelinzo.frankenstein-village` do not depend on a render pipeline.
 
 ### Legal and asset-handling note
 The Lovecraftian Village pack is third-party content by DLNK Artworks. It is **not** committed to this repository: `.unitypackage` files and the imported pack folders are gitignored, and `tools/validate_repo.py` fails if pack files are added. Respect the pack's license and obtain it only from the OneDrive links in the Downloads section and import it locally. Git LFS is not used and is not needed. The repo's own code and docs are Apache-2.0.
@@ -227,7 +242,7 @@ The tests are property-based: each property runs 300 seeded random cases and rep
 Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
 ## Built with Kiro
-Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
+Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).

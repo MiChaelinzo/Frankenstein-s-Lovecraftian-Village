@@ -6,7 +6,7 @@ A .unitypackage is a gzipped tar with one folder per asset GUID containing
 members. It never extracts or writes asset payloads. The JSON inventory is
 written to a git-ignored path (default Assets/ThirdParty/LovecraftianVillage/pack_inventory.json).
 
-Matching mirrors Assets/Scripts/Core/PrefabNameMatcher.cs (token and alias scoring).
+Matching mirrors Packages/com.michaelinzo.frankenstein-village/Core/PrefabNameMatcher.cs (token and alias scoring).
 Also scans text .unity scenes for PrefabInstance blocks and reports the prefabs they
 reference (m_SourcePrefab guid and m_Name override), because the real building prefabs
 are only referenced by the scenes, not packaged. Scene YAML is parsed in memory only.
@@ -25,7 +25,7 @@ ALIAS_GROUPS = [
 EXACT_SCORE, TOKEN_SCORE, ALIAS_SCORE = 1000, 10, 3
 MAX_PATHNAME_BYTES = 4096
 DEFAULT_OUT = "Assets/ThirdParty/LovecraftianVillage/pack_inventory.json"
-DEFAULT_CATALOG = "Assets/Data/village_catalog.json"
+DEFAULT_CATALOG = "Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json"
 
 
 def tokenize(name):

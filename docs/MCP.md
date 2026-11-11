@@ -34,14 +34,16 @@ Prerequisite: open the project in Unity 6 and import the pack you own. The local
 1. Import the pack:
    `Import every .unitypackage in Assets/ThirdParty/LovecraftianVillage/downloads/ (HDRP package for HDRP, URP package for URP) with Assets > Import Package. Report the console output afterwards.`
 2. Auto-bind the catalog:
-   `Create a VillageCatalogAsset from Assets/Data/village_catalog.json if none exists, select it, then run the menu item Tools > Frankenstein > Auto-bind Catalog Prefabs and read the console. List which catalog ids were bound and which were not.`
+   `Create a VillageCatalogAsset from Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json if none exists, select it, then run the menu item Tools > Frankenstein > Auto-bind Catalog Prefabs and read the console. List which catalog ids were bound and which were not.`
 3. Build the demo scene:
    `Create a new scene, add an empty GameObject with VillageBuilder and HorrorAmbienceDirector, assign the catalog asset, and click Build Village from the component context menu.`
 4. Match the web demo:
    `Set VillageBuilder pieceCount to 80 (the default is 40) and keep the seed at 1818, then rebuild.`
 5. Compile check inside Unity:
-   `Trigger a script compile, wait for it to finish, and report every compiler error and warning from the console for Assets/Scripts.` Fix real errors in the scripts, not in `tests/UnityCompileCheck/Stubs`.
-6. Read the console:
+   `Trigger a script compile, wait for it to finish, and report every compiler error and warning from the console for Packages/com.michaelinzo.frankenstein-village.` Fix real errors in the scripts, not in `tests/UnityCompileCheck/Stubs`.
+6. Install the package and build the playable scene (Unverified, never run):
+   `Add the git package https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village.git?path=/Packages/com.michaelinzo.frankenstein-village, wait for the compile, run Tools > Frankenstein > Create Playable Village Scene, enter Play mode for ten seconds, then report console errors and warnings and whether the player can walk and press E on a house.`
+7. Read the console:
    `Read the Unity console and summarize errors, warnings, and the Auto-bind log lines that start with [Frankenstein].`
 
 ## Blender prompts

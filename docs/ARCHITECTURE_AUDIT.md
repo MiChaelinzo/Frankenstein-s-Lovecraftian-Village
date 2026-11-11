@@ -1,11 +1,11 @@
 # Architecture and parity audit (round 13)
 
-Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code that reimplements Core, and decide for each whether it belongs in `Assets/Scripts/Core`. Rules follow `.kiro/steering/project.md` (Core is the source of truth, Web mirrors, tests validate) and `.kiro/steering/agent.md`.
+Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code that reimplements Core, and decide for each whether it belongs in `Packages/com.michaelinzo.frankenstein-village/Core`. Rules follow `.kiro/steering/project.md` (Core is the source of truth, Web mirrors, tests validate) and `.kiro/steering/agent.md`.
 
 ## Method
 
 1. Read every module in `web/src` (38 files including generated `golden-data.js`) and its test in `web/test`.
-2. Read every script in `Assets/Scripts/Runtime` and `Assets/Scripts/Editor` for logic that duplicates or bypasses Core.
+2. Read every script in `Packages/com.michaelinzo.frankenstein-village/Runtime` and `Packages/com.michaelinzo.frankenstein-village/Editor` for logic that duplicates or bypasses Core.
 3. Classify each rule: **Core** (a rule that changes what the player experiences or what a seed produces), **already Core** (mirror with golden parity), **UI-only** (input mapping, persistence validation, DOM glue) or **pure presentation** (drawing, text, timing of effects).
 4. Move real rules into Core with xunit property tests, extend the golden emitter (`GoldenParity.cs`), and make the JS module a mirror verified in `web/test/parity.test.js`.
 5. Grep for swallowed errors (`catch`), unused exports, duplicated helpers.
@@ -38,6 +38,7 @@ Goal: find gameplay rules that exist only in JavaScript, or Runtime/Editor code 
 | `textures.js`, `pack.js`, `glb.js`, `meshes-page.js` | Texture patterns, pack manifest checks, GLB reader | pure presentation | Asset handling only. |
 | `app.js` | Sanity costs and drain rate (were literals) | **Moved to Core** (`SanityModel` constants) | Now `SanityModel.FOCUS_COST` etc. The rest is DOM glue. |
 | `input.js` | Gamepad and swipe mapping | UI-only | Device input. |
+| `view3d-math.js`, `view3d.js` | Opt-in first-person WebGL view | pure math tested; GL shell Partially Verified | Reuses core.js layout, campaign, dread and `InteractionRules`; glb.js feeds meshes. No parallel loader or rules. |
 | `music.js` | Drone frequencies, gain curve | pure presentation | Original Web Audio synthesis. Unity has its own audio path (`DreadCurve.AmbienceVolume` is the Unity volume rule). |
 | `i18n.js`, `i18n-text.js` | Strings and localized helpers | pure presentation | Text only. |
 | `journal.js` | Journal list model and tabs | UI-only | Display model. |
@@ -108,6 +109,14 @@ Scope: omen banner, door banner, full-screen flashes, screen shake, ambient ligh
 | Tour, cinematic caption, investigator, whisper selection | No change: tour is opt-in and manual under reduced motion, cinematic is a pure timeline, investigator route and whisper choice are seeded | Checked by reading; their existing node tests cover determinism |
 
 Verification: `web/test/notice-policy.test.js` (determinism, caps, rate limit, coalescing, no `Math.random` in `draw.js`) is **Verified**. How the quieter banner and flashes feel is **Partially Verified** (inspection and headless reasoning only; no screenshot judges motion and nobody has played it in a real browser). The policy lives in the web layer only because it is presentation timing, not a gameplay rule; if Unity needs the same pacing, move it to Core first.
+
+## Round 14: Unity package and playable layer
+
+- Layout: scripts and catalog moved into one UPM package, no copies left. The catalog is shared with `web/data` by the existing byte-identity check.
+- New rules went to Core first: `InteractionRules` (reach, cooldown, sanity per kind, category mapping, door text, camera cycle) with property tests. They are **not** mirrored in `web/src` yet because only Unity uses them; if the 3D web demo gets first-person interaction, mirror them with golden entries then (no speculative port now).
+- Runtime additions stay thin: they measure distance and time, read input, and forward to Core (`DoorOmen`, `AllowedCamera`, `SanityModel`). `VillageBuilder` block heights and `PlayableVillageSceneBuilder` fog values are presentation constants, not gameplay rules.
+- Reflection is used in the scene builder to add HDRP overrides so the Editor assembly has no render-pipeline reference. Cost: a renamed HDRP field degrades to a warning. Status: Unverified.
+- Status: compile check Partially Verified (stubs), Unity runtime Unverified, `InteractionRules` Verified.
 
 ## Round 13 review follow-up
 

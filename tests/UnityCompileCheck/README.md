@@ -1,6 +1,6 @@
 # Unity compile check (stub based)
 
-`dotnet build tests/UnityCompileCheck` compiles `Assets/Scripts/Core`, `Runtime` and `Editor` against
+`dotnet build tests/UnityCompileCheck` compiles `Packages/com.michaelinzo.frankenstein-village/Core`, `Runtime` and `Editor` against
 small hand-written stubs in `Stubs/` instead of the real UnityEngine and UnityEditor assemblies.
 
 What it proves: the scripts parse, their types and member calls are consistent with the stub

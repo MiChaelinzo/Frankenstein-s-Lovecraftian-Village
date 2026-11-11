@@ -21,14 +21,15 @@ Agent and contributor guidance lives in `.kiro/steering/project.md` (mission, pr
 See also [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) for which logic lives in Core, which is UI-only, and why.
 
 ## Rules
-- **Core first.** New logic goes in `Assets/Scripts/Core` (no `UnityEngine` references) with a property test in `tests/Frankenstein.Core.Tests`. MonoBehaviours in `Assets/Scripts/Runtime` only wrap Core.
+- **Unity package layout.** Unity code lives in the UPM package `Packages/com.michaelinzo.frankenstein-village` (`Core`, `Runtime`, `Editor`, `Data`, `Samples~`). After adding, renaming or deleting a file there run `python3 tools/gen_package_meta.py` (the validator fails on missing or stale `.meta` files). Never put pack data under `Packages/`.
+- **Core first.** New logic goes in `Packages/com.michaelinzo.frankenstein-village/Core` (no `UnityEngine` references) with a property test in `tests/Frankenstein.Core.Tests`. MonoBehaviours in `Packages/com.michaelinzo.frankenstein-village/Runtime` only wrap Core.
 - **Determinism.** Use `SeededRandom`, never `System.Random` or time, in Core.
 - **Golden parity.** If you change Core behavior, regenerate the contract and update the JS port to match:
   ```bash
   UPDATE_GOLDEN=1 dotnet test tests/Frankenstein.Core.Tests
   node --test "web/test/*.test.js"
   ```
-  CI fails if `web/test/golden.json` would change. `web/data/village_catalog.json` must stay byte-identical to `Assets/Data/village_catalog.json`.
+  CI fails if `web/test/golden.json` would change. `web/data/village_catalog.json` must stay byte-identical to `Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json`.
 - **No paid assets, no Git LFS.** Never commit the Lovecraftian Village pack (DLNK Artworks) or anything under `Assets/ThirdParty` except its README. The pack comes only from the OneDrive links in the README. `tools/validate_repo.py` enforces this.
 - **No em dashes** (U+2014) in any written content; the validator checks text files.
 - **Be honest in docs.** Label status claims Verified, Partially Verified or Unverified (see the README verification table). Anything not run in the Unity editor is Unverified. Do not invent usage numbers.

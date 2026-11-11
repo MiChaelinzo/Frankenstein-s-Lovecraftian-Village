@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Compile the same pure C# files Unity uses (no UnityEngine references) -->
-    <Compile Include="../../Assets/Scripts/Core/**/*.cs" Link="Core/%(Filename)%(Extension)" />
+    <Compile Include="../../Packages/com.michaelinzo.frankenstein-village/Core/**/*.cs" Link="Core/%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />

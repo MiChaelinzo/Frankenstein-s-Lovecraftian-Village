@@ -14,7 +14,7 @@ Frankenstein's monster was never one thing. It was parts that did not belong tog
 
 ## Keep the engine out of the logic
 
-The most useful decision was architectural. All rules live in `Assets/Scripts/Core`, which never references `UnityEngine`. The Unity side (`VillageBuilder`, `HorrorAmbienceDirector`) is thin glue. That means the rules can be tested with a plain `dotnet test` and no Unity install, which also made them testable inside a cloud agent sandbox.
+The most useful decision was architectural. All rules live in `Packages/com.michaelinzo.frankenstein-village/Core`, which never references `UnityEngine`. The Unity side (`VillageBuilder`, `HorrorAmbienceDirector`) is thin glue. That means the rules can be tested with a plain `dotnet test` and no Unity install, which also made them testable inside a cloud agent sandbox.
 
 ## Specs became properties
 
@@ -55,6 +55,10 @@ Clone the repo, import the HDRP or URP package that matches your pipeline (links
 dotnet test tests/Frankenstein.Core.Tests
 python3 tools/validate_repo.py
 ```
+
+Play it: https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1 (add `?view=3d` to the URL for the first-person view)
+
+The 60 to 90 second spoken version of this story and a short Devpost write-up are in `docs/KIRO_PITCH.md`. Unity and Blender MCP were set up on my own machine, but the cloud sandbox never ran them, so the Unity side remains unverified.
 
 Repo: https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village
 
