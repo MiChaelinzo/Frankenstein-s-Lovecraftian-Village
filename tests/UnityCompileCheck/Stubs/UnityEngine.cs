@@ -132,6 +132,7 @@ namespace UnityEngine.Networking
         public DownloadHandler downloadHandler { get; set; }
         public int timeout { get; set; }
         public Result result { get { return Result.InProgress; } }
+        public string error { get { return null; } }
         public void SetRequestHeader(string name, string value) { }
         public UnityWebRequestAsyncOperation SendWebRequest() { return null; }
         public void Dispose() { }

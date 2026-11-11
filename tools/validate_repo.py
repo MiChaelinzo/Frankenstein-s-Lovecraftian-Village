@@ -91,8 +91,8 @@ for f in tracked:
         try:
             if EM_DASH in open(f, encoding="utf-8").read():
                 errors.append(f"em dash (U+2014) in {f}")
-        except UnicodeDecodeError:
-            pass
+        except UnicodeDecodeError as e:
+            errors.append(f"{f} is not valid UTF-8 ({e.reason})")
 
 if errors:
     print("FAIL"); [print(" -", e) for e in errors]; sys.exit(1)

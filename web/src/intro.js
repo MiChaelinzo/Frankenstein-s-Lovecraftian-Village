@@ -13,8 +13,6 @@ export function shouldShowIntro(search, hash) {
   return true;
 }
 
-export const parseIntroParam = (search, hash) => shouldShowIntro(search, hash);
-
 /** Three slides built from the generated campaign. */
 export function buildIntroSlides(campaign) {
   const name = campaign && campaign.villageName ? campaign.villageName : 'the village';

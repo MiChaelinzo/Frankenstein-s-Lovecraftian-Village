@@ -46,8 +46,9 @@ namespace Frankenstein.Runtime
                         var text = JsonUtility.FromJson<Response>(req.downloadHandler.text)?.text;
                         if (!string.IsNullOrWhiteSpace(text)) _latest = text;
                     }
+                    else Debug.LogWarning("[Narration] request to " + _url + " failed: " + req.result + " " + req.error);
                 }
-                catch (System.Exception) { /* keep the previous line; Safe provider covers empty */ }
+                catch (System.Exception ex) { Debug.LogWarning("[Narration] could not read response from " + _url + ": " + ex.Message); }
                 finally { req.Dispose(); _inFlight = false; }
             };
         }

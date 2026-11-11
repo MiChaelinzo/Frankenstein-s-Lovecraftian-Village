@@ -2,13 +2,13 @@
 // The pure helpers below are deterministic and unit tested; createAmbient is a thin WebAudio controller that must be
 // started from a user gesture (browsers keep an AudioContext silent otherwise, and the demo never starts one on load).
 import { SeededRandom } from './core.js';
+import { clamp } from './util.js';
 
 export const ROOTS_HZ = [49, 55, 61.74, 65.41];
 // Phrygian semitone offsets: dark and unresolved.
 export const SCALE = [0, 1, 3, 5, 7, 8, 10];
 export const MAX_GAIN = 0.3;
 
-const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const num = (v, d) => (Number.isFinite(v) ? v : d);
 
 export const clampVolume = (v) => clamp(num(v, 0), 0, 1);
@@ -119,7 +119,7 @@ export function createAmbient(AC, opts = {}) {
     get volume() { return volume; },
     start() {
       if (!AC) return false;
-      if (!ctx) { try { build(); } catch { ctx = null; return false; } }
+      if (!ctx) { try { build(); } catch (err) { console.warn(`[music] could not start audio: ${err.message}`); ctx = null; return false; } }
       ctx.resume?.();
       running = true; apply(); scheduleBatch();
       return true;
