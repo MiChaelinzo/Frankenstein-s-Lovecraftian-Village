@@ -6,8 +6,8 @@ import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, carriedLantern, cameraBasis, churchSite, coastFeatures, coastToWorld, eyeParams, fogLayers,
-  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale,
+  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
+  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenFraming,
   particleCounts, particleSeeds, parseCamParam, pickBox, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
@@ -51,20 +51,41 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
-/** Shoreline foam, a plank dock on posts, two moored boats and a pair of stepped cliffs. Original geometry, all seeded by coastFeatures. */
-export function buildCoast({ gridW, gridD, seed, cell = CELL }) {
-  const out = [], { frame: f, dock, boats, cliffs } = coastFeatures(gridW, gridD, seed, cell);
+/** Width of a model along its long (X) axis in metres. */
+const modelLength = (m) => m.bounds.max[0] - m.bounds.min[0] || 1;
+
+/**
+ * Shoreline foam, a plank dock on posts, two moored boats and a pair of stepped cliffs, plus fence runs on the land side. Original geometry,
+ * all seeded by coastFeatures. With `meshes` (the committed Blender GLBs) the dock, boats, cliffs and fences use them; a missing mesh falls back
+ * to the procedural boxes, so the shore is never empty.
+ */
+export function buildCoast({ gridW, gridD, seed, cell = CELL, meshes = null }) {
+  const out = [], { frame: f, dock, boats, cliffs } = coastFeatures(gridW, gridD, seed, cell), props = coastProps(gridW, gridD, seed, cell);
+  const along = f.axis === 'x' ? Math.PI / 2 : 0, seaward = f.axis === 'x' ? 0 : Math.PI / 2; // long axis along the shore, and out to sea
+  const place = (kind, u, v, scale, rot) => {
+    const w = coastToWorld(f, u, v);
+    appendMeshVertices(out, meshes.get(kind), null, cell, { glow: 1, phase: u, scale, at: [w.x, w.z], rot });
+  };
   const foam = [coastToWorld(f, f.lo - 12, 0), coastToWorld(f, f.hi + 12, 2.2)];
   pushQuad(out, Math.min(foam[0].x, foam[1].x), Math.min(foam[0].z, foam[1].z), Math.max(foam[0].x, foam[1].x), Math.max(foam[0].z, foam[1].z), -0.3, FOAM, 0);
-  pushCoastBlock(out, f, dock.u - dock.width / 2, dock.u + dock.width / 2, -1, dock.length, 0.3, dock.deck + 0.3, WOOD);
-  for (let i = 0; i < dock.posts; i++) for (const side of [-1, 1]) {
-    const v = i * 3, u = dock.u + side * (dock.width / 2 + 0.1);
-    pushCoastBlock(out, f, u - 0.15, u + 0.15, v - 0.15, v + 0.15, -0.8, 1.1, WOOD_DARK);
+  if (meshes && meshes.has('dock')) for (const seg of props.dockSegments) place('dock', seg.u, seg.v, DOCK_SEGMENT / modelLength(meshes.get('dock')), seaward);
+  else {
+    pushCoastBlock(out, f, dock.u - dock.width / 2, dock.u + dock.width / 2, -1, dock.length, 0.3, dock.deck + 0.3, WOOD);
+    for (let i = 0; i < dock.posts; i++) for (const side of [-1, 1]) {
+      const v = i * 3, u = dock.u + side * (dock.width / 2 + 0.1);
+      pushCoastBlock(out, f, u - 0.15, u + 0.15, v - 0.15, v + 0.15, -0.8, 1.1, WOOD_DARK);
+    }
   }
+  if (meshes && meshes.has('fence')) for (const fe of props.fences) place('fence', fe.u, fe.v, FENCE_SEGMENT / modelLength(meshes.get('fence')), along);
   for (const b of boats) {
+    if (meshes && meshes.has('boat')) { place('boat', b.u, b.v, b.len / modelLength(meshes.get('boat')), along + b.tilt * 0.2); continue; }
     pushCoastBlock(out, f, b.u - b.len / 2, b.u + b.len / 2, b.v - b.wid / 2, b.v + b.wid / 2, -0.25, 0.55, WOOD_DARK, 1.2);
     pushCoastBlock(out, f, b.u + b.tilt * b.len * 0.12 - 0.35, b.u + b.tilt * b.len * 0.12 + 0.35, b.v - 0.3, b.v + 0.3, 0.55, 1.25, WOOD);
     pushCoastBlock(out, f, b.u - 0.05, b.u + 0.05, b.v - 0.05, b.v + 0.05, 0.55, 3.1, WOOD_DARK);
+  }
+  if (meshes && meshes.has('cliff_rock')) {
+    cliffs.forEach((c, i) => place('cliff_rock', c.u, c.v, c.h / (meshes.get('cliff_rock').bounds.max[1] || 1), i * 2.1));
+    return new Float32Array(out);
   }
   cliffs.forEach((c, i) => {
     let y = -0.6, w = c.w, d = c.d;
@@ -131,13 +152,15 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     else { heights.push(3); pushBox(out, p, cell, 3, BOX_COLORS[p.id] || [0.3, 0.3, 0.3]); }
   }
   const lights = lanternLights(layout, cell);
-  const lamp = meshes && meshes.get('lamp');
-  if (lamp) for (const l of lights) if (l.post) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
+  if (meshes) for (const l of lights) {
+    const lamp = l.post && (meshes.get(lampKind(l)) || meshes.get('lamp'));
+    if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
+  }
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.5) : [0.16, 0.17, 0.14];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
-  const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
+  const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
   return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side };
 }
 
@@ -359,7 +382,7 @@ function loadPackImage(url) {
 }
 
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), 'lamp']));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock']));
 
 /**
  * getScene() -> { layout, seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
@@ -463,19 +486,25 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), renderer.counts()); }
     if (!reduced) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames); if (ns !== scale) { scale = ns; perf.reset(); } }
     const time = (ts - t0) / 1000, aspect = canvas.width / canvas.height;
-    const eye = { ...cam, y: cam.y + headBob(bobPhase, 1, reduced) };
+    const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
+    lastDraw = ts; omen = { eye: omen.eye + (targets.eye - omen.eye) * step, tentacle: omen.tentacle + (targets.tentacle - omen.tentacle) * step };
+    if (Math.abs(omen.eye - targets.eye) < 0.01) omen.eye = targets.eye;
+    if (Math.abs(omen.tentacle - targets.tentacle) < 0.01) omen.tentacle = targets.tentacle;
+    // Fly-through at Dire and Abyss: turn toward the sea so the risen tentacles and the open eye are both in frame.
+    let view = cam;
+    if (s.fly && omen.tentacle > 0.01) {
+      const framing = omenFraming({ gridW: s.gridW, gridD: s.gridD, seed: s.seed, nightNumber: s.night.number, grow: omen.tentacle, eyeOpen: omen.eye, aspect });
+      view = blendCamera(cam, framing, omen.tentacle / 0.4);
+    }
+    const eye = { ...view, y: view.y + headBob(bobPhase, 1, reduced) };
     const sk = hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon = moonParams(s.seed, s.night.number, s.night.sky, s.night.weather);
-    const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(cam.yaw, cam.pitch);
-    const lit = nearestLights(lights, cam).map((l) => {
+    const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
+    const lit = nearestLights(lights, view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       return { pos: l.pos, radius: l.radius, color: lc.map((v) => v * 1.3 * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
     lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0) });
-    const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
-    lastDraw = ts; omen = { eye: omen.eye + (targets.eye - omen.eye) * step, tentacle: omen.tentacle + (targets.tentacle - omen.tentacle) * step };
-    if (Math.abs(omen.eye - targets.eye) < 0.01) omen.eye = targets.eye;
-    if (Math.abs(omen.tentacle - targets.tentacle) < 0.01) omen.tentacle = targets.tentacle;
     const tentKey = omen.tentacle > 0.01 ? `${omen.tentacle.toFixed(3)}|${reduced ? 0 : time.toFixed(2)}|${s.dread.toFixed(2)}` : '';
     if (tentKey !== lastTent) {
       lastTent = tentKey;
@@ -484,7 +513,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
     renderer.draw({
       vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: sk, moon, lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number), open: omen.eye }, fogColor: sk.fog, glowColor: lc, pointScale: canvas.height * 0.5,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, pointScale: canvas.height * 0.5,
     });
   }
 
