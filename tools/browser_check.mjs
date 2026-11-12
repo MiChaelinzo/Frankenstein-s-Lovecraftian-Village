@@ -37,9 +37,10 @@ async function main() {
   if (!page) { chrome.kill(); console.error('browser did not expose a page target'); process.exit(2); }
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r) => { ws.onopen = r; });
-  let id = 0; const pending = new Map(), errs = [], results = [];
+  let id = 0; const pending = new Map(), errs = [], warns = [], results = [];
   ws.onmessage = (m) => {
     const d = JSON.parse(m.data);
+    if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'warning') { const t = d.params.args.map((a) => a.value || a.description).join(' '); if (t.includes('[view3d]')) warns.push(t); }
     if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
     else if (d.method === 'Runtime.exceptionThrown') errs.push(d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text);
     else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') errs.push('console.error ' + d.params.args.map((a) => a.value || a.description).join(' '));
@@ -128,6 +129,14 @@ async function main() {
     const r = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`), cx = r.x + r.width / 2, cy = r.y + r.height / 2;
     const h0 = await shotHash(); await hold('w', 'KeyW', 1200); await sleep(300);
     const h1 = await shotHash(); rec('3d: holding W changes the rendered frame', h0 !== h1, { before: h0, after: h1 });
+    // Round 17 post pass: the default render and the ?post=0 direct render are both non-blank, and neither logs a 3D warning.
+    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await send('Page.captureScreenshot', { format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).result.data.length; };
+    const withPost = await canvasBytes();
+    rec('3d post: default render is non-blank and logs no 3D warning', withPost > 20000 && warns.length === 0, { bytes: withPost, warns: warns.slice(0, 3) });
+    await nav('?intro=0&view=3d&post=0#seed=1818&sanity=60'); await sleep(1500);
+    const noPost = await canvasBytes();
+    rec('3d post: ?post=0 falls back to direct rendering, still non-blank, no warning', noPost > 20000 && warns.length === 0, { bytes: noPost, warns: warns.slice(0, 3) });
+    await nav('?intro=0&view=3d#seed=1818&sanity=60'); await sleep(800);
     await hold('a', 'KeyA', 600); await sleep(300);
     const h2 = await shotHash(); rec('3d: holding A changes the rendered frame', h1 !== h2, { before: h1, after: h2 });
     await click(cx, cy); await sleep(500);

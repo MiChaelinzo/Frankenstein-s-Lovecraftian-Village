@@ -499,7 +499,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, camParam = null, packTextures = () => null, onPerf = null, onStep = null, onCoast = null, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
@@ -643,7 +643,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
-    const postP = postParams({ dread: s.dread, reduced, quality: scale });
+    const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
     renderer.draw({
       vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
