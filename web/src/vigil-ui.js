@@ -4,7 +4,7 @@ import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPo
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
-  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind,
+  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker,
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
@@ -193,16 +193,23 @@ export function createVigilController(deps) {
 
   // ---------- 2D lamp markers and 3D lamp targets ----------
   const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started }));
-  /** Small markers on the 2D board: a warm flame for a lit lantern, a pale ring for one still dark. iso maps grid cells to pixels. */
-  function drawLamps(g, iso) {
+  /** Small markers on the 2D board: a flickering flame for a lit lantern, a pale ring for the ones this night can still use, a faint dark sconce for the rest. */
+  function drawLamps(g, iso, timeMs = 0) {
     if (!vigil || vigil.isFinished) return;
-    for (const l of lampTargets()) {
+    lampMarkerStates(lamps, vigil.nightLampIds).forEach((l, i) => {
       const p = iso(l.pos[0] / CELL, l.pos[2] / CELL);
       g.save();
-      if (l.lit) { g.fillStyle = 'rgba(255,196,110,0.9)'; g.shadowColor = '#ffb25c'; g.shadowBlur = 12; g.beginPath(); g.arc(p.x, p.y - 4, 3.5, 0, 6.283); g.fill(); }
-      else { g.strokeStyle = 'rgba(190,210,200,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y - 4, 3, 0, 6.283); g.stroke(); }
+      if (l.state === 'lit') {
+        const f = flameFlicker(timeMs, i, deps.reduceMotion);
+        g.fillStyle = `rgba(255,196,110,${(0.9 * f).toFixed(3)})`; g.shadowColor = '#ffb25c'; g.shadowBlur = 8 + 8 * f;
+        g.beginPath(); g.arc(p.x, p.y - 4, 3.5, 0, 6.283); g.fill();
+      } else if (l.state === 'reachable') {
+        g.strokeStyle = 'rgba(190,210,200,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y - 4, 3, 0, 6.283); g.stroke();
+      } else {
+        g.fillStyle = 'rgba(120,130,125,0.28)'; g.beginPath(); g.arc(p.x, p.y - 4, 1.6, 0, 6.283); g.fill();
+      }
       g.restore();
-    }
+    });
   }
 
   return {

@@ -7,7 +7,7 @@ import { SanityModel } from '../src/core.js';
 import { pickLamp, LAMP_PICK_RADIUS } from '../src/view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, parseEndingsFound, recordEnding, loadEndingsFound,
-  drawResultCard, spokenName, ENDINGS_KEY, CARD_WIDTH, CARD_HEIGHT,
+  drawResultCard, spokenName, ENDINGS_KEY, CARD_WIDTH, CARD_HEIGHT, lampMarkerStates, flameFlicker,
 } from '../src/vigil-view.js';
 
 const make = (seed = 1818, nights = 3) => { const c = generateCampaign(seed, nights); return new VigilState(c, generateRitual(c)); };
@@ -162,4 +162,19 @@ test('sandbox lock does not block the controller own endure and creep', () => {
 
 test('the lock strings exist in en and fr without em dashes', () => {
   for (const lang of ['en', 'fr']) { assert.ok(STRINGS[lang]['vigil.lock']); assert.ok(!STRINGS[lang]['vigil.lock'].includes('\u2014')); }
+});
+
+test('2D lantern markers: only the lanterns this night can use are reachable, the rest are bare sconces', () => {
+  const lamps = [0, 1, 2, 3, 4, 5].map((i) => ({ id: `lamp${i}`, pos: [i, 0, 0] }));
+  const states = (lit) => lampMarkerStates(lamps, new Set(lit)).map((m) => m.state);
+  assert.deepEqual(states([]), ['reachable', 'reachable', 'reachable', 'sconce', 'sconce', 'sconce']);
+  assert.deepEqual(states(['lamp4']), ['reachable', 'reachable', 'sconce', 'sconce', 'lit', 'sconce']);
+  assert.deepEqual(states(['lamp0', 'lamp1', 'lamp2']), ['lit', 'lit', 'lit', 'sconce', 'sconce', 'sconce']);
+  assert.equal(lampMarkerStates(lamps.slice(0, 2), new Set()).filter((m) => m.state === 'reachable').length, 2);
+  assert.deepEqual(lampMarkerStates(lamps, new Set()).map((m) => m.id), lamps.map((l) => l.id));
+});
+
+test('flame flicker is steady with reduced motion and bounded and deterministic otherwise', () => {
+  assert.equal(flameFlicker(1234, 3, true), 1);
+  for (let t = 0; t < 5000; t += 137) { const f = flameFlicker(t, 2, false); assert.ok(f >= 0.75 && f <= 1); assert.equal(f, flameFlicker(t, 2, false)); }
 });

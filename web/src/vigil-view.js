@@ -20,6 +20,26 @@ export function objectiveText(m, tr) {
   return tr('vigil.objective', { night: m.night, nights: m.nights, clues: m.clues, target: m.target, lit: m.lit, lamps: m.lamps, name: m.name });
 }
 
+/**
+ * How each lantern reads on the 2D board. Lit ones carry a flame. While the night still wants lanterns, the next unlit ones in candle()
+ * order (layout order) are 'reachable' and get a ring; every other lantern is a faint 'sconce' with no ring, so the board never promises a lantern the night cannot use.
+ */
+export function lampMarkerStates(lamps, litIds, perNight = VIGIL_LAMPS_PER_NIGHT) {
+  let slots = Math.max(0, perNight - litIds.size);
+  return lamps.map((l) => {
+    if (litIds.has(l.id)) return { id: l.id, pos: l.pos, state: 'lit' };
+    if (slots > 0) { slots--; return { id: l.id, pos: l.pos, state: 'reachable' }; }
+    return { id: l.id, pos: l.pos, state: 'sconce' };
+  });
+}
+
+/** Flame brightness 0.75..1 from time in ms; a slow uneven shimmer per lantern, a steady 1 with reduced motion. */
+export function flameFlicker(timeMs, index, reduced) {
+  if (reduced) return 1;
+  const t = timeMs / 1000;
+  return 0.875 + 0.075 * Math.sin(t * 5.3 + index * 1.7) + 0.05 * Math.sin(t * 11.1 + index * 0.9);
+}
+
 /** Strips the middle dots so a screen reader hears only the letters found so far. */
 export const spokenName = (name) => String(name).split(VIGIL_HIDDEN_LETTER).join(' ').replace(/\s+/g, ' ').trim();
 

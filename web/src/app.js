@@ -309,7 +309,7 @@ function frame(now) {
   if (!state.visible) { requestAnimationFrame(frame); return; }
   dirty = false;
   renderer.drawScene(now, real, dread, tier);
-  if (!state.dlnk) vigil.drawLamps(ctx, iso);
+  if (!state.dlnk) vigil.drawLamps(ctx, iso, now);
   tickPerf(now);
   requestAnimationFrame(frame);
 }
