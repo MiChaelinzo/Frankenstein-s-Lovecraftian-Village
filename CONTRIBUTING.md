@@ -13,6 +13,7 @@ python3 tools/validate_repo.py
 node --test "web/test/*.test.js"
 dotnet test tests/Frankenstein.Core.Tests
 ```
+Round 18 baseline: dotnet 123, node 350, 10 `tools/test_*.py` files, `dotnet build tests/UnityCompileCheck` with 0 errors and 0 warnings, and `tools/browser_check.mjs` 71 of 71 (run `python3 -m http.server 8123 -d web` then `BASE=http://localhost:8123/ node tools/browser_check.mjs`, about 4 minutes).
 CI runs the same commands (`.github/workflows/ci.yml`).
 
 ## Steering

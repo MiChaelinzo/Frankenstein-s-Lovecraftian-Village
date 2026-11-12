@@ -189,3 +189,23 @@ From `git log` (oldest first, after the round 16 merge); the final polish commit
 - `360cd9a` feat: footsteps, layered waves, bells and whispers, lantern and ending cues, smoother walking
 - `f0f4c47` test: browser check covers the post pass and its ?post=0 fallback
 - `aa5f1a6` docs: round 17 screenshots of the 3D look
+
+## Round 18 commits
+From `git log main..HEAD` (oldest first); the docs commit for this round is in `git log`.
+- `4b131b1` feat: vigil sandbox lock and clue classification rules in Core
+- `e9048ec` feat: mirror vigil sandbox lock and clue rule in web core with parity
+- `2778941` feat: lock the sandbox while a vigil is live, with reason, tests and docs
+- `cdd700e` feat: add localized VigilStrings to Core with web i18n drift test
+- `15c8db8` fix: give the narration response DTO a default so the compile check has 0 warnings
+- `34ec2d8` feat: add vigil objective and ending body text to Core VigilStrings
+- `2d65d6d` feat: wire the Vigil into Unity with VigilDirector, HUD objective, Endure and ending panel
+- `d703ead` docs: document the Unity vigil, status rows and warning-free compile check
+- `e2e5331` feat: add on-screen touch controls for the 3D view
+- `4102b94` docs: document touch controls and add mobile screenshot
+- `efebd35` feat: 2D vigil lanterns show only usable ones, with flickering flames
+- `b993d65` fix: poll in browser_check door prompt and GLB checks so slow software GL no longer fails them
+- `bc027a3` feat: epilogue shore link per ending with pure params table, plus a11y browser checks
+- `b900608` docs: retake r18 gallery stills, clamp shore epilogue pitch, sw v14
+
+- Final counts at the end of round 18: dotnet 123, node 350, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 71 of 71 (local headless Chromium, SwiftShader).
+- Unverified: the Unity runtime (compile checked only) and touch controls on real devices (DevTools touch emulation only).

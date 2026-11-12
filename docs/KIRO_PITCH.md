@@ -32,4 +32,6 @@ Read this verbatim at about 150 words per minute. It can be used as a voice-over
 
 **In the video.** The 54 second "How we used Kiro" shot in [DEMO_SCRIPT.md](DEMO_SCRIPT.md) uses the same facts as this page. Unity cannot be installed in the sandbox (Personal licence activation is tied to the author's account), so the Unity footage is the author's own first run and the Unity side stays Partially Verified (compile check) and Unverified at runtime.
 
+**Round 18.** Kiro wired the Vigil into Unity as a thin `VigilDirector` over Core (compile checked, never run in Unity), added a sandbox lock so the slider, night keys and seed entry cannot bypass a live vigil (rule in Core, mirrored with golden parity), built on-screen touch controls and a seeded epilogue link per ending. Final counts: dotnet 123, node 350, local browser check 71 of 71.
+
 **Round 17.** Kiro took a first-impression pass (title screen, help, share image) and built the Vigil, a complete game loop with six endings, in Core first with golden parity to the browser. Screenshots reviewed by the agent found two real rendering bugs (a white moon and clipped lit walls) that tests could not see; both were fixed and retaken. WebGL look is verified only under software rendering.
