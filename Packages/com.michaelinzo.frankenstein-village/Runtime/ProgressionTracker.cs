@@ -65,7 +65,7 @@ namespace Frankenstein.Runtime
 
         private void OnInteracted(InteractionKind kind) { Publish(Session.RecordInteraction(kind)); }
 
-        // Forwards clue and lantern events by location id, then the new sanity. Core decides what counts.
+        // Inert until something calls Session.StartVigil (no scene does yet). Forwards clue and lantern events by location id, then the new sanity. Core decides what counts.
         private void OnInteractedTarget(InteractionTarget target)
         {
             if (target == null || Session.Vigil == null || director == null) return;

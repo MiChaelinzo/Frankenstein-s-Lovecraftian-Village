@@ -107,7 +107,7 @@ test('save string round trips and bad input leaves the state unchanged', () => {
   assert.equal(b.tryRestore(a.serialize()), true);
   assert.equal(b.serialize(), a.serialize());
   const before = b.serialize();
-  for (const bad of [null, '', 'vigil2;0;50;50;0;0;;', 'vigil1;9;50;50;0;0;;', 'vigil1;0;101;50;0;0;;', 'vigil1;0;50;60;0;0;;', 'vigil1;0;50;50;1;0;a,a;']) {
+  for (const bad of [null, '', 'vigil2;0;50;50;0;0;;', 'vigil1;9;50;50;0;0;;', 'vigil1;0;101;50;0;0;;', 'vigil1;0;50;60;0;0;;', 'vigil1;0;50;50;1;0;a,a;', 'vigil1;0;50;50;999;0;;', 'vigil1;0;50;50;0;999;;', 'vigil1;0;50;50;9;0;a,b,c,d,e,f,g;', 'vigil1;0;50;50;0;4;;a,b,c,d']) {
     assert.equal(b.tryRestore(bad), false, String(bad));
   }
   assert.equal(b.serialize(), before);

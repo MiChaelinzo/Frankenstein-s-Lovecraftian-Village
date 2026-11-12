@@ -250,7 +250,7 @@ namespace Frankenstein.Core.Tests
             var v = new VigilState(camp2, RitualChain.Generate(camp2));
             v.RecordClue("x");
             string before = v.Serialize();
-            foreach (var bad in new string[] { null, "", "vigil2;0;50;50;0;0;;", "vigil1;0;50;50;0;0;;;", "vigil1;9;50;50;0;0;;", "vigil1;0;101;50;0;0;;", "vigil1;0;50;60;0;0;;", "vigil1;0;50;50;0;0;a;", "vigil1;-1;50;50;0;0;;", "vigil1;0;50;50;1;0;a,a;" })
+            foreach (var bad in new string[] { null, "", "vigil2;0;50;50;0;0;;", "vigil1;0;50;50;0;0;;;", "vigil1;9;50;50;0;0;;", "vigil1;0;101;50;0;0;;", "vigil1;0;50;60;0;0;;", "vigil1;0;50;50;0;0;a;", "vigil1;-1;50;50;0;0;;", "vigil1;0;50;50;1;0;a,a;", "vigil1;0;50;50;999;0;;", "vigil1;0;50;50;0;999;;", "vigil1;0;50;50;9;0;a,b,c,d,e,f,g;", "vigil1;0;50;50;0;4;;a,b,c,d" })
                 Assert.False(v.TryRestore(bad), "accepted: " + bad);
             Assert.Equal(before, v.Serialize());
         }

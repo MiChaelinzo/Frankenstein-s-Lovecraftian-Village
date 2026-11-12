@@ -379,6 +379,9 @@ namespace Frankenstein.Core
             var nightClues = ParseIds(parts[6]);
             var nightLamps = ParseIds(parts[7]);
             if (nightClues == null || nightLamps == null || nightClues.Count > clues || nightLamps.Count > lanterns) return false;
+            // Bounds: a hand-edited save must not reach IsNamed early or exceed what play can produce.
+            if (clues > CluesRequired || lanterns > VigilRules.LampsPerNight * NightsTotal) return false;
+            if (nightClues.Count > VigilRules.MaxClueTarget || nightLamps.Count > VigilRules.LampsPerNight) return false;
             _nightsEndured = endured; _sanity = sanity; _minSanity = min; _clues = clues; _lanterns = lanterns;
             _nightClues.Clear(); _nightClues.UnionWith(nightClues);
             _nightLamps.Clear(); _nightLamps.UnionWith(nightLamps);

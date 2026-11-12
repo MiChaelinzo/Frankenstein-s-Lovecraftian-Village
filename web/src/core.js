@@ -945,6 +945,9 @@ export class VigilState {
     const nightClues = parseIds(parts[6]);
     const nightLamps = parseIds(parts[7]);
     if (!nightClues || !nightLamps || nightClues.size > clues || nightLamps.size > lanterns) return false;
+    // Bounds: a hand-edited save must not reach isNamed early or exceed what play can produce.
+    if (clues > this.cluesRequired || lanterns > VIGIL_LAMPS_PER_NIGHT * this.nightsTotal) return false;
+    if (nightClues.size > VIGIL_MAX_CLUE_TARGET || nightLamps.size > VIGIL_LAMPS_PER_NIGHT) return false;
     this.nightsEndured = endured; this.sanity = sanity; this.minSanity = min; this.clues = clues; this.lanterns = lanterns;
     this.nightClueIds = nightClues; this.nightLampIds = nightLamps;
     return true;

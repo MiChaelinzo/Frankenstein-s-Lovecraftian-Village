@@ -15,6 +15,7 @@ const ENDING_FADE_MS = 1600;
  */
 export function createVigilController(deps) {
   const { $, tr, state, progress, storage, announce, notice } = deps;
+  let endingTimer = 0;
   let vigil = null, lamps = [], started = false, suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
 
   /** Stable lamp ids from the layout: lanternLights with every house at full detail, so dread never reshuffles the ids. */
@@ -23,6 +24,7 @@ export function createVigilController(deps) {
   const found = () => loadEndingsFound(storage);
 
   function reset() {
+    clearTimeout(endingTimer); model = null; // a pending ending from the previous run must not open over the new village
     vigil = state.campaign && state.ritual ? new VigilState(state.campaign, state.ritual) : null;
     lamps = buildLamps(state.layout); started = false; suspended = false; endingShown = false; lastText = '';
     render();
@@ -131,7 +133,7 @@ export function createVigilController(deps) {
     endingTitle = tr(`vigil.title.${outcome.endingId}`);
     deps.cue?.(endingCueKind(outcome.endingId));
     deps.exit3d();
-    setTimeout(openEnding, deps.reduceMotion ? 0 : ENDING_FADE_MS);
+    endingTimer = setTimeout(openEnding, deps.reduceMotion ? 0 : ENDING_FADE_MS);
   }
   function openEnding() {
     if (!model) return;

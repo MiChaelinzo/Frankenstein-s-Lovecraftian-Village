@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateCampaign, generateRitual, VigilState, VIGIL_ENDING_IDS, parseVigilResultCode } from '../src/core.js';
 import { STRINGS, t } from '../src/i18n.js';
+import { createVigilController } from '../src/vigil-ui.js';
+import { SanityModel } from '../src/core.js';
 import { pickLamp, LAMP_PICK_RADIUS } from '../src/view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, parseEndingsFound, recordEnding, loadEndingsFound,
@@ -81,4 +83,23 @@ test('ending cue kind: dawn and witness are warm, the rest cold', async () => {
   const { endingCueKind } = await import('../src/vigil-view.js');
   assert.equal(endingCueKind('dawn'), 'ending-warm'); assert.equal(endingCueKind('witness'), 'ending-warm');
   for (const id of ['hollowing', 'name_spoken', 'fever', 'vessel']) assert.equal(endingCueKind(id), 'ending-cold');
+});
+
+test('reset cancels a pending ending so a reroll never opens the previous run', async () => {
+  const campaign = generateCampaign(5, 1), ritual = generateRitual(campaign);
+  const els = new Map();
+  const $ = (id) => { if (!els.has(id)) els.set(id, { hidden: false, textContent: '', showModal() { this.opened = true; }, focus() {}, setAttribute() {}, addEventListener() {}, close() {} }); return els.get(id); };
+  const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
+  const progress = { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } };
+  const c = createVigilController({
+    $, tr, state, progress, storage: memStorage(), announce() {}, notice() {}, adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
+    canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: false,
+  });
+  c.reset();
+  c.clue('a'); c.clue('b');
+  c.endure();
+  await new Promise((r) => setTimeout(r, 5));
+  c.reset();
+  await new Promise((r) => setTimeout(r, 1800));
+  assert.ok(!$('ending').opened, 'ending dialog opened after reset');
 });
