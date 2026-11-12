@@ -75,6 +75,8 @@ async function main() {
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
   const shotHash = async () => { const s = (await send('Page.captureScreenshot', { format: 'png' })).result.data; let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
   const rec = (name, ok, evidence) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} :: ${JSON.stringify(evidence)}`); };
+  /** Polls fn until it returns a truthy value or ms passes; software GL frames can be seconds apart, so fixed sleeps give false failures. */
+  const until = async (fn, ms = 12000) => { for (let t0 = Date.now(); Date.now() - t0 < ms; await sleep(250)) { const v = await fn(); if (v) return v; } return fn(); };
   const text = (idv) => ev(`document.getElementById('${idv}').textContent`);
   const hidden = (idv) => ev(`document.getElementById('${idv}').hidden`);
 
@@ -158,7 +160,8 @@ async function main() {
     // 3D: stand 2.5 m south of the house at layout cell (18, 21) of seed 1818 facing it, then interact with the door (E; a click would first take the pointer lock)
     await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=74,90.5,0,0');
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
-    const promptText = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
     const j1 = await ev(`document.getElementById('whispers').children.length`);
@@ -178,7 +181,7 @@ async function main() {
 
     // ?meshes=1 on the 2D board and the meshes page
     await nav('?intro=0&meshes=1#seed=1818&sanity=100');
-    const glbs = await ev(`performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length`);
+    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=13?n:0})()`));
     rec('meshes: ?meshes=1 fetches all 13 original GLBs without an exception', glbs >= 13 && errs.length === 0, { glbRequests: glbs });
     await nav('meshes.html');
     let mp = await text('summary');
