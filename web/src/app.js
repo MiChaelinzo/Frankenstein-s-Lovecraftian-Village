@@ -2,7 +2,7 @@ import {
   PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
-  detailLevel, doorOmen, generateRitual, ritualProgress, Investigator, InteractionRules,
+  detailLevel, doorOmen, generateRitual, ritualProgress, Investigator, InteractionRules, VIGIL_ENDING_IDS,
 } from './core.js';
 import {
   computeView, buildWalkers,
@@ -10,7 +10,7 @@ import {
 } from './scene.js';
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
-import { shouldShowIntro } from './intro.js';
+import { shouldShowTitle, BACKDROP_BEATS } from './title.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
   floorCountFor, maxFloors, parseFloor, doorMessage, buildingKey, nearestDoor, meshesWanted,
@@ -26,11 +26,13 @@ import { createPerf, perfWanted, perfText } from './perf.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
-import { createIntroController } from './intro-ui.js';
+import { createTitleController } from './title-ui.js';
 import { tourWanted } from './tour.js';
 import { createTourController } from './tour-ui.js';
 import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
+import { createVigilController } from './vigil-ui.js';
+import { loadEndingsFound } from './vigil-view.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
 import { dailyVillage, dailyWanted } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
@@ -78,22 +80,27 @@ const tex = createTextures({ ctx, params, tr });
 const { pack, loadPack, ensureProcPatterns, hintLabel } = tex;
 const meshes = new Map(); // filled only by ?meshes=1; empty means the procedural drawing
 const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $, meshes });
-if (meshesWanted(location.search, location.hash)) loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
+let meshesLoaded = Promise.resolve(); // settles when ?meshes=1 GLBs are in; the loading veil waits for it
+if (meshesWanted(location.search, location.hash)) meshesLoaded = loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
 const { iso, doorPoint } = renderer;
 
 // ---------- opt-in first-person 3D view (?view=3d or the button); 2D isometric stays the default ----------
 const packTint = (...roles) => { const r = pack.want && pack.roles && roles.map((n) => pack.roles[n]).find(Boolean); return r ? r.tint : null; };
+document.documentElement?.classList?.toggle?.('no-caption', optParam('caption') === '0'); // ?caption=0: stills without the cinematic caption
+const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 const view3d = createView3d({
-  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion, capture: params.get('capture') === '1', camParam: optParam('cam3d'),
+  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0',
   getScene: () => ({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    labelFor: (p, kind) => tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) }),
+    lamps: vigil.lampTargets(),
+    labelFor: (p, kind) => (kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
-    fly: cine.on && view3d.active ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
+    fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
+  onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind),
@@ -109,6 +116,8 @@ function setView3d(on) {
 function interact3d(p, kind) {
   progress.arm();
   if (kind === 'door') { tryDoor(p); return; }
+  if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
+  vigil.clue(`${p.id}@${p.x}.${p.z}`);
   if (kind === 'landmark') { progress.note.listen(); const li = state.landmarks.indexOf(p); if (li >= 0) setFocus(li); } else progress.note.whisper();
   adjust(InteractionRules.sanityDelta(kind), p.id);
 }
@@ -116,7 +125,7 @@ function interact3d(p, kind) {
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
 let ambient = null, ambientSeed = null, volume = 0.6, muted = false;
 const tourOn = tourWanted(location.search, location.hash); // opt-in only: ?tour=1
-const introWanted = !tourOn && shouldShowIntro(location.search, location.hash); // read before pushHash rewrites the hash
+const titleWanted = !tourOn && shouldShowTitle(location.search, location.hash); // read before pushHash rewrites the hash
 const cinemaWanted = cinematicWanted(location.search, location.hash);
 function startAudio() {
   if (ambient && ambientSeed !== state.seed) { ambient.dispose(); ambient = null; }
@@ -167,6 +176,7 @@ function rebuild() {
   state.campaign = generateCampaign(state.seed);
   state.ritual = generateRitual(state.campaign);
   state.ritualStage = -1;
+  vigil.reset();
   story.beats = [];
   state.night = Math.min(state.night, state.campaign.nights.length - 1);
   showNightClamp();
@@ -297,6 +307,7 @@ function frame(now) {
   if (!state.visible) { requestAnimationFrame(frame); return; }
   dirty = false;
   renderer.drawScene(now, real, dread, tier);
+  if (!state.dlnk) vigil.drawLamps(ctx, iso);
   tickPerf(now);
   requestAnimationFrame(frame);
 }
@@ -308,7 +319,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, ...progress.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -319,6 +330,7 @@ function applySession(s) {
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   progress.restore(v); progress.update();
+  if (v.seed === state.seed) vigil.restore(v.vigil);
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -408,6 +420,7 @@ function syncUi() {
   syncViewUi();
   state.tracker.update(d).forEach(omen);
   trackRitual();
+  vigil.sync();
   updateDesc();
   mark();
 }
@@ -471,6 +484,7 @@ function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) :
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   progress.note.listen();
+  vigil.clue(`${p.id}@${p.x}.${p.z}`);
   setFocus(i); adjust(-SanityModel.FOCUS_COST, p.id);
 }
 function download(name, text, mime) {
@@ -499,7 +513,41 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
-const { openIntro, introOpen } = createIntroController({ $, tr, lang, canvas, state, reduceMotion });
+const vigil = createVigilController({
+  $, tr, state, progress, storage, announce, reduceMotion,
+  notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
+  adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
+  setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
+  syncUi: () => syncUi(), pushHash: () => pushHash(),
+  canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
+  exit3d: () => { if (view3d.active) setView3d(false); },
+  reroll: () => reroll(),
+  download: (name, blob, mime) => download(name, blob, mime),
+  shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
+});
+// Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
+// map with a slow CSS drift. Both stop the moment the player chooses a view.
+let backdropKind = null, backdropT0 = 0;
+function startBackdrop(kind) {
+  document.documentElement?.classList?.add('title-backdrop');
+  if (kind === '3d' && state.catalog) {
+    $('view3d').hidden = false; backdropT0 = performance.now();
+    if (view3d.enter()) { backdropKind = '3d'; $('view').style.visibility = 'hidden'; return; }
+    $('view3d').hidden = true;
+  }
+  backdropKind = '2d';
+}
+function stopBackdrop() {
+  document.documentElement?.classList?.remove('title-backdrop');
+  if (backdropKind === '3d') { view3d.exit(); $('view3d').hidden = true; $('view').style.visibility = ''; mark(); }
+  backdropKind = null;
+}
+const { open: openTitle, isOpen: titleOpen } = createTitleController({
+  $, tr, lang, state, canvas, reduceMotion, startBackdrop, stopBackdrop,
+  enter3d: () => setView3d(true), enter2d: () => mark(),
+  openHelp: () => setHelp(true), setSound: (on) => setSound(on),
+  endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
+});
 const { openTour, closeTour, tourOpen, pauseTour, resumeTour } = createTourController({ $, tr, canvas, reduceMotion, announce });
 // About dialog: native <dialog> (focus trap and Esc come from the browser); falls back to the open attribute.
 let aboutIsOpen = false; // the dialog's 'close' event (Esc, button) resets it
@@ -512,6 +560,29 @@ function setAbout(on) {
   else if (d.close) d.close(); else d.removeAttribute?.('open');
 }
 $('about').addEventListener('close', () => { aboutIsOpen = false; resumeTour(); });
+// Help dialog: native <dialog> like About. The device line and the pad/touch prompts follow the last input device used.
+let helpIsOpen = false, helpPrevFocus = null;
+function setHelp(on) {
+  const d = $('help');
+  if (on === helpIsOpen) return;
+  helpIsOpen = on;
+  if (on) {
+    helpPrevFocus = document.activeElement || null;
+    $('helpDevice').textContent = tr(`help.device.${inputDevice}`);
+    for (const p of $('helpDevices').querySelectorAll?.('[data-device]') || []) p.classList.toggle('current', p.getAttribute('data-device') === inputDevice);
+    pauseTour();
+    if (d.showModal) d.showModal(); else d.setAttribute?.('open', '');
+    $('helpClose').focus?.();
+  } else {
+    resumeTour();
+    if (d.close) d.close(); else d.removeAttribute?.('open');
+    helpPrevFocus?.focus?.();
+  }
+}
+$('help').addEventListener('close', () => { if (helpIsOpen) { helpIsOpen = false; resumeTour(); helpPrevFocus?.focus?.(); } });
+$('help').addEventListener('keydown', (e) => e.stopPropagation()); // Escape closes the dialog, not the 3D view behind it
+$('helpBtn').addEventListener('click', () => setHelp(true));
+$('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));
 
@@ -523,7 +594,7 @@ canvas.addEventListener('click', (e) => {
   if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
   state.layout.forEach((p) => { const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2); const d = Math.hypot(c.x - mx, c.y - 12 - my); if (d < bd) { bd = d; best = p; } });
-  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); adjust(-SanityModel.FOCUS_COST, best.id); }
+  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); vigil.clue(`${best.id}@${best.x}.${best.z}`); adjust(-SanityModel.FOCUS_COST, best.id); }
 });
 canvas.addEventListener('keydown', (e) => {
   if (state.dlnk) return;
@@ -543,9 +614,10 @@ $('door').addEventListener('click', tryNextDoor);
 $('view3dBtn').addEventListener('click', () => setView3d(!view3d.active));
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
 $('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
-const doWhisper = () => { progress.note.whisper(); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
-const doChurch = () => { requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
-const doCandle = () => adjust(SanityModel.CANDLE_RESTORE, 'the village');
+const doWhisper = () => { progress.note.whisper(); vigil.clue('walls'); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
+const doChurch = () => { vigil.clue('church-nave'); requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
+// With a live vigil the candle lights the next unlit lantern (limited by the lamps); otherwise it is the free-roam candle.
+const doCandle = () => { if (!vigil.candle()) adjust(SanityModel.CANDLE_RESTORE, 'the village'); };
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
@@ -654,7 +726,7 @@ function pollPad() {
   const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
   if (!pads.length) { padPolling = false; padPrev = null; return; }
   const cur = snapshotPad(pads[0]);
-  if (!introOpen() && !document.hidden && !view3d.active) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
+  if (!titleOpen() && !helpIsOpen && !vigil.endingOpen() && !document.hidden && !view3d.active) for (const a of mapGamepad(padPrev, cur)) { setDevice('pad'); doAction(a); }
   padPrev = cur;
   requestAnimationFrame(pollPad);
 }
@@ -673,10 +745,11 @@ addEventListener('gamepadconnected', () => { if (!padPolling) { padPolling = tru
 addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === '?' && !helpIsOpen && !titleOpen() && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { setHelp(true); return; }
   if (view3d.active) return; // the 3D view owns WASD, E and Escape while open
-  if (introOpen()) return;
+  if (titleOpen()) return;
   if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
-  if (aboutOpen()) return;
+  if (aboutOpen() || helpIsOpen || vigil.endingOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
@@ -695,6 +768,7 @@ addEventListener('keydown', (e) => {
     case 'w': case 'W': doWhisper(); break;
     case 'c': case 'C': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
+    case 'e': case 'E': vigil.endure(); break;
     case 'n': case 'N': reroll(); break;
     case '[': progress.arm(); setSanity(state.sanity.value - 5); break;
     case ']': progress.arm(); setSanity(state.sanity.value + 5); break;
@@ -716,7 +790,7 @@ addEventListener('keydown', (e) => {
     case 't': case 'T': setTheme(cycle(['auto', ...THEMES.map((t) => t.id)], state.theme)); break;
     case 'v': case 'V': setCamera(cycle(['auto', 'first', 'third', 'top'], state.camChoice)); break;
     case 'f': case 'F': if (!$('floor').disabled) setFloor(state.floor >= Number($('floor').max) ? 0 : state.floor + 1); break;
-    case '?': $('keys').open = !$('keys').open; break;
+    case '?': setHelp(true); break;
     default:
   }
 });
@@ -751,9 +825,16 @@ function setupDlnk() {
   if (slug) setDlnkScene(slug); else $('sessionNote').textContent = tr('msg.dlnkmissing', { name: wanted });
 }
 
+// Loading veil (role=status in index.html): up until the catalog and layout are ready and, when requested, the GLB meshes.
+const hideVeil = () => { $('loading').hidden = true; };
+// A narrow screen starts with the secondary control groups folded; seed, sanity, sound and help stay in view.
+function foldGroupsOnNarrow() {
+  if (!matchMedia('(max-width: 700px)').matches) return;
+  for (const d of document.querySelectorAll?.('details.collapsible') || []) d.open = false;
+}
 (async function init() {
-  applyI18n(); renderJournal();
-  try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); return; }
+  applyI18n(); renderJournal(); foldGroupsOnNarrow();
+  try { await loadCatalog(); } catch (err) { $('stats').textContent = tr('msg.catalogfail', { err: err.message }); hideVeil(); return; }
   ensureProcPatterns();
   $('theme').innerHTML = `<option value="auto">${esc(tr('opt.themeauto'))}</option>` + THEME_GROUPS.map((g) =>
     `<optgroup label="${esc(tr('opt.group', { g: tr(`group.${g}`) }))}">${THEMES.filter((t) => t.group === g).map((t) => `<option value="${t.id}">${esc(themeLabel(lang, t))}</option>`).join('')}</optgroup>`).join('');
@@ -767,7 +848,7 @@ function setupDlnk() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) vigil.restore(saved.vigil); } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
@@ -780,5 +861,6 @@ function setupDlnk() {
   if (cinemaWanted) setCinematic(true);
   registerOffline();
   if (tourOn) openTour();
-  if (introWanted) openIntro(); setTimeout(() => { state.live = true; }, 800);
+  await meshesLoaded; hideVeil();
+  if (titleWanted) openTitle(); setTimeout(() => { state.live = true; }, 800);
 })();

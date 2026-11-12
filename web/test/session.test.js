@@ -6,19 +6,19 @@ import { nightFromHash } from '../src/scene.js';
 import { parseTheme, parseCamera, parseFloor, meshesWanted } from '../src/building.js';
 import { view3dWanted } from '../src/view3d-math.js';
 import { cinematicWanted } from '../src/cinematic.js';
-import { shouldShowIntro } from '../src/intro.js';
+import { shouldShowTitle } from '../src/title.js';
 import { tourWanted } from '../src/tour.js';
 import { parseStoryParam } from '../src/story.js';
 import { parseLang } from '../src/i18n.js';
 import { parseSession, serializeSession, saveSession, loadSession, safeStorage, sessionHash, buildShareLink, SESSION_KEY } from '../src/session.js';
 
-const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'] };
+const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], vigil: '' };
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) }; };
 
 test('round trips and clamps', () => {
   assert.deepEqual(parseSession(serializeSession(good)), good);
   const c = parseSession({ seed: '7', sanity: 900, night: 99, beat: -4, theme: 'x y', cam: 'zzz', floor: 50 });
-  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [] });
+  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], vigil: '' });
 });
 test('rejects junk', () => {
   for (const bad of [null, undefined, 5, [], '{', '[]', {}, { seed: 'a', sanity: 1 }, { seed: 1 }, { seed: 1, sanity: NaN }, { seed: '', sanity: 1 }]) assert.equal(parseSession(bad), null);
@@ -76,7 +76,7 @@ test('Core WebShareLink hashes are parsed back by the web parsers', () => {
     assert.equal(parseFloor(new URLSearchParams(h.slice(1)).get('floor')), clamp(g.floor, 0, 8));
     assert.equal(view3dWanted('', h), g.view3d); assert.equal(cinematicWanted('', h), g.cinematic);
     assert.equal(meshesWanted('', h), g.meshes); assert.equal(tourWanted('', h), g.tour);
-    assert.equal(shouldShowIntro('', h), false); // a link with a seed always skips the intro
+    assert.equal(shouldShowTitle('', h), false); // a link with a seed always skips the title screen
     assert.equal(parseStoryParam(h).on, g.story);
     if (g.story) assert.equal(parseStoryParam(h).beat, clamp(g.beat, 0, 99));
     assert.equal(parseLang(new URLSearchParams(h.slice(1)).get('lang')), g.lang === 'fr' ? 'fr' : 'en');
@@ -87,4 +87,9 @@ test('Core base share hash equals sessionHash when no extra flags are set', () =
   const g = shareGolden[1];
   assert.equal(g.hash, sessionHash({ seed: g.seed, sanity: g.sanity, night: g.night, theme: g.theme, cam: g.cam, floor: g.floor }));
   assert.equal(shareGolden[0].hash, sessionHash({ seed: 1818, sanity: 100, night: 0 }));
+});
+
+test('vigil string is kept only when it has the vigil shape', () => {
+  assert.equal(parseSession({ seed: 1, sanity: 5, vigil: 'vigil1;0;80;70;2;1;walls;lamp0' }).vigil, 'vigil1;0;80;70;2;1;walls;lamp0');
+  for (const bad of ['', 'evil', 'vigil1;<script>', 5, null]) assert.equal(parseSession({ seed: 1, sanity: 5, vigil: bad }).vigil, '');
 });

@@ -31,3 +31,5 @@ Read this verbatim at about 150 words per minute. It can be used as a voice-over
 **Credit.** Pack textures and models by DLNK (Daelonik Artworks). The DLNK trailer footage and its music are not used in the video.
 
 **In the video.** The 54 second "How we used Kiro" shot in [DEMO_SCRIPT.md](DEMO_SCRIPT.md) uses the same facts as this page. Unity cannot be installed in the sandbox (Personal licence activation is tied to the author's account), so the Unity footage is the author's own first run and the Unity side stays Partially Verified (compile check) and Unverified at runtime.
+
+**Round 17.** Kiro took a first-impression pass (title screen, help, share image) and built the Vigil, a complete game loop with six endings, in Core first with golden parity to the browser. Screenshots reviewed by the agent found two real rendering bugs (a white moon and clipped lit walls) that tests could not see; both were fixed and retaken. WebGL look is verified only under software rendering.

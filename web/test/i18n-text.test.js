@@ -4,11 +4,10 @@ import { STRINGS, LANGS } from '../src/i18n.js';
 import { StaticNarrationProvider, SafeNarrationProvider, generateCampaign, generateRitual } from '../src/core.js';
 import { omenText, entryLabel, describeScene, ritualHudText, nightClampNotice, postcardCaption } from '../src/scene.js';
 import { doorMessage, THEMES, CAMERA_LABELS, DOOR_NAMES } from '../src/building.js';
-import { buildIntroSlides } from '../src/intro.js';
 import { DREAD_THRESHOLDS } from '../src/core.js';
 import {
   LocalizedNarrationProvider, locName, omenTextL, entryLabelL, doorMessageL, describeSceneL, ritualHudTextL, nightClampNoticeL,
-  postcardCaptionL, introSlidesL, themeLabel, cameraLabel, doorName, tierLabel,
+  postcardCaptionL, themeLabel, cameraLabel, doorName, tierLabel,
 } from '../src/i18n-text.js';
 
 test('English output equals the original helpers (the Core mirrors stay the source of truth)', () => {
@@ -36,10 +35,8 @@ test('English output equals the original helpers (the Core mirrors stay the sour
       assert.equal(ritualHudTextL(r, p, 'en'), ritualHudText(r, p));
       for (const night of [1, 3, 5, 9]) assert.equal(ritualHudTextL(r, p, 'en', night), ritualHudText(r, p, night));
     }
-    assert.deepEqual(introSlidesL(c, 'en'), buildIntroSlides(c));
   }
   assert.equal(ritualHudTextL(null, 5, 'en'), '');
-  assert.deepEqual(introSlidesL(null, 'en'), buildIntroSlides(null));
   for (const h of ['', '#night=0', '#night=9', '#night=3', '#night=x']) assert.equal(nightClampNoticeL(h, 5, 'en'), nightClampNotice(h, 5));
   const pc = { villageName: 'Innsmouth', seed: 9, night: 2, title: 'The Tide' };
   assert.equal(postcardCaptionL(pc, 'en'), postcardCaption(pc));

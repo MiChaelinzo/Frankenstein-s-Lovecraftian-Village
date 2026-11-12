@@ -4,6 +4,7 @@
 import { SeededRandom, tierFor } from './core.js';
 import { queryParam } from './util.js';
 
+export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
 export const EYE_HEIGHT = 1.6;
 export const BODY_RADIUS = 0.35;
@@ -138,7 +139,17 @@ export function stepCamera(cam, input, dt, boxes, bounds, mouse = null) {
 }
 
 /** Subtle head bob in metres. Zero when reduced motion is on or the player stands still. */
-export const headBob = (timeSec, speedFactor, reduced) => (reduced ? 0 : Math.sin(timeSec * 7.5) * 0.035 * clamp(speedFactor, 0, 1));
+export const headBob = (timeSec, speedFactor, reduced) => (reduced ? 0 : Math.sin(timeSec * BOB_RATE) * 0.035 * clamp(speedFactor, 0, 1));
+
+export const ACCEL = 9, DECEL = 13;   // per second: walking eases in over about 0.1 s and out slightly faster
+/** Eases the walking input toward the target so starting and stopping are smooth. cur and target are { forward, strafe } in -1..1. Pure. */
+export function smoothDrive(cur, target, dt) {
+  const d = clamp(dt, 0, 0.1), ease = (c, t) => { const rate = Math.abs(t) > Math.abs(c) ? ACCEL : DECEL, step = rate * d; return Math.abs(t - c) <= step ? t : c + Math.sign(t - c) * step; };
+  return { forward: ease(cur.forward || 0, clamp(target.forward || 0, -1, 1)), strafe: ease(cur.strafe || 0, clamp(target.strafe || 0, -1, 1)) };
+}
+export const BOB_RATE = 7.5; // radians per second of walking phase, see headBob
+/** True when the bob phase (seconds of walking) crossed a footfall since prev: one step per half bob cycle. */
+export const footfall = (prevPhase, phase) => Math.floor((phase * BOB_RATE) / Math.PI) > Math.floor((prevPhase * BOB_RATE) / Math.PI);
 
 // ---------- picking ----------
 
@@ -166,6 +177,24 @@ export function pickBox(origin, dir, boxes, maxDistance = FAR) {
   return best;
 }
 
+/**
+ * Nearest lamp whose pick sphere the ray crosses: { index, distance } or null. Lamps are { pos: [x, y, z] } in metres.
+ * Shares the ray with pickBox so lamps and buildings are picked from one view ray, not a second picker.
+ */
+export function pickLamp(origin, dir, lamps, maxDistance = FAR, radius = LAMP_PICK_RADIUS) {
+  let best = null;
+  lamps.forEach((l, index) => {
+    const c = [l.pos[0] - origin[0], l.pos[1] - origin[1], l.pos[2] - origin[2]];
+    const along = c[0] * dir[0] + c[1] * dir[1] + c[2] * dir[2];
+    if (along < 0) return;
+    const off2 = c[0] * c[0] + c[1] * c[1] + c[2] * c[2] - along * along;
+    if (off2 > radius * radius) return;
+    const distance = Math.max(0, along - Math.sqrt(radius * radius - off2));
+    if (distance <= maxDistance && (!best || distance < best.distance)) best = { index, distance };
+  });
+  return best;
+}
+
 /** View ray for a point on screen (ndc -1..1, y up). Used for taps and clicks when the pointer is not locked. */
 export function screenRay(cam, ndcX, ndcY, aspect) {
   const { f, r, u } = cameraBasis(cam), ty = Math.tan(FOV_Y / 2), tx = ty * aspect;
@@ -186,11 +215,11 @@ export function fogDensity({ dread = 0, weather = 'clear', timeSec = 0, reduced 
 export const fogFactor = (distance, density) => 1 - Math.exp(-Math.pow(Math.max(0, distance) * density, 2));
 
 const SKIES = {
-  dusk: { zenith: [0.1, 0.12, 0.23], horizon: [0.62, 0.38, 0.3], ambient: [0.28, 0.27, 0.34], stars: 0.35 },
-  night: { zenith: [0.025, 0.04, 0.1], horizon: [0.16, 0.2, 0.3], ambient: [0.16, 0.19, 0.27], stars: 0.9 },
-  witching: { zenith: [0.02, 0.015, 0.06], horizon: [0.14, 0.1, 0.18], ambient: [0.12, 0.12, 0.2], stars: 1 },
+  dusk: { zenith: [0.09, 0.13, 0.3], horizon: [0.9, 0.52, 0.4], ambient: [0.26, 0.27, 0.38], stars: 0.35 },
+  night: { zenith: [0.02, 0.05, 0.15], horizon: [0.2, 0.34, 0.5], ambient: [0.15, 0.21, 0.32], stars: 0.95 },
+  witching: { zenith: [0.025, 0.02, 0.1], horizon: [0.18, 0.15, 0.32], ambient: [0.12, 0.13, 0.25], stars: 1 },
 };
-const WEATHER_SKY = { clear: { grey: 0, cloud: 0.15, stars: 1 }, rain: { grey: 0.55, cloud: 0.85, stars: 0.1 }, fog: { grey: 0.7, cloud: 0.6, stars: 0.2 } };
+const WEATHER_SKY = { clear: { grey: 0, cloud: 0.15, stars: 1 }, rain: { grey: 0.35, cloud: 0.85, stars: 0.1 }, fog: { grey: 0.45, cloud: 0.6, stars: 0.2 } };
 
 /** Sky and ambient colours (0..1 rgb) for a campaign night. The fog colour matches the horizon so the world fades into the sky. */
 export function skyColors(sky, weather, dread = 0) {
@@ -233,6 +262,46 @@ export function lanternLights(layout, cell = CELL) {
     out.push({ pos: [x, 2.2, z + 0.5], radius: 9, phase: p.vis.phase || 0, post: false });
     if (p.vis.lit2 > 0.45) out.push({ pos: [(p.x + p.sizeX) * cell + 0.7, 3.1, z + 0.7], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
   }
+  return out;
+}
+
+/**
+ * Whether a lantern light is lit in the vigil: 'lit' or 'unlit' when a vigil lamp stands at the same spot, 'free' when no lamp
+ * claims it or the vigil has not begun yet (lamp.idle): the village starts warm and goes cold only once the vigil is under way. lamps are [{pos, lit}] from getScene().
+ */
+export function lanternState(light, lamps) {
+  const m = (lamps || []).find((l) => Math.abs(l.pos[0] - light.pos[0]) < 0.05 && Math.abs(l.pos[1] - light.pos[1]) < 0.05 && Math.abs(l.pos[2] - light.pos[2]) < 0.05);
+  return !m || m.idle ? 'free' : m.lit ? 'lit' : 'unlit';
+}
+
+export const COLD_LANTERN = [0.3, 0.5, 0.62];
+/**
+ * Pool of light a lantern throws: { color, gain, halo }. Lit and free lanterns are warm (tinted by lanternColor(dread)) and bright;
+ * an unlit vigil lantern is a dim, cold glint so the player can see which ones still need a candle.
+ */
+export function lanternPool(state, dread) {
+  if (state === 'unlit') return { color: COLD_LANTERN, gain: 0.16, halo: 0.3 };
+  return { color: lanternColor(dread), gain: 1.25, halo: 1 };
+}
+
+/** Cool fill light: the sky ambient lifted and pushed toward blue so shadows read teal against the warm pools. Moon light is boosted the same way. */
+export const coldFill = (ambient) => [ambient[0] * 1.15, ambient[1] * 1.45, ambient[2] * 1.75].map((v) => clamp(v, 0, 1));
+export const moonBoost = (color) => color.map((v) => v * 1.9);
+
+/**
+ * Fake ambient occlusion on the ground: nested darker squares around each building footprint (largest and lightest first, drawn lower),
+ * plus two small ones under every lamp post. Returns [{x0, z0, x1, z1, y, shade}] in metres; shade multiplies the ground colour.
+ * Static geometry, no shadow maps.
+ */
+export function contactRings(layout, lights = [], cell = CELL) {
+  const out = [], steps = [[1.4, 0.82], [0.8, 0.66], [0.3, 0.5]];
+  steps.forEach(([grow, shade], k) => {
+    for (const p of layout) {
+      if (!p.sizeX || !p.sizeZ) continue;
+      out.push({ x0: p.x * cell - grow, z0: p.z * cell - grow, x1: (p.x + p.sizeX) * cell + grow, z1: (p.z + p.sizeZ) * cell + grow, y: 0.03 + k * 0.01, shade });
+    }
+  });
+  for (const l of lights) if (l.post) [[0.9, 0.78], [0.4, 0.55]].forEach(([r, shade], k) => out.push({ x0: l.pos[0] - r, z0: l.pos[2] - r, x1: l.pos[0] + r, z1: l.pos[2] + r, y: 0.06 + k * 0.01, shade }));
   return out;
 }
 
@@ -284,6 +353,23 @@ export function particleSeeds(seed, n, salt = 0) {
   return out;
 }
 
+// ---------- post processing ----------
+
+/** Below this render scale (the dynamic resolution governor's nextScale) the scene is drawn directly: the post pass costs fill rate. */
+export const POST_MIN_QUALITY = 0.75;
+/**
+ * Parameters of the single fullscreen post pass. quality is the governor's render scale 0.5..1.
+ * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.8 luminance threshold, chroma 0..0.004 (uv offset).
+ * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
+ */
+export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
+  return {
+    enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
+    bloom: 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
+  };
+}
+
 // ---------- performance ----------
 
 /** Backing store size: css size times device ratio times scale, capped at MAX_PIXELS. */
@@ -309,7 +395,7 @@ export const nightHaze = (nightNumber) => NIGHT_HAZE[(((Math.floor(nightNumber) 
 
 /** skyColors with the night's haze mixed into the horizon and fog (a quarter, a little more at dread) so each night reads differently. */
 export function hazedSky(sky, weather, dread, nightNumber) {
-  const s = skyColors(sky, weather, dread), haze = nightHaze(nightNumber), k = 0.22 + 0.1 * clamp(dread, 0, 1);
+  const s = skyColors(sky, weather, dread), haze = nightHaze(nightNumber), k = 0.1 + 0.12 * clamp(dread, 0, 1);
   const horizon = mixc(s.horizon, haze, k);
   return { ...s, horizon, fog: horizon.map((v) => v * 0.85), haze };
 }
@@ -322,16 +408,47 @@ export function fogLayers({ dread = 0, weather = 'clear', timeSec = 0, reduced =
   const density = fogDensity({ dread, weather, timeSec, reduced });
   const d = clamp(dread, 0, 1), breath = reduced ? 0 : Math.sin((timeSec * Math.PI * 2) / 17) * 0.15;
   const ground = (weather === 'fog' ? 0.05 : weather === 'rain' ? 0.032 : 0.02) * (1 + d * 0.6) * (1 + breath);
-  return { density, ground, groundHeight: 2.2 + d * 1.4 };
+  return { density, ground, groundHeight: 2.2 + d * 1.4, drift: fogDrift(weather, reduced) };
+}
+/** Metres per second the low fog sheets slide across the water and lanes: slow, mostly with the wind. Exactly zero under reduced motion. */
+export const fogDrift = (weather, reduced) => (reduced ? [0, 0] : weather === 'rain' ? [0.55, 0.3] : weather === 'fog' ? [0.35, 0.2] : [0.22, 0.12]);
+
+/**
+ * Sea look. ripple: normal slope amplitude; speed: ripple animation rate (0 under reduced motion, so the water is still);
+ * fresnel: exponent toward the horizon; tint: the deep water colour, sickening with dread; moonGain and lanternGain scale the reflected highlights.
+ */
+export function seaParams({ dread = 0, weather = 'clear', reduced = false } = {}) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1);
+  return {
+    ripple: 0.07 + (weather === 'rain' ? 0.06 : 0) + 0.03 * d, speed: reduced ? 0 : 1, fresnel: 3,
+    tint: mixc([0.02, 0.07, 0.11], [0.08, 0.05, 0.06], d), moonGain: 4.5, lanternGain: 1.1,
+  };
+}
+
+export const FIREFLIES_PER_LIGHT = 10, MAX_FIREFLIES = 100, FIREFLY_FLOATS = 4;
+/** Fireflies drift around warm lanterns at low dread; from the Uneasy tier up they turn to embers that rise and glow red. Reduced motion: none. */
+export function fireflyStyle(dread, reduced) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), embers = tierFor(d) >= 2;
+  return embers ? { kind: 'ember', color: [1, 0.42, 0.16], rise: 1, size: 0.1 } : { kind: 'firefly', color: [0.75, 1, 0.45], rise: 0, size: 0.13 };
+}
+export const fireflyCount = ({ lights = 0, reduced = false } = {}) => (reduced ? 0 : Math.min(MAX_FIREFLIES, Math.max(0, Math.floor(lights)) * FIREFLIES_PER_LIGHT));
+/** Seeded flat [x, y, z, phase, ...] around the given lights (radius 1.2..5 m, 0.4..3 m high). Same seed and lights give the same cloud. */
+export function fireflySeeds(lights, seed, count) {
+  const n = lights.length ? Math.max(0, Math.floor(count)) : 0, out = new Float32Array(n * FIREFLY_FLOATS), r = new SeededRandom(((seed | 0) ^ 0xf1f1) | 0);
+  for (let i = 0; i < n; i++) {
+    const l = lights[i % lights.length], a = (r.next(1000) / 1000) * Math.PI * 2, rad = 1.2 + (r.next(380) / 100);
+    out.set([l.pos[0] + Math.cos(a) * rad, 0.4 + (r.next(260) / 100), l.pos[2] + Math.sin(a) * rad, r.next(1000) / 1000], i * FIREFLY_FLOATS);
+  }
+  return out;
 }
 
 /** Halo size in world metres. Lamp posts glow wider than door lanterns. */
 export const haloSize = (light) => (light.post ? 3.4 : 2.4);
 export const HALO_FLOATS = 5;
-/** Billboard halo per lantern: flat [x, y, z, phase, size, ...]. Every light gets one, the lit window and the lamp post alike. */
+/** Billboard halo per lantern: flat [x, y, z, phase, size, ...]. Every light gets one; light.haloScale (default 1) shrinks the halo of an unlit lantern. */
 export function haloSprites(lights) {
   const out = new Float32Array(lights.length * HALO_FLOATS);
-  lights.forEach((l, i) => out.set([l.pos[0], l.pos[1], l.pos[2], l.phase || 0, haloSize(l)], i * HALO_FLOATS));
+  lights.forEach((l, i) => out.set([l.pos[0], l.pos[1], l.pos[2], l.phase || 0, haloSize(l) * (l.haloScale ?? 1)], i * HALO_FLOATS));
   return out;
 }
 
@@ -349,6 +466,18 @@ export function coastFrame(gridW, gridD, seed, cell = CELL) {
 }
 /** Local (u along shore, v out to sea) to world x and z. */
 export const coastToWorld = (f, u, v) => (f.axis === 'x' ? { x: f.edge + f.dir * v, z: u } : { x: u, z: f.edge + f.dir * v });
+
+/** World x, z to coast-local (u along the shore, v out to sea; negative v is inland). Inverse of coastToWorld. */
+export const worldToCoast = (f, x, z) => (f.axis === 'x' ? { u: z, v: (x - f.edge) * f.dir } : { u: x, v: (z - f.edge) * f.dir });
+
+/** What the player walks on: 'wood' on the dock, 'wet' within 8 m of the shoreline, else 'gravel'. Seeded through coastFeatures. */
+export function surfaceAt(x, z, gridW, gridD, seed, cell = CELL) {
+  const { frame: f, dock } = coastFeatures(gridW, gridD, seed, cell), p = worldToCoast(f, x, z);
+  if (Math.abs(p.u - dock.u) <= dock.width / 2 + 0.3 && p.v >= -1 && p.v <= dock.length) return 'wood';
+  return p.v > -8 ? 'wet' : 'gravel';
+}
+/** 0..1 closeness to the sea for the wave layer: 1 on the shoreline, fading to 0 at 30 m inland. */
+export const coastCloseness = (x, z, gridW, gridD, seed, cell = CELL) => clamp(1 + worldToCoast(coastFrame(gridW, gridD, seed, cell), x, z).v / 30, 0, 1);
 
 /**
  * Seeded dock, boats and cliff rocks on the coast, all in local (u, v) metres. Always: one dock, two boats, two cliffs flanking the
@@ -422,14 +551,16 @@ export function tentacleBases(gridW, gridD, seed, cell = CELL) {
 
 // ---------- frame budget (counts, not timings: those depend on the GPU) ----------
 
-export const FRAME_BUDGET = Object.freeze({ drawCalls: 14, triangles: 60000, points: 1300, lights: MAX_LIGHTS, halos: 120 });
+// Round 17: drawCalls 14 -> 12 is a tighter ceiling, not a loosening: the worst frame is now sky + 5 triangle buffers + rain or mist + halos
+// + fireflies + the one post pass = 11. points grew 1300 -> 1400 for the (at most 100) fireflies; rain and fireflies share the budget.
+export const FRAME_BUDGET = Object.freeze({ drawCalls: 12, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
 
 /** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
-export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0 }) {
+export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false }) {
   const tri = ['building', 'ground', 'sea', 'coast', 'tentacle'];
-  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0);
+  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
-  return { drawCalls, triangles, points: rain + mist + halos, lights: Math.min(lights, MAX_LIGHTS), halos };
+  return { drawCalls, triangles, points: rain + mist + halos + fireflies, lights: Math.min(lights, MAX_LIGHTS), halos };
 }
 
 // ---------- omen framing: a fly-through viewpoint that keeps the eye and the tentacles inside the frame ----------

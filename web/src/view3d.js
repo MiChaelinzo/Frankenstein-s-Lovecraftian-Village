@@ -6,9 +6,9 @@ import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers,
-  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, nextScale, omenBlendWeight, omenFraming,
-  particleCounts, particleSeeds, parseCamParam, pickBox, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
+  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
+  forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
+  particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
 import { omenTargets } from './scene.js';
@@ -157,8 +157,9 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
-  const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.5) : [0.16, 0.17, 0.14];
+  const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
+  for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
   return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side };
@@ -173,8 +174,10 @@ void main(){ vPos=aPos; vNormal=aNormal; vColor=aColor; vGlow=aGlow; vPhase=aPha
 const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase;
 uniform vec3 uCam; uniform vec3 uFogColor; uniform float uFog; uniform vec3 uAmbient; uniform vec3 uMoonDir; uniform vec3 uMoonColor;
 uniform vec4 uLight[${MAX_LIGHTS}]; uniform vec3 uLightCol[${MAX_LIGHTS}]; uniform vec3 uGlowColor; uniform float uTime; uniform float uFlicker; uniform float uMode;
-uniform float uGroundFog; uniform float uGroundH; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform float uHasWall; uniform float uHasGround;
+uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform float uHasWall; uniform float uHasGround;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
@@ -182,23 +185,38 @@ void main(){
   if (uMode > 0.5 && uMode < 1.5) { vec2 c = floor(vPos.xz * 1.5); base *= 0.88 + 0.16 * hash(c) + 0.12 * hash(floor(vPos.xz * 6.0)) + 0.08 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17); }
   if (uMode < 0.5 && uHasWall > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
   if (uMode > 0.5 && uMode < 1.5 && uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.25).rgb * 1.6, 0.85);
-  vec3 lightSum = uAmbient + uMoonColor * max(dot(n, uMoonDir), 0.0);
+  float skyUp = n.y * 0.5 + 0.5;
+  vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
+  if (uMode < 0.5 || uMode > 2.5) base *= mix(0.5, 1.0, smoothstep(0.0, 1.8, vPos.y));
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
     vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att;
     float nl = max(dot(n, normalize(d)), 0.0) * 0.75 + 0.25; lightSum += uLightCol[i] * att * nl;
   }
-  vec3 col = base * lightSum;
+  vec3 col = (base + 0.045) * lightSum;
   if (uMode > 1.5 && uMode < 2.5) {
-    vec3 sn = normalize(vec3(sin(vPos.x * 0.7 + uTime) * 0.07 + sin(vPos.z * 1.7 + uTime * 1.3) * 0.05, 1.0, cos(vPos.z * 0.6 + uTime * 0.8) * 0.07));
-    float fres = pow(1.0 - max(dot(sn, V), 0.0), 3.0);
+    // moving ripples: three crossed wave trains give the normal; zero speed (reduced motion) leaves them still
+    vec2 p = vPos.xz; float t = uWaterT;
+    vec2 g = vec2(sin(p.x * 0.9 + t * 1.1) * 0.5 + sin((p.x + p.y) * 1.7 - t * 1.6) * 0.35 + sin(p.y * 3.1 + t * 2.3) * 0.15,
+                  cos(p.y * 0.8 + t * 0.9) * 0.5 + cos((p.x - p.y) * 1.5 + t * 1.3) * 0.35 + cos(p.x * 2.9 - t * 2.1) * 0.15) * uRipple;
+    vec3 sn = normalize(vec3(g.x, 1.0, g.y));
+    float fres = pow(1.0 - max(dot(sn, V), 0.0), uFresnel);
     vec3 R = reflect(-V, sn);
-    float spec = pow(max(dot(R, uMoonDir), 0.0), 140.0);
-    col = mix(base * lightSum, uFogColor * 1.1, 0.25 + 0.6 * fres) + uMoonColor * spec * 6.0;
+    vec3 skyRefl = mix(uHorizon, uZenith, pow(clamp(R.y, 0.0, 1.0), 0.5));
+    col = mix(uSeaTint * (1.0 + lightSum * 2.0), skyRefl, 0.1 + 0.85 * fres);
+    col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 70.0) * uMoonGain;
+    for (int i = 0; i < ${MAX_LIGHTS}; i++) {
+      vec4 L = uLight[i]; if (L.w <= 0.0) continue;
+      vec3 d = L.xyz - vPos; float att = clamp(1.0 - dot(d, d) / (L.w * L.w * 9.0), 0.0, 1.0);
+      col += uLightCol[i] * pow(max(dot(R, normalize(d)), 0.0), 40.0) * att * uLampGain;
+    }
   }
+  float peak = max(col.r, max(col.g, col.b)); // hue-preserving soft shoulder: lit walls keep their colour under a lantern instead of clipping to white
+  if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
   if (vGlow > 0.0) { float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3)); col = mix(col, uGlowColor * 1.4, clamp(vGlow, 0.0, 1.0) * fl); }
   float f = 1.0 - exp(-pow(dist * uFog, 2.0));
-  float mist = (1.0 - exp(-dist * uGroundFog)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
+  float sheet = 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7));
+  float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
   f = 1.0 - (1.0 - f) * (1.0 - mist);
   gl_FragColor = vec4(mix(col, uFogColor, clamp(f, 0.0, 1.0)), 1.0);
 }`;
@@ -213,15 +231,18 @@ void main(){
   vec3 d = normalize(uF + uR * vNdc.x * uTy * uAspect + uU * vNdc.y * uTy);
   float h = d.y; vec3 col = mix(uHorizon, uZenith, pow(clamp(h, 0.0, 1.0), 0.45));
   if (h < 0.0) col = uHorizon * 0.8;
-  vec2 uv = d.xz / (abs(h) + 0.2) * 0.8 + vec2(uTime * 0.004, 0.0);
+  vec2 uv = d.xz / (abs(h) + 0.2) * 0.8 + vec2(uTime * 0.009, uTime * 0.002);
   float cl = (vnoise(uv * 2.0) * 0.6 + vnoise(uv * 5.0) * 0.3 + vnoise(uv * 11.0) * 0.1);
   float c = smoothstep(0.42, 0.78, cl) * uCloud * clamp(h * 5.0, 0.0, 1.0);
   col = mix(col, uHorizon * 0.55 + 0.03, c * 0.7);
-  vec3 g = floor(d * 160.0); float s = step(0.9972, hash(g.xy + g.z * 7.31)) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h);
+  vec3 g = floor(d * 160.0); float sh = hash(g.xy + g.z * 7.31); float s = step(0.9972, sh) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h) * (0.65 + 0.35 * sin(uTime * 2.1 + sh * 600.0));
   col += vec3(0.8, 0.85, 1.0) * s;
   float m = dot(d, uMoonDir); float disc = smoothstep(cos(uMoonSize), cos(uMoonSize * 0.9), m);
-  float halo = pow(max(m, 0.0), 40.0) * 0.5 + pow(max(m, 0.0), 6.0) * 0.08;
-  col += (vec3(0.9, 0.93, 1.0) * disc + uMoonColor * 2.0 * halo) * (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
+  float halo = pow(max(m, 0.0), 220.0) * 0.4 + pow(max(m, 0.0), 40.0) * 0.1 + pow(max(m, 0.0), 6.0) * 0.04;
+  float moonOn = (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
+  col += uMoonColor * 0.9 * halo * moonOn;
+  col = mix(col, vec3(0.6, 0.66, 0.78) * (0.85 + 0.15 * vnoise(d.xz * 90.0 + d.y * 40.0)), disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  col += uHorizon * 0.35 * exp(-abs(h) * 9.0) * (0.6 + 0.4 * uMoonColor.z);
   if (uEyeOpen > 0.01 && dot(d, uEyeDir) > 0.0) {
     vec3 tR = normalize(cross(vec3(0.0, 1.0, 0.0), uEyeDir)); vec3 tU = cross(uEyeDir, tR);
     vec2 e = vec2(dot(d, tR) / uEye.x, dot(d, tU) / uEye.y);
@@ -245,7 +266,7 @@ void main(){
   vFlick = uReduced > 0.5 ? 1.0 : 0.85 + 0.15 * sin(uTime * 5.3 + aHalo.w * 1.7);
 }`;
 const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; varying float vFlick; varying float vDist;
-void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 2.2) * 0.55 * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
+void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 2.2) * 0.85 * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
   gl_FragColor = vec4(uColor, a); }`;
 const PART_VS = `attribute vec3 aSeed; uniform mat4 uVP; uniform vec3 uCam; uniform vec3 uBox; uniform vec3 uVel; uniform float uTime; uniform float uSize; uniform float uScale;
 varying float vFade;
@@ -257,6 +278,41 @@ void main(){
 }`;
 const PART_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uAlpha; varying float vFade;
 void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = clamp(1.0 - r, 0.0, 1.0) * uAlpha * vFade; gl_FragColor = vec4(uColor, a); }`;
+
+const POST_VS = 'attribute vec2 aPos; varying vec2 vUv; void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }';
+// One pass: thresholded multi-tap bloom (two spiral rings), radial chromatic shift, teal shadow and warm highlight grade, vignette, film grain.
+const POST_FS = `${FRAG_HEAD}varying vec2 vUv; uniform sampler2D uScene; uniform float uAspect; uniform float uVignette; uniform float uGrain; uniform float uGrainT;
+uniform float uBloom; uniform float uThreshold; uniform float uChroma;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+vec3 bright(vec2 uv){ vec3 c = texture2D(uScene, uv).rgb; float l = max(c.r, max(c.g, c.b)); return c * max(l - uThreshold, 0.0) / max(1.0 - uThreshold, 0.1); }
+void main(){
+  vec2 uv = vUv, dir = uv - 0.5;
+  vec3 col = vec3(texture2D(uScene, uv + dir * uChroma).r, texture2D(uScene, uv).g, texture2D(uScene, uv - dir * uChroma).b);
+  vec2 px = vec2(1.0 / uAspect, 1.0); vec3 glow = vec3(0.0);
+  for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; float r = sqrt((float(i) + 0.5) / 10.0);
+    glow += bright(uv + vec2(cos(a), sin(a)) * r * 0.022 * px) * 1.1 + bright(uv + vec2(cos(a + 1.0), sin(a + 1.0)) * r * 0.06 * px) * 0.55; }
+  col += glow * (uBloom / 10.0) * vec3(1.0, 0.92, 0.8);
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  col = mix(col * vec3(0.9, 1.0, 1.1), col * vec3(1.06, 1.0, 0.92), smoothstep(0.15, 0.7, lum));
+  col = col * 1.06;
+  col = (col - 0.5) * 1.1 + 0.5 + 0.0;
+  float v = smoothstep(0.35, 0.95, length(dir * vec2(uAspect * 0.8, 1.0)) * 1.25);
+  col *= 1.0 - uVignette * v;
+  col += (hash(gl_FragCoord.xy + uGrainT) - 0.5) * uGrain;
+  gl_FragColor = vec4(max(col, 0.0), 1.0);
+}`;
+
+const FLY_VS = `attribute vec4 aFly; uniform mat4 uVP; uniform vec3 uCam; uniform float uTime; uniform float uRise; uniform float uSize; uniform float uScale; uniform float uFog;
+varying float vTwinkle; varying float vFade;
+void main(){
+  float ph = aFly.w, t = uTime;
+  vec3 w = aFly.xyz + vec3(sin(t * 0.6 + ph * 6.28) * 0.9, sin(t * 0.9 + ph * 9.0) * 0.35 + uRise * fract(t * 0.12 + ph) * 2.2, cos(t * 0.5 + ph * 5.0) * 0.9);
+  gl_Position = uVP * vec4(w, 1.0); gl_PointSize = clamp(uSize * uScale / max(gl_Position.w, 0.5), 1.5, 40.0);
+  vTwinkle = 0.35 + 0.65 * pow(0.5 + 0.5 * sin(t * 3.0 + ph * 40.0), 2.0); float dist = length(w - uCam);
+  vFade = (1.0 - clamp(1.0 - exp(-pow(dist * uFog, 2.0)), 0.0, 0.9)) * (1.0 - uRise * fract(t * 0.12 + ph));
+}`;
+const FLY_FS = `${FRAG_HEAD}uniform vec3 uColor; varying float vTwinkle; varying float vFade;
+void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 1.6) * vTwinkle * vFade; gl_FragColor = vec4(uColor, a); }`;
 
 function program(gl, vs, fs) {
   const mk = (type, src) => {
@@ -274,15 +330,39 @@ function program(gl, vs, fs) {
 
 /** Owns the GL programs and buffers. frame = the per-frame values computed by the controller; nothing here decides gameplay. */
 export function createGlRenderer(gl) {
-  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS);
+  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS), fly = program(gl, FLY_VS, FLY_FS);
+  const post = (() => { try { return program(gl, POST_VS, POST_FS); } catch (err) { console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return null; } })();
+  let fbo = null, fboTex = null, fboDepth = null, fboSize = '', postBroken = !post;
+  // Offscreen target for the post pass. Any failure (incomplete framebuffer, allocation error) disables post for good and warns once.
+  function ensureTarget(w, h) {
+    if (postBroken) return false;
+    if (fbo && fboSize === `${w}x${h}`) return true;
+    try {
+      fbo ||= gl.createFramebuffer(); fboTex ||= gl.createTexture(); fboDepth ||= gl.createRenderbuffer();
+      gl.bindTexture(gl.TEXTURE_2D, fboTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, fboDepth); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fboTex, 0);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, fboDepth);
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error('framebuffer status ' + status);
+      fboSize = `${w}x${h}`; return true;
+    } catch (err) {
+      postBroken = true; gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return false;
+    }
+  }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer() };
-  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, rain: 0, mist: 0, halo: 0 };
+  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
+  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; a white pixel stands in until ?pack=1 textures are bound
   const makeTex = (unit) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255])); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return t; };
   const texs = [makeTex(0), makeTex(1)], hasTex = [0, 0];
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
-  const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS };
+  let size = [1, 1];
+  const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
   const upload = (name, data, usage = gl.STATIC_DRAW) => { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]); gl.bufferData(gl.ARRAY_BUFFER, data, usage); counts[name] = data.length / (FLOATS[name] || VERTEX_FLOATS); };
   const attrs = [['aPos', 3, 0], ['aNormal', 3, 3], ['aColor', 3, 6], ['aGlow', 1, 9], ['aPhase', 1, 10]];
   function bindScene(buf) {
@@ -300,6 +380,8 @@ export function createGlRenderer(gl) {
   return {
     setWorld(w) { upload('building', w.building); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos); },
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
+    setFireflies(data) { upload('fly', data); },
+    setHalos(data) { upload('halo', data); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
     /** Images already cut to power of two canvases; null keeps the white stand-in. Only ever called under ?pack=1. */
     setPackTextures(wall, ground) {
@@ -313,10 +395,27 @@ export function createGlRenderer(gl) {
       });
     },
     setParticles(rainSeeds, mistSeeds) { upload('rain', rainSeeds); upload('mist', mistSeeds); },
-    resize(w, h) { gl.viewport(0, 0, w, h); },
+    resize(w, h) { size = [w, h]; gl.viewport(0, 0, w, h); },
+    /** True when the post pass is available (shader compiled and the framebuffer is complete). */
+    get postReady() { return !postBroken; },
     /** Vertex, point and draw-call counts of what was uploaded: feeds frameCost for the budget test and the perf label. */
     counts: () => ({ ...counts }),
+    /** Draws the frame; with f.post.enabled the scene goes through the offscreen target and the single post pass, else straight to the canvas. */
     draw(f) {
+      const usePost = !!(f.post && f.post.enabled) && ensureTarget(size[0], size[1]);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, usePost ? fbo : null); gl.viewport(0, 0, size[0], size[1]);
+      this.drawScene(f);
+      if (!usePost) return;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.useProgram(post.p);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fboTex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
+      const pl = gl.getAttribLocation(post.p, 'aPos'); gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl, 2, gl.FLOAT, false, 8, 0);
+      gl.uniform1i(post.u('uScene'), 0); gl.uniform1f(post.u('uAspect'), f.aspect); gl.uniform1f(post.u('uVignette'), f.post.vignette); gl.uniform1f(post.u('uGrain'), f.post.grain);
+      gl.uniform1f(post.u('uGrainT'), f.post.grainMotion ? (Math.floor(f.time * 24) % 97) * 13.7 : 0);
+      gl.uniform1f(post.u('uBloom'), f.post.bloom); gl.uniform1f(post.u('uThreshold'), f.post.bloomThreshold); gl.uniform1f(post.u('uChroma'), f.post.chroma);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    },
+    drawScene(f) {
       gl.clearColor(f.fogColor[0], f.fogColor[1], f.fogColor[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // sky
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.useProgram(sky.p);
@@ -335,9 +434,12 @@ export function createGlRenderer(gl) {
       f.lights.slice(0, MAX_LIGHTS).forEach((l, i) => { lightPos.set([l.pos[0], l.pos[1], l.pos[2], l.radius], i * 4); lightCol.set(l.color, i * 3); });
       gl.uniformMatrix4fv(scene.u('uVP'), false, f.vp); gl.uniform3fv(scene.u('uCam'), f.camPos); gl.uniform3fv(scene.u('uFogColor'), f.fogColor);
       gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
+      gl.uniform2fv(scene.u('uFogOff'), f.fogOffset); gl.uniform1f(scene.u('uWaterT'), f.waterTime); gl.uniform1f(scene.u('uRipple'), f.sea.ripple); gl.uniform1f(scene.u('uFresnel'), f.sea.fresnel);
+      gl.uniform3fv(scene.u('uSeaTint'), f.sea.tint); gl.uniform1f(scene.u('uMoonGain'), f.sea.moonGain); gl.uniform1f(scene.u('uLampGain'), f.sea.lanternGain);
+      gl.uniform3fv(scene.u('uZenith'), f.sky.zenith); gl.uniform3fv(scene.u('uHorizon'), f.sky.horizon);
       gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
       for (const unit of [0, 1]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
-      gl.uniform3fv(scene.u('uMoonColor'), f.moon.color); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
+      gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
       gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
       for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3]]) {
         if (!counts[name]) continue;
@@ -353,6 +455,15 @@ export function createGlRenderer(gl) {
         gl.uniformMatrix4fv(halo.u('uVP'), false, f.vp); gl.uniform3fv(halo.u('uCam'), f.camPos); gl.uniform1f(halo.u('uScale'), f.pointScale);
         gl.uniform1f(halo.u('uTime'), f.time); gl.uniform1f(halo.u('uReduced'), f.reduced ? 1 : 0); gl.uniform1f(halo.u('uFog'), f.fog); gl.uniform3fv(halo.u('uColor'), f.glowColor);
         gl.drawArrays(gl.POINTS, 0, counts.halo);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      // fireflies near warm lanterns (embers at high dread): additive glow points
+      if (counts.fly) {
+        gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.useProgram(fly.p); gl.bindBuffer(gl.ARRAY_BUFFER, bufs.fly);
+        const fl = gl.getAttribLocation(fly.p, 'aFly'); gl.enableVertexAttribArray(fl); gl.vertexAttribPointer(fl, 4, gl.FLOAT, false, FIREFLY_FLOATS * 4, 0);
+        gl.uniformMatrix4fv(fly.u('uVP'), false, f.vp); gl.uniform3fv(fly.u('uCam'), f.camPos); gl.uniform1f(fly.u('uTime'), f.time); gl.uniform1f(fly.u('uRise'), f.flies.rise);
+        gl.uniform1f(fly.u('uSize'), f.flies.size); gl.uniform1f(fly.u('uScale'), f.pointScale); gl.uniform1f(fly.u('uFog'), f.fog); gl.uniform3fv(fly.u('uColor'), f.flies.color);
+        gl.drawArrays(gl.POINTS, 0, counts.fly);
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
       // rain and mist
@@ -381,22 +492,24 @@ function loadPackImage(url) {
   });
 }
 
+/** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
+const STILL_TIME = 3.7;
 let meshPromise = null;
 const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock']));
 
 /**
- * getScene() -> { layout, seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
+ * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
  *   fly: camera {x,y,z,yaw,pitch} while the ?cinematic=1 fly-through runs (it replaces walking), else null }
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, camParam = null, packTextures = () => null, onPerf = null, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
-  let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '';
+  let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
-  let drive = { forward: 0, strafe: 0 }, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
+  let drive = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
 
   const wake = () => { dirty = true; if (active && !running) { running = true; last = 0; rafId = requestAnimationFrame(loop); } };
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
@@ -405,7 +518,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const key = [s.seed, meshes ? meshes.size : 0, s.layout.map((p) => p.detail).join('')].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
+    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
     boxes = worldBoxes(s.layout, world.heights); bounds = worldBounds(s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = '';
     if (!cam) {
@@ -422,7 +535,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
 
   function centerRay() { return forwardVector(cam.yaw, cam.pitch); }
   function target(ray, s) {
-    const hit = pickBox([cam.x, cam.y, cam.z], ray, boxes, 60);
+    const origin = [cam.x, cam.y, cam.z], hit = pickBox(origin, ray, boxes, 60);
+    // Vigil lamps share the same view ray; a lamp wins when it is not clearly behind the wall it hangs beside.
+    const lampHit = s.lamps && s.lamps.length ? pickLamp(origin, ray, s.lamps, 60) : null;
+    if (lampHit && (!hit || lampHit.distance <= hit.distance + 0.6)) {
+      const lamp = s.lamps[lampHit.index];
+      return { piece: { id: 'lamp', lampId: lamp.id, lit: !!lamp.lit }, kind: 'lamp', distance: lampHit.distance, inRange: InteractionRules.inRange(lampHit.distance) };
+    }
     if (!hit) return null;
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };
@@ -464,12 +583,18 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const dt = last ? (ts - last) / 1000 : 0.016; last = ts;
     const s = getScene();
     ensureWorld(s); ensureParticles(s);
-    const inp = currentInput(), mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
+    const raw = currentInput();
+    smooth = smoothDrive(smooth, raw, dt); // eased walking; turning and looking stay direct (no mouse smoothing)
+    const inp = { ...raw, forward: smooth.forward, strafe: smooth.strafe }, mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
     const before = cam;
     cam = s.fly ? { ...s.fly } : stepCamera(cam, inp, dt, boxes, bounds, mouse); look = { dx: 0, dy: 0 }; pendingMouse = null;
     const moved = cam.x !== before.x || cam.z !== before.z || cam.yaw !== before.yaw || cam.pitch !== before.pitch;
-    const moving = !!(inp.forward || inp.strafe);
-    if (moving) bobPhase += dt;
+    const speed = Math.min(1, Math.hypot(inp.forward, inp.strafe)), moving = speed > 0.01 || !!(raw.forward || raw.strafe);
+    if (speed > 0.05) {
+      const prevPhase = bobPhase; bobPhase += dt * speed;
+      if (onStep && !s.fly && footfall(prevPhase, bobPhase)) onStep(surfaceAt(cam.x, cam.z, s.gridW, s.gridD, s.seed));
+    }
+    if (onCoast && !s.fly) { const c = Math.round(coastCloseness(cam.x, cam.z, s.gridW, s.gridD, s.seed) * 10) / 10; if (c !== coastAt) { coastAt = c; onCoast(c); } }
     const padOn = navigator.getGamepads && Array.from(navigator.getGamepads() || []).some(Boolean);
     const animated = !reduced && !capture;
     if (s.fly) updatePromptOff();
@@ -485,7 +610,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     perf.sample(ts);
     if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), renderer.counts()); }
     if (!reduced) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames); if (ns !== scale) { scale = ns; perf.reset(); } }
-    const time = (ts - t0) / 1000, aspect = canvas.width / canvas.height;
+    const time = capture ? STILL_TIME : (ts - t0) / 1000, aspect = canvas.width / canvas.height;
     const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
     lastDraw = ts; omen = { eye: omen.eye + (targets.eye - omen.eye) * step, tentacle: omen.tentacle + (targets.tentacle - omen.tentacle) * step };
     if (Math.abs(omen.eye - targets.eye) < 0.01) omen.eye = targets.eye;
@@ -497,12 +622,23 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const framing = omenFraming({ gridW: s.gridW, gridD: s.gridD, seed: s.seed, nightNumber: s.night.number, grow: omen.tentacle, eyeOpen: omen.eye, aspect });
       view = blendCamera(cam, framing, omenW);
     }
-    const eye = { ...view, y: view.y + headBob(bobPhase, 1, reduced) };
+    const eye = { ...view, y: view.y + headBob(bobPhase, Math.min(1, Math.hypot(smooth.forward, smooth.strafe)), reduced) };
     const sk = hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon = moonParams(s.seed, s.night.number, s.night.sky, s.night.weather);
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
+    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
+    const fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}`;
+    if (fliesKey !== lastFlies) {
+      lastFlies = fliesKey;
+      const warm = lights.filter((l, i) => states[i] !== 'unlit');
+      renderer.setFireflies(fireflySeeds(warm, s.seed, fireflyCount({ lights: warm.length, reduced })));
+    }
+    if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
+      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
+    }
     const lit = nearestLights(lights, view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
-      return { pos: l.pos, radius: l.radius, color: lc.map((v) => v * 1.3 * k) };
+      const pool = lanternPool(lanternState(l, s.lamps), s.dread);
+      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 1.0 * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
     lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0) });
@@ -511,10 +647,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
+    const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
     renderer.draw({
-      vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: sk, moon, lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, pointScale: canvas.height * 0.5,
+      vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
     });
   }
 

@@ -106,3 +106,38 @@ test('tour: skip stops propagation, pointerleave only restarts the timer, About 
   assert.match(tourSrc, /pointerleave', \(\) => \{ tour\.hover = false; if \(isOpen\(\)\) startTimer\(\)/);
   assert.match(appSrc, /if \(on\) pauseTour\(\); else resumeTour\(\)/);
 });
+
+test('share metadata: canonical, Open Graph and Twitter tags point at the live URL and a real preview image', () => {
+  const LIVE = 'https://frankensteinlovecraftianvillage.vercel.app/';
+  const meta = (attr, name) => new RegExp(`<meta ${attr}="${name}" content="([^"]+)"`).exec(html)?.[1];
+  assert.equal(/<link rel="canonical" href="([^"]+)"/.exec(html)?.[1], LIVE);
+  for (const p of ['og:title', 'og:description', 'og:type', 'og:url', 'og:image', 'og:image:alt', 'og:site_name', 'og:locale']) assert.ok(meta('property', p), p);
+  assert.equal(meta('property', 'og:url'), LIVE);
+  assert.equal(meta('property', 'og:image'), `${LIVE}assets/og-preview.png`);
+  assert.equal(meta('name', 'twitter:card'), 'summary_large_image');
+  assert.equal(meta('name', 'twitter:image'), `${LIVE}assets/og-preview.png`);
+  assert.ok(meta('name', 'twitter:title') && meta('name', 'twitter:description') && meta('name', 'theme-color'));
+  const png = readFileSync(join(web, 'assets', 'og-preview.png'));
+  assert.equal(png.subarray(1, 4).toString(), 'PNG');
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1200, 630], 'preview must be 1200x630');
+  assert.ok(png.length < 700 * 1024, `${png.length} bytes`);
+});
+test('the title screen and help dialog are labelled dialogs; the old intro and keyboard list are gone', () => {
+  assert.match(html, /<div id="title"[^>]*role="dialog"[^>]*aria-modal="true"[^>]*aria-labelledby="titleHeading"/);
+  assert.match(html, /<dialog id="help"[^>]*aria-labelledby="helpTitle"/);
+  assert.match(html, /id="loading"[^>]*role="status"/);
+  assert.doesNotMatch(html, /id="intro"|id="keys"/);
+});
+
+test('stills options: ?caption=0 hides the cinematic caption and ?grain=0 removes film grain, both documented', () => {
+  const app = readFileSync(join(web, 'src', 'app.js'), 'utf8'), css = readFileSync(join(web, 'style.css'), 'utf8');
+  const view = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), readme = readFileSync(join(web, '..', 'README.md'), 'utf8');
+  assert.match(app, /optParam\('caption'\) === '0'/); assert.match(css, /\.no-caption \.cinema-caption/);
+  assert.match(app, /grain: optParam\('grain'\) !== '0'/); assert.match(view, /if \(!grain\) postP\.grain = 0/);
+  assert.match(readme, /\?caption=0/); assert.match(readme, /\?grain=0/);
+});
+test('the moon disc replaces the sky and lit walls use a hue preserving shoulder, so neither clips to white', () => {
+  const view = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(view, /col = mix\(col, vec3\(0\.6, 0\.66, 0\.78\)/);
+  assert.match(view, /peak > 0\.55/);
+});

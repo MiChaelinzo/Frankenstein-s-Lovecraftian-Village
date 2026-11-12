@@ -1,7 +1,7 @@
 // Procedural ambient soundtrack. Original synthesis only (oscillators and filtered noise), no samples, no audio files.
 // The pure helpers below are deterministic and unit tested; createAmbient is a thin WebAudio controller that must be
 // started from a user gesture (browsers keep an AudioContext silent otherwise, and the demo never starts one on load).
-import { SeededRandom } from './core.js';
+import { SeededRandom, tierFor } from './core.js';
 import { clamp } from './util.js';
 
 export const ROOTS_HZ = [49, 55, 61.74, 65.41];
@@ -57,10 +57,77 @@ export function pulseSchedule(seed, dread, count, reduced, batch = 0) {
   return out;
 }
 
+// ---------- layered ambience and cues (pure parameter functions; createAmbient only turns them into nodes) ----------
+
+export const SURFACES = ['gravel', 'wood', 'wet'];
+/**
+ * One footstep: filtered noise burst (+ a low thump on wood). foot is 0 or 1 (alternating feet vary the pitch a little).
+ * Dread muffles the step. { filter, freq, q, durMs, gain, thump } where thump is a sine Hz or 0.
+ */
+export function footstepParams(surface, dread, foot = 0) {
+  const d = clampDread(dread), k = foot ? 0.93 : 1, muffle = 1 - 0.35 * d;
+  switch (surface) {
+    case 'wood': return { filter: 'bandpass', freq: 520 * k * muffle, q: 1.1, durMs: 130, gain: 0.5, thump: 95 * k };
+    case 'wet': return { filter: 'lowpass', freq: 900 * k * muffle, q: 0.7, durMs: 170, gain: 0.42, thump: 0 };
+    default: return { filter: 'bandpass', freq: 2100 * k * muffle, q: 0.9, durMs: 95, gain: 0.34, thump: 0 };
+  }
+}
+
+/** Waves: slow-modulated low-passed noise, louder near the coast (coast 0..1). Reduced motion keeps a nearly still bed. */
+export function wavesLayer(coast, dread, reduced) {
+  const c = clamp(num(coast, 0), 0, 1), d = clampDread(dread);
+  return { gain: 0.012 + 0.07 * c * c, cutoff: 380 + 260 * c + 120 * d, lfoHz: reduced ? 0.03 : 0.11 + 0.05 * d, depth: reduced ? 0.15 : 0.7 };
+}
+
+/** The wind bed gain: grows with dread (the existing bed is 0.02 + 0.06 * dread). */
+export const windGain = (dread) => 0.02 + 0.06 * clampDread(dread);
+
+export const BELL_PARTIALS = [[1, 1], [2.76, 0.5], [5.4, 0.28], [8.93, 0.14]]; // inharmonic ratios and relative gains
+/** Rare distant bell strikes: [{ atMs, freq, durMs, gain }], 25..70 s apart, softer at low dread. Empty under reduced motion. */
+export function bellSchedule(seed, dread, count, reduced, batch = 0) {
+  if (reduced || !(count > 0)) return [];
+  const d = clampDread(dread), rng = new SeededRandom((seed | 0) ^ 0xbe11 ^ Math.imul(batch | 0, 0x85ebca6b)), out = [];
+  let at = 0;
+  for (let i = 0; i < Math.trunc(count); i++) {
+    at += 25000 + rng.next(45000);
+    out.push({ atMs: at, freq: semitone(rootFor(seed) * 2, [0, 1, 6][rng.next(3)]), durMs: 5000 + rng.next(3000), gain: 0.05 + 0.2 * d });
+  }
+  return out;
+}
+
+/** Whisper tier 0..3 from dread: 0 is silent. */
+export const whisperTier = (dread) => { const d = clampDread(dread); return d < 0.25 ? 0 : d < 0.5 ? 1 : d < 0.75 ? 2 : 3; };
+/**
+ * Voice-like swells of formant-filtered noise: [{ atMs, durMs, gain, f1, f2 }]. Tier 0 none; higher tiers come closer together and louder.
+ * Empty under reduced motion. Seeded per seed, dread and batch.
+ */
+export function whisperSchedule(seed, dread, count, reduced, batch = 0) {
+  const tier = whisperTier(dread);
+  if (reduced || tier === 0 || !(count > 0)) return [];
+  const rng = new SeededRandom((seed | 0) ^ 0x71a5 ^ Math.imul(batch | 0, 0xc2b2ae35)), out = [], vowels = [[300, 870], [400, 1700], [600, 1040], [500, 1500]];
+  let at = 0;
+  for (let i = 0; i < Math.trunc(count); i++) {
+    at += Math.round((14000 - 3500 * tier) * (0.6 + rng.next(80) / 100));
+    const [f1, f2] = vowels[rng.next(vowels.length)];
+    out.push({ atMs: at, durMs: 1800 + rng.next(1800), gain: 0.012 * tier, f1, f2 });
+  }
+  return out;
+}
+
+export const CUES = ['lantern', 'ending-warm', 'ending-cold'];
+/** Short original UI cues as note lists [{ atMs, freq, durMs, gain, type }]: a soft rising pair for a lit lantern, a warm major chord or a cold tritone for the ending. */
+export function cueNotes(kind, seed = 0) {
+  const root = rootFor(seed) * 4;
+  if (kind === 'lantern') return [{ atMs: 0, freq: root * 1.5, durMs: 600, gain: 0.5, type: 'sine' }, { atMs: 140, freq: root * 2, durMs: 900, gain: 0.4, type: 'sine' }];
+  if (kind === 'ending-warm') return [0, 4, 7, 12].map((n, i) => ({ atMs: i * 220, freq: semitone(root, n), durMs: 2600, gain: 0.35, type: 'triangle' }));
+  if (kind === 'ending-cold') return [0, 6, 1].map((n, i) => ({ atMs: i * 380, freq: semitone(root / 2, n), durMs: 3600, gain: 0.35, type: 'sawtooth' }));
+  return [];
+}
+
 /** Controller. `AC` is the AudioContext constructor. Nothing is created until start() is called from a gesture. */
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
-  let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0;
+  let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0, noiseBuf = null, wavesGain = null, wavesFilter = null, wavesLfo = null, coast = 0, foot = 0, noiseCursor = 0; // noiseCursor walks the noise buffer deterministically so bursts differ without randomness
   let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false;
 
   const apply = () => {
@@ -72,8 +139,34 @@ export function createAmbient(AC, opts = {}) {
     if (lfoGain) lfoGain.gain.setTargetAtTime(g > 0 ? 0.02 * modulation(reduced).depth : 0, t, 0.25);
     filter.frequency.setTargetAtTime(cutoffFor(dread), t, 0.4);
     droneFrequencies(seed, dread).forEach((f, i) => voices[i].frequency.setTargetAtTime(f, t, 0.8));
-    if (noiseGain) noiseGain.gain.setTargetAtTime(0.02 + 0.06 * dread, t, 0.5);
+    if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread), t, 0.5);
+    if (wavesGain) {
+      const w = wavesLayer(coast, dread, reduced);
+      wavesGain.gain.setTargetAtTime(w.gain, t, 0.8); wavesFilter.frequency.setTargetAtTime(w.cutoff, t, 0.8); wavesLfo.gain.setTargetAtTime(w.gain * w.depth, t, 0.8);
+    }
   };
+
+  const live = () => !!ctx && running && !muted;
+  /** A filtered noise burst through the master (so volume and mute apply), optionally with a sine thump. */
+  function burst(o) {
+    const t = ctx.currentTime + (o.atMs || 0) / 1000, dur = o.durMs / 1000, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noiseBuf; src.loop = true; f.type = o.filter; f.frequency.value = o.freq; f.Q.value = o.q;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(o.gain * (o.swell ? 0.6 : 1), t + (o.swell ? dur * 0.45 : 0.008)); g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t, (noiseCursor = (noiseCursor + 0.37) % 1.5)); src.stop(t + dur + 0.05);
+    if (o.thump) { const th = ctx.createOscillator(), tg = ctx.createGain(); th.frequency.value = o.thump; tg.gain.setValueAtTime(o.gain * 0.6, t); tg.gain.exponentialRampToValueAtTime(0.0005, t + 0.12); th.connect(tg); tg.connect(master); th.start(t); th.stop(t + 0.15); }
+  }
+  function bell(p) {
+    const t = ctx.currentTime + p.atMs / 1000, dur = p.durMs / 1000;
+    for (const [ratio, rel] of BELL_PARTIALS) {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = p.freq * ratio;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(p.gain * rel * 0.3, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + dur / Math.sqrt(ratio));
+      o.connect(g); g.connect(filter); o.start(t); o.stop(t + dur + 0.1);
+    }
+  }
+  function whisper(p) {
+    for (const f of [p.f1, p.f2]) burst({ atMs: p.atMs, durMs: p.durMs, gain: p.gain * (f === p.f1 ? 1 : 0.6), filter: 'bandpass', freq: f, q: 6, swell: true });
+  }
+
 
   function ping(p) {
     const t = ctx.currentTime + p.atMs / 1000, dur = p.durMs / 1000;
@@ -86,7 +179,10 @@ export function createAmbient(AC, opts = {}) {
   }
   function scheduleBatch() {
     if (!running || !ctx) return;
-    pulseSchedule(seed, dread, 3, reduced, batch++).forEach(ping);
+    pulseSchedule(seed, dread, 3, reduced, batch).forEach(ping);
+    bellSchedule(seed, dread, 1, reduced, batch).forEach(bell);
+    whisperSchedule(seed, dread, 2, reduced, batch).forEach(whisper);
+    batch++;
     if (!reduced) timer = setTimeout(scheduleBatch, 20000);
   }
 
@@ -109,8 +205,14 @@ export function createAmbient(AC, opts = {}) {
     for (let i = 0; i < len; i++) data[i] = (rng.next(2000) - 1000) / 1000;
     const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.8;
-    noiseGain = ctx.createGain(); noiseGain.gain.value = 0.02;
+    noiseGain = ctx.createGain(); noiseGain.gain.value = 0.02; noiseBuf = buf;
     src.connect(bp); bp.connect(noiseGain); noiseGain.connect(master); src.start();
+    // waves: the same noise through a low-pass whose gain breathes slowly
+    const wsrc = ctx.createBufferSource(); wsrc.buffer = buf; wsrc.loop = true; wsrc.playbackRate.value = 0.6;
+    wavesFilter = ctx.createBiquadFilter(); wavesFilter.type = 'lowpass'; wavesFilter.frequency.value = 400;
+    wavesGain = ctx.createGain(); wavesGain.gain.value = 0.012;
+    const wl = ctx.createOscillator(), w = wavesLayer(0, 0, reduced); wl.frequency.value = w.lfoHz; wavesLfo = ctx.createGain(); wavesLfo.gain.value = 0;
+    wl.connect(wavesLfo); wavesLfo.connect(wavesGain.gain); wsrc.connect(wavesFilter); wavesFilter.connect(wavesGain); wavesGain.connect(master); wsrc.start(); wl.start();
   }
 
   return {
@@ -128,6 +230,19 @@ export function createAmbient(AC, opts = {}) {
     mute() { muted = true; apply(); },
     unmute() { muted = false; apply(); },
     toggleMute() { muted = !muted; apply(); return muted; },
+    /** How close the listener is to the sea, 0..1: waves get louder. */
+    setCoast(c) { coast = clamp(num(c, 0), 0, 1); apply(); },
+    /** One footstep on a surface ('gravel', 'wood' or 'wet'). Silent when stopped, muted or never started. */
+    footstep(surface) { if (!live()) return; foot ^= 1; burst({ ...footstepParams(SURFACES.includes(surface) ? surface : 'gravel', dread, foot), atMs: 0 }); },
+    /** A short UI cue ('lantern', 'ending-warm', 'ending-cold'). Silent when stopped, muted or never started. */
+    cue(kind) {
+      if (!live()) return;
+      for (const n of cueNotes(kind, seed)) {
+        const t = ctx.currentTime + n.atMs / 1000, dur = n.durMs / 1000, o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = n.type; o.frequency.value = n.freq; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(n.gain * 0.25, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.1);
+      }
+    },
     setDread(d) { dread = clampDread(d); apply(); },
     stop() {
       running = false;
@@ -137,7 +252,7 @@ export function createAmbient(AC, opts = {}) {
     /** Stop and release the AudioContext. The controller cannot be restarted afterwards. */
     dispose() {
       this.stop();
-      const c = ctx; ctx = null; master = filter = lfoGain = noiseGain = null; voices = [];
+      const c = ctx; ctx = null; master = filter = lfoGain = noiseGain = noiseBuf = wavesGain = wavesFilter = wavesLfo = null; voices = [];
       c?.close?.();
     },
   };

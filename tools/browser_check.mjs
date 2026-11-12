@@ -37,9 +37,10 @@ async function main() {
   if (!page) { chrome.kill(); console.error('browser did not expose a page target'); process.exit(2); }
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r) => { ws.onopen = r; });
-  let id = 0; const pending = new Map(), errs = [], results = [];
+  let id = 0; const pending = new Map(), errs = [], warns = [], results = [];
   ws.onmessage = (m) => {
     const d = JSON.parse(m.data);
+    if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'warning') { const t = d.params.args.map((a) => a.value || a.description).join(' '); if (t.includes('[view3d]')) warns.push(t); }
     if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
     else if (d.method === 'Runtime.exceptionThrown') errs.push(d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text);
     else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') errs.push('console.error ' + d.params.args.map((a) => a.value || a.description).join(' '));
@@ -128,6 +129,14 @@ async function main() {
     const r = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`), cx = r.x + r.width / 2, cy = r.y + r.height / 2;
     const h0 = await shotHash(); await hold('w', 'KeyW', 1200); await sleep(300);
     const h1 = await shotHash(); rec('3d: holding W changes the rendered frame', h0 !== h1, { before: h0, after: h1 });
+    // Round 17 post pass: the default render and the ?post=0 direct render are both non-blank, and neither logs a 3D warning.
+    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await send('Page.captureScreenshot', { format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).result.data.length; };
+    const withPost = await canvasBytes();
+    rec('3d post: default render is non-blank and logs no 3D warning', withPost > 20000 && warns.length === 0, { bytes: withPost, warns: warns.slice(0, 3) });
+    await nav('?intro=0&view=3d&post=0#seed=1818&sanity=60'); await sleep(1500);
+    const noPost = await canvasBytes();
+    rec('3d post: ?post=0 falls back to direct rendering, still non-blank, no warning', noPost > 20000 && warns.length === 0, { bytes: noPost, warns: warns.slice(0, 3) });
+    await nav('?intro=0&view=3d#seed=1818&sanity=60'); await sleep(800);
     await hold('a', 'KeyA', 600); await sleep(300);
     const h2 = await shotHash(); rec('3d: holding A changes the rendered frame', h1 !== h2, { before: h1, after: h2 });
     await click(cx, cy); await sleep(500);
@@ -153,7 +162,18 @@ async function main() {
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
     const j1 = await ev(`document.getElementById('whispers').children.length`);
-    rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', !!promptText && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
+    // 3D vigil: the same spot looking up at the door lantern; E lights it once, restoring sanity and counting the lamp
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=74,90.5,0,16');
+    await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
+    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const ls0 = Number(await text('sanityOut'));
+    await key('e'); await sleep(900);
+    const ls1 = Number(await text('sanityOut')), lobj = await text('objectiveText');
+    await key('e'); await sleep(900);
+    const ls2 = Number(await text('sanityOut'));
+    rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
+    rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
     await special('Escape', 27, undefined); await sleep(300);
 
     // ?meshes=1 on the 2D board and the meshes page
@@ -209,6 +229,97 @@ async function main() {
     rec('3d fallback: click-pick without a lock throws nothing', errs.length === 0, { errors: errs.slice(0, 3) });
     await special('Escape', 27, undefined); await sleep(400);
     rec('3d fallback: a single Escape exits to 2D when there is no lock', await hidden('view3d'), {});
+
+    // ---- the vigil: objective line, lanterns, clues, endure the night, ending dialog, result card, begin again ----
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&reduced=1#seed=4321&sanity=100'); // a seed no earlier check played, so no autosaved vigil is restored
+    const obj0 = await text('objectiveText');
+    rec('vigil: a fresh seed shows the objective line', /^Night 1 of 5: clues 0\/2, lanterns lit 0\/3, the name: /.test(obj0), { obj0 });
+    await ev(`document.getElementById('whisper').click()`); await sleep(200);
+    const obj1 = await text('objectiveText');
+    await ev(`document.getElementById('whisper').click()`); await sleep(200);
+    const obj2 = await text('objectiveText');
+    rec('vigil: a new source adds a clue, hearing it again does not', /clues 1\/2/.test(obj1) && /clues 1\/2/.test(obj2), { obj1, obj2 });
+    const sBefore = Number(await text('sanityOut'));
+    await key('l'); await sleep(250);
+    const sAfter = Number(await text('sanityOut')), obj3 = await text('objectiveText');
+    rec('vigil: the candle lights a lantern, restores sanity and updates the count', sAfter > sBefore && /lanterns lit 1\/3/.test(obj3), { sBefore, sAfter, obj3 });
+    await key('l'); await key('l'); await sleep(200);
+    const sFull = Number(await text('sanityOut'));
+    await key('l'); await sleep(250);
+    const sNone = Number(await text('sanityOut'));
+    rec('vigil: no sanity once the night\'s lanterns are lit', sNone <= sFull && /No unlit lantern/.test(await text('narration')), { sFull, sNone, narration: await text('narration') });
+    rec('vigil: endure is hidden until enough is heard', await hidden('endure'), {});
+
+    // A scripted careful player using only real controls. Returns the ending title; seeds are tried in order until the true ending shows.
+    const play = (seed) => `(async () => {
+      const $ = (i) => document.getElementById(i), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const sanity = () => Number($('sanityOut').textContent);
+      const relight = async () => { while (sanity() < 60 && !$('objectiveText').textContent.includes('lit 3/3')) { $('candle').click(); await wait(30); } };
+      for (let guard = 0; guard < 8 && !$('ending').open; guard++) {
+        const opts = [...$('listen').options].map((o) => o.value).filter(Boolean);
+        const steps = [() => $('whisper').click(), () => $('church').click(), ...opts.map((v) => () => { $('listen').value = v; $('listen').dispatchEvent(new Event('change')); })];
+        for (const step of steps) { if ($('ending').open || !$('endure').hidden) break; await relight(); step(); await wait(30); }
+        if (!$('endure').hidden) { $('endure').click(); await wait(60); }
+        else if (!$('ending').open) break;
+      }
+      await wait(300);
+      return { open: $('ending').open, title: $('endingTitle').textContent, score: $('endingScore').textContent };
+    })()`;
+    let ended = null, usedSeed = 0;
+    for (const sd of [1818, 7, 42, 99, 2024, 31337, 5, 11, 123, 777, 4242, 9001]) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&reduced=1#seed=${sd}&sanity=100`);
+      ended = await ev(play(sd)); usedSeed = sd;
+      if (ended.open && ended.title === 'The Name Spoken') break;
+    }
+    rec('vigil: a scripted run endures every night and reaches the true ending on a known seed', ended.open && ended.title === 'The Name Spoken', { seed: usedSeed, ended });
+    const dlg = await ev(`[document.getElementById('endingEpitaph').textContent.length>20, document.getElementById('endingScore').textContent, document.getElementById('endingFound').textContent]`);
+    rec('vigil: the ending dialog shows an epitaph, score, rank and endings found', dlg[0] && /Score \d+, rank \w+/.test(dlg[1]) && /Endings found [1-6]\/6/.test(dlg[2]), { dlg });
+    await ev(`window.__blobs=[];const oc=URL.createObjectURL.bind(URL);URL.createObjectURL=(b)=>{window.__blobs.push(b);return oc(b)};document.getElementById('endingCard').click()`); await sleep(600);
+    const px = await ev(`(async()=>{const b=window.__blobs.find((x)=>x.type==='image/png');if(!b)return null;const im=await createImageBitmap(b),c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);const d=g.getImageData(0,0,c.width,c.height).data;const seen=new Set();let lit=0;for(let i=0;i<d.length;i+=4*97){seen.add((d[i]>>4)*256+(d[i+1]>>4)*16+(d[i+2]>>4));if(d[i]+d[i+1]+d[i+2]>300)lit++}return {w:c.width,h:c.height,colors:seen.size,lit}})()`);
+    rec('vigil: the result card PNG is 1200x630 and not blank', !!px && px.w === 1200 && px.h === 630 && px.colors > 20 && px.lit > 20, { px });
+    await ev(`window.__copied=null;navigator.clipboard.writeText=async(t)=>{window.__copied=t};document.getElementById('endingCopy').click()`); await sleep(300);
+    const copied = await ev(`window.__copied`);
+    rec('vigil: Copy result yields a result code and a link', /\| V1-\d+-\w+-\d+\n.*#seed=/.test(copied || ''), { copied });
+    const seedBefore = await ev(`document.getElementById('seed').value`);
+    await ev(`document.getElementById('endingAgain').click()`); await sleep(500);
+    const again = await ev(`[document.getElementById('ending').open, document.getElementById('seed').value, document.getElementById('objectiveText').textContent]`);
+    rec('vigil: Begin again closes the dialog and starts a fresh vigil on a new seed', again[0] === false && again[1] !== seedBefore && /clues 0\//.test(again[2]), { seedBefore, again });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&reduced=1#seed=4322&sanity=100');
+    await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
+    const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
+    rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });
+    // title screen: bare URL shows it with both entries, nothing plays until opted in; ?webgl=0 is the documented no-WebGL switch
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('');
+    const ti = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {open:!g('title').hidden,heading:g('titleHeading').textContent,enter3d:!g('titleEnter3d').disabled,map2d:!!g('titleMap2d'),sound:g('titleSound').checked,musicOn:g('sound').checked,rumor:g('titleRumor').textContent.length>10,endings:g('titleEndings').textContent,inert:document.getElementById('main').inert,veilHidden:g('loading').hidden,focus:document.activeElement&&document.activeElement.id,help:!!g('titleHelp')}})()`);
+    rec('title: a bare URL shows the title screen with both CTAs, an unchecked sound toggle and the endings line', ti.open && /Frankenstein/.test(ti.heading) && ti.enter3d && ti.map2d && ti.help && !ti.sound && !ti.musicOn && ti.rumor && /^Endings found \d\/6$/.test(ti.endings) && ti.inert && ti.veilHidden && ti.focus === 'titleEnter3d', ti);
+    const meta = await ev(`['og:title','og:description','og:image','og:url','og:image:alt'].map((p)=>!!document.querySelector('meta[property="'+p+'"]')).concat(['twitter:card','twitter:image'].map((n)=>!!document.querySelector('meta[name="'+n+'"]')),[!!document.querySelector('link[rel=canonical]')])`);
+    rec('title: Open Graph, Twitter and canonical tags are present', meta.every(Boolean), { meta });
+    await special('Escape', 27); await sleep(300);
+    const ts2 = await ev(`[document.getElementById('title').hidden, document.getElementById('view3d').hidden, document.getElementById('main').inert]`);
+    rec('title: Escape opens the 2D map view', ts2[0] === true && ts2[1] === true && ts2[2] === false, { ts2 });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('');
+    await ev(`document.getElementById('titleEnter3d').click()`); await sleep(1500);
+    const ts3 = await ev(`[document.getElementById('title').hidden, document.getElementById('view3d').hidden, document.getElementById('view3dBtn').getAttribute('aria-pressed')]`);
+    rec('title: Enter the village (3D) starts the first-person view', ts3[0] === true && ts3[1] === false && ts3[2] === 'true', { ts3 });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?webgl=0');
+    const ts4 = await ev(`[document.getElementById('titleEnter3d').disabled, document.getElementById('titleReason').textContent, document.activeElement.id]`);
+    rec('title: without WebGL the 3D entry is disabled with a reason and 2D is focused', ts4[0] === true && /WebGL/.test(ts4[1]) && ts4[2] === 'titleMap2d', { ts4 });
+    await key('Enter', 'Enter', 13, '\r'); await sleep(300);
+    rec('title: Enter on the title activates the 2D entry when 3D is unavailable', await hidden('title') && await hidden('view3d'), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0');
+    rec('title: ?intro=0 skips it', await hidden('title'), {});
+    await key('?', 'Slash', 191, '?'); await sleep(300);
+    const hp = await ev(`[document.getElementById('help').open, document.querySelectorAll('#help .help-group').length, !!document.getElementById('keys'), document.getElementById('helpDevice').textContent]`);
+    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 5 && hp[2] === false && /Last used/.test(hp[3]), { hp });
+    await special('Escape', 27); await sleep(300);
+    rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;

@@ -47,6 +47,7 @@ test('app boots in French and routes dynamic UI strings through the table', asyn
   assert.match(els.dreadOut.textContent, /^Effroi \d+%$/);
   assert.match(els.viewDesc.textContent, /^Village de graine 42/);
   assert.match(els.whispers.innerHTML, /\[raison \d+\]/);
+  assert.match(els.objectiveText.textContent, /^(Nuit 1 sur \d : indices \d\/2, lanternes allumees |La veillee est terminee\. Fins trouvees \d\/6)/); // sanity 10 plus the church can hollow the vigil
   assert.ok(!/Seed|Dread/.test(els.stats.textContent + els.dreadOut.textContent));
   els.mute.listeners.click();
   assert.equal(els.mute.textContent, 'Remettre le son (U)');

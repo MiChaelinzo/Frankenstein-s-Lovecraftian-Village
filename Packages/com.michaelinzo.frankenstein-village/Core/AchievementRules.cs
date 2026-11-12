@@ -18,6 +18,10 @@ namespace Frankenstein.Core
         public int CodexCount;
         public int CodexTotal;
         public bool InvestigatorDone;
+        /// <summary>The vigil ended in any ending.</summary>
+        public bool VigilDone;
+        /// <summary>The vigil ended in the true ending, name_spoken.</summary>
+        public bool NamerDone;
     }
 
     /// <summary>Journal completion: how many tracked kinds were seen.</summary>
@@ -40,7 +44,7 @@ namespace Frankenstein.Core
         /// <summary>Achievement ids in definition order.</summary>
         public static readonly string[] Ids =
         {
-            "whisper", "listener", "doors", "nights", "journal", "abyss", "ritual", "codexhalf", "codexfull", "wanderer",
+            "whisper", "listener", "doors", "nights", "journal", "abyss", "ritual", "codexhalf", "codexfull", "wanderer", "vigil", "namer",
         };
 
         public static bool IsEarned(string id, AchievementStats s)
@@ -57,6 +61,8 @@ namespace Frankenstein.Core
                 case "codexhalf": return s.CodexTotal > 0 && s.CodexCount * 2 >= s.CodexTotal;
                 case "codexfull": return s.CodexTotal > 0 && s.CodexCount >= s.CodexTotal;
                 case "wanderer": return s.InvestigatorDone;
+                case "vigil": return s.VigilDone;
+                case "namer": return s.NamerDone;
                 default: return false;
             }
         }

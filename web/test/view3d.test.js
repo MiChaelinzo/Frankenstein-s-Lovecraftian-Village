@@ -162,7 +162,7 @@ test('buildWorld is deterministic, uses every kind, and falls back to boxes with
   assert.equal(w1.heights.length, l.length); assert.ok(w1.heights.every((v) => v > 0));
   const boxes = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24 });
   assert.ok(boxes.building.length > 0 && boxes.heights.every((v) => v === 3));
-  assert.ok(w1.ground.length === 6 * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
+  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
   assert.ok(buildWorld({ layout: l, meshes, seed: 1818, gridW: 24, gridD: 24, groundTint: [100, 100, 100] }).ground[6] > 0);
 });
 test('smoke: the GL renderer runs a frame against a recording stub context', () => {
@@ -174,8 +174,27 @@ test('smoke: the GL renderer runs a frame against a recording stub context', () 
   const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'rain', 0.4, 2);
   r.setTentacles(buildTentacles({ bases: M.tentacleBases(24, 24, 7), grow: 1, dread: 0.9, timeSec: 1 }));
   r.draw({ vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'rain'),
-    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90 });
+    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90,
+    moonLight: M.moonBoost(M.moonParams(7, 1, 'night', 'rain').color), sea: M.seaParams({ dread: 0.4 }), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0.4, false), post: M.postParams({ dread: 0.4 }) });
   assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 8, 'sky, sea, ground, buildings, coast, tentacles, halos, rain/mist');
+});
+test('smoke: post pass runs through the offscreen target when complete, and warns once then draws directly when the framebuffer is incomplete', () => {
+  const run = (complete) => {
+    const calls = [], warns = [];
+    const gl = new Proxy({}, { get: (_, name) => (typeof name === 'string' && /^[A-Z_0-9]+$/.test(name) ? 1 : (...a) => { calls.push(name + (name === 'bindFramebuffer' ? ':' + (a[1] ? 'fbo' : 'screen') : '')); return name === 'getShaderParameter' || name === 'getProgramParameter' ? true : name === 'checkFramebufferStatus' ? (complete ? 1 : 0) : {}; }) });
+    const orig = console.warn; console.warn = (m) => warns.push(m);
+    try {
+      const r = createGlRenderer(gl), cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'clear', 0.4, 2);
+      r.resize(320, 180);
+      const frame = { vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'clear'), moonLight: [0.5, 0.5, 0.5],
+        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
+      r.draw(frame); r.draw(frame);
+    } finally { console.warn = orig; }
+    return { calls, warns };
+  };
+  const ok = run(true); assert.equal(ok.warns.length, 0); assert.ok(ok.calls.includes('bindFramebuffer:fbo'));
+  const bad = run(false); assert.equal(bad.warns.length, 1, 'one warning, not one per frame'); assert.match(bad.warns[0], /post pass disabled/);
+  assert.ok(!bad.calls.slice(bad.calls.lastIndexOf('checkFramebufferStatus')).includes('bindFramebuffer:fbo'), 'after the failure every frame goes straight to the screen');
 });
 test('view3d wiring: precached, no CDN, no inline script, interaction via core rules', () => {
   const app = readFileSync(join(web, 'src', 'app.js'), 'utf8'), v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
@@ -269,7 +288,7 @@ test('frame budget (pure counts, not timings): worst case weather, dread and lig
     const parts = M.particleCounts({ weather: 'rain', dread: 1, reduced: false }), mist = M.particleCounts({ weather: 'fog', dread: 1, reduced: false });
     const cost = M.frameCost({
       vertices: { building: w.building.length / VERTEX_FLOATS, ground: w.ground.length / VERTEX_FLOATS, sea: w.sea.length / VERTEX_FLOATS, coast: w.coast.length / VERTEX_FLOATS, tentacle: tent.length / VERTEX_FLOATS },
-      rain: parts.rain, mist: mist.mist, halos: w.halos.length / M.HALO_FLOATS, lights: w.lights.length,
+      rain: parts.rain, mist: mist.mist, halos: w.halos.length / M.HALO_FLOATS, lights: w.lights.length, post: true,
     });
     const B = M.FRAME_BUDGET;
     assert.ok(cost.drawCalls <= B.drawCalls, `draw calls ${cost.drawCalls}`); assert.ok(cost.triangles <= B.triangles, `triangles ${cost.triangles}`);
@@ -362,4 +381,75 @@ test('round 16 props: the committed prop GLBs load, are small, and replace the p
   }
   assert.deepEqual(Array.from(meshed), Array.from(buildCoast({ gridW: 24, gridD: 24, seed: 5, meshes: models })));
   assert.ok(meshed.every(Number.isFinite) && meshed.length % 11 === 0);
+});
+
+test('lantern pools: lit and free are warm and bright, unlit is a dim cold glint, matched by position', () => {
+  const light = { pos: [10, 2.2, 20] }, lamps = [{ pos: [10, 2.2, 20], lit: false }, { pos: [50, 2.2, 5], lit: true }];
+  assert.equal(M.lanternState(light, lamps), 'unlit'); assert.equal(M.lanternState({ pos: [50, 2.2, 5] }, lamps), 'lit');
+  assert.equal(M.lanternState(light, [{ pos: [10, 2.2, 20], lit: false, idle: true }]), 'free', 'before the vigil starts every lantern is warm');
+  assert.equal(M.lanternState(light, []), 'free'); assert.equal(M.lanternState(light, undefined), 'free');
+  const warm = M.lanternPool('lit', 0), cold = M.lanternPool('unlit', 0);
+  assert.ok(warm.gain > 5 * cold.gain && warm.halo > cold.halo);
+  assert.ok(warm.color[0] > warm.color[2] && cold.color[2] > cold.color[0], 'warm pool versus cold glint');
+  assert.deepEqual(M.lanternPool('lit', 1).color, M.lanternColor(1), 'pool is tinted by dread');
+  assert.ok(M.haloSprites([{ pos: [0, 1, 0], haloScale: 0.5 }])[4] < M.haloSprites([{ pos: [0, 1, 0] }])[4]);
+});
+test('cool fill and moon boost keep colours in range and push toward blue', () => {
+  const f = M.coldFill([0.16, 0.19, 0.27]);
+  assert.ok(f.every((v) => v >= 0 && v <= 1) && f[2] / f[0] > 0.27 / 0.16);
+  assert.ok(M.coldFill([1, 1, 1]).every((v) => v === 1));
+  assert.deepEqual(M.moonBoost([0.1, 0.2, 0.3]).map((v) => +v.toFixed(3)), [0.19, 0.38, 0.57]);
+});
+test('contact rings: nested, darker toward the wall, drawn above the ground, deterministic', () => {
+  const lay = layout(1818), rings = M.contactRings(lay, [{ pos: [4, 3, 4], post: true }, { pos: [8, 2, 8] }]);
+  assert.equal(rings.length, lay.length * 3 + 2); assert.deepEqual(rings, M.contactRings(lay, [{ pos: [4, 3, 4], post: true }, { pos: [8, 2, 8] }]));
+  const [outer, mid, inner] = [rings[0], rings[lay.length], rings[lay.length * 2]];
+  assert.ok(outer.x0 < mid.x0 && mid.x0 < inner.x0 && outer.shade > mid.shade && mid.shade > inner.shade && inner.y > outer.y && outer.y > 0);
+});
+
+test('postParams: documented ranges, clamps, dread grows vignette and chroma, reduced motion has no grain motion and no chroma', () => {
+  const calm = M.postParams({ dread: 0 }), dire = M.postParams({ dread: 1 });
+  assert.ok(dire.vignette > calm.vignette && dire.chroma > calm.chroma && dire.grain > calm.grain);
+  assert.ok(calm.vignette >= 0.3 && dire.vignette <= 0.6 + 1e-9 && dire.grain <= 0.06 + 1e-9 && dire.chroma <= 0.004 + 1e-9 && calm.chroma > 0);
+  assert.deepEqual(M.postParams({ dread: 9 }), dire); assert.deepEqual(M.postParams({ dread: -3 }), calm); assert.deepEqual(M.postParams({ dread: NaN }), calm);
+  const still = M.postParams({ dread: 1, reduced: true });
+  assert.equal(still.chroma, 0); assert.equal(still.grainMotion, false); assert.equal(dire.grainMotion, true);
+  assert.equal(M.postParams({ quality: 1 }).enabled, true); assert.equal(M.postParams({ quality: M.POST_MIN_QUALITY }).enabled, true);
+  assert.equal(M.postParams({ quality: 0.5 }).enabled, false, 'governor below the threshold falls back to direct rendering');
+});
+test('post pass wiring: one pass, fallback warns once and never silently', () => {
+  const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(v, /post pass disabled, drawing directly/); assert.match(v, /postBroken = true/); assert.match(v, /f\.post\.grainMotion/);
+  assert.equal(M.frameCost({ vertices: { building: 30 }, post: true }).drawCalls, M.frameCost({ vertices: { building: 30 } }).drawCalls + 1);
+});
+
+test('sea, fog drift and fireflies: still under reduced motion, seeded, within budget, tier-shaped', () => {
+  const calm = M.seaParams({ dread: 0 }), dire = M.seaParams({ dread: 1, weather: 'rain' });
+  assert.ok(dire.ripple > calm.ripple && dire.tint[0] > calm.tint[0]); assert.equal(M.seaParams({ reduced: true }).speed, 0); assert.equal(calm.speed, 1);
+  assert.deepEqual(M.fogLayers({ reduced: true }).drift, [0, 0]); assert.ok(M.fogLayers({ weather: 'rain' }).drift[0] > M.fogLayers({}).drift[0] && M.fogLayers({}).drift[0] > 0);
+  assert.equal(M.fireflyCount({ lights: 3, reduced: true }), 0); assert.equal(M.fireflyCount({ lights: 3 }), 30); assert.equal(M.fireflyCount({ lights: 500 }), M.MAX_FIREFLIES);
+  assert.equal(M.fireflyStyle(0.1).kind, 'firefly'); assert.equal(M.fireflyStyle(1).kind, 'ember'); assert.ok(M.fireflyStyle(1).color[0] > M.fireflyStyle(1).color[2]);
+  const lights = [{ pos: [10, 2, 10] }, { pos: [30, 2, 40] }], a = M.fireflySeeds(lights, 7, 20), b = M.fireflySeeds(lights, 7, 20);
+  assert.deepEqual(a, b); assert.equal(a.length, 20 * M.FIREFLY_FLOATS); assert.equal(M.fireflySeeds([], 7, 20).length, 0);
+  for (let i = 0; i < 20; i++) { const l = lights[i % 2]; assert.ok(Math.hypot(a[i * 4] - l.pos[0], a[i * 4 + 2] - l.pos[2]) <= 5.01 && a[i * 4 + 1] >= 0.4 && a[i * 4 + 1] <= 3.01); }
+  const worst = M.frameCost({ vertices: { building: 3000, ground: 600, sea: 6, coast: 3000, tentacle: 900 }, rain: 900, halos: 100, fireflies: M.MAX_FIREFLIES, post: true, lights: 8 });
+  assert.ok(worst.drawCalls <= M.FRAME_BUDGET.drawCalls && worst.points <= M.FRAME_BUDGET.points, JSON.stringify(worst));
+});
+
+test('smoothDrive eases in and out, clamps and is deterministic; footfall fires once per half bob cycle', () => {
+  let c = { forward: 0, strafe: 0 }; const target = { forward: 1, strafe: 0 };
+  c = M.smoothDrive(c, target, 0.016); assert.ok(c.forward > 0 && c.forward < 0.2, 'starts gently');
+  for (let i = 0; i < 20; i++) c = M.smoothDrive(c, target, 0.016); assert.equal(c.forward, 1, 'reaches full speed in about a third of a second');
+  const stop = M.smoothDrive(c, { forward: 0, strafe: 0 }, 0.016); assert.ok(stop.forward > 0.7 && stop.forward < 1, 'does not stop dead');
+  assert.deepEqual(M.smoothDrive({ forward: 0, strafe: 0 }, { forward: 9, strafe: -9 }, 5), { forward: M.ACCEL * 0.1, strafe: -M.ACCEL * 0.1 }, 'dt and input are clamped');
+  let steps = 0, phase = 0; for (let i = 0; i < 600; i++) { const next = phase + 0.01; if (M.footfall(phase, next)) steps++; phase = next; }
+  assert.equal(steps, Math.floor((6 * M.BOB_RATE) / Math.PI), 'one footfall per half cycle over 6 s of walking');
+  assert.equal(M.footfall(1, 1), false);
+});
+test('surfaceAt: wood on the dock, wet near the shore, gravel inland; coast closeness fades inland', () => {
+  const { frame: f, dock } = M.coastFeatures(24, 24, 1818), at = (u, v) => { const p = M.coastToWorld(f, u, v); return M.surfaceAt(p.x, p.z, 24, 24, 1818); };
+  assert.equal(at(dock.u, 4), 'wood'); assert.equal(at(dock.u + 6, 4), 'wet'); assert.equal(at(dock.u + 6, -4), 'wet'); assert.equal(at(dock.u + 6, -20), 'gravel');
+  const close = (v) => { const p = M.coastToWorld(f, dock.u, v); return M.coastCloseness(p.x, p.z, 24, 24, 1818); };
+  assert.equal(close(0), 1); assert.ok(close(-15) < 1 && close(-15) > 0); assert.equal(close(-40), 0);
+  for (const seed of [1, 7, 4242]) assert.ok(['gravel', 'wood', 'wet'].includes(M.surfaceAt(48, 48, 24, 24, seed)));
 });

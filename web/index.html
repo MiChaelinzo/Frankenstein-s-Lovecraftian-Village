@@ -6,11 +6,29 @@
   <title>Frankenstein's Lovecraftian Village | Kiroween 2026</title>
   <meta name="description" content="A procedural cosmic-horror village. Change the seed, lose your sanity. Browser demo of the Unity 6 project, no paid assets.">
   <meta name="theme-color" content="#0b1012">
+  <link rel="canonical" href="https://frankensteinlovecraftianvillage.vercel.app/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Frankenstein's Lovecraftian Village">
+  <meta property="og:title" content="Frankenstein's Lovecraftian Village | Kiroween 2026">
+  <meta property="og:description" content="A procedural cosmic-horror village. Change the seed, lose your sanity. Browser demo of the Unity 6 project, no paid assets.">
+  <meta property="og:url" content="https://frankensteinlovecraftianvillage.vercel.app/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="https://frankensteinlovecraftianvillage.vercel.app/assets/og-preview.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A fog-bound seaside village at night, lantern light in the windows, under the title Frankenstein's Lovecraftian Village.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Frankenstein's Lovecraftian Village | Kiroween 2026">
+  <meta name="twitter:description" content="A procedural cosmic-horror village. Change the seed, lose your sanity. Browser demo of the Unity 6 project, no paid assets.">
+  <meta name="twitter:image" content="https://frankensteinlovecraftianvillage.vercel.app/assets/og-preview.png">
+  <meta name="twitter:image:alt" content="A fog-bound seaside village at night, lantern light in the windows, under the title Frankenstein's Lovecraftian Village.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="loading" class="loading" role="status" aria-live="polite"><span class="loading-ink" aria-hidden="true"></span><span data-i18n="loading.text">Stitching the village together</span></div>
   <a class="skip-link" href="#view" data-i18n="a11y.skip">Skip to the village view</a>
   <main id="main">
     <header>
@@ -30,6 +48,11 @@
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
           <button id="cinemaExit" class="cinema-exit" type="button" data-i18n="btn.cinemaexit" hidden>Exit</button>
           <div id="hint" class="hint" data-i18n="hint.view">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
+        </section>
+        <section class="objective" aria-label="Vigil objective" data-i18n-aria="vigil.aria">
+          <p id="objective" class="objective-line" role="status"><span id="objectiveText"></span></p>
+          <p id="vigilNote" class="stats" role="status"></p>
+          <button id="endure" type="button" data-i18n="vigil.endure" hidden>Endure the night (E)</button>
         </section>
         <p id="viewDesc" class="sr-only"></p>
 
@@ -86,6 +109,7 @@
             <input id="seed" type="number" step="1" value="1818">
             <button id="reroll" type="button" data-i18n="btn.reroll">Stitch a new village</button>
             <button id="share" type="button" data-i18n="btn.share">Copy share link</button>
+            <button id="helpBtn" type="button" aria-haspopup="dialog" data-i18n="btn.help">Help (?)</button>
           </div>
           <div class="row">
             <label for="sanity"><span data-i18n="label.sanity">Sanity</span> <output id="sanityOut">100</output></label>
@@ -96,13 +120,15 @@
           <div class="row">
             <button id="whisper" type="button" data-i18n="btn.whisper">Hear a whisper (-8)</button>
             <button id="church" type="button" data-i18n="btn.church">Enter the church (-15)</button>
-            <button id="candle" type="button" data-i18n="btn.candle">Light a candle (+10)</button>
+            <button id="candle" type="button" data-i18n="btn.candle">Light the next lantern (+10)</button>
             <label class="check"><input id="drain" type="checkbox"> <span data-i18n="label.drain">Let the dark creep in</span></label>
             <label class="check"><input id="sound" type="checkbox"> <span data-i18n="label.music">Music (procedural, off until you opt in)</span></label>
             <label for="volume" data-i18n="label.volume">Volume</label>
             <input id="volume" type="range" min="0" max="100" step="5" value="60" aria-label="Music volume" data-i18n-aria="aria.volume">
             <button id="mute" type="button" aria-pressed="false" data-i18n="btn.mute">Mute (U)</button>
           </div>
+          <details class="group collapsible">
+            <summary data-i18n="group.listen">Listen and reports</summary>
           <div class="row">
             <label for="listen" data-i18n="label.listen">Listen to</label>
             <select id="listen"><option value="" data-i18n="opt.landmark">Choose a landmark</option></select>
@@ -111,6 +137,9 @@
             <button id="dlCase" type="button" data-i18n="btn.casefile">Download case file (Markdown)</button>
             <button id="dlCaseHtml" type="button" data-i18n="btn.casehtml">Case file (HTML)</button>
           </div>
+          </details>
+          <details class="group collapsible">
+            <summary data-i18n="group.session">Session and views</summary>
           <div class="row">
             <button id="saveSession" type="button" data-i18n="btn.save">Save session</button>
             <button id="loadSession" type="button" data-i18n="btn.load">Load session</button>
@@ -119,6 +148,9 @@
             <button id="cinemaToggle" type="button" aria-pressed="false" data-i18n="btn.cinematic">Cinematic (B)</button>
             <button id="perfToggle" type="button" aria-pressed="false" data-i18n="btn.perf">Perf (X)</button>
           </div>
+          </details>
+          <details class="group collapsible">
+            <summary data-i18n="group.tools">Tools and settings</summary>
           <div class="row">
             <button id="codexToggle" type="button" aria-pressed="false" aria-controls="codexPanel" data-i18n="btn.codex">Codex (K)</button>
             <button id="stitchToggle" type="button" aria-pressed="false" aria-controls="stitchPanel" data-i18n="btn.stitch">Stitch (Y)</button>
@@ -126,6 +158,7 @@
             <button id="dailyBtn" type="button" data-i18n="btn.daily">Today's village (Z)</button>
             <button id="aboutBtn" type="button" aria-haspopup="dialog" data-i18n="btn.about">About (A)</button>
           </div>
+          </details>
           <p id="sessionNote" class="stats" role="status" aria-live="polite"></p>
           <p id="stats" class="stats"></p>
         </section>
@@ -162,61 +195,124 @@
           <h2 id="stitchTitle" data-i18n="title.stitch">How it is stitched together</h2>
           <div id="stitchBody"></div>
         </section>
-        <details id="keys" class="panel keys" open>
-          <summary data-i18n="keys.title">Keyboard</summary>
-          <ul>
-            <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
-            <li data-i18n-html="keys.church"><kbd>C</kbd> enter the church</li>
-            <li data-i18n-html="keys.candle"><kbd>L</kbd> light a candle</li>
-            <li data-i18n-html="keys.newvillage"><kbd>N</kbd> new village</li>
-            <li data-i18n-html="keys.sanity"><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
-            <li data-i18n-html="keys.drain"><kbd>D</kbd> let the dark creep in</li>
-            <li data-i18n-html="keys.music"><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
-            <li data-i18n-html="keys.story"><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
-            <li data-i18n-html="keys.nights"><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
-            <li data-i18n-html="keys.postcard"><kbd>P</kbd> save postcard</li>
-            <li data-i18n-html="keys.map"><kbd>G</kbd> village map and legend</li>
-            <li data-i18n-html="keys.investigator"><kbd>I</kbd> send an investigator along the lantern route (also ?investigator=1)</li>
-            <li data-i18n-html="keys.cinematic"><kbd>B</kbd> cinematic capture mode: chrome hidden, scripted camera through this night's story beats (also ?cinematic=1)</li>
-            <li data-i18n="keys.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic. Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper.</li>
-            <li data-i18n-html="keys.codex"><kbd>K</kbd> codex and achievements (also ?codex=1)</li>
-            <li data-i18n-html="keys.stitch"><kbd>Y</kbd> how the parts are stitched together (also ?stitch=1)</li>
-            <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
-            <li data-i18n-html="keys.daily"><kbd>Z</kbd> today's village, the same seed for everyone on this date (also ?daily=1)</li>
-            <li data-i18n-html="keys.about"><kbd>A</kbd> about and credits (Esc closes)</li>
-            <li data-i18n-html="keys.tour">Guided tour of the features, about a minute, only when you ask for it with ?tour=1</li>
-            <li data-i18n-html="keys.perf"><kbd>X</kbd> performance readout (also ?perf=1)</li>
-            <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
-            <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
-            <li data-i18n-html="keys.floor"><kbd>F</kbd> peel up one floor (top-down only)</li>
-            <li data-i18n-html="keys.door"><kbd>O</kbd> try the next door</li>
-            <li data-i18n-html="keys.help"><kbd>?</kbd> show or hide this list</li>
-            <li data-i18n-html="keys.focus">View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
-          </ul>
-        </details>
+        <section class="panel keys" aria-label="How to play" data-i18n-aria="btn.helpopen">
+          <p class="stats" data-i18n="keys.hint">Press ? for help and the full list of keys.</p>
+        </section>
       </aside>
     </div>
 
     <footer>
-      <p data-i18n-html="foot.html">Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the intro, or ?lang=fr for the French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
+      <p data-i18n-html="foot.html">Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the title screen, or ?lang=fr for the French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
-  <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" aria-describedby="introText" hidden>
-    <div class="intro-card">
-      <h2 id="introTitle"></h2>
-      <p id="introText"></p>
-      <p class="stats"><span id="introStep"></span> <span data-i18n="intro.hint">Enter, Space or Right arrow to continue, Escape to skip.</span></p>
-      <div class="row">
-        <button id="introNext" type="button" data-i18n="btn.next">Next</button>
-        <button id="introSkip" type="button" data-i18n="btn.skipintro">Skip intro</button>
+  <div id="title" class="title" role="dialog" aria-modal="true" aria-labelledby="titleHeading" aria-describedby="titleRumor" hidden>
+    <div class="title-fog" aria-hidden="true"></div>
+    <div class="title-card">
+      <p id="titleVillage" class="title-village"></p>
+      <h2 id="titleHeading" data-i18n="page.title">Frankenstein's Lovecraftian Village</h2>
+      <p class="title-pitch" data-i18n="title.pitch">A procedural cosmic-horror village. Change the seed, lose your sanity.</p>
+      <p id="titleRumor" class="title-rumor"></p>
+      <div class="title-actions">
+        <button id="titleEnter3d" class="cta" type="button" aria-describedby="titleReason" data-i18n="btn.enter3d">Enter the village (3D)</button>
+        <button id="titleMap2d" class="cta" type="button" aria-describedby="titleReason" data-i18n="btn.map2d">Map view (2D)</button>
       </div>
+      <p id="titleReason" class="title-reason" role="status"></p>
+      <div class="title-extras">
+        <button id="titleHelp" type="button" aria-haspopup="dialog" data-i18n="btn.helpopen">How to play</button>
+        <label class="check"><input id="titleSound" type="checkbox" aria-describedby="titleSoundNote"> <span data-i18n="title.sound">Sound on (opt-in)</span></label>
+        <span class="title-lang" role="group" aria-label="Language" data-i18n-aria="title.lang">
+          <button id="titleLangEn" type="button" lang="en" aria-pressed="false">English</button>
+          <button id="titleLangFr" type="button" lang="fr" aria-pressed="false">Francais</button>
+        </span>
+      </div>
+      <p id="titleSoundNote" class="stats" data-i18n="title.soundnote">Procedural music, no audio files. Nothing plays until you switch this on.</p>
+      <p id="titleEndings" class="stats"></p>
+      <p class="stats" data-i18n="title.keys">Enter begins. Escape opens the map view.</p>
     </div>
   </div>
+  <dialog id="help" class="about help" aria-labelledby="helpTitle">
+    <h2 id="helpTitle" data-i18n="help.title">How to play</h2>
+    <p id="helpDevice" class="stats" role="status"></p>
+    <div id="helpDevices" class="help-devices">
+      <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic.</p>
+      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, drag the left side to walk and the right side to look.</p>
+    </div>
+    <div class="help-groups">
+      <section class="help-group">
+        <h3 data-i18n="help.g.play">Play</h3>
+        <ul>
+          <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
+          <li data-i18n-html="keys.church"><kbd>C</kbd> enter the church</li>
+          <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>
+          <li data-i18n-html="keys.endure"><kbd>E</kbd> endure the night once enough clues are heard (2D view)</li>
+          <li data-i18n-html="keys.newvillage"><kbd>N</kbd> new village</li>
+          <li data-i18n-html="keys.sanity"><kbd>[</kbd> <kbd>]</kbd> sanity -5 / +5</li>
+          <li data-i18n-html="keys.drain"><kbd>D</kbd> let the dark creep in</li>
+          <li data-i18n-html="keys.nights"><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
+          <li data-i18n-html="keys.door"><kbd>O</kbd> try the next door</li>
+          <li data-i18n-html="keys.story"><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
+          <li data-i18n-html="keys.focus">View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
+        </ul>
+      </section>
+      <section class="help-group">
+        <h3 data-i18n="help.g.view">View</h3>
+        <ul>
+          <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
+          <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
+          <li data-i18n-html="keys.floor"><kbd>F</kbd> peel up one floor (top-down only)</li>
+          <li data-i18n-html="keys.map"><kbd>G</kbd> village map and legend</li>
+          <li data-i18n-html="keys.postcard"><kbd>P</kbd> save postcard</li>
+          <li data-i18n-html="keys.cinematic"><kbd>B</kbd> cinematic capture mode: chrome hidden, scripted camera through this night's story beats (also ?cinematic=1)</li>
+          <li data-i18n-html="keys.investigator"><kbd>I</kbd> send an investigator along the lantern route (also ?investigator=1)</li>
+        </ul>
+      </section>
+      <section class="help-group">
+        <h3 data-i18n="help.g.audio">Audio</h3>
+        <ul>
+          <li data-i18n-html="keys.music"><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
+        </ul>
+      </section>
+      <section class="help-group">
+        <h3 data-i18n="help.g.access">Accessibility</h3>
+        <ul>
+          <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
+        </ul>
+      </section>
+      <section class="help-group">
+        <h3 data-i18n="help.g.tools">Tools</h3>
+        <ul>
+          <li data-i18n-html="keys.codex"><kbd>K</kbd> codex and achievements (also ?codex=1)</li>
+          <li data-i18n-html="keys.stitch"><kbd>Y</kbd> how the parts are stitched together (also ?stitch=1)</li>
+          <li data-i18n-html="keys.daily"><kbd>Z</kbd> today's village, the same seed for everyone on this date (also ?daily=1)</li>
+          <li data-i18n-html="keys.about"><kbd>A</kbd> about and credits (Esc closes)</li>
+          <li data-i18n-html="keys.tour">Guided tour of the features, about a minute, only when you ask for it with ?tour=1</li>
+          <li data-i18n-html="keys.perf"><kbd>X</kbd> performance readout (also ?perf=1)</li>
+          <li data-i18n-html="keys.help"><kbd>?</kbd> open this help</li>
+        </ul>
+      </section>
+    </div>
+    <div class="row"><button id="helpClose" type="button" data-i18n="btn.close">Close</button></div>
+  </dialog>
   <dialog id="about" class="about" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle" data-i18n="about.title">About and credits</h2>
     <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo uses only procedural shapes and an original procedural soundtrack. Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
     <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: thirteen low-poly models made for this project, drawn by a small software projector.</p>
     <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
+  </dialog>
+  <dialog id="ending" class="about ending" aria-labelledby="endingTitle" aria-describedby="endingEpitaph">
+    <h2 id="endingTitle"></h2>
+    <p id="endingEpitaph" class="epitaph"></p>
+    <p id="endingScore"></p>
+    <p id="endingName"></p>
+    <p id="endingStats" class="stats"></p>
+    <p id="endingFound" class="stats"></p>
+    <p id="endingNote" class="stats" role="status"></p>
+    <div class="row">
+      <button id="endingCard" type="button" data-i18n="btn.vigilcard">Result card (PNG)</button>
+      <button id="endingCopy" type="button" data-i18n="btn.vigilcopy">Copy result</button>
+      <button id="endingAgain" type="button" data-i18n="btn.vigilagain">Begin again</button>
+      <button id="endingKeep" type="button" data-i18n="btn.vigilkeep">Keep exploring</button>
+    </div>
   </dialog>
   <div id="tour" class="tour" role="dialog" aria-modal="false" aria-labelledby="tourTitle" aria-describedby="tourText" hidden>
     <h2 id="tourTitle"></h2>
