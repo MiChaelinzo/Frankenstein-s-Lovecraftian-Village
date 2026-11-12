@@ -141,16 +141,16 @@ export function drawResultCard(g, m, w = CARD_WIDTH, h = CARD_HEIGHT) {
 
 /**
  * Pure params per ending id: the sanity the still is shown at (it drives dread, so the sky eye and tentacles follow the same tier rules as play)
- * and how much of the omen the camera frames. The village is only ever seen from the shore, watching or being watched; nothing here is random,
+ * how much of the omen the camera frames, and maxPitchDeg: endings whose dread tier shows no sky eye keep the camera on the shore instead of an empty sky. The village is only ever seen from the shore, watching or being watched; nothing here is random,
  * the seed only chooses which stretch of coast faces the sea.
  */
 export const EPILOGUE_LOOKS = {
-  dawn: { sanity: 90, grow: 0, eyeOpen: 1 },
-  witness: { sanity: 60, grow: 0, eyeOpen: 1 },
-  hollowing: { sanity: 40, grow: 0.4, eyeOpen: 1 },
-  fever: { sanity: 25, grow: 0.7, eyeOpen: 1 },
-  vessel: { sanity: 10, grow: 1, eyeOpen: 1 },
-  name_spoken: { sanity: 3, grow: 1, eyeOpen: 1 },
+  dawn: { sanity: 90, grow: 0, eyeOpen: 1, maxPitchDeg: 3 },
+  witness: { sanity: 60, grow: 0, eyeOpen: 1, maxPitchDeg: 3 },
+  hollowing: { sanity: 40, grow: 0.4, eyeOpen: 1, maxPitchDeg: 90 },
+  fever: { sanity: 25, grow: 0.7, eyeOpen: 1, maxPitchDeg: 90 },
+  vessel: { sanity: 10, grow: 1, eyeOpen: 1, maxPitchDeg: 90 },
+  name_spoken: { sanity: 3, grow: 1, eyeOpen: 1, maxPitchDeg: 90 },
 };
 
 /** The ?view=3d link for an ending's epilogue still, or '' for an unknown ending. Same inputs, same link. */
@@ -159,5 +159,5 @@ export function epilogueHref(endingId, { seed, nightNumber, gridW, gridD }) {
   if (!look) return '';
   const cam = omenFraming({ gridW, gridD, seed, nightNumber, grow: look.grow, eyeOpen: look.eyeOpen });
   const deg = (v) => Math.round(((v * 180) / Math.PI) * 10) / 10, r1 = (v) => Math.round(v * 10) / 10;
-  return `?intro=0&view=3d&caption=0&cam3d=${r1(cam.x)},${r1(cam.z)},${deg(cam.yaw)},${deg(cam.pitch)}#seed=${seed}&sanity=${look.sanity}&night=${nightNumber}`;
+  return `?intro=0&view=3d&caption=0&cam3d=${r1(cam.x)},${r1(cam.z)},${deg(cam.yaw)},${Math.min(deg(cam.pitch), look.maxPitchDeg)}#seed=${seed}&sanity=${look.sanity}&night=${nightNumber}`;
 }

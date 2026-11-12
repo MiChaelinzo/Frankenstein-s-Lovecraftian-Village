@@ -18,8 +18,9 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 
 | | |
 |---|---|
-| ![Lantern light on a wall](docs/media/r17-lanterns-close.png) | ![Fog and a red moon](docs/media/r17-lantern-fog.png) |
-| ![The sky eye at high dread](docs/media/r17-omen-eye.png) | ![Phone layout, 390 by 844](docs/media/r17-mobile-3d.png) |
+| ![Lantern light on a wall](docs/media/r17-lanterns-close.png) | ![Fog and a red moon](docs/media/r18-lantern-fog.png) |
+| ![The sky eye at high dread](docs/media/r18-omen-eye.png) | ![Phone layout, 390 by 844](docs/media/r17-mobile-3d.png) |
+| ![Dawn epilogue: the shore, calm and unwatched](docs/media/r18-epilogue-dawn.png) | ![Touch controls](docs/media/r18-touch-controls.png) |
 
 Screenshots are headless Chromium with software WebGL (SwiftShader), taken with `?caption=0&grain=0` (see "Stills" below).
 

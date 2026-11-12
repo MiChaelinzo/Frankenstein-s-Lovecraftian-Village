@@ -1,6 +1,6 @@
 // Offline cache for the static demo. Network first, cache fallback. Precaches only the explicit list below.
 // It never touches local-pack (licensed art stays out of caches) and never serves or stores anything for ?pack=1.
-const CACHE = 'flv-shell-v13';
+const CACHE = 'flv-shell-v14';
 const PRECACHE = [
   './', 'index.html', 'selftest.html', 'meshes.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
   'data/village_catalog.json', 'data/stitch.json',
