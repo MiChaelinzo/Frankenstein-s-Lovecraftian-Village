@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Round 18
+- Unity Vigil: new thin `VigilDirector` (starts the vigil on Play, Core night creep, Endure with key E or a HUD button when `CanEndureNight`, `Finished` event), `DreadHud` objective line, Endure button and ending panel, scene builder wiring with an EventSystem and Input System UI module, `WalkthroughController` night stepping refused while a vigil is live. `ProgressionTracker` now uses `VigilRules.CountsAsClue` and the Core lantern cap. New Core `VigilStrings` (en, fr) with a drift test against `web/src/i18n.js`. Compile-checked only; runtime Unverified.
+- Fix: CS0649 warning in `HttpNarrationProvider` (`Response.text` default); the Unity compile check is now 0 errors, 0 warnings.
 - Vigil sandbox lock: while a vigil is live the sanity slider, `[` `]`, night selector and `,` `.`, `D`, `N`, seed entry, new village, daily and load session are refused with a subtle localized reason, and their controls are disabled. Policy is refuse, not mark tampered. Rule in Core (`VigilRules.AllowsSandboxAction`, `SandboxActionIds`, `VigilState.IsLive`), JS mirror and golden `vigil.sandboxRule`. New Core rule `VigilRules.CountsAsClue(InteractionKind)` (Whisper and Landmark) with golden `vigil.clueKinds`, for Unity to adopt. Tests: dotnet 118 (was 114), node 342 (was 336), plus browser checks for the lock.
 
 ### Round 17

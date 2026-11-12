@@ -35,6 +35,8 @@ Prerequisite: open the project in Unity 6 and import the pack you own. The local
    `Import every .unitypackage in Assets/ThirdParty/LovecraftianVillage/downloads/ (HDRP package for HDRP, URP package for URP) with Assets > Import Package. Report the console output afterwards.`
 2. Auto-bind the catalog:
    `Create a VillageCatalogAsset from Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json if none exists, select it, then run the menu item Tools > Frankenstein > Auto-bind Catalog Prefabs and read the console. List which catalog ids were bound and which were not.`
+2b. Play a vigil (after step 3 below or with the generated scene):
+   `Run Tools > Frankenstein > Create Playable Village Scene, enter Play mode, and report whether VigilDirector started a vigil (objective line under the sanity readout), then use the console to confirm no errors. Press E with nothing under the crosshair once the clue target is met and report the next night's objective line.`
 3. Build the demo scene:
    `Create a new scene, add an empty GameObject with VillageBuilder and HorrorAmbienceDirector, assign the catalog asset, and click Build Village from the component context menu.`
 4. Match the web demo:
