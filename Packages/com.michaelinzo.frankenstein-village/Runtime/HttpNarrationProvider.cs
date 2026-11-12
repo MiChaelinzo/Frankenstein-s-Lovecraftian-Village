@@ -12,7 +12,7 @@ namespace Frankenstein.Runtime
     public sealed class HttpNarrationProvider : INarrationProvider
     {
         [System.Serializable] private sealed class Request { public string location; public float dread; }
-        [System.Serializable] private sealed class Response { public string text; }
+        [System.Serializable] private sealed class Response { public string text = ""; } // JsonUtility fills this; the initializer states the default honestly
 
         private readonly string _url;
         private string _latest = string.Empty;
