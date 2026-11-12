@@ -150,5 +150,24 @@ namespace Frankenstein.Core
         {
             return Format(Template(language, "vigil.end.score"), "score", outcome.Score, "rank", Rank(language, outcome.Rank));
         }
+
+        /// <summary>
+        /// The ending panel body, one line each: epitaph, the revealed name, the score line, the run statistics and the shareable
+        /// result code. stageCount is the number of ritual stages of the village (shown as "stage n/m").
+        /// </summary>
+        public static string EndingBody(string language, VigilState vigil, VigilOutcome outcome, int stageCount)
+        {
+            var lines = new List<string>
+            {
+                Epitaph(language, outcome.EndingId),
+                Format(Template(language, "vigil.end.name"), "name", vigil.RevealedName),
+                ScoreLine(language, outcome),
+                Format(Template(language, "vigil.end.stats"),
+                    "clues", outcome.Clues, "lanterns", outcome.Lanterns, "nights", outcome.NightsEndured, "total", vigil.NightsTotal,
+                    "stage", System.Math.Max(0, vigil.RitualStage + 1), "stages", stageCount, "sanity", outcome.Sanity),
+                outcome.Code,
+            };
+            return string.Join("\n", lines);
+        }
     }
 }

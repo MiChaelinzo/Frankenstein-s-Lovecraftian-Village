@@ -78,5 +78,29 @@ namespace Frankenstein.Core.Tests
             Assert.Equal("Score 700, rank Watcher", VigilStrings.ScoreLine("en", outcome));
             Assert.Equal("Score 700, rang Guetteur", VigilStrings.ScoreLine("fr", outcome));
         }
+
+        [Fact]
+        public void Objective_and_ending_body_fill_every_placeholder_in_both_languages()
+        {
+            var camp = CampaignGenerator.Generate(1818, 3);
+            var ritual = RitualChain.Generate(camp);
+            var vigil = new VigilState(camp, ritual);
+            foreach (var language in VigilStrings.Languages)
+            {
+                var objective = VigilStrings.Objective(language, vigil);
+                Assert.DoesNotContain("{", objective);
+                Assert.Contains(vigil.RevealedName, objective);
+            }
+            vigil.RecordSanity(0);
+            var outcome = vigil.Outcome(0);
+            Assert.NotNull(outcome);
+            foreach (var language in VigilStrings.Languages)
+            {
+                var body = VigilStrings.EndingBody(language, vigil, outcome, ritual.Stages.Count);
+                Assert.DoesNotContain("{", body);
+                Assert.Contains(outcome.Code, body);
+                Assert.Contains(VigilStrings.Epitaph(language, outcome.EndingId), body);
+            }
+        }
     }
 }
