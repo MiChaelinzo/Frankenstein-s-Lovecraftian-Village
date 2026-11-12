@@ -76,3 +76,5 @@ Extra shots, all in the browser:
 - DLNK scene mode (local only, needs the owner's pack built into `web/local-pack/`): `?pack=1&scene=coast-scene`. Never show this in a public recording unless licensed to.
 
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.
+
+- Round 18 touch: on a phone (or add `?touch=1` to `?view=3d`) drag the stick to walk, the look pad to turn, tap Interact at a lantern, Lantern, Help. Still: `docs/media/r18-touch-controls.png`.
