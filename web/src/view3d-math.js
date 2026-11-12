@@ -139,7 +139,17 @@ export function stepCamera(cam, input, dt, boxes, bounds, mouse = null) {
 }
 
 /** Subtle head bob in metres. Zero when reduced motion is on or the player stands still. */
-export const headBob = (timeSec, speedFactor, reduced) => (reduced ? 0 : Math.sin(timeSec * 7.5) * 0.035 * clamp(speedFactor, 0, 1));
+export const headBob = (timeSec, speedFactor, reduced) => (reduced ? 0 : Math.sin(timeSec * BOB_RATE) * 0.035 * clamp(speedFactor, 0, 1));
+
+export const ACCEL = 9, DECEL = 13;   // per second: walking eases in over about 0.1 s and out slightly faster
+/** Eases the walking input toward the target so starting and stopping are smooth. cur and target are { forward, strafe } in -1..1. Pure. */
+export function smoothDrive(cur, target, dt) {
+  const d = clamp(dt, 0, 0.1), ease = (c, t) => { const rate = Math.abs(t) > Math.abs(c) ? ACCEL : DECEL, step = rate * d; return Math.abs(t - c) <= step ? t : c + Math.sign(t - c) * step; };
+  return { forward: ease(cur.forward || 0, clamp(target.forward || 0, -1, 1)), strafe: ease(cur.strafe || 0, clamp(target.strafe || 0, -1, 1)) };
+}
+export const BOB_RATE = 7.5; // radians per second of walking phase, see headBob
+/** True when the bob phase (seconds of walking) crossed a footfall since prev: one step per half bob cycle. */
+export const footfall = (prevPhase, phase) => Math.floor((phase * BOB_RATE) / Math.PI) > Math.floor((prevPhase * BOB_RATE) / Math.PI);
 
 // ---------- picking ----------
 
@@ -456,6 +466,18 @@ export function coastFrame(gridW, gridD, seed, cell = CELL) {
 }
 /** Local (u along shore, v out to sea) to world x and z. */
 export const coastToWorld = (f, u, v) => (f.axis === 'x' ? { x: f.edge + f.dir * v, z: u } : { x: u, z: f.edge + f.dir * v });
+
+/** World x, z to coast-local (u along the shore, v out to sea; negative v is inland). Inverse of coastToWorld. */
+export const worldToCoast = (f, x, z) => (f.axis === 'x' ? { u: z, v: (x - f.edge) * f.dir } : { u: x, v: (z - f.edge) * f.dir });
+
+/** What the player walks on: 'wood' on the dock, 'wet' within 8 m of the shoreline, else 'gravel'. Seeded through coastFeatures. */
+export function surfaceAt(x, z, gridW, gridD, seed, cell = CELL) {
+  const { frame: f, dock } = coastFeatures(gridW, gridD, seed, cell), p = worldToCoast(f, x, z);
+  if (Math.abs(p.u - dock.u) <= dock.width / 2 + 0.3 && p.v >= -1 && p.v <= dock.length) return 'wood';
+  return p.v > -8 ? 'wet' : 'gravel';
+}
+/** 0..1 closeness to the sea for the wave layer: 1 on the shoreline, fading to 0 at 30 m inland. */
+export const coastCloseness = (x, z, gridW, gridD, seed, cell = CELL) => clamp(1 + worldToCoast(coastFrame(gridW, gridD, seed, cell), x, z).v / 30, 0, 1);
 
 /**
  * Seeded dock, boats and cliff rocks on the coast, all in local (u, v) metres. Always: one dock, two boats, two cliffs flanking the

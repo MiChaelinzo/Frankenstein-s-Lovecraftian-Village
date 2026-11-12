@@ -99,6 +99,7 @@ const view3d = createView3d({
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
+  onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind),
@@ -514,7 +515,7 @@ const progress = createProgressController({ $, tr, state, log, announce, fetchJs
 const vigil = createVigilController({
   $, tr, state, progress, storage, announce, reduceMotion,
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
-  adjust: (delta, where) => adjust(delta, where),
+  adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
   syncUi: () => syncUi(), pushHash: () => pushHash(),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),

@@ -4,14 +4,14 @@ import { VigilState, InteractionRules, nightCreep, sanityPoints, VIGIL_LAMPS_PER
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
-  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName,
+  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind,
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
 
 /**
  * deps: $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
- *  syncUi(), pushHash(), canPlay() (false during cinematic, tour, intro, story), exit3d(), reroll(), download(name, blob, mime), shareLink(), reduceMotion.
+ *  cue(kind) optional UI sound ('lantern', 'ending-warm', 'ending-cold'), syncUi(), pushHash(), canPlay() (false during cinematic, tour, intro, story), exit3d(), reroll(), download(name, blob, mime), shareLink(), reduceMotion.
  */
 export function createVigilController(deps) {
   const { $, tr, state, progress, storage, announce, notice } = deps;
@@ -67,6 +67,7 @@ export function createVigilController(deps) {
     if (!vigil.lightLantern(lampId)) return true;
     const gain = InteractionRules.sanityDelta('candle');
     deps.adjust(gain, 'the village');
+    deps.cue?.('lantern');
     const text = tr('vigil.lamp', { n: gain, lit: vigil.nightLampIds.size, lamps: VIGIL_LAMPS_PER_NIGHT });
     $('vigilNote').textContent = text; announce(text);
     return true;
@@ -128,6 +129,7 @@ export function createVigilController(deps) {
     const list = recordEnding(storage, outcome.endingId, (err) => console.warn(`[vigil] could not store endings: ${err.message}`));
     model = endingModel(outcome, { vigil, villageName: state.campaign.villageName, seed: state.seed, found: list.length, stageCount: state.ritual.stages.length });
     endingTitle = tr(`vigil.title.${outcome.endingId}`);
+    deps.cue?.(endingCueKind(outcome.endingId));
     deps.exit3d();
     setTimeout(openEnding, deps.reduceMotion ? 0 : ENDING_FADE_MS);
   }

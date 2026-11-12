@@ -32,6 +32,8 @@ export function endingModel(outcome, { vigil, villageName, seed, found, stageCou
     stage: Math.max(0, vigil.ritualStage + 1), stageCount, sanity: outcome.sanity, found, foundTotal: VIGIL_ENDING_IDS.length,
   };
 }
+/** Which ending cue plays: the dawn and the witness end warm; the hollowing, the spoken name, the fever and the vessel end cold. */
+export const endingCueKind = (endingId) => (endingId === 'dawn' || endingId === 'witness' ? 'ending-warm' : 'ending-cold');
 export function endingStatsText(m, tr) {
   return tr('vigil.end.stats', { clues: m.clues, lanterns: m.lanterns, nights: m.nightsEndured, total: m.nightsTotal, stage: m.stage, stages: m.stageCount, sanity: m.sanity });
 }

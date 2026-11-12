@@ -435,3 +435,21 @@ test('sea, fog drift and fireflies: still under reduced motion, seeded, within b
   const worst = M.frameCost({ vertices: { building: 3000, ground: 600, sea: 6, coast: 3000, tentacle: 900 }, rain: 900, halos: 100, fireflies: M.MAX_FIREFLIES, post: true, lights: 8 });
   assert.ok(worst.drawCalls <= M.FRAME_BUDGET.drawCalls && worst.points <= M.FRAME_BUDGET.points, JSON.stringify(worst));
 });
+
+test('smoothDrive eases in and out, clamps and is deterministic; footfall fires once per half bob cycle', () => {
+  let c = { forward: 0, strafe: 0 }; const target = { forward: 1, strafe: 0 };
+  c = M.smoothDrive(c, target, 0.016); assert.ok(c.forward > 0 && c.forward < 0.2, 'starts gently');
+  for (let i = 0; i < 20; i++) c = M.smoothDrive(c, target, 0.016); assert.equal(c.forward, 1, 'reaches full speed in about a third of a second');
+  const stop = M.smoothDrive(c, { forward: 0, strafe: 0 }, 0.016); assert.ok(stop.forward > 0.7 && stop.forward < 1, 'does not stop dead');
+  assert.deepEqual(M.smoothDrive({ forward: 0, strafe: 0 }, { forward: 9, strafe: -9 }, 5), { forward: M.ACCEL * 0.1, strafe: -M.ACCEL * 0.1 }, 'dt and input are clamped');
+  let steps = 0, phase = 0; for (let i = 0; i < 600; i++) { const next = phase + 0.01; if (M.footfall(phase, next)) steps++; phase = next; }
+  assert.equal(steps, Math.floor((6 * M.BOB_RATE) / Math.PI), 'one footfall per half cycle over 6 s of walking');
+  assert.equal(M.footfall(1, 1), false);
+});
+test('surfaceAt: wood on the dock, wet near the shore, gravel inland; coast closeness fades inland', () => {
+  const { frame: f, dock } = M.coastFeatures(24, 24, 1818), at = (u, v) => { const p = M.coastToWorld(f, u, v); return M.surfaceAt(p.x, p.z, 24, 24, 1818); };
+  assert.equal(at(dock.u, 4), 'wood'); assert.equal(at(dock.u + 6, 4), 'wet'); assert.equal(at(dock.u + 6, -4), 'wet'); assert.equal(at(dock.u + 6, -20), 'gravel');
+  const close = (v) => { const p = M.coastToWorld(f, dock.u, v); return M.coastCloseness(p.x, p.z, 24, 24, 1818); };
+  assert.equal(close(0), 1); assert.ok(close(-15) < 1 && close(-15) > 0); assert.equal(close(-40), 0);
+  for (const seed of [1, 7, 4242]) assert.ok(['gravel', 'wood', 'wet'].includes(M.surfaceAt(48, 48, 24, 24, seed)));
+});

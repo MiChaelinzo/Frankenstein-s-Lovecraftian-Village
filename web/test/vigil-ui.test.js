@@ -76,3 +76,9 @@ test('pickLamp finds the nearest lamp on the ray and ignores ones behind', () =>
   assert.equal(pickLamp([0, 0, 0], [1, 0, 0], lamps, 60), null);
   assert.equal(pickLamp([0, 0, 0], [0, 0, -1], lamps, 3), null);
 });
+
+test('ending cue kind: dawn and witness are warm, the rest cold', async () => {
+  const { endingCueKind } = await import('../src/vigil-view.js');
+  assert.equal(endingCueKind('dawn'), 'ending-warm'); assert.equal(endingCueKind('witness'), 'ending-warm');
+  for (const id of ['hollowing', 'name_spoken', 'fever', 'vessel']) assert.equal(endingCueKind(id), 'ending-cold');
+});
