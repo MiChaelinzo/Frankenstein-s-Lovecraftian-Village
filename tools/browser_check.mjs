@@ -350,6 +350,25 @@ async function main() {
     rec('touch controls: ?touch=0 hides the dock', await ev(`getComputedStyle(document.getElementById('touchDock')).display === 'none'`), {});
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
 
+    // Round 18 accessibility on the dialogs: in the high contrast theme every control of the title, help and ending dialogs shows a 3 px focus ring and the help text (gamepad prompts included) is legible
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?contrast=1');
+    const ringOf = (ids) => ev(`(()=>{const out={};for(const id of ${JSON.stringify(ids)}){const el=document.getElementById(id);if(!el){out[id]='missing';continue;}el.focus();const c=getComputedStyle(el);out[id]=c.outlineStyle!=='none'&&parseFloat(c.outlineWidth)>=2?'ring':'no ring: '+c.outlineStyle+' '+c.outlineWidth}return out})()`);
+    const titleRings = await ringOf(['titleEnter3d', 'titleMap2d', 'titleHelp', 'titleSound']);
+    rec('a11y: high contrast shows a focus ring on every title control', Object.values(titleRings).every((v) => v === 'ring'), titleRings);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&contrast=1#seed=1818&sanity=100');
+    await ev(`document.getElementById('helpBtn').click()`); await sleep(300);
+    const helpRings = await ringOf(['helpClose']);
+    const helpText = await ev(`(()=>{const lum=(c)=>{const v=c.match(/[\\d.]+/g).slice(0,3).map((x)=>{x=Number(x)/255;return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4)});return 0.2126*v[0]+0.7152*v[1]+0.0722*v[2]};const dlg=document.getElementById('help');const bg=getComputedStyle(dlg).backgroundColor;const pad=dlg.querySelector('[data-device=pad]');const cs=[pad,dlg.querySelector('h2')].map((el)=>getComputedStyle(el).color);const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05)};return {bg,padText:pad.textContent.slice(0,40),ratios:cs.map((c)=>Math.round(ratio(c,bg)*10)/10)}})()`);
+    rec('a11y: high contrast help dialog has a focus ring on Close and gamepad prompt text with contrast of at least 7:1', helpRings.helpClose === 'ring' && /Gamepad/.test(helpText.padText) && helpText.ratios.every((r) => r >= 7), { helpRings, helpText });
+    await special('Escape', 27); await sleep(300);
+    await ev(`document.getElementById('ending').showModal()`); await sleep(200);
+    const endRings = await ringOf(['endingCard', 'endingCopy', 'endingAgain', 'endingEpilogue', 'endingKeep']);
+    const endOrder = await ev(`[...document.getElementById('ending').querySelectorAll('button,a[href]')].map((e)=>e.id)`);
+    rec('a11y: high contrast ending dialog has focus rings, and the shore link follows the buttons in focus order', Object.values(endRings).every((v) => v === 'ring') && endOrder.join() === 'endingCard,endingCopy,endingAgain,endingEpilogue,endingKeep', { endRings, endOrder });
+    await special('Escape', 27); await sleep(300);
+
     // title screen: bare URL shows it with both entries, nothing plays until opted in; ?webgl=0 is the documented no-WebGL switch
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('');

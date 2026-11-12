@@ -178,3 +178,19 @@ test('flame flicker is steady with reduced motion and bounded and deterministic 
   assert.equal(flameFlicker(1234, 3, true), 1);
   for (let t = 0; t < 5000; t += 137) { const f = flameFlicker(t, 2, false); assert.ok(f >= 0.75 && f <= 1); assert.equal(f, flameFlicker(t, 2, false)); }
 });
+
+test('epilogue links: one pure params entry per ending, deterministic and seed driven', async () => {
+  const { EPILOGUE_LOOKS, epilogueHref } = await import('../src/vigil-view.js');
+  assert.deepEqual(Object.keys(EPILOGUE_LOOKS).sort(), [...VIGIL_ENDING_IDS].sort());
+  const sanities = VIGIL_ENDING_IDS.map((id) => EPILOGUE_LOOKS[id].sanity);
+  assert.ok(sanities.every((v) => v >= 0 && v <= 100));
+  const args = { seed: 1818, nightNumber: 3, gridW: 24, gridD: 24 };
+  for (const id of VIGIL_ENDING_IDS) {
+    const a = epilogueHref(id, args);
+    assert.equal(a, epilogueHref(id, args));
+    assert.match(a, new RegExp(`^\\?intro=0&view=3d&caption=0&cam3d=-?[\\d.]+,-?[\\d.]+,-?[\\d.]+,-?[\\d.]+#seed=1818&sanity=${EPILOGUE_LOOKS[id].sanity}&night=3$`));
+  }
+  assert.notEqual(epilogueHref('dawn', args), epilogueHref('dawn', { ...args, seed: 7 }));
+  assert.equal(epilogueHref('nope', args), '');
+  assert.ok(EPILOGUE_LOOKS.dawn.sanity > EPILOGUE_LOOKS.witness.sanity && EPILOGUE_LOOKS.vessel.sanity > EPILOGUE_LOOKS.name_spoken.sanity);
+});

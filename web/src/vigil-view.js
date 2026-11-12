@@ -1,5 +1,6 @@
 // Pure view-model helpers for the Vigil: objective text, ending dialog model, result card art and the endings-found record.
 // No DOM here and no rules: every number comes from VigilState / the Core mirror in core.js, so node tests can pin it.
+import { omenFraming } from './view3d-math.js';
 import { SeededRandom, VIGIL_ENDING_IDS, VIGIL_LAMPS_PER_NIGHT, VIGIL_HIDDEN_LETTER } from './core.js';
 
 export const ENDINGS_KEY = 'flv.endings.v1';
@@ -134,4 +135,29 @@ export function drawResultCard(g, m, w = CARD_WIDTH, h = CARD_HEIGHT) {
   g.fillStyle = '#cfd8d3'; g.font = '28px Georgia, serif'; g.fillText(`${m.rankName}  |  ${m.score}`, w / 2, 424);
   g.font = 'italic 22px Georgia, serif'; g.fillStyle = '#9db0aa'; g.fillText(m.name, w / 2, 466);
   g.font = '18px monospace'; g.fillStyle = '#7f918b'; g.fillText(`${m.code}   seed ${m.seed}`, w / 2, h - 28);
+}
+
+// ---------- epilogue stills (web only: a 3D framing of the village after each ending; Core has no camera) ----------
+
+/**
+ * Pure params per ending id: the sanity the still is shown at (it drives dread, so the sky eye and tentacles follow the same tier rules as play)
+ * and how much of the omen the camera frames. The village is only ever seen from the shore, watching or being watched; nothing here is random,
+ * the seed only chooses which stretch of coast faces the sea.
+ */
+export const EPILOGUE_LOOKS = {
+  dawn: { sanity: 90, grow: 0, eyeOpen: 1 },
+  witness: { sanity: 60, grow: 0, eyeOpen: 1 },
+  hollowing: { sanity: 40, grow: 0.4, eyeOpen: 1 },
+  fever: { sanity: 25, grow: 0.7, eyeOpen: 1 },
+  vessel: { sanity: 10, grow: 1, eyeOpen: 1 },
+  name_spoken: { sanity: 3, grow: 1, eyeOpen: 1 },
+};
+
+/** The ?view=3d link for an ending's epilogue still, or '' for an unknown ending. Same inputs, same link. */
+export function epilogueHref(endingId, { seed, nightNumber, gridW, gridD }) {
+  const look = EPILOGUE_LOOKS[endingId];
+  if (!look) return '';
+  const cam = omenFraming({ gridW, gridD, seed, nightNumber, grow: look.grow, eyeOpen: look.eyeOpen });
+  const deg = (v) => Math.round(((v * 180) / Math.PI) * 10) / 10, r1 = (v) => Math.round(v * 10) / 10;
+  return `?intro=0&view=3d&caption=0&cam3d=${r1(cam.x)},${r1(cam.z)},${deg(cam.yaw)},${deg(cam.pitch)}#seed=${seed}&sanity=${look.sanity}&night=${nightNumber}`;
 }

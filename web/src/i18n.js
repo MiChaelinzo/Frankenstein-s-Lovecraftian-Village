@@ -408,6 +408,7 @@ export const STRINGS = {
     "btn.vigilcopy": "Copy result",
     "btn.vigilagain": "Begin again",
     "btn.vigilkeep": "Keep exploring",
+    "btn.vigilepilogue": "See the shore",
     "keys.endure": "<kbd>E</kbd> endure the night once enough clues are heard (2D view)",
   },
   fr: {
@@ -815,6 +816,7 @@ export const STRINGS = {
     "btn.vigilcopy": "Copier le resultat",
     "btn.vigilagain": "Recommencer",
     "btn.vigilkeep": "Continuer a explorer",
+    "btn.vigilepilogue": "Voir le rivage",
     "keys.endure": "<kbd>E</kbd> endurer la nuit quand assez d'indices sont entendus (vue 2D)",
   },
 };

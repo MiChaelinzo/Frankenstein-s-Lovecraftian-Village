@@ -4,7 +4,7 @@ import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPo
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
-  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker,
+  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker, epilogueHref,
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
@@ -164,6 +164,8 @@ export function createVigilController(deps) {
     $('endingStats').textContent = endingStatsText(model, tr);
     $('endingFound').textContent = tr('vigil.end.found', { n: model.found, total: model.foundTotal });
     $('endingNote').textContent = '';
+    const shore = $('endingEpilogue');
+    if (shore) shore.href = epilogueHref(model.id, { seed: state.seed, nightNumber: vigil.night, gridW: deps.gridW, gridD: deps.gridD }) || '#';
     const d = $('ending'); endingIsOpen = true;
     if (d.showModal) d.showModal(); else d.setAttribute?.('open', '');
     $('endingKeep').focus?.();

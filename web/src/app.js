@@ -517,7 +517,7 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const vigil = createVigilController({
-  $, tr, state, progress, storage, announce, reduceMotion,
+  $, tr, state, progress, storage, announce, reduceMotion, gridW: GRID_W, gridD: GRID_D,
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
