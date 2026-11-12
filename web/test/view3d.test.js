@@ -386,6 +386,7 @@ test('round 16 props: the committed prop GLBs load, are small, and replace the p
 test('lantern pools: lit and free are warm and bright, unlit is a dim cold glint, matched by position', () => {
   const light = { pos: [10, 2.2, 20] }, lamps = [{ pos: [10, 2.2, 20], lit: false }, { pos: [50, 2.2, 5], lit: true }];
   assert.equal(M.lanternState(light, lamps), 'unlit'); assert.equal(M.lanternState({ pos: [50, 2.2, 5] }, lamps), 'lit');
+  assert.equal(M.lanternState(light, [{ pos: [10, 2.2, 20], lit: false, idle: true }]), 'free', 'before the vigil starts every lantern is warm');
   assert.equal(M.lanternState(light, []), 'free'); assert.equal(M.lanternState(light, undefined), 'free');
   const warm = M.lanternPool('lit', 0), cold = M.lanternPool('unlit', 0);
   assert.ok(warm.gain > 5 * cold.gain && warm.halo > cold.halo);

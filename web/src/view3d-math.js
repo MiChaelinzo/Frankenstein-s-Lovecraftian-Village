@@ -257,11 +257,11 @@ export function lanternLights(layout, cell = CELL) {
 
 /**
  * Whether a lantern light is lit in the vigil: 'lit' or 'unlit' when a vigil lamp stands at the same spot, 'free' when no lamp
- * claims it (free roam, or a lantern that is not a vigil target). lamps are [{pos, lit}] from getScene().
+ * claims it or the vigil has not begun yet (lamp.idle): the village starts warm and goes cold only once the vigil is under way. lamps are [{pos, lit}] from getScene().
  */
 export function lanternState(light, lamps) {
   const m = (lamps || []).find((l) => Math.abs(l.pos[0] - light.pos[0]) < 0.05 && Math.abs(l.pos[1] - light.pos[1]) < 0.05 && Math.abs(l.pos[2] - light.pos[2]) < 0.05);
-  return !m ? 'free' : m.lit ? 'lit' : 'unlit';
+  return !m || m.idle ? 'free' : m.lit ? 'lit' : 'unlit';
 }
 
 export const COLD_LANTERN = [0.3, 0.5, 0.62];
@@ -271,7 +271,7 @@ export const COLD_LANTERN = [0.3, 0.5, 0.62];
  */
 export function lanternPool(state, dread) {
   if (state === 'unlit') return { color: COLD_LANTERN, gain: 0.16, halo: 0.3 };
-  return { color: lanternColor(dread), gain: 2.1, halo: 1 };
+  return { color: lanternColor(dread), gain: 1.45, halo: 1 };
 }
 
 /** Cool fill light: the sky ambient lifted and pushed toward blue so shadows read teal against the warm pools. Moon light is boosted the same way. */

@@ -157,7 +157,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
-  const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.5) : [0.16, 0.17, 0.14];
+  const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
   for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
@@ -193,7 +193,7 @@ void main(){
     vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att;
     float nl = max(dot(n, normalize(d)), 0.0) * 0.75 + 0.25; lightSum += uLightCol[i] * att * nl;
   }
-  vec3 col = base * lightSum;
+  vec3 col = (base + 0.045) * lightSum;
   if (uMode > 1.5 && uMode < 2.5) {
     // moving ripples: three crossed wave trains give the normal; zero speed (reduced motion) leaves them still
     vec2 p = vPos.xz; float t = uWaterT;
@@ -262,7 +262,7 @@ void main(){
   vFlick = uReduced > 0.5 ? 1.0 : 0.85 + 0.15 * sin(uTime * 5.3 + aHalo.w * 1.7);
 }`;
 const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; varying float vFlick; varying float vDist;
-void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 2.2) * 0.55 * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
+void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 2.2) * 0.85 * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
   gl_FragColor = vec4(uColor, a); }`;
 const PART_VS = `attribute vec3 aSeed; uniform mat4 uVP; uniform vec3 uCam; uniform vec3 uBox; uniform vec3 uVel; uniform float uTime; uniform float uSize; uniform float uScale;
 varying float vFade;
@@ -628,7 +628,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const lit = nearestLights(lights, view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
-      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 0.62 * k) };
+      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 1.0 * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
     lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0) });

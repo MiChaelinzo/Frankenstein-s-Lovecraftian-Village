@@ -168,7 +168,7 @@ export function createVigilController(deps) {
   $('endure')?.addEventListener('click', endure);
 
   // ---------- 2D lamp markers and 3D lamp targets ----------
-  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id) }));
+  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started }));
   /** Small markers on the 2D board: a warm flame for a lit lantern, a pale ring for one still dark. iso maps grid cells to pixels. */
   function drawLamps(g, iso) {
     if (!vigil || vigil.isFinished) return;
