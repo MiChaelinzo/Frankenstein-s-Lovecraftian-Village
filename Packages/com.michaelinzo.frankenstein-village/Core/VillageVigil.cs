@@ -88,6 +88,43 @@ namespace Frankenstein.Core
         public const string ResultPrefix = "V1";
         private const int MaxDigits = 10;
 
+        // Sandbox action ids: the player controls that change sanity, night, seed or village outside play.
+        public const string ActionSanitySlider = "sanity_slider";
+        public const string ActionSanityKeys = "sanity_keys";
+        public const string ActionNightSelect = "night_select";
+        public const string ActionNightStep = "night_step";
+        public const string ActionDreadCreep = "dread_creep";
+        public const string ActionNewVillage = "new_village";
+        public const string ActionSeedEntry = "seed_entry";
+        public const string ActionDaily = "daily";
+        public const string ActionLoadSession = "load_session";
+
+        /// <summary>All sandbox action ids. Clients disable the matching controls while a vigil is live.</summary>
+        public static readonly string[] SandboxActionIds =
+        {
+            ActionSanitySlider, ActionSanityKeys, ActionNightSelect, ActionNightStep, ActionDreadCreep,
+            ActionNewVillage, ActionSeedEntry, ActionDaily, ActionLoadSession,
+        };
+
+        /// <summary>
+        /// The sandbox lock. While a vigil is live (started and not finished) every sandbox action is refused, listed or not,
+        /// so scores and endings stay honest; refusing rather than marking the run tampered keeps the rule deterministic.
+        /// Outside a live vigil everything is allowed. The vigil's own sanity and night changes do not go through this rule.
+        /// </summary>
+        public static bool AllowsSandboxAction(bool vigilLive, string actionId)
+        {
+            return !vigilLive;
+        }
+
+        /// <summary>
+        /// Whether an interaction of this kind is a vigil clue. Whisper and Landmark are clues; Door and Candle are not
+        /// (lanterns are counted separately). Unity must use this instead of treating every target as a clue.
+        /// </summary>
+        public static bool CountsAsClue(InteractionKind kind)
+        {
+            return kind == InteractionKind.Whisper || kind == InteractionKind.Landmark;
+        }
+
         /// <summary>Clues needed to endure a night. Rises with the night number, clamped. Nights below 1 count as night 1.</summary>
         public static int ClueTarget(int night)
         {
@@ -274,6 +311,8 @@ namespace Frankenstein.Core
         /// <summary>Clues the whole campaign asks for.</summary>
         public int CluesRequired { get { return VigilRules.TotalClues(NightsTotal); } }
         public bool IsCollapsed { get { return _minSanity <= 0; } }
+        /// <summary>True while the vigil is running (not finished). Callers combine it with whether the first action has started the run.</summary>
+        public bool IsLive { get { return !IsFinished; } }
         public bool IsFinished { get { return IsCollapsed || _nightsEndured >= NightsTotal; } }
         public bool IsNamed { get { return CluesRequired > 0 && _clues >= CluesRequired; } }
 

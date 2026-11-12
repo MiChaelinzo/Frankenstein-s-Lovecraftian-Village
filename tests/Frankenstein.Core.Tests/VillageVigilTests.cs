@@ -282,6 +282,44 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Sandbox_actions_are_refused_while_the_vigil_is_live_and_allowed_otherwise()
+        {
+            Assert.Equal(9, VigilRules.SandboxActionIds.Length);
+            foreach (var id in VigilRules.SandboxActionIds)
+            {
+                Assert.False(VigilRules.AllowsSandboxAction(true, id), id);
+                Assert.True(VigilRules.AllowsSandboxAction(false, id), id);
+            }
+        }
+
+        [Fact]
+        public void Unknown_sandbox_actions_are_denied_while_live()
+        {
+            Assert.False(VigilRules.AllowsSandboxAction(true, "unknown_cheat"));
+            Assert.False(VigilRules.AllowsSandboxAction(true, null));
+            Assert.True(VigilRules.AllowsSandboxAction(false, "unknown_cheat"));
+        }
+
+        [Fact]
+        public void Only_whispers_and_landmarks_count_as_clues()
+        {
+            Assert.True(VigilRules.CountsAsClue(InteractionKind.Whisper));
+            Assert.True(VigilRules.CountsAsClue(InteractionKind.Landmark));
+            Assert.False(VigilRules.CountsAsClue(InteractionKind.Door));
+            Assert.False(VigilRules.CountsAsClue(InteractionKind.Candle));
+        }
+
+        [Fact]
+        public void Vigil_is_live_until_finished()
+        {
+            var camp = CampaignGenerator.Generate(5, 1);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            Assert.True(v.IsLive);
+            v.RecordSanity(0);
+            Assert.False(v.IsLive);
+        }
+
+        [Fact]
         public void Balance_careful_players_finish_and_reckless_players_collapse()
         {
             const int seeds = 400;

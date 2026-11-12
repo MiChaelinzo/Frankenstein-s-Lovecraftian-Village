@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Frankenstein.Core;
@@ -598,6 +599,17 @@ namespace Frankenstein.Core.Tests
                       .Append(", \"named\": ").Append(o.Named ? "true" : "false").Append(", \"ritualComplete\": ").Append(o.RitualComplete ? "true" : "false").Append(" }");
                     first = false;
                 }
+            sb.Append("],\n    \"sandboxActions\": ").Append(J(VigilRules.SandboxActionIds)).Append(",\n    \"sandboxRule\": [");
+            first = true;
+            foreach (var id in VigilRules.SandboxActionIds.Concat(new[] { "unknown_cheat", "" }))
+                foreach (var live in new[] { true, false })
+                {
+                    sb.Append(first ? "" : ", ").Append('[').Append(J(id)).Append(", ").Append(live ? 1 : 0).Append(", ").Append(VigilRules.AllowsSandboxAction(live, id) ? 1 : 0).Append(']');
+                    first = false;
+                }
+            sb.Append("],\n    \"clueKinds\": [");
+            for (int k = 0; k <= (int)InteractionKind.Candle; k++)
+                sb.Append(k > 0 ? ", " : "").Append('[').Append(k).Append(", ").Append(VigilRules.CountsAsClue((InteractionKind)k) ? 1 : 0).Append(']');
             sb.Append("]\n  }\n");
         }
 
