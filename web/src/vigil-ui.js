@@ -1,6 +1,6 @@
 // Vigil DOM controller. Owns the VigilState instance, the objective line, the endure prompt and the ending dialog.
 // Every rule (clue/lantern uniqueness, targets, creep, endings, score) comes from VigilState and friends in core.js; this file forwards player actions.
-import { VigilState, InteractionRules, nightCreep, sanityPoints, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
+import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
@@ -8,6 +8,8 @@ import {
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
+/** DOM controls bound to the sandbox lock (the keys and handlers are guarded separately through allows()). */
+const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain'];
 
 /**
  * deps: $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
@@ -22,6 +24,23 @@ export function createVigilController(deps) {
   const buildLamps = (layout) => lanternLights(layout.map((p) => ({ ...p, detail: 3 })), CELL).map((l, i) => ({ id: `lamp${i}`, pos: l.pos }));
   const live = () => !!vigil && !vigil.isFinished && deps.canPlay();
   const found = () => loadEndingsFound(storage);
+  /** The sandbox lock engages with the first vigil action and holds until the vigil ends or is reset. */
+  const locked = () => started && live();
+  /** Asks the Core rule whether a sandbox action is allowed. A refusal says why, quietly, and returns false. */
+  function allows(actionId) {
+    if (allowsSandboxAction(locked(), actionId)) return true;
+    notice(tr('vigil.lock'));
+    return false;
+  }
+  function renderLock() {
+    const on = locked();
+    for (const id of LOCKED_CONTROLS) {
+      const el = $(id); if (!el) continue;
+      el.disabled = on; el.setAttribute?.('aria-disabled', String(on));
+    }
+    const reason = $('vigilLock');
+    if (reason) { reason.hidden = !on; reason.textContent = on ? tr('vigil.lock') : ''; }
+  }
 
   function reset() {
     clearTimeout(endingTimer); model = null; // a pending ending from the previous run must not open over the new village
@@ -53,7 +72,7 @@ export function createVigilController(deps) {
   /** A listen/whisper/landmark source. Returns true when it was a new clue (the sanity cost is applied by the caller either way). */
   function clue(sourceId) {
     if (!live()) return false;
-    progress.arm(); begin();
+    progress.arm(); begin(); renderLock();
     if (!vigil.recordClue(sourceId)) { $('vigilNote').textContent = tr('vigil.clue.again'); return false; }
     const text = tr('vigil.clue', { n: vigil.nightClueIds.size, target: vigil.clueTarget });
     $('vigilNote').textContent = text; announce(text);
@@ -63,7 +82,7 @@ export function createVigilController(deps) {
 
   function lightLamp(lampId) {
     if (!live()) return false;
-    progress.arm(); begin();
+    progress.arm(); begin(); renderLock();
     if (vigil.nightLampIds.has(lampId)) { notice(tr('vigil.lamp.already')); return true; }
     if (vigil.nightLampIds.size >= VIGIL_LAMPS_PER_NIGHT) { notice(tr('vigil.lamp.none')); return true; }
     if (!vigil.lightLantern(lampId)) return true;
@@ -111,6 +130,7 @@ export function createVigilController(deps) {
   }
 
   function render() {
+    renderLock();
     const bar = $('objective'); if (!bar) return;
     let text = '';
     if (vigil) {
@@ -186,7 +206,7 @@ export function createVigilController(deps) {
   }
 
   return {
-    reset, restore, serialize, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
+    reset, restore, serialize, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
     endingOpen: () => endingIsOpen, canEndure: () => !!vigil && vigil.canEndureNight && !vigil.isFinished,
     isFinished: () => !!vigil && vigil.isFinished, isLive: live,
   };

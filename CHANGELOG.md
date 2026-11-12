@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 18
+- Vigil sandbox lock: while a vigil is live the sanity slider, `[` `]`, night selector and `,` `.`, `D`, `N`, seed entry, new village, daily and load session are refused with a subtle localized reason, and their controls are disabled. Policy is refuse, not mark tampered. Rule in Core (`VigilRules.AllowsSandboxAction`, `SandboxActionIds`, `VigilState.IsLive`), JS mirror and golden `vigil.sandboxRule`. New Core rule `VigilRules.CountsAsClue(InteractionKind)` (Whisper and Landmark) with golden `vigil.clueKinds`, for Unity to adopt. Tests: dotnet 118 (was 114), node 342 (was 336), plus browser checks for the lock.
+
 ### Round 17
 - Review fixes: `reset()` in `vigil-ui.js` cancels the pending ending timer (a reroll inside the 1.6 s fade no longer opens the old run's dialog; node test added). `VigilState.TryRestore` / `tryRestore` now reject saves whose clues exceed `CluesRequired`, lanterns exceed `LampsPerNight * NightsTotal`, or per-night sets exceed their limits (tests in C# and JS; golden data unchanged). Clue classification in Unity (Whisper and Landmark count, Candle lights, Door ignored) was checked against the web callers and matches. Docs: the Unity Vigil start is stated as not wired; accessibility of the ending and help dialogs (gamepad prompts, focus rings, high contrast) and on-screen touch controls are Unverified or not built.
 - Polish and docs sweep: README starts with a hero image, Play now, pitch and How to play. New still options `?caption=0` (hides the cinematic caption) and `?grain=0` (no film grain) so share images and README screenshots are clean. The share image `web/assets/og-preview.png` was retaken (1200x630, no caption, warm lantern light, a pale moon): `tools/screenshot.sh web/assets/og-preview.png '#seed=1818&night=1&cam3d=84,96,40,14' 1200x630 '?view=3d&cinematic=1&capture=1&caption=0&grain=0'`.

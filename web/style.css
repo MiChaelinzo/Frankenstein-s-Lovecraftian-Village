@@ -193,3 +193,4 @@ html.reduced .loading-ink { animation: none; }
 .group > summary { cursor: pointer; color: var(--moss); letter-spacing: .05em; padding: 4px 0; }
 .group > summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 .keys .stats { margin: 0; }
+.vigil-lock { margin: 0 0 4px; font-style: italic; color: #b7a88a; }

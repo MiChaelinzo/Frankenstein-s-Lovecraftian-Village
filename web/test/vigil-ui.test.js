@@ -103,3 +103,63 @@ test('reset cancels a pending ending so a reroll never opens the previous run', 
   await new Promise((r) => setTimeout(r, 1800));
   assert.ok(!$('ending').opened, 'ending dialog opened after reset');
 });
+
+function lockHarness() {
+  const campaign = generateCampaign(5, 2), ritual = generateRitual(campaign);
+  const els = new Map(), notices = [];
+  const $ = (id) => { if (!els.has(id)) els.set(id, { hidden: false, disabled: false, textContent: '', attrs: {}, showModal() {}, focus() {}, setAttribute(k, v) { this.attrs[k] = v; }, addEventListener() {}, close() {} }); return els.get(id); };
+  const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
+  const progress = { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } };
+  let play = true;
+  const c = createVigilController({
+    $, tr, state, progress, storage: memStorage(), announce() {}, notice: (t) => notices.push(t), adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
+    canPlay: () => play, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+  });
+  c.reset();
+  return { c, $, notices, setPlay: (v) => { play = v; } };
+}
+
+test('sandbox lock: free before the first action, engaged after the first clue, refusing with a reason', () => {
+  const { c, $, notices } = lockHarness();
+  assert.equal(c.isLocked(), false);
+  assert.equal(c.allows('sanity_slider'), true);
+  assert.equal($('sanity').disabled, false);
+  assert.ok($('vigilLock').hidden);
+  c.clue('walls');
+  assert.equal(c.isLocked(), true);
+  for (const id of ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain']) {
+    assert.equal($(id).disabled, true, id);
+    assert.equal($(id).attrs['aria-disabled'], 'true', id);
+  }
+  assert.equal($('vigilLock').hidden, false);
+  assert.equal($('vigilLock').textContent, 'The vigil binds you. End it to tamper.');
+  notices.length = 0;
+  for (const id of ['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session', 'made_up']) assert.equal(c.allows(id), false, id);
+  assert.equal(notices.length, 10);
+  assert.ok(notices.every((n) => n === tr('vigil.lock')));
+});
+
+test('sandbox lock releases when the vigil is reset, finishes, or play is suspended', () => {
+  const { c, $, setPlay } = lockHarness();
+  c.clue('walls');
+  assert.equal(c.isLocked(), true);
+  setPlay(false);
+  assert.equal(c.isLocked(), false, 'story, tour and cinematic are never locked');
+  assert.equal(c.allows('sanity_keys'), true);
+  setPlay(true);
+  c.reset();
+  assert.equal(c.isLocked(), false);
+  assert.equal($('reroll').disabled, false);
+  assert.ok($('vigilLock').hidden);
+});
+
+test('sandbox lock does not block the controller own endure and creep', () => {
+  const { c } = lockHarness();
+  c.clue('walls'); c.clue('church-nave');
+  assert.equal(c.endure(), true, 'endure uses the controller own dependencies, not the lock');
+  assert.equal(c.isLocked(), true, 'night 2 is still a live vigil');
+});
+
+test('the lock strings exist in en and fr without em dashes', () => {
+  for (const lang of ['en', 'fr']) { assert.ok(STRINGS[lang]['vigil.lock']); assert.ok(!STRINGS[lang]['vigil.lock'].includes('\u2014')); }
+});

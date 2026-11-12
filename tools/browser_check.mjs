@@ -251,6 +251,14 @@ async function main() {
     rec('vigil: no sanity once the night\'s lanterns are lit', sNone <= sFull && /No unlit lantern/.test(await text('narration')), { sFull, sNone, narration: await text('narration') });
     rec('vigil: endure is hidden until enough is heard', await hidden('endure'), {});
 
+    // Sandbox lock: the vigil is live (started, not finished), so the sandbox controls refuse and say why.
+    const lk = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {ids:['sanity','night','nightPrev','nightNext','reroll','seed','dailyBtn','loadSession','drain'].map((i)=>g(i).disabled&&g(i).getAttribute('aria-disabled')==='true'),reason:g('vigilLock').hidden?'':g('vigilLock').textContent}})()`);
+    rec('vigil lock: after the first clue the sandbox controls are disabled with a visible reason', lk.ids.every(Boolean) && lk.reason === 'The vigil binds you. End it to tamper.', { lk });
+    const seedLive = await ev(`document.getElementById('seed').value`), sanLive = Number(await text('sanityOut'));
+    await key(']'); await key('['); await key('['); await key('n'); await key('z'); await key('.'); await key(','); await sleep(250);
+    const lk2 = await ev(`[document.getElementById('seed').value, document.getElementById('night').value, location.hash.includes('seed=' + document.getElementById('seed').value)]`);
+    rec('vigil lock: sanity keys, new village, daily and night keys are ignored while live', Number(await text('sanityOut')) === sanLive && lk2[0] === seedLive && lk2[1] === '0' && lk2[2] === true && /binds you/.test(await text('narration')), { sanLive, lk2, narration: await text('narration') });
+
     // A scripted careful player using only real controls. Returns the ending title; seeds are tried in order until the true ending shows.
     const play = (seed) => `(async () => {
       const $ = (i) => document.getElementById(i), wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -286,8 +294,14 @@ async function main() {
     await ev(`document.getElementById('endingAgain').click()`); await sleep(500);
     const again = await ev(`[document.getElementById('ending').open, document.getElementById('seed').value, document.getElementById('objectiveText').textContent]`);
     rec('vigil: Begin again closes the dialog and starts a fresh vigil on a new seed', again[0] === false && again[1] !== seedBefore && /clues 0\//.test(again[2]), { seedBefore, again });
+    const rel = await ev(`['sanity','night','reroll','seed','dailyBtn'].map((i)=>document.getElementById(i).disabled).concat(document.getElementById('vigilLock').hidden)`);
+    rec('vigil lock: Begin again releases the lock', rel.slice(0, 5).every((d) => d === false) && rel[5] === true, { rel });
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&reduced=1#seed=4322&sanity=100');
+    const freeBefore = Number(await text('sanityOut'));
+    await key('['); await sleep(200);
+    const freeAfter = Number(await text('sanityOut'));
+    rec('vigil lock: free roam before any vigil action is unaffected (sanity key works, controls enabled)', freeAfter === freeBefore - 5 && await ev(`!document.getElementById('sanity').disabled && !document.getElementById('reroll').disabled`), { freeBefore, freeAfter });
     await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
     const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
     rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });

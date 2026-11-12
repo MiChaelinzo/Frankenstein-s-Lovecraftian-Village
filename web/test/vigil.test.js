@@ -143,3 +143,11 @@ test('endings, ranks and achievements have en and fr strings', () => {
   }
   for (let i = 0; i < VIGIL_ENDING_IDS.length; i++) assert.equal(STRINGS.en[`vigil.ending.${VIGIL_ENDING_IDS[i]}`], VIGIL_EPITAPHS[i]);
 });
+
+test('clue classification: only whispers and landmarks count', async () => {
+  const { countsAsClue, allowsSandboxAction, VIGIL_SANDBOX_ACTIONS } = await import('../src/core.js');
+  assert.deepEqual(['door', 'whisper', 'landmark', 'candle'].map(countsAsClue), [false, true, true, false]);
+  assert.equal(countsAsClue('church'), false);
+  for (const id of VIGIL_SANDBOX_ACTIONS) { assert.equal(allowsSandboxAction(true, id), false); assert.equal(allowsSandboxAction(false, id), true); }
+  assert.equal(allowsSandboxAction(true, 'unknown'), false);
+});

@@ -14,6 +14,7 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 3. **Clues and lanterns:** each night asks for a few clues (listen at doors, wells and altars) and three lantern candles (`L`, the candle button, or `E` on a lamp in 3D). Every candle steadies you; every unheard clue costs sanity.
 4. **Endure the night:** once enough is found, `Endure the night` appears. Surviving carries your sanity into the next of five nights, and the masked name of the thing under the village fills in as you learn.
 5. **Endings:** six endings (Hollowed, Name Spoken, Dawn, Fever, Witness, Vessel). The result card is a PNG you can share; the result code replays the same seed.
+6. **The vigil binds you:** once a vigil has begun (your first clue or lantern) the sandbox is locked until it ends: the sanity slider and `[` `]`, the night controls, `D`, new village (`N`), seed, daily and load are refused with a quiet note. Free exploration before the first action, story mode, the tour and the cinematic are never locked. The rule lives in Core (`VigilRules.AllowsSandboxAction`) and refuses rather than marking a run tampered.
 
 | | |
 |---|---|
@@ -122,14 +123,14 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 114 passing property tests (including the Vigil rules) |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 118 passing property tests (including the Vigil rules) |
 | JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 335 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
 | Unity Vigil hook (`ProgressionTracker` forwarding) | Unverified | Compile-checked only; no scene starts a vigil, so it is inert. Core rules are Verified separately |
 | Ending and help dialog accessibility (gamepad prompts, focus rings, high contrast); on-screen touch controls | Unverified | Not checked; touch controls do not exist yet (swipes and keys only) |
-| Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (53 of 53 on local headless Chromium) |
+| Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (55 of 57 on local headless Chromium; the 2 failures, 3D door prompt and ?meshes=1 GLB fetch, also fail on the round 17 base in this sandbox) |
 | Web 3D look (lantern pools, post pass, moon, sea, fog) | Partially Verified | Seen only in SwiftShader (software GL) screenshots under `docs/media`; the post pass and its `?post=0` fallback render non-blank in the browser check. Real GPU look and frame times are Unverified |
 | Real-GPU performance, audio by ear, phones and tablets | Unverified | No real GPU, speakers or mobile device were available; only schedules and a 390 by 844 emulated layout were checked |
 | Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 53 of 53 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
