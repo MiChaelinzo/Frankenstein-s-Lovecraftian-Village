@@ -32,6 +32,9 @@ namespace Frankenstein.Runtime
         /// <summary>The finished vigil's outcome, or null while it is running or not started. Rules live in Core VigilState.</summary>
         public VigilOutcome VigilOutcome { get { return Session.Vigil == null ? null : Session.Vigil.Outcome(Session.UnlockedCodexIds.Count); } }
 
+        /// <summary>True once the village ritual is bound to the session; a vigil can only start after that.</summary>
+        public bool RitualBound { get { return _boundRitual != null; } }
+
         private void Awake()
         {
             if (useDailySeed && walkthrough != null)
@@ -65,13 +68,19 @@ namespace Frankenstein.Runtime
 
         private void OnInteracted(InteractionKind kind) { Publish(Session.RecordInteraction(kind)); }
 
-        // Inert until something calls Session.StartVigil (no scene does yet). Forwards clue and lantern events by location id, then the new sanity. Core decides what counts.
+        // While a vigil runs (VigilDirector starts it) clue and lantern events are forwarded by location id, then the new sanity.
+        // Core decides what counts: VigilRules.CountsAsClue for clues, VigilRules.LampsPerNight as the lantern cap. The sanity gain
+        // of a candle is applied by InteractionRaycaster through InteractionRules before this event arrives.
         private void OnInteractedTarget(InteractionTarget target)
         {
             if (target == null || Session.Vigil == null || director == null) return;
             ProgressionUpdate update;
-            if (target.kind == InteractionKind.Candle) Session.RecordVigilLantern(target.locationId, out update);
-            else if (target.kind != InteractionKind.Door) Session.RecordVigilClue(target.locationId, out update);
+            if (target.kind == InteractionKind.Candle)
+            {
+                if (Session.Vigil.NightLanterns >= VigilRules.LampsPerNight) return;
+                Session.RecordVigilLantern(target.locationId, out update);
+            }
+            else if (VigilRules.CountsAsClue(target.kind)) Session.RecordVigilClue(target.locationId, out update);
             else return;
             Publish(update);
             Publish(Session.RecordVigilSanity(VigilRules.SanityPoints(director.Sanity.Value)));
@@ -79,7 +88,8 @@ namespace Frankenstein.Runtime
 
         private void OnOmenCrossed(DreadEvent e) { if (e.Rising) Publish(Session.RecordOmenTier(e.Tier)); }
 
-        private void Publish(ProgressionUpdate update)
+        /// <summary>Persists newly unlocked ids and raises <see cref="Unlocked"/>. Does nothing for an empty update.</summary>
+        public void Publish(ProgressionUpdate update)
         {
             if (update == null || !update.Any) return;
             PlayerPrefs.SetString(CodexPrefsKey, ProgressionSession.SerializeIds(Session.UnlockedCodexIds));

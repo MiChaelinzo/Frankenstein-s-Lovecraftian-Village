@@ -9,6 +9,7 @@ namespace Frankenstein.Runtime
     /// from the campaign (sanity = 100 - dread target). Useful for recording the demo video.
     /// Call NextNight or PreviousNight from a UI button, or press . and , with the legacy Input Manager.
     /// Never compiled in the Unity editor; only the Core campaign it calls is covered by tests.
+    /// Stepping nights is a sandbox action: it is refused while SandboxLocked (a live vigil), see VigilRules.AllowsSandboxAction.
     /// </summary>
     public sealed class WalkthroughController : MonoBehaviour
     {
@@ -30,8 +31,21 @@ namespace Frankenstein.Runtime
             Apply(0);
         }
 
-        public void NextNight() { Apply(NightIndex + 1); }
-        public void PreviousNight() { Apply(NightIndex - 1); }
+        /// <summary>Raised with a VigilRules.SandboxAction id when a sandbox action is refused because a vigil is live.</summary>
+        public event Action<string> ActionRefused;
+
+        /// <summary>Set by VigilDirector while a vigil is live. Core VigilRules.AllowsSandboxAction decides what that forbids.</summary>
+        public bool SandboxLocked { get; set; }
+
+        public void NextNight() { if (Allowed()) Apply(NightIndex + 1); }
+        public void PreviousNight() { if (Allowed()) Apply(NightIndex - 1); }
+
+        private bool Allowed()
+        {
+            if (VigilRules.AllowsSandboxAction(SandboxLocked, VigilRules.ActionNightStep)) return true;
+            if (ActionRefused != null) ActionRefused(VigilRules.ActionNightStep);
+            return false;
+        }
 
         private void Apply(int index)
         {

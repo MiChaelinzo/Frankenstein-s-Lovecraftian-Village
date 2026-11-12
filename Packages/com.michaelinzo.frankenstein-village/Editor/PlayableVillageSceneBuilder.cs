@@ -12,7 +12,7 @@ namespace Frankenstein.Editor
 {
     /// <summary>
     /// One click playable scene: village from VillageBuilder (pack prefabs when imported and bound,
-    /// plain blocks otherwise), a first person player, the dread HUD, ambience, ritual and walkthrough
+    /// plain blocks otherwise), a first person player, the dread HUD (objective line, Endure button, ending panel), the vigil director, ambience, ritual and walkthrough
     /// directors, and calm and dread Volumes blended by DreadVolumeBlender. Fog and vignette overrides are
     /// added by reflection so this assembly never references a specific render pipeline; when the
     /// override types are missing (for example URP) the Volumes stay empty and a warning says so.
@@ -46,13 +46,22 @@ namespace Frankenstein.Editor
 
             var director = AddDirectors();
             var player = AddPlayer(builder, director);
-            player.interactor.hud = DreadHud.Create(director);
+            var hud = DreadHud.Create(director); // also adds the Endure button, ending panel and an EventSystem with the Input System UI module
+            player.interactor.hud = hud;
 
             var tracker = director.gameObject.AddComponent<ProgressionTracker>();
             tracker.director = director;
             tracker.interactor = player.interactor;
             tracker.ritualDirector = director.GetComponent<RitualDirector>();
             tracker.walkthrough = director.GetComponent<WalkthroughController>();
+
+            var vigil = director.gameObject.AddComponent<VigilDirector>();
+            vigil.director = director;
+            vigil.tracker = tracker;
+            vigil.walkthrough = tracker.walkthrough;
+            vigil.ritualDirector = tracker.ritualDirector;
+            vigil.interactor = player.interactor;
+            vigil.hud = hud;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("[Frankenstein] Saved " + ScenePath + (packImported ? " (pack prefabs bound where names matched)." : " (primitive fallback, pack not imported)."));
