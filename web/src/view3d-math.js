@@ -398,7 +398,38 @@ export function fogLayers({ dread = 0, weather = 'clear', timeSec = 0, reduced =
   const density = fogDensity({ dread, weather, timeSec, reduced });
   const d = clamp(dread, 0, 1), breath = reduced ? 0 : Math.sin((timeSec * Math.PI * 2) / 17) * 0.15;
   const ground = (weather === 'fog' ? 0.05 : weather === 'rain' ? 0.032 : 0.02) * (1 + d * 0.6) * (1 + breath);
-  return { density, ground, groundHeight: 2.2 + d * 1.4 };
+  return { density, ground, groundHeight: 2.2 + d * 1.4, drift: fogDrift(weather, reduced) };
+}
+/** Metres per second the low fog sheets slide across the water and lanes: slow, mostly with the wind. Exactly zero under reduced motion. */
+export const fogDrift = (weather, reduced) => (reduced ? [0, 0] : weather === 'rain' ? [0.55, 0.3] : weather === 'fog' ? [0.35, 0.2] : [0.22, 0.12]);
+
+/**
+ * Sea look. ripple: normal slope amplitude; speed: ripple animation rate (0 under reduced motion, so the water is still);
+ * fresnel: exponent toward the horizon; tint: the deep water colour, sickening with dread; moonGain and lanternGain scale the reflected highlights.
+ */
+export function seaParams({ dread = 0, weather = 'clear', reduced = false } = {}) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1);
+  return {
+    ripple: 0.07 + (weather === 'rain' ? 0.06 : 0) + 0.03 * d, speed: reduced ? 0 : 1, fresnel: 3,
+    tint: mixc([0.02, 0.07, 0.11], [0.08, 0.05, 0.06], d), moonGain: 4.5, lanternGain: 1.1,
+  };
+}
+
+export const FIREFLIES_PER_LIGHT = 10, MAX_FIREFLIES = 100, FIREFLY_FLOATS = 4;
+/** Fireflies drift around warm lanterns at low dread; from the Uneasy tier up they turn to embers that rise and glow red. Reduced motion: none. */
+export function fireflyStyle(dread, reduced) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), embers = tierFor(d) >= 2;
+  return embers ? { kind: 'ember', color: [1, 0.42, 0.16], rise: 1, size: 0.1 } : { kind: 'firefly', color: [0.75, 1, 0.45], rise: 0, size: 0.13 };
+}
+export const fireflyCount = ({ lights = 0, reduced = false } = {}) => (reduced ? 0 : Math.min(MAX_FIREFLIES, Math.max(0, Math.floor(lights)) * FIREFLIES_PER_LIGHT));
+/** Seeded flat [x, y, z, phase, ...] around the given lights (radius 1.2..5 m, 0.4..3 m high). Same seed and lights give the same cloud. */
+export function fireflySeeds(lights, seed, count) {
+  const n = lights.length ? Math.max(0, Math.floor(count)) : 0, out = new Float32Array(n * FIREFLY_FLOATS), r = new SeededRandom(((seed | 0) ^ 0xf1f1) | 0);
+  for (let i = 0; i < n; i++) {
+    const l = lights[i % lights.length], a = (r.next(1000) / 1000) * Math.PI * 2, rad = 1.2 + (r.next(380) / 100);
+    out.set([l.pos[0] + Math.cos(a) * rad, 0.4 + (r.next(260) / 100), l.pos[2] + Math.sin(a) * rad, r.next(1000) / 1000], i * FIREFLY_FLOATS);
+  }
+  return out;
 }
 
 /** Halo size in world metres. Lamp posts glow wider than door lanterns. */

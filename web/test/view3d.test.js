@@ -174,8 +174,27 @@ test('smoke: the GL renderer runs a frame against a recording stub context', () 
   const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'rain', 0.4, 2);
   r.setTentacles(buildTentacles({ bases: M.tentacleBases(24, 24, 7), grow: 1, dread: 0.9, timeSec: 1 }));
   r.draw({ vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'rain'),
-    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90 });
+    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90,
+    moonLight: M.moonBoost(M.moonParams(7, 1, 'night', 'rain').color), sea: M.seaParams({ dread: 0.4 }), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0.4, false), post: M.postParams({ dread: 0.4 }) });
   assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 8, 'sky, sea, ground, buildings, coast, tentacles, halos, rain/mist');
+});
+test('smoke: post pass runs through the offscreen target when complete, and warns once then draws directly when the framebuffer is incomplete', () => {
+  const run = (complete) => {
+    const calls = [], warns = [];
+    const gl = new Proxy({}, { get: (_, name) => (typeof name === 'string' && /^[A-Z_0-9]+$/.test(name) ? 1 : (...a) => { calls.push(name + (name === 'bindFramebuffer' ? ':' + (a[1] ? 'fbo' : 'screen') : '')); return name === 'getShaderParameter' || name === 'getProgramParameter' ? true : name === 'checkFramebufferStatus' ? (complete ? 1 : 0) : {}; }) });
+    const orig = console.warn; console.warn = (m) => warns.push(m);
+    try {
+      const r = createGlRenderer(gl), cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'clear', 0.4, 2);
+      r.resize(320, 180);
+      const frame = { vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'clear'), moonLight: [0.5, 0.5, 0.5],
+        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
+      r.draw(frame); r.draw(frame);
+    } finally { console.warn = orig; }
+    return { calls, warns };
+  };
+  const ok = run(true); assert.equal(ok.warns.length, 0); assert.ok(ok.calls.includes('bindFramebuffer:fbo'));
+  const bad = run(false); assert.equal(bad.warns.length, 1, 'one warning, not one per frame'); assert.match(bad.warns[0], /post pass disabled/);
+  assert.ok(!bad.calls.slice(bad.calls.lastIndexOf('checkFramebufferStatus')).includes('bindFramebuffer:fbo'), 'after the failure every frame goes straight to the screen');
 });
 test('view3d wiring: precached, no CDN, no inline script, interaction via core rules', () => {
   const app = readFileSync(join(web, 'src', 'app.js'), 'utf8'), v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
@@ -401,4 +420,17 @@ test('post pass wiring: one pass, fallback warns once and never silently', () =>
   const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
   assert.match(v, /post pass disabled, drawing directly/); assert.match(v, /postBroken = true/); assert.match(v, /f\.post\.grainMotion/);
   assert.equal(M.frameCost({ vertices: { building: 30 }, post: true }).drawCalls, M.frameCost({ vertices: { building: 30 } }).drawCalls + 1);
+});
+
+test('sea, fog drift and fireflies: still under reduced motion, seeded, within budget, tier-shaped', () => {
+  const calm = M.seaParams({ dread: 0 }), dire = M.seaParams({ dread: 1, weather: 'rain' });
+  assert.ok(dire.ripple > calm.ripple && dire.tint[0] > calm.tint[0]); assert.equal(M.seaParams({ reduced: true }).speed, 0); assert.equal(calm.speed, 1);
+  assert.deepEqual(M.fogLayers({ reduced: true }).drift, [0, 0]); assert.ok(M.fogLayers({ weather: 'rain' }).drift[0] > M.fogLayers({}).drift[0] && M.fogLayers({}).drift[0] > 0);
+  assert.equal(M.fireflyCount({ lights: 3, reduced: true }), 0); assert.equal(M.fireflyCount({ lights: 3 }), 30); assert.equal(M.fireflyCount({ lights: 500 }), M.MAX_FIREFLIES);
+  assert.equal(M.fireflyStyle(0.1).kind, 'firefly'); assert.equal(M.fireflyStyle(1).kind, 'ember'); assert.ok(M.fireflyStyle(1).color[0] > M.fireflyStyle(1).color[2]);
+  const lights = [{ pos: [10, 2, 10] }, { pos: [30, 2, 40] }], a = M.fireflySeeds(lights, 7, 20), b = M.fireflySeeds(lights, 7, 20);
+  assert.deepEqual(a, b); assert.equal(a.length, 20 * M.FIREFLY_FLOATS); assert.equal(M.fireflySeeds([], 7, 20).length, 0);
+  for (let i = 0; i < 20; i++) { const l = lights[i % 2]; assert.ok(Math.hypot(a[i * 4] - l.pos[0], a[i * 4 + 2] - l.pos[2]) <= 5.01 && a[i * 4 + 1] >= 0.4 && a[i * 4 + 1] <= 3.01); }
+  const worst = M.frameCost({ vertices: { building: 3000, ground: 600, sea: 6, coast: 3000, tentacle: 900 }, rain: 900, halos: 100, fireflies: M.MAX_FIREFLIES, post: true, lights: 8 });
+  assert.ok(worst.drawCalls <= M.FRAME_BUDGET.drawCalls && worst.points <= M.FRAME_BUDGET.points, JSON.stringify(worst));
 });
