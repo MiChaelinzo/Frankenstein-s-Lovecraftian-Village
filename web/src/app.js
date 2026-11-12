@@ -29,6 +29,7 @@ import { createStoryController } from './story-ui.js';
 import { createTitleController } from './title-ui.js';
 import { tourWanted } from './tour.js';
 import { createTourController } from './tour-ui.js';
+import { createTouchControls } from './touch-ui.js';
 import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
 import { createVigilController } from './vigil-ui.js';
@@ -111,6 +112,7 @@ function setView3d(on) {
   if (on && !state.catalog) return;
   if (on) { $('view3d').hidden = false; if (!view3d.enter()) { $('view3d').hidden = true; return; } $('view').style.visibility = 'hidden'; $('hint').textContent = tr('view3d.hint'); }
   else { view3d.exit(); $('view3d').hidden = true; $('view').style.visibility = ''; $('hint').textContent = tr('hint.view'); mark(); }
+  touchControls?.sync(on && view3d.active);
   $('view3dBtn').setAttribute('aria-pressed', String(on)); $('view3dBtn').textContent = tr(on ? 'btn.view3dexit' : 'btn.view3d');
 }
 function interact3d(p, kind) {
@@ -583,6 +585,11 @@ function setHelp(on) {
 $('help').addEventListener('close', () => { if (helpIsOpen) { helpIsOpen = false; resumeTour(); helpPrevFocus?.focus?.(); } });
 $('help').addEventListener('keydown', (e) => e.stopPropagation()); // Escape closes the dialog, not the 3D view behind it
 $('helpBtn').addEventListener('click', () => setHelp(true));
+// On-screen 3D controls: they call the same candle/endure/help paths as the keys and buttons, so the vigil sandbox lock applies.
+const touchControls = createTouchControls({
+  doc: document, view3d, query: location.search + location.hash, coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints || 0,
+  actions: { candle: () => doCandle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
+});
 $('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));

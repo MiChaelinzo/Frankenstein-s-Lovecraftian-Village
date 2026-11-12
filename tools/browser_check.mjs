@@ -305,6 +305,48 @@ async function main() {
     await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
     const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
     rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });
+    // Round 18 on-screen touch controls: hidden on desktop, forced by ?touch=1, driven through real DevTools touch events.
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&reduced=1#seed=4400&sanity=100');
+    rec('touch controls: hidden on desktop without ?touch=1', await ev(`document.getElementById('touchDock').hidden || getComputedStyle(document.getElementById('touchDock')).display === 'none'`), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await nav('?intro=0&view=3d&touch=1&reduced=1#seed=4400&sanity=100'); await sleep(1500);
+    const rects = await ev(`(()=>{const R=(id)=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};const ids=['touchInteract','touchLantern','touchHelp','touchStick','touchLook'];return {dock:getComputedStyle(document.getElementById('touchDock')).display,boxes:Object.fromEntries(ids.map((i)=>[i,R(i)])),objective:R('objective'),caption:R('narration'),prompt:R('view3dPrompt'),cinema:R('cinemaCaption'),endureHidden:document.getElementById('touchEndure').hidden,touchPoints:navigator.maxTouchPoints}})()`);
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const boxes = Object.values(rects.boxes);
+    rec('touch controls: ?touch=1 shows the dock, targets are at least 44 px', rects.dock !== 'none' && boxes.every((b) => b.w >= 44 && b.h >= 44), { rects: rects.boxes });
+    rec('touch controls: dock never overlaps the caption, objective HUD or prompt', boxes.every((b) => !hit(b, rects.objective) && !hit(b, rects.caption) && !hit(b, rects.prompt) && !hit(b, rects.cinema)), { objective: rects.objective, caption: rects.caption });
+    rec('touch controls: Endure button hidden until the vigil allows it', rects.endureHidden === true, {});
+    const touch = async (type, x, y) => send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+    const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+    const stickC = centreOf(rects.boxes.touchStick), lookC = centreOf(rects.boxes.touchLook);
+    const stable = await shotHash(); await sleep(400); const stable2 = await shotHash();
+    await touch('touchStart', stickC.x, stickC.y); await touch('touchMove', stickC.x, stickC.y - 55); await sleep(1200);
+    const knobMoved = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
+    const walked = await shotHash(); await touch('touchEnd');
+    rec('touch controls: dragging the joystick up walks the 3D camera', stable === stable2 && walked !== stable && parseFloat(knobMoved) < 0, { stable, walked, knobMoved });
+    await sleep(500); const still = await shotHash(); await sleep(400); const still2 = await shotHash();
+    rec('touch controls: releasing the joystick stops the camera', still === still2, { still, still2 });
+    await touch('touchStart', lookC.x - 30, lookC.y); for (let i = 1; i <= 8; i++) { await touch('touchMove', lookC.x - 30 + i * 7, lookC.y); await sleep(40); } await touch('touchEnd'); await sleep(500);
+    const turned = await shotHash();
+    rec('touch controls: dragging the look pad turns the camera', turned !== still2, { still2, turned });
+    await ev(`document.getElementById('touchLantern').click()`); await sleep(300);
+    rec('touch controls: Lantern button runs the lantern action (sanity or lamp count changes)', /lit|lantern|lamp/i.test(await text('vigilNote') + await text('narration') + await text('objectiveText')) || Number(await text('sanityOut')) !== 100, { note: await text('vigilNote'), sanity: await text('sanityOut') });
+    await ev(`document.getElementById('touchInteract').click()`); await sleep(200);
+    await ev(`document.getElementById('endure').hidden = false`); await sleep(100);
+    rec('touch controls: Endure button mirrors the vigil Endure state', (await hidden('touchEndure')) === false, {});
+    await ev(`document.getElementById('endure').hidden = true`); await sleep(100);
+    await ev(`document.getElementById('touchHelp').click()`); await sleep(300);
+    rec('touch controls: Help button opens the help dialog', await ev(`document.getElementById('help').open`), {});
+    await special('Escape', 27); await sleep(300);
+    await send('Emulation.setTouchEmulationEnabled', { enabled: false }); await send('Emulation.clearDeviceMetricsOverride');
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&touch=0#seed=4400&sanity=100');
+    rec('touch controls: ?touch=0 hides the dock', await ev(`getComputedStyle(document.getElementById('touchDock')).display === 'none'`), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+
     // title screen: bare URL shows it with both entries, nothing plays until opted in; ?webgl=0 is the documented no-WebGL switch
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('');

@@ -84,3 +84,30 @@ export function touchDrive(start, cur) {
 
 /** A tap is a short touch that barely moved. */
 export const isTap = (x0, y0, x1, y1, ms) => [x0, y0, x1, y1, ms].every(Number.isFinite) && ms >= 0 && ms <= TAP_MAX_MS && Math.hypot(x1 - x0, y1 - y0) <= TAP_MAX_PX;
+
+// ---- on-screen touch controls for the 3D view (touch-ui.js draws them; the maths lives here) ----
+export const TOUCH_MIN_PX = 44; // smallest comfortable touch target, enforced by CSS and checked in tests
+export const TOUCH_STICK_DEADZONE = 0.15;
+export const TOUCH_LOOK_GAIN = 1.4; // pixels dragged to camera pixels; the canvas look gesture uses the same gain
+
+/** Show the controls on coarse pointers or touch hardware; ?touch=1 forces them on and ?touch=0 forces them off. */
+export function shouldShowTouchControls({ coarse = false, maxTouchPoints = 0, query = '' } = {}) {
+  const forced = new URLSearchParams(String(query).replace(/^[?#]/, '')).get('touch');
+  if (forced === '1') return true;
+  if (forced === '0') return false;
+  return !!coarse || (Number.isFinite(maxTouchPoints) && maxTouchPoints > 0);
+}
+
+/** Fixed on-screen joystick: offset from the stick centre through touchDrive, with a rescaled dead zone. */
+export function stickDrive(center, cur) {
+  const d = touchDrive(center, cur), mag = Math.hypot(d.forward, d.strafe);
+  if (mag < TOUCH_STICK_DEADZONE) return { forward: 0, strafe: 0 };
+  const k = Math.min(1, (mag - TOUCH_STICK_DEADZONE) / (1 - TOUCH_STICK_DEADZONE)) / mag;
+  return { forward: d.forward * k, strafe: d.strafe * k };
+}
+
+/** Look pad drag in pixels to camera look deltas. */
+export const lookDelta = (dx, dy) => (Number.isFinite(dx) && Number.isFinite(dy) ? { dx: dx * TOUCH_LOOK_GAIN, dy: dy * TOUCH_LOOK_GAIN } : { dx: 0, dy: 0 });
+
+/** Touch button id -> action name. interact and lantern reuse BUTTON_ACTIONS names; endure and help are app-level. */
+export const TOUCH_BUTTON_ACTIONS = { interact: 'listen', lantern: 'candle', endure: 'endure', help: 'help' };

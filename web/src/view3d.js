@@ -3,7 +3,7 @@
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
 import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
-import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap } from './input.js';
+import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
@@ -680,7 +680,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const tch = touches.get(e.pointerId);
     if (tch) {
       if (tch.role === 'drive') drive = touchDrive({ x: tch.x0, y: tch.y0 }, { x: e.clientX, y: e.clientY });
-      else { look.dx += (e.clientX - tch.x) * 1.4; look.dy += (e.clientY - tch.y) * 1.4; }
+      else { const d = lookDelta(e.clientX - tch.x, e.clientY - tch.y); look.dx += d.dx; look.dy += d.dy; }
       tch.x = e.clientX; tch.y = e.clientY; wake(); return;
     }
     if (mouseDown && !locked && e.buttons) { look.dx += e.movementX || 0; look.dy += e.movementY || 0; mouseDown.moved = true; wake(); }
@@ -741,6 +741,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     },
     /** Called by the app when layout, dread or night changed while the view is open. */
     refresh: wake,
+    /** On-screen controls: a held joystick vector, look drag deltas and an interact at the screen centre. */
+    setTouchDrive(v) { drive = { forward: v.forward, strafe: v.strafe }; wake(); },
+    addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
+    interactCenter() { if (active && cam) interact(centerRay()); },
     get camera() { return cam; },
   };
 }

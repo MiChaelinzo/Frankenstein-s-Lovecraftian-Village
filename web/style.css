@@ -194,3 +194,15 @@ html.reduced .loading-ink { animation: none; }
 .group > summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 .keys .stats { margin: 0; }
 .vigil-lock { margin: 0 0 4px; font-style: italic; color: #b7a88a; }
+
+/* On-screen touch controls (3D view, touch devices or ?touch=1). In normal flow under the view, so they never cover the caption or the objective. */
+.touch-dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; touch-action: none; user-select: none; }
+.touch-dock[hidden], html.cinema .touch-dock { display: none; }
+.touch-stick, .touch-look { position: relative; flex: 0 0 auto; width: 120px; height: 120px; border-radius: 50%; border: 2px solid #5b6f66; background: #0b1012cc; touch-action: none; display: flex; align-items: center; justify-content: center; color: #9fb3aa; font-size: .8rem; }
+.touch-knob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: #8fb3a3; border: 2px solid #e8f2ed; transform: translate(var(--kx, 0px), var(--ky, 0px)); }
+.touch-buttons { order: 3; display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; flex: 1 0 100%; }
+.touch-buttons button { min-width: 44px; min-height: 44px; padding: 8px; }
+.touch-buttons button[hidden] { display: none; }
+html.hc .touch-stick, html.hc .touch-look { border: 3px solid #fff; background: #000; color: #fff; }
+html.hc .touch-knob { background: #fff; border-color: #000; }
+@media (forced-colors: active) { .touch-stick, .touch-look { border: 2px solid CanvasText; background: Canvas; color: CanvasText; } .touch-knob { background: Highlight; border-color: CanvasText; forced-color-adjust: none; } }
