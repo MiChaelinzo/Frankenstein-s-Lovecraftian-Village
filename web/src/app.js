@@ -86,9 +86,10 @@ const { iso, doorPoint } = renderer;
 
 // ---------- opt-in first-person 3D view (?view=3d or the button); 2D isometric stays the default ----------
 const packTint = (...roles) => { const r = pack.want && pack.roles && roles.map((n) => pack.roles[n]).find(Boolean); return r ? r.tint : null; };
+document.documentElement?.classList?.toggle?.('no-caption', optParam('caption') === '0'); // ?caption=0: stills without the cinematic caption
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 const view3d = createView3d({
-  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', camParam: cam3dParam, post: optParam('post') !== '0',
+  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0',
   getScene: () => ({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },

@@ -166,3 +166,26 @@ A short history of how this project was built, taken from `git log` on the `feat
 - `4a35b93` `tools/browser_check.mjs` extended to 30 checks, prop and omen framing tests. Local 30 of 30; live 28 of 30 (the host predates round 16).
 - Docs commit for this round: hash in `git log`. Demo script (side by side), `docs/RECORDING.md`, `docs/PACK_EXPLORATION.md`, MCP prompts 8 to 12. Scene names (Coast Scene, Assets 1.0, MystVillage) and the 14 prefabs were read from the git-ignored HDRP and URP packages with a pathname listing; no derived data committed. Node tests 294.
 - Unverified: Unity. It cannot be installed or run in the sandbox (Personal licence activation is tied to the author's Unity account), so Unity code is Partially Verified (compile check against stubs) and Unverified at runtime.
+
+## Round 17 commits
+From `git log` (oldest first, after the round 16 merge); the final polish commit is in `git log`.
+- `2cd66f8` docs: vigil design
+- `8b1c92b` feat: add vigil rules to Core
+- `05783be` test: vigil property tests and golden
+- `de44bf1` feat: forward vigil events in ProgressionTracker
+- `1efdae1` feat: mirror vigil in web core
+- `bc94391` feat: vigil objective HUD, lanterns, endings dialog and result card
+- `e1730a0` test: browser check covers the vigil
+- `051fd91` docs: vigil web wiring and changelog
+- `3813eb4` feat: original 1200x630 open graph preview image
+- `31f7441` feat: title screen with 3D and 2D entry, help overlay, loading veil and share metadata
+- `67b33a6` test: browser check covers the title screen and help dialog
+- `7462c98` feat: lantern pools, cold fill light, ambient occlusion rings and a brighter moonlit palette
+- `8e3ce85` feat: post processing pass with bloom, vignette, grain and chromatic shift, with safe fallback
+- `20d1fe7` test: tolerate float rounding at the postParams range edge
+- `f6f926f` fix: postParams treats a non-finite dread as zero
+- `b72d0dc` feat: moving sea reflections, drifting fog sheets, fireflies and embers
+- `3fa0b47` feat: warm lantern pools stand out, lanterns stay warm until the vigil starts
+- `360cd9a` feat: footsteps, layered waves, bells and whispers, lantern and ending cues, smoother walking
+- `f0f4c47` test: browser check covers the post pass and its ?post=0 fallback
+- `aa5f1a6` docs: round 17 screenshots of the 3D look

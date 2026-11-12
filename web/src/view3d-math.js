@@ -281,7 +281,7 @@ export const COLD_LANTERN = [0.3, 0.5, 0.62];
  */
 export function lanternPool(state, dread) {
   if (state === 'unlit') return { color: COLD_LANTERN, gain: 0.16, halo: 0.3 };
-  return { color: lanternColor(dread), gain: 1.45, halo: 1 };
+  return { color: lanternColor(dread), gain: 1.25, halo: 1 };
 }
 
 /** Cool fill light: the sky ambient lifted and pushed toward blue so shadows read teal against the warm pools. Moon light is boosted the same way. */
@@ -359,14 +359,14 @@ export function particleSeeds(seed, n, salt = 0) {
 export const POST_MIN_QUALITY = 0.75;
 /**
  * Parameters of the single fullscreen post pass. quality is the governor's render scale 0.5..1.
- * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.7 luminance threshold, chroma 0..0.004 (uv offset).
+ * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.8 luminance threshold, chroma 0..0.004 (uv offset).
  * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
  */
 export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
     enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
-    bloom: 0.45, bloomThreshold: 0.7, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
+    bloom: 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
   };
 }
 

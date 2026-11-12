@@ -91,3 +91,9 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - `?tour=1` starts a keyboard accessible tour; a bare URL never starts it; Esc skips; reduced motion disables auto-advance; the card stays inside the viewport.
 - Codex entries and achievements are awarded only after a player action. Deep links and restored sessions only preview, and a preview never overwrites saved progress.
 - The journal has Story and Progress tabs, with a badge for unseen progress.
+
+## Round 17: first impression and the Vigil
+- A bare URL opens a title screen with the seeded first-night rumor, a 3D entry and a 2D entry; 3D is disabled with a reason when WebGL is missing. Deep links and capture flags skip it.
+- The Vigil is the game loop: per night a clue target and three lanterns, endure the night, sanity carried between five nights, six endings, an integer score and a result code. Rules live in Core and are mirrored in JS with golden parity; the web only draws them.
+- Stills: `?caption=0` hides the cinematic caption and `?grain=0` removes film grain, so a share image or README screenshot is clean.
+- The 3D post pass (bloom, vignette, grain, chroma) falls back to direct rendering when the governor scale is low, with `?post=0`, or when the shader fails, with a console warning.

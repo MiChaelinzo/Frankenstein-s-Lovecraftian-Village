@@ -66,3 +66,6 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 ## Tour, journal tabs and progress gate
 `tour.js` is the pure step model (steps, next, previous, delays, key map, `tourCardPlacement`); `tour-ui.js` owns the DOM, highlights the target control, scrolls it into view and re-places the card on each step and on resize. `progress-gate.js` is a one-way switch: before the first player action, unlocks are shown as previews and nothing is saved over the stored progress. `journal.js` splits entries into Story and Progress for the two tabs.
+
+## Round 17: Vigil, title screen and post pass
+`Core/VillageVigil.cs` (`VigilRules`, `VigilState`, `VigilOutcome`) owns every rule; `web/src/core.js` mirrors it and `vigil.test.js` checks the golden `vigil` section. `vigil-view.js` is pure view models (objective line, ending model, result text); `vigil-ui.js` owns the DOM. `title.js` decides whether the title shows, `title-ui.js` draws it. In 3D, lantern pools, cold fill light, the moon (a disc that replaces the sky behind it, never adds up to white), a hue preserving highlight shoulder on lit walls and one fullscreen post pass are web only presentation. Moon, lantern gain and bloom threshold are tuned so lit walls keep their colour and the moon stays pale.

@@ -36,3 +36,6 @@ tests/UnityCompileCheck  stub-based compile check of Runtime and Editor scripts 
 tools/dlnk_scene.py, tools/blender/   scene layout parser and headless Blender scripts
 tests/UnityCompileCheck   stub-based compile check
 web/assets/meshes/   original GLB meshes (only .glb allowed here); web/meshes.html viewer
+web/src/title.js, title-ui.js   round 17 title screen (pure decision plus DOM); web/src/vigil-ui.js, vigil-view.js   Vigil objective, ending dialog and result card (pure view models plus DOM)
+Packages/com.michaelinzo.frankenstein-village/Core/VillageVigil.cs   Vigil rules (Core, mirrored in web/src/core.js)
+web/assets/og-preview.png   1200x630 share image (3D render; see CHANGELOG for the command)

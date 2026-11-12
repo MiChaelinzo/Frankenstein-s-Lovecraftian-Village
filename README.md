@@ -2,9 +2,27 @@
 
 [![CI](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml/badge.svg)](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml)
 
-![The village at full sanity](docs/media/calm.png)
+![A pale moon over the sea and warm lantern light in the village at dusk](docs/media/r17-dusk-coast.png)
 
-**Play in your browser:** [https://frankensteinlovecraftianvillage.vercel.app/](https://frankensteinlovecraftianvillage.vercel.app/) (deep link: [seed 1818, sanity 100, night 1](https://frankensteinlovecraftianvillage.vercel.app/#seed=1818&sanity=100&night=1)). Deployed on Vercel; HTTP-level checks are recorded below (`python3 tools/check_live.py`). The GitHub Pages workflow is blocked by an account billing lock. See [`docs/HOSTING.md`](docs/HOSTING.md). You can also run it locally (see below).
+## [Play now: frankensteinlovecraftianvillage.vercel.app](https://frankensteinlovecraftianvillage.vercel.app/)
+
+A cosmic-horror village that is built from a seed, watches you, and never tells you the same thing twice. Walk it in first-person 3D, light its lanterns, collect clues, and see how long your sanity lasts. It runs in any modern browser with no download and no paid assets. The same rules run in a Unity 6 package, checked against each other by golden tests. Built with Kiro for Kiroween 2026, Frankenstein category (#KiroweenHackathon26).
+
+### How to play
+1. **Title screen:** pick `Enter the village (3D)` or `Map view (2D)`. Press `?` at any time for the controls. Sound is opt-in.
+2. **3D controls:** WASD and mouse (click the view to look), arrow keys, a gamepad, or the on-screen stick and drag-look on a phone. `E` or a click interacts.
+3. **Clues and lanterns:** each night asks for a few clues (listen at doors, wells and altars) and three lantern candles (`L`, the candle button, or `E` on a lamp in 3D). Every candle steadies you; every unheard clue costs sanity.
+4. **Endure the night:** once enough is found, `Endure the night` appears. Surviving carries your sanity into the next of five nights, and the masked name of the thing under the village fills in as you learn.
+5. **Endings:** six endings (Hollowed, Name Spoken, Dawn, Fever, Witness, Vessel). The result card is a PNG you can share; the result code replays the same seed.
+
+| | |
+|---|---|
+| ![Lantern light on a wall](docs/media/r17-lanterns-close.png) | ![Fog and a red moon](docs/media/r17-lantern-fog.png) |
+| ![The sky eye at high dread](docs/media/r17-omen-eye.png) | ![Phone layout, 390 by 844](docs/media/r17-mobile-3d.png) |
+
+Screenshots are headless Chromium with software WebGL (SwiftShader), taken with `?caption=0&grain=0` (see "Stills" below).
+
+**Stills:** `?caption=0` hides the cinematic caption and `?grain=0` turns off film grain, so a screenshot is clean and compresses well. Example: `tools/screenshot.sh out.png '#seed=1818&night=1&cam3d=84,96,40,14' 1200x630 '?view=3d&cinematic=1&capture=1&caption=0&grain=0'`.
 
 | Dread | Abyss |
 |-------|-------|
@@ -104,12 +122,15 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 101 passing property tests |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 289 passing, including golden parity with C# output |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 114 passing property tests (including the Vigil rules) |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 335 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
-| Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 23 of 23 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
+| Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (53 of 53 on local headless Chromium) |
+| Web 3D look (lantern pools, post pass, moon, sea, fog) | Partially Verified | Seen only in SwiftShader (software GL) screenshots under `docs/media`; the post pass and its `?post=0` fallback render non-blank in the browser check. Real GPU look and frame times are Unverified |
+| Real-GPU performance, audio by ear, phones and tablets | Unverified | No real GPU, speakers or mobile device were available; only schedules and a 390 by 844 emulated layout were checked |
+| Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 53 of 53 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
 | Web 3D view (`?view=3d`, `view3d.js`) | Partially Verified | Maths and a stub-GL render smoke test are node-tested. `node tools/browser_check.mjs` drove local headless Chromium (SwiftShader GL) over DevTools: WASD changed the rendered frame, a click acquired pointer lock, Escape released it then exited, drag-look worked with `requestPointerLock` removed, `?view=3d&cinematic=1` changed frames and showed captions, 0 uncaught errors. Real GPUs, real mouse hardware, touch, gamepad and clicking a specific door were not exercised. Frame time over 259 real-time frames: mean 23.2 ms (about 43 fps), median 16.7, p95 33.5 on SwiftShader software GL, indicative only |
 | Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |

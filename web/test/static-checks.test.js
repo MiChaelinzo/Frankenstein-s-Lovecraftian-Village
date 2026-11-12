@@ -128,3 +128,16 @@ test('the title screen and help dialog are labelled dialogs; the old intro and k
   assert.match(html, /id="loading"[^>]*role="status"/);
   assert.doesNotMatch(html, /id="intro"|id="keys"/);
 });
+
+test('stills options: ?caption=0 hides the cinematic caption and ?grain=0 removes film grain, both documented', () => {
+  const app = readFileSync(join(web, 'src', 'app.js'), 'utf8'), css = readFileSync(join(web, 'style.css'), 'utf8');
+  const view = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), readme = readFileSync(join(web, '..', 'README.md'), 'utf8');
+  assert.match(app, /optParam\('caption'\) === '0'/); assert.match(css, /\.no-caption \.cinema-caption/);
+  assert.match(app, /grain: optParam\('grain'\) !== '0'/); assert.match(view, /if \(!grain\) postP\.grain = 0/);
+  assert.match(readme, /\?caption=0/); assert.match(readme, /\?grain=0/);
+});
+test('the moon disc replaces the sky and lit walls use a hue preserving shoulder, so neither clips to white', () => {
+  const view = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
+  assert.match(view, /col = mix\(col, vec3\(0\.6, 0\.66, 0\.78\)/);
+  assert.match(view, /peak > 0\.55/);
+});

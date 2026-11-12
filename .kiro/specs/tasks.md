@@ -83,3 +83,6 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [x] 78. Round 16: Core `FlythroughPath`, `WebShareLink`, place names with golden parity; Unity `VillageFlythroughCamera`, `WebDemoUrlMenu`, `DlnkPackExplorerWindow` (compile checked only, Unity Unverified); omen framing and 6 more Blender props on the web side
 - [x] 79. Round 16 docs: side-by-side `docs/DEMO_SCRIPT.md`, `docs/RECORDING.md`, `docs/PACK_EXPLORATION.md`, MCP prompts 8 to 12. Unity cannot be installed in the sandbox (licence tied to the author's account)
 - [ ] 80. Author: record the side-by-side video with own footage (no DLNK trailer, no copyrighted music), run the Unity steps for the first time and report what breaks
+- [x] 81. Round 17: Vigil in Core with JS mirror and golden parity, title screen, help dialog, loading veil, share metadata, 3D lantern pools, post pass, sea, fog sheets, fireflies, procedural footsteps and cues
+- [x] 82. Round 17 polish: `?caption=0` and `?grain=0` stills, pale moon disc and hue preserving highlight shoulder, retaken share image and README screenshots, README starts with hero, Play now, pitch and How to play
+- [ ] 83. Author: try the 3D view on a real GPU, listen to the audio and test on a real phone

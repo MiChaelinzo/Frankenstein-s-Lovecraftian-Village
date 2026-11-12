@@ -67,7 +67,7 @@ canvas { touch-action: none; }
 .cinema-caption { position: absolute; left: 0; right: 0; top: 16px; text-align: center; padding: 0 32px; font-size: clamp(1.1rem, 2.6vw, 1.7rem); font-style: italic; color: #f1f6f3; text-shadow: 0 2px 10px #000, 0 0 16px #000; pointer-events: none; }
 .cinema-exit { position: absolute; right: 12px; bottom: 12px; z-index: 5; min-width: 56px; min-height: 44px; padding: 8px 16px; background: #000b; color: #f1f6f3; border: 1px solid #f1f6f3; border-radius: 6px; font: inherit; display: none; }
 html.cinema .cinema-exit:not([hidden]) { display: block; }
-.cinema-caption[hidden] { display: none; }
+.cinema-caption[hidden], .no-caption .cinema-caption { display: none; }
 html.cinema header, html.cinema footer, html.cinema .side, html.cinema .hint, html.cinema .skip-link, html.cinema .layout .panel, html.cinema .primary > .panel { display: none; }
 html.cinema main { max-width: none; padding: 0; }
 html.cinema .layout { display: block; }
