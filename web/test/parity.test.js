@@ -13,7 +13,7 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
-  clueTarget, sourcesOffered, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
+  clueTarget, sourcesOffered, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
   parseVigilResultCode, VigilState, VIGIL_ENDING_IDS, VIGIL_EPITAPHS, VIGIL_RANK_NAMES, VIGIL_RANK_THRESHOLDS,
   VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES,
 } from '../src/core.js';
@@ -203,6 +203,14 @@ test('first-person interaction rules match C# InteractionRules exactly', () => {
   for (const [category, kind] of g.kinds) assert.equal(INTERACTION_KINDS.indexOf(InteractionRules.kindForCategory(category)), kind, category);
   assert.equal(InteractionRules.cooldownElapsed(5, NaN), true);
   assert.equal(InteractionRules.cooldownElapsed(5, -Infinity), true);
+});
+
+test('vigil sandbox lock and clue classification match C# VigilRules', () => {
+  const g = golden.vigil;
+  assert.ok(g.sandboxRule.length > 0 && g.clueKinds.length === 4);
+  assert.deepEqual([...VIGIL_SANDBOX_ACTIONS], g.sandboxActions);
+  for (const [id, live, allowed] of g.sandboxRule) assert.equal(allowsSandboxAction(live === 1, id), allowed === 1, `${id} live=${live}`);
+  for (const [kind, clue] of g.clueKinds) assert.equal(countsAsClue(INTERACTION_KINDS[kind]), clue === 1, INTERACTION_KINDS[kind]);
 });
 
 test('vigil rules, endings, scores, codes, reveals and playthroughs match C# VillageVigil', () => {

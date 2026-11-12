@@ -783,6 +783,12 @@ export function sanityPoints(sanity) {
   if (sanity >= MAX_SANITY) return MAX_SANITY;
   return Math.floor(Math.fround(sanity) + 0.5);
 }
+/** Sandbox action ids (mirror of C# VigilRules.SandboxActionIds): controls that change sanity, night, seed or village outside play. */
+export const VIGIL_SANDBOX_ACTIONS = Object.freeze(['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session']);
+/** The sandbox lock: while a vigil is live every sandbox action (listed or not) is refused; otherwise all are allowed. Refuse, never mark tampered. */
+export const allowsSandboxAction = (vigilLive, _actionId) => !vigilLive;
+/** Whether an interaction kind ('door', 'whisper', 'landmark', 'candle') is a vigil clue: whispers and landmarks only. */
+export const countsAsClue = (kind) => kind === 'whisper' || kind === 'landmark';
 export const nextNightSanity = (carried) => clampInt(carried + VIGIL_DAWN_RECOVERY, 0, MAX_SANITY);
 
 /** The ritual name with a middle dot for each hidden letter, revealed in a seeded order that never hides a letter again. */
