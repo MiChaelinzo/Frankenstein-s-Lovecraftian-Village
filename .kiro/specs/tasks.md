@@ -95,3 +95,4 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 87. Round 19 leftover: optional AI villager line in Unity, extending `HttpNarrationProvider` with the deterministic Core line as fallback (display only)
 - [ ] 88. Author: confirm the "too big character" was the first-person explorer next to small doors plus the 1.85 m villager (now 1.7 m), and whether "Nivalis nights" meant something else
 - [ ] 89. Round 19 polish idea: give the church rise a slope or texture (it reads as a flat dark mound from the village side)
+- [ ] 90. Take a first-person screenshot beside a 2.0 m door as scale evidence for task 88 (Partially Verified until the author confirms)

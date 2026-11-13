@@ -88,3 +88,12 @@ test('Core PromptStrings.PlaceName matches locName for every golden case', () =>
   assert.ok(places.length > 0);
   for (const [lang, id, name] of places) assert.equal(locName(parseLang(lang), id), name, `${lang}/${id}`);
 });
+
+test('every omen site id has a localised name in every language', async () => {
+  const { OMEN_SITE_IDS } = await import('../src/core.js');
+  for (const lang of LANGS) {
+    for (const id of OMEN_SITE_IDS) {
+      assert.ok(`loc.${id}` in STRINGS[lang], `${lang}: missing loc.${id}`);
+    }
+  }
+});
