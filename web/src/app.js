@@ -100,11 +100,12 @@ const clockTickExact = () => sessionTickExact(performance.now() - clockT0, froze
 /** Runs the clock forward by minutes; instant under reduced motion. done() fires when the target is reached. */
 function skipClock(minutes, done) {
   const from = clockSkip, t0 = performance.now(), ms = reduceMotion ? 0 : Math.min(3200, 600 + minutes * 4);
-  if (ms === 0) { clockSkip = from + minutes; done(); return; }
+  if (ms === 0) { clockSkip = from + minutes; renderClockChip(); done(); return; }
   const step = () => {
     const k = Math.min(1, (performance.now() - t0) / ms);
     clockSkip = from + minutes * (k * k * (3 - 2 * k));
-    if (k < 1) { setTimeout(step, 33); mark(); } else { clockSkip = from + minutes; done(); }
+    renderClockChip();
+    if (k < 1) { setTimeout(step, 33); mark(); } else { clockSkip = from + minutes; renderClockChip(); done(); }
   };
   step();
 }
