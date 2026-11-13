@@ -1,8 +1,10 @@
 // Minimal dependency-free GLB (glTF 2.0 binary) reader and software projector. Pure logic, no DOM.
 // Reads POSITION, indices and baseColorFactor only; that is all the original Blender meshes use.
+import { buildShapeModel } from './shapes.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
-export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS];
+export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager'];
+export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS, ...VILLAGE_KINDS]; // a test keeps this list equal to data/village_shapes.json
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
 const NCOMP = { SCALAR: 1, VEC3: 3 };
@@ -109,15 +111,34 @@ export function projectModel(model, { yaw = 0.6, pitch = 0.5, w = 240, h = 240, 
 
 // ---- village mesh mode (?meshes=1) ----
 
-/** Loads every kind through the injected fetch. Failures are logged once per kind and left out of the map, so callers fall back to procedural drawing. */
-export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.warn) {
+/**
+ * Loads every kind through the injected fetch. A failed GLB is logged once per kind. With shapesUrl, the mesh is then built from the shared
+ * shape data (data/village_shapes.json) instead; without it, or when that also fails, the kind is left out so callers use the procedural drawing.
+ */
+export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.warn, shapesUrl = null) {
   const set = new Map();
+  let shapes = null;
+  const shapeFallback = async (kind) => {
+    if (!shapesUrl) return null;
+    if (!shapes) {
+      const res = await fetchFn(shapesUrl);
+      if (!res.ok) throw new Error('shapes HTTP ' + res.status);
+      shapes = await res.json();
+    }
+    return buildShapeModel(shapes, kind);
+  };
   for (const kind of kinds) {
     try {
       const res = await fetchFn(base + kind + '.glb');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       set.set(kind, loadGlbBuffer(await res.arrayBuffer()));
-    } catch (e) { warn(`[meshes] ${kind} failed (${e.message}); using the procedural drawing`); }
+    } catch (e) {
+      try {
+        const model = await shapeFallback(kind);
+        if (model) { set.set(kind, model); warn(`[meshes] ${kind} GLB failed (${e.message}); built from the shape data`); continue; }
+      } catch (e2) { e = new Error(`${e.message}; shape data: ${e2.message}`); }
+      warn(`[meshes] ${kind} failed (${e.message}); using the procedural drawing`);
+    }
   }
   return set;
 }

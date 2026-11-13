@@ -30,6 +30,36 @@ class MeshDefs(unittest.TestCase):
         self.assertEqual(len(mesh_defs.KINDS), len(set(mesh_defs.KINDS)))
         self.assertEqual(mesh_defs.KINDS[:7], mesh_defs.CATALOG_KINDS)
 
+    def test_shape_data_file(self):
+        data = mesh_defs.load_shapes()
+        self.assertEqual(mesh_defs.validate_shapes(data), [])
+        self.assertEqual(len(mesh_defs.KINDS), 25)
+        self.assertEqual(mesh_defs.KINDS, mesh_defs.CATALOG_KINDS + mesh_defs.PROP_KINDS + mesh_defs.VILLAGE_KINDS)
+        for k in ("cottage_thatch", "cottage_tall", "inn", "chapel", "lighthouse", "market_stall", "crate_stack", "barrel",
+                  "gravestone", "gravestone_cross", "fence_iron", "villager"):
+            self.assertIn(k, mesh_defs.VILLAGE_KINDS)
+            self.assertLess(mesh_defs.stats(mesh_defs.build(k))["tris"], 400, k)
+        self.assertTrue(any(p["material"] == "glow" for p in mesh_defs.SPECS["villager"]["parts"]))
+        with open(os.path.join(ROOT, "web", "data", "village_shapes.json"), "rb") as web, open(mesh_defs.SHAPES_PATH, "rb") as pkg:
+            self.assertEqual(web.read(), pkg.read())
+
+    def test_validate_shapes_reports_problems(self):
+        bad = {"palette": {"a": [1, 1, 1, 1]}, "meshes": [
+            {"id": "x", "group": "oops", "parts": [{"name": "p", "shape": "torus", "material": "gold", "at": [0, 0, 0]}, {"name": "p", "shape": "cone", "material": "a", "sides": 2}]},
+            {"id": "x", "group": "prop", "parts": []}]}
+        errs = "; ".join(mesh_defs.validate_shapes(bad))
+        for needle in ("duplicate mesh id", "bad group", "unknown shape", "unknown material gold", "duplicate part name", "fewer than 3 sides"):
+            self.assertIn(needle, errs)
+
+    def test_yaw_and_shear_move_geometry(self):
+        base = {"name": "b", "material": "wood", "shape": "box", "at": [0, 0, 0], "size": [2, 1, 1]}
+        v0 = mesh_defs.shape_geometry(base)[0]
+        v1 = mesh_defs.shape_geometry(dict(base, yaw=90))[0]
+        self.assertNotEqual(v0, v1)
+        self.assertAlmostEqual(max(x for x, _, _ in v1), 0.5, places=6)
+        sheared = mesh_defs.shape_geometry(dict(base, shear={"dx": 1.0, "from": 0.0, "height": 1.0}))[0]
+        self.assertAlmostEqual(max(x for x, _, _ in sheared), 2.0, places=6)
+
     def test_deterministic(self):
         for k in mesh_defs.KINDS:
             self.assertEqual(mesh_defs.build(k), mesh_defs.build(k))

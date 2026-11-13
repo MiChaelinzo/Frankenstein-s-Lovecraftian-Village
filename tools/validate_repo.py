@@ -85,6 +85,9 @@ import filecmp
 if os.path.isfile("web/data/village_catalog.json") and not filecmp.cmp("web/data/village_catalog.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json", shallow=False):
     errors.append("web/data/village_catalog.json differs from Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json")
 
+if os.path.isfile("web/data/village_shapes.json") and not filecmp.cmp("web/data/village_shapes.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json", shallow=False):
+    errors.append("web/data/village_shapes.json differs from Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json")
+
 if os.path.isfile(".gitattributes") and "filter=lfs" in open(".gitattributes").read():
     errors.append(".gitattributes routes files to Git LFS (filter=lfs); LFS is not used")
 
