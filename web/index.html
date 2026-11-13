@@ -43,6 +43,13 @@
           <canvas id="view3d" class="view3d" width="960" height="560" tabindex="0" role="img" aria-label="First-person 3D view of the village" data-i18n-aria="aria.view3d" hidden></canvas>
           <div id="view3dPrompt" class="view3d-prompt" role="status" aria-live="polite" hidden></div>
           <div id="narration" class="narration" aria-live="polite"></div>
+          <div id="villagerDialog" class="villager-dialog" role="dialog" aria-labelledby="villagerName" aria-describedby="villagerLine" hidden>
+            <h2 id="villagerName"></h2>
+            <p id="villagerRole" class="stats"></p>
+            <p id="villagerLine" class="villager-line"></p>
+            <p id="villagerEffect" class="stats"></p>
+            <button id="villagerClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
+          </div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
@@ -53,6 +60,7 @@
           <div id="touchStick" class="touch-stick" role="group" aria-label="Walk" data-i18n-aria="touch.stick"><i id="touchKnob" class="touch-knob" aria-hidden="true"></i></div>
           <div class="touch-buttons">
             <button id="touchInteract" type="button" data-i18n="touch.interact">Interact</button>
+            <button id="touchTalk" type="button" data-i18n="touch.talk">Talk</button>
             <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
             <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
             <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
@@ -154,6 +162,7 @@
           <div class="row">
             <button id="saveSession" type="button" data-i18n="btn.save">Save session</button>
             <button id="loadSession" type="button" data-i18n="btn.load">Load session</button>
+            <button id="villagerToggle" type="button" aria-pressed="false" aria-controls="villagerPanel" data-i18n="btn.villagers">Villagers (R)</button>
             <button id="mapToggle" type="button" aria-pressed="false" aria-controls="mapPanel" data-i18n="btn.map">Map (G)</button>
             <button id="invToggle" type="button" aria-pressed="false" data-i18n="btn.investigator">Investigator (I)</button>
             <button id="cinemaToggle" type="button" aria-pressed="false" data-i18n="btn.cinematic">Cinematic (B)</button>
@@ -188,6 +197,11 @@
           <div id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden>
             <ol id="progressLog" class="whispers"><li class="empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
           </div>
+        </section>
+        <section id="villagerPanel" class="panel villagers" aria-labelledby="villagerPanelTitle" hidden>
+          <h2 id="villagerPanelTitle" data-i18n="villagerui.panel">Who is where</h2>
+          <p id="villagerClock" class="stats" role="status"></p>
+          <ul id="villagerList" class="villager-list"></ul>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
@@ -262,6 +276,7 @@
           <li data-i18n-html="keys.nights"><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
           <li data-i18n-html="keys.door"><kbd>O</kbd> try the next door</li>
           <li data-i18n-html="keys.story"><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
+          <li data-i18n-html="keys.villagers"><kbd>R</kbd> villagers list; pick Talk, or in 3D face a villager and press <kbd>E</kbd> or <kbd>Enter</kbd>; <kbd>Esc</kbd> closes</li>
           <li data-i18n-html="keys.focus">View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
         </ul>
       </section>

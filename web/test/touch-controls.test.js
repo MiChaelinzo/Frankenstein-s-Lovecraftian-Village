@@ -33,9 +33,10 @@ test('look delta applies the shared gain and rejects junk', () => {
   assert.deepEqual(lookDelta(NaN, 1), { dx: 0, dy: 0 });
 });
 test('button table reuses gamepad action names', () => {
-  assert.deepEqual(Object.keys(TOUCH_BUTTON_ACTIONS).sort(), ['endure', 'help', 'interact', 'lantern']);
+  assert.deepEqual(Object.keys(TOUCH_BUTTON_ACTIONS).sort(), ['endure', 'help', 'interact', 'lantern', 'talk']);
   assert.ok(Object.values(BUTTON_ACTIONS).includes(TOUCH_BUTTON_ACTIONS.interact));
   assert.ok(Object.values(BUTTON_ACTIONS).includes(TOUCH_BUTTON_ACTIONS.lantern));
+  assert.ok(Object.values(BUTTON_ACTIONS).includes(TOUCH_BUTTON_ACTIONS.talk));
 });
 test('markup and css: every button id exists and targets are at least 44 px', () => {
   const html = readFileSync(join(web, 'index.html'), 'utf8'), css = readFileSync(join(web, 'style.css'), 'utf8');

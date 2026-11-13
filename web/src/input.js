@@ -7,7 +7,7 @@ export const SWIPE_MAX_MS = 800;
 // Standard gamepad layout button index -> action. Actions fire once per press (edge triggered).
 export const BUTTON_ACTIONS = {
   0: 'listen', 1: 'door', 2: 'whisper', 3: 'candle', 4: 'focusPrev', 5: 'focusNext',
-  8: 'cinematic', 9: 'story', 12: 'prevBeat', 13: 'nextBeat', 14: 'focusPrev', 15: 'focusNext',
+  7: 'talk', 8: 'cinematic', 9: 'story', 12: 'prevBeat', 13: 'nextBeat', 14: 'focusPrev', 15: 'focusNext',
 };
 
 const pressed = (snap, i) => !!(snap && snap.buttons && snap.buttons[i]);
@@ -116,5 +116,5 @@ export function stickDrive(center, cur) {
 /** Look pad drag in pixels to camera look deltas. */
 export const lookDelta = (dx, dy) => (Number.isFinite(dx) && Number.isFinite(dy) ? { dx: dx * TOUCH_LOOK_GAIN, dy: dy * TOUCH_LOOK_GAIN } : { dx: 0, dy: 0 });
 
-/** Touch button id -> action name. interact and lantern reuse BUTTON_ACTIONS names; endure and help are app-level. */
-export const TOUCH_BUTTON_ACTIONS = { interact: 'listen', lantern: 'candle', endure: 'endure', help: 'help' };
+/** Touch button id -> action name. interact, talk and lantern reuse BUTTON_ACTIONS names; endure and help are app-level. */
+export const TOUCH_BUTTON_ACTIONS = { interact: 'listen', talk: 'talk', lantern: 'candle', endure: 'endure', help: 'help' };

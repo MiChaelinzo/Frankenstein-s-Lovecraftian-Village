@@ -187,6 +187,22 @@ export function createRenderer(env) {
     glow(lx, ly + 1, 12, '255,190,110', 0.55);
   }
 
+  // A villager: darker coat, hood, and a carried lantern that burns after dusk. Idle sway only without reduced motion.
+  function drawVillager(pos, dread, time) {
+    const v = pos.villager, s = iso(pos.x, pos.z);
+    const sway = reduceMotion ? 0 : Math.sin(time / 900 + v.index * 1.7) * 0.8;
+    const coat = mix([54, 46, 40], [40, 10, 14], dread);
+    glow(s.x, s.y, 9, '0,0,0', 0.35);
+    poly([{ x: s.x - 4.2 + sway, y: s.y }, { x: s.x + 4.2 + sway, y: s.y }, { x: s.x + 2 + sway, y: s.y - 13 }, { x: s.x - 2 + sway, y: s.y - 13 }], coat);
+    ctx.fillStyle = 'rgba(214,190,160,.95)'; ctx.beginPath(); ctx.arc(s.x + sway, s.y - 15.5, 2.4, 0, 7); ctx.fill();
+    ctx.fillStyle = coat; ctx.beginPath(); ctx.moveTo(s.x - 3 + sway, s.y - 15); ctx.lineTo(s.x + sway, s.y - 21); ctx.lineTo(s.x + 3 + sway, s.y - 15); ctx.fill();
+    const lx = s.x + 6 + sway, ly = s.y - 8;
+    ctx.strokeStyle = 'rgba(40,30,20,.9)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(s.x + 2 + sway, s.y - 10); ctx.lineTo(lx, ly - 2); ctx.stroke();
+    ctx.fillStyle = v.lantern ? (dread > 0.67 ? 'rgb(255,120,70)' : 'rgb(255,214,140)') : 'rgb(110,100,84)'; ctx.fillRect(lx - 1.5, ly - 1, 3, 4);
+    if (v.lantern) glow(lx, ly + 1, 16, '255,190,110', 0.6);
+  }
+  const drawActor = (a, dread, time) => (a.villager ? drawVillager(a, dread, time) : drawCultist(a, dread, time));
+
   const stars = Array.from({ length: 90 }, (_, i) => { const r = new SeededRandom(i + 99); return { x: r.next(960), y: r.next(260), s: 0.5 + r.next(100) / 100, ph: r.next(628) }; });
   const reeds = Array.from({ length: 70 }, (_, i) => { const r = new SeededRandom(i + 4242); return { x: GRID_W + 0.3 + r.next(80) / 10, z: 1 + r.next(GRID_D * 10) / 10, h: 8 + r.next(14), lean: (r.next(100) - 50) / 40 }; });
   const fogBanks = Array.from({ length: 8 }, (_, i) => ({ y: 130 + i * 52, speed: 5 + i * 2.2, off: i * 150, dir: i % 2 ? -1 : 1 }));
@@ -501,16 +517,18 @@ export function createRenderer(env) {
       const pos = walkerPos(state.walkers[i], time / 1000); pos.depth = pos.x + pos.z + 0.6; active.push(pos);
       const s = iso(pos.x, pos.z); glow(s.x, s.y, 26, '255,190,110', 0.28, 0.5);
     }
+    // villagers stand in the village at the current clock tick; vanished ones are not listed. They share the cultist depth ordering.
+    for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
     if (state.dlnk) drawDlnk(dread, time);
     else for (const p of state.drawOrder) {
-      while (ai < active.length && active[ai].depth <= p.depth) drawCultist(active[ai++], dread, time);
+      while (ai < active.length && active[ai].depth <= p.depth) drawActor(active[ai++], dread, time);
       const sh = state.shakes.get(p.key);
       if (sh) { const o = doorShake(sh.behavior, real - sh.at, reduceMotion); ctx.save(); ctx.translate(o.dx, o.dy); drawPiece(p, dread, time); ctx.restore(); }
       else drawPiece(p, dread, time);
     }
-    while (ai < active.length) drawCultist(active[ai++], dread, time);
+    while (ai < active.length) drawActor(active[ai++], dread, time);
     if (!state.dlnk) { drawInvestigator(time); drawFocus(time); drawDoorMarks(real); }
     drawTentacles(dread, time);
     drawFog(dread, time);

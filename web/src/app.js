@@ -17,7 +17,9 @@ import {
 } from './building.js';
 import { loadMeshSet } from './glb.js';
 import { createView3d } from './view3d.js';
-import { view3dWanted } from './view3d-math.js';
+import { view3dWanted, CELL } from './view3d-math.js';
+import { createVillagerController } from './villager-ui.js';
+import { parseTickParam, sessionTick, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
@@ -95,8 +97,8 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    lamps: vigil.lampTargets(),
-    labelFor: (p, kind) => (kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
+    lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL),
+    labelFor: (p, kind) => (kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
@@ -104,7 +106,7 @@ const view3d = createView3d({
   onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
-  onInteract: (p, kind) => interact3d(p, kind),
+  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen(), close: () => villagers.close() },
   onExit: () => setView3d(false),
   notice: (key) => { $('sessionNote').textContent = tr(key); },
 });
@@ -119,6 +121,7 @@ function interact3d(p, kind) {
   progress.arm();
   if (kind === 'door') { tryDoor(p); return; }
   if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
+  if (kind === 'villager') { villagers.talkTo(p.villagerIndex); return; }
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
   if (kind === 'landmark') { progress.note.listen(); const li = state.landmarks.indexOf(p); if (li >= 0) setFocus(li); } else progress.note.whisper();
   adjust(InteractionRules.sanityDelta(kind), p.id);
@@ -348,6 +351,11 @@ function drawMinimap() {
     g.fillStyle = '#ffd68c'; g.beginPath(); g.arc((pos.x + 0.5) * sc, (pos.z + 0.5) * sc, Math.max(3, sc * 0.7), 0, 6.283); g.fill();
     g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
   }
+  const sc = c.width / GRID_W;
+  for (const m of villagerMarkers(state.villagers || [], GRID_W, GRID_D, c.width)) {
+    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(m.x, m.y, Math.max(2, sc * 0.35), 0, 6.283); g.fill();
+    g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
+  }
   $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
 }
 // ---------- investigator (Core Investigator, off by default) ----------
@@ -423,6 +431,7 @@ function syncUi() {
   state.tracker.update(d).forEach(omen);
   trackRitual();
   vigil.sync();
+  villagers.refresh();
   updateDesc();
   mark();
 }
@@ -528,6 +537,17 @@ const vigil = createVigilController({
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
 });
+// Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
+const frozenTick = parseTickParam(location.search) ?? parseTickParam(location.hash);
+const clockT0 = performance.now();
+const villagers = createVillagerController({
+  $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
+  tickNow: () => sessionTick(performance.now() - clockT0, frozenTick), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
+  activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
+  onChange: () => { drawMinimap(); mark(); },
+  applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
+});
+setInterval(() => { if (!document.hidden && villagers.refresh()) { drawMinimap(); mark(); } }, 1000);
 // Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
 // map with a slow CSS drift. Both stop the moment the player chooses a view.
 let backdropKind = null, backdropT0 = 0;
@@ -598,6 +618,9 @@ canvas.addEventListener('click', (e) => {
   if (state.dlnk) return; // scene mode draws schematic solids instead of the village; do not select hidden pieces
   const r = canvas.getBoundingClientRect();
   const mx = (e.clientX - r.left) * canvas.width / r.width, my = (e.clientY - r.top) * canvas.height / r.height;
+  const vis = (state.villagers || []).filter((v) => !v.gone);
+  const vi = nearestDoor(vis.map((v) => { const pt = iso(v.x, v.z); return { x: pt.x, y: pt.y - 10 }; }), mx, my, 16);
+  if (vi >= 0) { $('hint').style.display = 'none'; villagers.talkTo(vis[vi].index); return; }
   const di = nearestDoor(state.doors.map(doorPoint).map((pt) => ({ x: pt.x, y: pt.y - 3 })), mx, my, 12);
   if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
@@ -718,11 +741,13 @@ function setCinematic(on) {
 function doAction(raw) {
   const a = gateAction(raw, cine.on); if (!a) return;
   const n = state.landmarks.length;
+  if (villagers.isOpen() && ['listen', 'door', 'whisper', 'talk'].includes(a)) { villagers.close(); return; } // a pad button closes the open dialogue first
   switch (a) {
     case 'listen': if (state.focus >= 0) listen(state.focus); break;
     case 'door': tryNextDoor(); break;
     case 'whisper': doWhisper(); break;
     case 'candle': doCandle(); break;
+    case 'talk': if (villagers.isOpen()) villagers.close(); else villagers.talkNext(); break;
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
     case 'cinematic': setCinematic(!cine.on); break;
@@ -790,6 +815,7 @@ addEventListener('keydown', (e) => {
     case '.': playerNight(state.night + 1); break;
     case 'p': case 'P': postcard(); break;
     case 'g': case 'G': setMap(!mapOn); break;
+    case 'r': case 'R': if (villagers.setPanel(!villagers.panelOn)) $('villagerList').querySelector('button:not([disabled])')?.focus?.(); break;
     case 'i': case 'I': setInvestigator(!state.investigatorOn); break;
     case 'b': case 'B': setCinematic(true); break;
     case 'x': case 'X': setPerf(!perfOn); break;
@@ -865,6 +891,7 @@ function foldGroupsOnNarrow() {
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
+  if (optParam('villagers') === '1') villagers.setPanel(true);
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);

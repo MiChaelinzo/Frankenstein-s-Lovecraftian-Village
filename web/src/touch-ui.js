@@ -45,7 +45,7 @@ export function createTouchControls({ doc, view3d, actions, query, coarse, maxTo
   const endLook = (e) => { if (lookPointer === e.pointerId) { lookPointer = null; last = null; } };
   lookPad.addEventListener('pointerup', endLook); lookPad.addEventListener('pointercancel', endLook);
 
-  const run = { listen: () => view3d.interactCenter(), candle: () => actions.candle(), endure: () => actions.endure(), help: () => actions.help() };
+  const run = { listen: () => view3d.interactCenter(), talk: () => view3d.talkNearest(), candle: () => actions.candle(), endure: () => actions.endure(), help: () => actions.help() };
   for (const [id, action] of Object.entries(TOUCH_BUTTON_ACTIONS)) {
     $(`touch${id[0].toUpperCase()}${id.slice(1)}`).addEventListener('click', () => { onTouch(); run[action](); });
   }

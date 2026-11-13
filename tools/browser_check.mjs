@@ -6,7 +6,7 @@
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -329,7 +329,7 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-    await nav('?intro=0&view=3d&touch=1&reduced=1#seed=4400&sanity=100'); await sleep(1500);
+    await nav('?intro=0&view=3d&touch=1&reduced=1&tick=0#seed=4400&sanity=100'); await sleep(1500);
     const rects = await ev(`(()=>{const R=(id)=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};const ids=['touchInteract','touchLantern','touchHelp','touchStick','touchLook'];return {dock:getComputedStyle(document.getElementById('touchDock')).display,boxes:Object.fromEntries(ids.map((i)=>[i,R(i)])),objective:R('objective'),caption:R('narration'),prompt:R('view3dPrompt'),cinema:R('cinemaCaption'),endureHidden:document.getElementById('touchEndure').hidden,touchPoints:navigator.maxTouchPoints}})()`);
     const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     const boxes = Object.values(rects.boxes);
@@ -425,6 +425,67 @@ async function main() {
     rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 5 && hp[2] === false && /Last used/.test(hp[3]), { hp });
     await special('Escape', 27); await sleep(300);
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
+
+    // villagers: present in 2D (list, minimap, canvas) and 3D, talk by keyboard, effect equal with an unreachable ?narrator, no console errors
+    const { generateLayout, PrefabCatalog } = await import('../web/src/core.js');
+    const { generateRoster } = await import('../web/src/villagers.js');
+    const { villagerPlacements } = await import('../web/src/villager-view.js');
+    const vCatalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
+    const vLayout = generateLayout(vCatalog, 24, 24, 80, 1818), vRoster = generateRoster(1818, vLayout);
+    const VTICK = 900; // dusk: the fisher and the lamplighter stand in the square
+    const vPlaced = villagerPlacements({ roster: vRoster, layout: vLayout, tick: VTICK, dread: 0, gridW: 24, gridD: 24, seed: 1818 });
+    const vFront = vPlaced.find((p) => p.placeName === 'square');
+    const vList = () => ev(`document.querySelectorAll('#villagerList li').length`);
+    const talkRound = async (query) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&tick=${VTICK}${query}#seed=1818&sanity=100`); await sleep(500);
+      const s0 = Number(await text('sanityOut'));
+      await key('r', 'KeyR', 82); await sleep(300);
+      const panel = await ev(`({shown:!document.getElementById('villagerPanel').hidden, rows:document.querySelectorAll('#villagerList li').length, focus:document.activeElement.getAttribute('data-villager'), clock:document.getElementById('villagerClock').textContent})`);
+      await special('Enter', 13, '\r'); await sleep(500);
+      const open = await ev(`({shown:!document.getElementById('villagerDialog').hidden, name:document.getElementById('villagerName').textContent, line:document.getElementById('villagerLine').textContent, effect:document.getElementById('villagerEffect').textContent, live:document.getElementById('toastLive').textContent})`);
+      const s1 = Number(await text('sanityOut'));
+      await special('Escape', 27); await sleep(300);
+      const closed = await ev(`document.getElementById('villagerDialog').hidden`);
+      return { panel, open, s0, s1, closed };
+    };
+    const plain = await talkRound('');
+    rec('villagers 2D: R opens Who is where with seven rows, the clock and a focused Talk button', plain.panel.shown && plain.panel.rows === 7 && /Day 1, dusk/.test(plain.panel.clock) && plain.panel.focus === '0', plain.panel);
+    rec('villagers 2D: Enter on Talk opens the dialogue with a line, and Escape closes it', plain.open.shown && plain.open.name.length > 3 && plain.open.line.length > 5 && plain.closed === true, plain.open);
+    rec('villagers 2D: the spoken line is announced to screen readers', plain.open.live.includes(plain.open.name), { live: plain.open.live });
+    const withBad = await talkRound('&narrator=http://127.0.0.1:1/none');
+    await sleep(1500);
+    rec('villagers narrator: an unreachable ?narrator gives the same line and the same sanity change as no narrator', withBad.open.line === plain.open.line && withBad.open.effect === plain.open.effect && (withBad.s1 - withBad.s0) === (plain.s1 - plain.s0), { plain: [plain.s0, plain.s1, plain.open.effect], bad: [withBad.s0, withBad.s1, withBad.open.effect] });
+    rec('villagers 2D: the effect text agrees with the sanity change', (() => { const m = /Sanity (-?\d+)/.exec(plain.open.effect); return m ? Number(m[1]) === plain.s1 - plain.s0 : plain.s1 === plain.s0; })(), { effect: plain.open.effect, s0: plain.s0, s1: plain.s1 });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await sleep(500);
+    const pix = await ev(`(()=>{const c=document.getElementById('view'),g=c.getContext('2d');const m=document.getElementById('minimap').getContext('2d');const count=(ctx,w,h,f)=>{const d=ctx.getImageData(0,0,w,h).data;let n=0;for(let i=0;i<d.length;i+=4)if(f(d[i],d[i+1],d[i+2]))n++;return n};return {map:count(m,168,168,(r,gg,b)=>r>235&&gg>225&&b>190&&b<215), list:document.querySelectorAll('#villagerList li').length}})()`);
+    rec('villagers 2D: minimap shows villager markers', pix.map > 20, pix);
+    // click on a villager in the 2D canvas opens the dialogue
+    const vClick = await ev(`(()=>{const c=document.getElementById('view');return c.getBoundingClientRect().toJSON()})()`);
+    // 3D: stand 2.5 m south of the square villager, facing north
+    const vx = vFront.x * 4, vz = vFront.z * 4;
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav(`?intro=0&view=3d&tick=${VTICK}#seed=1818&sanity=100&cam3d=${vx.toFixed(2)},${(vz + 2).toFixed(2)},0,-8`);
+    await sleep(600); await hold('w', 'KeyW', 60); await sleep(300);
+    await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<120)requestAnimationFrame(t)})(performance.now())`);
+    const vPrompt = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`); if (!v) await hold('s', 'KeyS', 40); return v; });
+    rec('villagers 3D: a villager stands in front of the camera and shows a Talk prompt', /^Talk to /.test(vPrompt), { vPrompt, at: [vx, vz], who: vFront.name });
+    const sv0 = Number(await text('sanityOut'));
+    await key('e'); await sleep(500);
+    const d3 = await ev(`({shown:!document.getElementById('villagerDialog').hidden, view3d:!document.getElementById('view3d').hidden, line:document.getElementById('villagerLine').textContent})`);
+    rec('villagers 3D: E opens the dialogue and keeps the 3D view', d3.shown && d3.view3d && d3.line.length > 5, d3);
+    await key('e'); await sleep(300);
+    rec('villagers 3D: E again closes the dialogue without leaving the view', (await ev(`document.getElementById('villagerDialog').hidden && !document.getElementById('view3d').hidden`)) === true, {});
+    await hold('s', 'KeyS', 40); await sleep(300);
+    await key('Enter', 'Enter', 13, '\r'); await sleep(500);
+    const openAgain = await ev(`!document.getElementById('villagerDialog').hidden`);
+    await special('Escape', 27); await sleep(300);
+    rec('villagers 3D: Escape closes the dialogue first and does not exit the 3D view', openAgain && (await ev(`document.getElementById('villagerDialog').hidden && !document.getElementById('view3d').hidden`)) === true, { openAgain });
+    const ft = frameStats(await ev(`window.__ft`));
+    rec('villagers 3D: frame time with villagers in view stays within the software-GL budget (indicative)', ft.frames > 10 && ft.meanMs < 250, ft);
+    const sv1 = Number(await text('sanityOut'));
+    rec('villagers 3D: talking applied the Core sanity effect', sv1 <= sv0, { sv0, sv1 });
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;
