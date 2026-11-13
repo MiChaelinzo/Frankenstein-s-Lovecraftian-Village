@@ -78,3 +78,4 @@ Extra shots, all in the browser:
 Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted music. Show only assets you are licensed to show, and keep pack textures out of the repo.
 
 - Round 18 touch: on a phone (or add `?touch=1` to `?view=3d`) drag the stick to walk, the look pad to turn, tap Interact at a lantern, Lantern, Help. Still: `docs/media/r18-touch-controls.png`.
+- Round 19 day and night: `?intro=0&view=3d&capture=1&caption=0&grain=0&tick=960#seed=1818&cam3d=54.4,56,200,4` (dusk, amber into violet), then the same link with `tick=540` (overcast day) and `tick=1200` (night). In play, gather two clues by day, press `E` to wait for dusk, `E` again to endure until dawn and watch the chip roll to Day 2.

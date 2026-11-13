@@ -89,3 +89,25 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 **Failure conditions.** Empty layout gives piece index -1 and no crash. Unknown language falls back to English. A null campaign gives an empty rumor. NaN or infinite dread counts as 0. Negative ticks wrap.
 
 **Test cases.** `VillagerProperties.cs` (same seed same roster, full-day schedule validity, monotonic behavior in dread, Abyss vanishes, day normal at low dread, talk deterministic and text independent, i18n drift) and `web/test/villagers.test.js` plus golden parity. Status: Verified by dotnet and node tests; Unity runtime Unverified (no Unity wiring yet).
+
+## Round 19: the vigil keeps time (clock integration)
+**Goal.** The day is free exploration (walk, talk, gather clues); the vigil is kept at dusk and night; dawn judges the night. "Nivalis nights" is treated only as genre inspiration (a day and night slice-of-life sim with NPC schedules): nothing is copied from any such game, and the author may correct this reading.
+
+**Inputs.** The session clock tick (Core `GameClock`, one tick is one village minute), the tick the current night was anchored at (vigil begin, or the last dawn), the clue target state (`VigilState.CanEndureNight`), carried sanity.
+
+**Rule (Core `VigilRules` and `VigilState` in `Core/VillageVigil.cs`, JS mirror in `web/src/core.js`).**
+- Watch hours are dusk and night (`IsWatchHour`). `WatchStartTick` is the tick itself during the watch, else the next dusk; `NightEndTick` is the first dawn after the watch starts; `DawnDue(anchor, tick)` says that dawn has come.
+- Clues, lanterns and talk count at any hour, so the day can be spent gathering what tonight needs.
+- Endure needs the clue target and the watch (`CanEndureAt`). It runs the clock to dawn (`EndureWaitMinutes`), where the night is judged. By day the same control waits for dusk (`WaitForDuskMinutes`); Endure is then offered.
+- Dawn judges the night (`VigilState.ResolveDawn`, `ProgressionSession.ResolveVigilDawn`): with the target met it endures exactly like `EndureNight`; without it the dawn is missed: the night does not count, sanity drops by `MissedDawnSanityLoss` (10, which can collapse the vigil into the hollowing), clues and lanterns stay, and the same night is watched again at the next dusk.
+- Beginning the vigil by day waits for dusk: the first night ends at the first dawn after the next dusk. A session starts at `GameClock.SessionStartTick` (the heart of dusk, 960), so the first watch is already under way.
+- The sandbox lock is unchanged: `VigilRules.AllowsSandboxAction(VigilState.IsLocked, id)`; clock skips are the vigil's own actions and never go through the lock. A restored save keeps watch from the moment it is restored (the clock is not saved).
+
+**Outputs.** Deterministic: same tick, anchor, clues and sanity give the same judgement in C# and JS (golden `vigil.clock`).
+
+**Failure conditions.** A finished vigil is unchanged by dawn. Negative ticks wrap like `GameClock`. A missed dawn at low sanity collapses the vigil, which ends it.
+
+**Test cases.** `VigilClockProperties` in `tests/Frankenstein.Core.Tests/VillageVigilTests.cs` (watch start, night end, day begin, endure refusal by day and wait to dawn, dawn equals EndureNight, missed dawn, finished unchanged and lock), golden `vigil.clock` in `web/test/parity.test.js`, `web/test/vigil-ui.test.js` (wait for dusk, endure to dawn, missed dawn), browser checks `clock vigil: ...`. Status: Verified by tests; Unity `VigilDirector` clock path Partially Verified (compile check only), Unity runtime Unverified.
+
+**Presentation (web only, `web/src/daylight.js`).** Keyframes by minute blend the existing night look (unchanged at full night) toward an overcast day: a cold rose dawn mist, a grey-blue day, a dusk that burns amber into bruised violet and indigo. The sun disc takes the moon's place by day; fog thins by day; lantern light fades to a tenth by day without popping; the ambient mix lifts wind and waves and silences whispers in daylight. Smooth between minutes (`sessionTickExact`), and the Endure skip is animated unless motion is reduced. Unity mirrors the idea with `Runtime/DayNightDirector.cs` driven by Core `GameClock.DaylightPercent`.
+

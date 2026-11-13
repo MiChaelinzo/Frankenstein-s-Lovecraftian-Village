@@ -176,3 +176,9 @@ Status: design written before code. Core rules, C# property tests and golden par
 - `Data/village_shapes.json` is the only definition of the original meshes. Blender (`mesh_defs.py`), the web fallback (`shapes.js`) and Core (`ShapeLibrary`, with a small internal JSON reader because Core may not use UnityEngine or add dependencies) read it. Core output uses Unity axes; golden key `shapes` pins parts, triangles, materials and bounds against the JS port.
 - The Unity Editor wraps Core output into Mesh, Material and prefab assets under `Assets/FrankensteinVillage/Generated` (`OriginalVillageAssetGenerator`). This replaces the earlier glTFast deferral: no package, no GLB import, and the scene builder binds the generated prefabs to empty catalog slots only.
 - Status: Core builder Verified (dotnet 132 tests plus node parity); Editor generator Partially Verified (compile check 0 errors, 0 warnings against hand written stubs); Unity runtime Unverified.
+
+## Round 19: clock integration audit
+- Rules moved into Core instead of being duplicated in Unity: the vigil watch and dawn (`VigilRules`, `VigilState.ResolveDawn`), the villager stand point and coast side (`VillagerRules.StandPoint`, `CoastSide`), the carried lantern (`CarriesLitLantern`) and the session start (`GameClock.SessionStartTick`). The web functions are now golden-checked mirrors; `VillagerAgent` and `VigilDirector` only read them.
+- Web only presentation: `daylight.js` (sky keyframes, sun disc, fog scale, lantern gain, audio mix) and the clock chip. Full night is the untouched existing look, so earlier night captures are unchanged.
+- Self-review: deterministic (no randomness added; the sky follows the tick only); no sandbox-lock change; `FRAME_BUDGET` unchanged (no draw call added: the sun reuses the moon disc); sw PRECACHE includes `daylight.js`; CSP unchanged. Risks: the day palette is tuned on SwiftShader only; HDRP fog is not driven by `DayNightDirector`.
+
