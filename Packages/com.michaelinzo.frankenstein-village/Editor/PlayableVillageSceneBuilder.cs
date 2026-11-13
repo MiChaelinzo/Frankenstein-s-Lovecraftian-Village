@@ -38,7 +38,7 @@ namespace Frankenstein.Editor
             int original = OriginalVillageAssetGenerator.BindMissing(catalog);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            AddSun();
+            var sun = AddSun();
             AddGround();
 
             var village = new GameObject("Village");
@@ -66,7 +66,13 @@ namespace Frankenstein.Editor
             vigil.interactor = player.interactor;
             vigil.hud = hud;
 
+            var clock = director.gameObject.AddComponent<DayNightDirector>();
+            clock.sun = sun;
+            vigil.clock = clock;
+            int villagers = AddVillagers(builder, clock, director, tracker, hud);
+
             EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("[Frankenstein] Spawned " + villagers + " villagers from the Core roster (seed " + builder.seed + ").");
             Debug.Log("[Frankenstein] Saved " + ScenePath + (packImported ? " (pack prefabs bound where names matched, " : " (pack not imported, ") + original + " original meshes bound to the remaining entries; any entry without a mesh stays a plain block).");
         }
 
@@ -83,14 +89,69 @@ namespace Frankenstein.Editor
             return asset;
         }
 
-        private static void AddSun()
+        private static Light AddSun()
         {
-            var go = new GameObject("Dusk Light");
+            var go = new GameObject("Sun and Moon Light"); // DayNightDirector drives colour, intensity and elevation from the Core clock
             var light = go.AddComponent<Light>();
             light.type = LightType.Directional;
             light.color = new Color(0.55f, 0.6f, 0.8f);
             light.intensity = 2f; // HDRP uses lux; raise this in the Inspector if the scene is too dark
             go.transform.rotation = Quaternion.Euler(35f, -30f, 0f);
+            return light;
+        }
+
+        /// <summary>Lantern pool a villager carries, in metres: hand height and reach of the warm light.</summary>
+        private const float LanternHandHeight = 1.0f;
+        private const float LanternRange = 6f;
+
+        /// <summary>
+        /// One VillagerAgent per Core roster entry (VillagerRules.GenerateRoster on the builder's layout). The body is the original generated
+        /// "villager" mesh (ShapeLibrary, authored 1.7 m tall = WorldScale.PersonHeight, placed unscaled); a capsule of the same height stands in
+        /// when the mesh was not generated. Each carries a point light the agent switches by Core VillagerRules.CarriesLitLantern. Returns the count.
+        /// </summary>
+        private static int AddVillagers(VillageBuilder builder, DayNightDirector clock, HorrorAmbienceDirector director, ProgressionTracker tracker, DreadHud hud)
+        {
+            var root = new GameObject("Villagers");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(OriginalVillageAssetGenerator.PrefabPathFor("villager"));
+            if (prefab == null) Debug.LogWarning("[Frankenstein] Villager mesh not generated; villagers use a " + WorldScale.PersonHeight + " m capsule.");
+            var roster = VillagerRules.GenerateRoster(builder.seed, builder.Layout);
+            foreach (var v in roster)
+            {
+                GameObject body;
+                if (prefab != null) body = UnityEngine.Object.Instantiate(prefab, Vector3.zero, Quaternion.identity, root.transform);
+                else
+                {
+                    body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    UnityEngine.Object.DestroyImmediate(body.GetComponent<CapsuleCollider>());
+                    body.transform.SetParent(root.transform, false);
+                    body.transform.localScale = new Vector3(WorldScale.BodyRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.BodyRadius * 2f);
+                }
+                body.name = "Villager " + v.Index + " " + v.Name;
+                var hitbox = body.AddComponent<CapsuleCollider>();
+                hitbox.height = WorldScale.PersonHeight;
+                hitbox.radius = WorldScale.BodyRadius;
+                hitbox.center = new Vector3(0f, WorldScale.PersonHeight * 0.5f, 0f);
+
+                var lanternGo = new GameObject("Lantern");
+                lanternGo.transform.SetParent(body.transform, false);
+                lanternGo.transform.localPosition = new Vector3(0.3f, LanternHandHeight, 0.25f);
+                var lantern = lanternGo.AddComponent<Light>();
+                lantern.type = LightType.Point;
+                lantern.color = new Color(1f, 0.72f, 0.4f);
+                lantern.range = LanternRange;
+                lantern.intensity = 1.5f;
+
+                var agent = body.AddComponent<VillagerAgent>();
+                agent.rosterIndex = v.Index;
+                agent.village = builder;
+                agent.clock = clock;
+                agent.director = director;
+                agent.tracker = tracker;
+                agent.walkthrough = tracker.walkthrough;
+                agent.hud = hud;
+                agent.lantern = lantern;
+            }
+            return roster.Count;
         }
 
         private static void AddGround()

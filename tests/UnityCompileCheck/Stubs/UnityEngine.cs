@@ -45,6 +45,7 @@ namespace UnityEngine
         public Vector3 position { get { return default; } set { } }
         public Quaternion rotation { get { return default; } set { } }
         public Vector3 localScale { get { return default; } set { } }
+        public Vector3 localPosition { get { return default; } set { } }
         public Vector3 forward { get { return default; } }
         public Vector3 right { get { return default; } }
         public void SetParent(Transform parent, bool worldPositionStays) { }
@@ -72,7 +73,12 @@ namespace UnityEngine
     public sealed class MeshFilter : Component { public Mesh sharedMesh { get; set; } }
     public class Collider : Component { }
     public sealed class MeshCollider : Collider { public Mesh sharedMesh { get; set; } }
-    public sealed class CapsuleCollider : Collider { }
+    public sealed class CapsuleCollider : Collider
+    {
+        public float height { get; set; }
+        public float radius { get; set; }
+        public Vector3 center { get; set; }
+    }
     public sealed class CharacterController : Collider
     {
         public float height { get; set; }
@@ -101,12 +107,21 @@ namespace UnityEngine
         public LightType type { get; set; }
         public Color color { get; set; }
         public float intensity { get; set; }
+        public float range { get; set; }
+    }
+    public static class RenderSettings
+    {
+        public static bool fog { get; set; }
+        public static Color fogColor { get; set; }
+        public static float fogDensity { get; set; }
+        public static Color ambientLight { get; set; }
     }
     public struct Color
     {
         public float r, g, b, a;
         public Color(float r, float g, float b) { this.r = r; this.g = g; this.b = b; a = 1f; }
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+        public static Color Lerp(Color a, Color b, float t) { return a; }
     }
     public enum CursorLockMode { None, Locked, Confined }
     public static class Cursor { public static CursorLockMode lockState { get; set; } }
@@ -147,11 +162,14 @@ namespace UnityEngine
         public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z); }
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
         public static Vector3 operator *(Vector3 a, float f) { return new Vector3(a.x * f, a.y * f, a.z * f); }
+        public static Vector3 MoveTowards(Vector3 current, Vector3 target, float maxDistanceDelta) { return current; }
+        public static float Distance(Vector3 a, Vector3 b) { return 0f; }
     }
     public struct Quaternion
     {
         public static Quaternion identity { get { return default; } }
         public static Quaternion Euler(float x, float y, float z) { return default; }
+        public static Quaternion Slerp(Quaternion a, Quaternion b, float t) { return a; }
         public static Vector3 operator *(Quaternion q, Vector3 v) { return v; }
     }
 
@@ -162,6 +180,7 @@ namespace UnityEngine
         public static int RoundToInt(float f) { return (int)Math.Round(f); }
         public static bool Approximately(float a, float b) { return Math.Abs(a - b) < 1e-6f; }
         public static float MoveTowards(float current, float target, float maxDelta) { return current; }
+        public static float Lerp(float a, float b, float t) { return a; }
     }
 
     public static class Time
@@ -204,6 +223,7 @@ namespace UnityEngine
 
     [AttributeUsage(AttributeTargets.Field)] public sealed class MinAttribute : Attribute { public MinAttribute(float min) { } }
     [AttributeUsage(AttributeTargets.Field)] public sealed class RangeAttribute : Attribute { public RangeAttribute(float min, float max) { } }
+    [AttributeUsage(AttributeTargets.Field)] public sealed class HeaderAttribute : Attribute { public HeaderAttribute(string header) { } }
     [AttributeUsage(AttributeTargets.Field)] public sealed class TooltipAttribute : Attribute { public TooltipAttribute(string tooltip) { } }
     [AttributeUsage(AttributeTargets.Method)] public sealed class ContextMenu : Attribute { public ContextMenu(string name) { } }
     [AttributeUsage(AttributeTargets.Class)] public sealed class CreateAssetMenuAttribute : Attribute { public string menuName { get; set; } }

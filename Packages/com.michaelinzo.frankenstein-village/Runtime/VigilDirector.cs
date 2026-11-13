@@ -23,6 +23,8 @@ namespace Frankenstein.Runtime
         public RitualDirector ritualDirector;
         public InteractionRaycaster interactor;
         public DreadHud hud;
+        [Tooltip("Optional village clock. With it the vigil keeps watch at dusk and night, Endure runs the clock to dawn and dawn judges the night (Core VigilRules). Without it Endure ends the night at once, as before.")]
+        public DayNightDirector clock;
         [Tooltip("Start the vigil as soon as the village ritual is ready. Off keeps free exploration with no sandbox lock.")]
         public bool startOnPlay = true;
         [Tooltip("Vigil wording language, a key of Core VigilStrings (en or fr). Unknown values fall back to English.")]
@@ -34,6 +36,7 @@ namespace Frankenstein.Runtime
         private bool _announced;
         private bool _endureOffered;
         private float _nextSample;
+        private int _anchorTick;
 
         private VigilState Vigil { get { return tracker != null ? tracker.Session.Vigil : null; } }
 
@@ -75,6 +78,7 @@ namespace Frankenstein.Runtime
                 bool nothingFocused = interactor == null || interactor.Focus == null;
                 if (keys != null && nothingFocused && keys.eKey.wasPressedThisFrame) Endure();
             }
+            if (Locked && clock != null && VigilRules.DawnDue(_anchorTick, clock.Tick)) ResolveDawn();
             if (Vigil.IsFinished) Announce(Vigil);
             else Refresh(Vigil);
         }
@@ -85,29 +89,67 @@ namespace Frankenstein.Runtime
             if (walkthrough == null || walkthrough.Campaign == null || !tracker.RitualBound) return false;
             tracker.Session.StartVigil(walkthrough.Campaign);
             Vigil.Begin(); // Unity has no sandbox to tweak before play: starting the vigil is the first action (the web begins on its first clue).
+            _anchorTick = clock != null ? clock.Tick : 0;
             _announced = false;
             _endureOffered = false;
             ApplyNightCreep();
             return true;
         }
 
-        /// <summary>Ends the night when Core allows it, then starts the next night's sanity and creep. Returns false when refused.</summary>
+        /// <summary>
+        /// Endure the night when Core allows it. With a clock, Core VigilRules.CanEndureAt refuses it by day and the clock runs forward to dawn,
+        /// where the night is judged (ResolveDawn). Without a clock the night ends at once. Returns false when refused.
+        /// </summary>
         public bool Endure()
         {
             var vigil = Vigil;
             if (vigil == null || !vigil.CanEndureNight) return false;
+            if (clock == null) return EndureNow(vigil);
+            if (!VigilRules.CanEndureAt(clock.Tick, true))
+            {
+                if (hud != null) hud.ShowMessage(VigilStrings.Template(language, "vigil.endure.day"));
+                return false;
+            }
+            clock.Advance(VigilRules.EndureWaitMinutes(clock.Tick));
+            return ResolveDawn();
+        }
+
+        private bool EndureNow(VigilState vigil)
+        {
             ProgressionUpdate update;
             int next = tracker.Session.EndureVigilNight(VigilRules.SanityPoints(director.Sanity.Value), out update);
             tracker.Publish(update);
             if (next < 0) return false;
-            _endureOffered = false;
-            if (!vigil.IsFinished)
+            StartNextNight(vigil, next);
+            return true;
+        }
+
+        /// <summary>Core judges the night at dawn: endured starts the next night; a missed dawn costs sanity and the same night is watched again.</summary>
+        private bool ResolveDawn()
+        {
+            var vigil = Vigil;
+            int dawn = VigilRules.NightEndTick(_anchorTick);
+            int next;
+            ProgressionUpdate update;
+            bool endured = tracker.Session.ResolveVigilDawn(VigilRules.SanityPoints(director.Sanity.Value), out next, out update);
+            tracker.Publish(update);
+            _anchorTick = dawn;
+            if (endured) StartNextNight(vigil, next);
+            else if (!vigil.IsFinished)
             {
                 director.Sanity.Apply(next - director.Sanity.Value);
-                ApplyNightCreep();
-                if (hud != null) hud.ShowMessage(VigilStrings.Format(VigilStrings.Template(language, "vigil.night"), "night", vigil.Night));
+                if (hud != null) hud.ShowMessage(VigilStrings.Format(VigilStrings.Template(language, "vigil.dawn.missed"), "n", VigilRules.MissedDawnSanityLoss));
             }
-            return true;
+            return endured;
+        }
+
+        private void StartNextNight(VigilState vigil, int next)
+        {
+            _endureOffered = false;
+            if (vigil.IsFinished) return;
+            director.Sanity.Apply(next - director.Sanity.Value);
+            ApplyNightCreep();
+            if (hud != null) hud.ShowMessage(VigilStrings.Format(VigilStrings.Template(language, "vigil.night"), "night", vigil.Night));
         }
 
         private void ApplyNightCreep()

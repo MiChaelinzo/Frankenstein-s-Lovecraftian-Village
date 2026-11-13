@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Frankenstein.Core;
 using UnityEngine;
 
@@ -22,6 +23,21 @@ namespace Frankenstein.Runtime
         [Tooltip("Build automatically on Start. The scene builder turns this off and calls Build in the editor.")]
         public bool buildOnStart = true;
 
+        private List<PlacedPiece> _layout;
+
+        /// <summary>The Core layout for the current settings. Deterministic, so a village built in the editor and this list agree at runtime.</summary>
+        public List<PlacedPiece> Layout
+        {
+            get
+            {
+                if (_layout == null && catalog != null) _layout = VillageLayoutGenerator.Generate(catalog.ToCatalog(), width, depth, pieceCount, seed);
+                return _layout;
+            }
+        }
+
+        /// <summary>World position of a cell coordinate (fractional cells allowed), on the ground.</summary>
+        public Vector3 CellToWorld(double x, double z) { return transform.position + new Vector3((float)x * cellSize, 0f, (float)z * cellSize); }
+
         private void Start() { if (buildOnStart) Build(); }
 
         [ContextMenu("Build Village")]
@@ -29,7 +45,7 @@ namespace Frankenstein.Runtime
         {
             if (catalog == null) { Debug.LogWarning("VillageBuilder: no catalog assigned."); return; }
             var pieces = catalog.ToCatalog();
-            var layout = VillageLayoutGenerator.Generate(pieces, width, depth, pieceCount, seed);
+            var layout = _layout = VillageLayoutGenerator.Generate(pieces, width, depth, pieceCount, seed);
             foreach (var p in layout)
             {
                 CatalogEntry entry;

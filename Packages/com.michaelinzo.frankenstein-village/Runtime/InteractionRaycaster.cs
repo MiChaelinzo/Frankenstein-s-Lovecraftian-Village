@@ -35,10 +35,27 @@ namespace Frankenstein.Runtime
         /// <summary>The target under the crosshair this frame, or null.</summary>
         public InteractionTarget Focus { get; private set; }
 
+        /// <summary>The villager under the crosshair this frame, or null. Talking goes through VillagerAgent.Talk (Core VillagerRules.Talk).</summary>
+        public VillagerAgent FocusVillager { get; private set; }
+
         private void Update()
         {
-            Focus = Probe();
-            if (hud != null) hud.SetPrompt(Focus != null ? "E  " + PromptStrings.PromptFor(language, Focus.kind, Focus.locationId) : "");
+            FocusVillager = ProbeVillager();
+            Focus = FocusVillager != null ? null : Probe();
+            if (hud == null) return;
+            if (FocusVillager != null) hud.SetPrompt("E  " + FocusVillager.Prompt());
+            else hud.SetPrompt(Focus != null ? "E  " + PromptStrings.PromptFor(language, Focus.kind, Focus.locationId) : "");
+        }
+
+        /// <summary>Returns the in-range villager in front of the eye who is present (not vanished), or null.</summary>
+        public VillagerAgent ProbeVillager()
+        {
+            if (eye == null) return null;
+            RaycastHit hit;
+            if (!Physics.Raycast(eye.position, eye.forward, out hit, InteractionRules.Range)) return null;
+            if (!InteractionRules.InRange(hit.distance)) return null;
+            var agent = hit.collider.GetComponentInParent<VillagerAgent>();
+            return agent != null && agent.Present ? agent : null;
         }
 
         /// <summary>Returns the in-range target in front of the eye, or null.</summary>
@@ -55,6 +72,12 @@ namespace Frankenstein.Runtime
         public bool TryInteract()
         {
             if (director == null || !InteractionRules.CooldownElapsed(Time.time, _lastUse)) return false;
+            var villager = FocusVillager != null ? FocusVillager : ProbeVillager();
+            if (villager != null)
+            {
+                _lastUse = Time.time;
+                return villager.Talk().Available;
+            }
             var target = Focus != null ? Focus : Probe();
             if (target == null) return false;
             _lastUse = Time.time;
