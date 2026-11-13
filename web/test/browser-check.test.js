@@ -21,5 +21,5 @@ test('frameStats tolerates too few samples', () => {
 test('round 16 browser_check covers the new flows', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
-  for (const needle of ['facing a house door', '?meshes=1 fetches all 13', 'meshes.html loads every mesh', 'codex: K opens', 'contrast: ?contrast=1', 'i18n: ?lang=fr', 'night 5 fly-through']) assert.ok(src.includes(needle), needle);
+  for (const needle of ['facing a house door', '?meshes=1 fetches all 25', 'independence: default 2D and 3D make no request', 'meshes.html loads every mesh', 'codex: K opens', 'contrast: ?contrast=1', 'i18n: ?lang=fr', 'night 5 fly-through']) assert.ok(src.includes(needle), needle);
 });

@@ -182,12 +182,20 @@ async function main() {
 
     // ?meshes=1 on the 2D board and the meshes page
     await nav('?intro=0&meshes=1#seed=1818&sanity=100');
-    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=13?n:0})()`));
-    rec('meshes: ?meshes=1 fetches all 13 original GLBs without an exception', glbs >= 13 && errs.length === 0, { glbRequests: glbs });
+    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=25?n:0})()`));
+    rec('meshes: ?meshes=1 fetches all 25 original GLBs without an exception', glbs >= 25 && errs.length === 0, { glbRequests: glbs });
     await nav('meshes.html');
     let mp = await text('summary');
     for (let i = 0; i < 20 && !/loaded/.test(mp); i++) { await sleep(500); mp = await text('summary'); }
-    rec('meshes: meshes.html loads every mesh', /^13 of 13 meshes loaded/.test(mp), { summary: mp });
+    rec('meshes: meshes.html loads every mesh', /^25 of 25 meshes loaded/.test(mp), { summary: mp });
+
+    // independence: with no pack and no query, 2D and 3D use only original assets (no local-pack or DLNK request)
+    const packRequests = () => ev(`performance.getEntriesByType('resource').map((r)=>r.name).filter((n)=>/local-pack|_dlnk|[/]dlnk[/]/i.test(n))`);
+    await nav('?intro=0#seed=1818&sanity=100'); await sleep(800);
+    const flat = await packRequests();
+    await nav('?intro=0&view=3d#seed=1818&sanity=100'); await sleep(1500);
+    const solid = await packRequests();
+    rec('independence: default 2D and 3D make no request to local-pack or DLNK paths', flat.length === 0 && solid.length === 0 && errs.length === 0, { flat, solid });
 
     // codex and achievements
     await nav('?intro=0#seed=1818&sanity=100');

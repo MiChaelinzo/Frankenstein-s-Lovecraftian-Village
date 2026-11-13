@@ -88,7 +88,7 @@ test('app renders frames at several sanity levels without throwing', async () =>
   assert.equal(clicked.length, before + 1);
   assert.match(clicked[before].download, /^village-postcard-seed-\d+-night-\d+\.png$/);
   // building features: themes, cameras, floor peel, doors; draw every combination at calm and abyss dread
-  assert.match(els.theme.innerHTML, /optgroup label="DLNK group: Nature"/);
+  assert.match(els.theme.innerHTML, /optgroup label="Group: Nature"/);
   for (const sanity of ['100', '40', '0']) {
     els.sanity.value = sanity; els.sanity.listeners.input();
     for (const theme of ['auto', 'bricks', 'plaster', 'tiles', 'wood', 'rocks', 'water']) {

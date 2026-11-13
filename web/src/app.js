@@ -82,7 +82,7 @@ const { pack, loadPack, ensureProcPatterns, hintLabel } = tex;
 const meshes = new Map(); // filled only by ?meshes=1; empty means the procedural drawing
 const renderer = createRenderer({ canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight: () => currentNight(), lang, $, meshes });
 let meshesLoaded = Promise.resolve(); // settles when ?meshes=1 GLBs are in; the loading veil waits for it
-if (meshesWanted(location.search, location.hash)) meshesLoaded = loadMeshSet(fetch.bind(globalThis), 'assets/meshes/').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
+if (meshesWanted(location.search, location.hash)) meshesLoaded = loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', undefined, console.warn, 'data/village_shapes.json').then((set) => { set.forEach((m, k) => meshes.set(k, m)); mark(); });
 const { iso, doorPoint } = renderer;
 
 // ---------- opt-in first-person 3D view (?view=3d or the button); 2D isometric stays the default ----------
