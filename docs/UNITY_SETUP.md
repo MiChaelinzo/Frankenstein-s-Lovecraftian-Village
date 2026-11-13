@@ -105,3 +105,8 @@ Status for all four tools: **Partially Verified** (compile checked against stubs
 | Pack prefabs cannot be used (no collider) | The builder adds `MeshCollider`s to prefab meshes; large meshes may need convex off, which is the default. |
 
 Unity MCP prompts for each step are in [MCP.md](MCP.md). Report anything that fails in Unity as an issue: it is the first real run of this code.
+
+## Scale and round 19 scene content (compile checked, runtime Unverified)
+- The player root is unscaled with a 1.7 m `CharacterController` (radius 0.3); the camera sits at the 1.6 m eye height from `WorldScale`. Villagers are spawned from the Core roster at 1.7 m (`WorldScale.PersonHeight`), doors are 2.0 m, meshes are placed at scale 1. Do not scale the player or the generated meshes to fit a cell.
+- `DayNightDirector` (on the Dread Director) owns the village clock from Core `GameClock`; `VillagerAgent` walks Core stand points and talks through Core `VillagerRules.Talk`.
+- Not done yet: placing the `VillageDressing` items in the scene builder and an optional AI villager line (see `.kiro/specs/tasks.md`). Nothing here has been run in Unity.

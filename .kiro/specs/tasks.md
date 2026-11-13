@@ -89,3 +89,9 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 83. Author: try the 3D view on a real GPU, listen to the audio and test on a real phone
 
 - [ ] Round 19 follow-up: place the same `VillageDressing` items in the Unity scene builder (compile-check only), and open the walkable bounds so players can walk the coast road (today the strip is only seen from the grid edge).
+- [x] 84. Round 19: original shape source (`village_shapes.json`, Core `ShapeLibrary`, Unity asset generator), procedural textures, seeded villagers and talk (optional display-only `?narrator=`), GameClock with the vigil kept at dusk and night, day and night look, harbour quarter (`VillageDressing`), scale standard (`WorldScale`, person 1.7 m, eye 1.6 m, door 2.0 m); dotnet 159, node 408, browser check 93 of 93, UnityCompileCheck 0 errors and 0 warnings
+- [ ] 85. Round 19 leftover: walkable coast road (open the collision bounds past the grid edge, with tests)
+- [ ] 86. Round 19 leftover: place `VillageDressing` items in the Unity scene builder (compile check only; Unity runtime Unverified)
+- [ ] 87. Round 19 leftover: optional AI villager line in Unity, extending `HttpNarrationProvider` with the deterministic Core line as fallback (display only)
+- [ ] 88. Author: confirm the "too big character" was the first-person explorer next to small doors plus the 1.85 m villager (now 1.7 m), and whether "Nivalis nights" meant something else
+- [ ] 89. Round 19 polish idea: give the church rise a slope or texture (it reads as a flat dark mound from the village side)

@@ -41,3 +41,5 @@ web/src/touch-ui.js   round 18 on-screen touch controls (pure helpers live in in
 Packages/com.michaelinzo.frankenstein-village/Core/VigilStrings.cs, Runtime/VigilDirector.cs   round 18 localized vigil text and the thin Unity vigil driver
 Packages/com.michaelinzo.frankenstein-village/Core/VillageVigil.cs   Vigil rules (Core, mirrored in web/src/core.js)
 web/assets/og-preview.png   1200x630 share image (3D render; see CHANGELOG for the command)
+web/src/world-scale.js, clock.js, daylight.js, villagers*.js, villager-ui.js, villager-narrator.js, dressing.js, shapes.js   round 19 pure modules (tested) plus the villager DOM
+Packages/com.michaelinzo.frankenstein-village/Core/WorldScale.cs, GameClock.cs, VillagerRoster.cs, VillageDressing.cs, ShapeMeshBuilder.cs   round 19 Core rules; Runtime/DayNightDirector.cs and VillagerAgent.cs are thin wrappers

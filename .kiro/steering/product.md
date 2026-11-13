@@ -12,3 +12,4 @@ Frankenstein's Lovecraftian Village is a Unity 6 HDRP cosmic-horror village envi
 
 See `project.md` for the mission and horror design philosophy and `agent.md` for the narrative consistency rules.
 - Round 16 facts: the demo video is side by side (live web left, the author's own Unity session right, seed 1818). Own footage only, no DLNK trailer, no copyrighted music, credit DLNK. Unity cannot be installed in the sandbox (Personal licence activation is tied to the author's account): Unity code is Partially Verified (compile check) and Unverified at runtime.
+- Round 19 facts: a person is 1.7 m (eye 1.6 m, door 2.0 m, scale 1), days are free exploration with seeded villagers, the vigil is kept at dusk and night, and the harbour quarter is original. The URP/HDRP packs were inspiration only. "Nivalis nights" is genre inspiration only (the author can correct this).
