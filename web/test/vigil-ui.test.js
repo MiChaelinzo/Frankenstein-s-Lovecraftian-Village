@@ -10,6 +10,7 @@ import {
   drawResultCard, spokenName, ENDINGS_KEY, CARD_WIDTH, CARD_HEIGHT, lampMarkerStates, flameFlicker,
 } from '../src/vigil-view.js';
 
+const NIGHT_TICK = 1100; // 1080 is the first minute of night (clock.js)
 const make = (seed = 1818, nights = 3) => { const c = generateCampaign(seed, nights); return new VigilState(c, generateRitual(c)); };
 const tr = (k, v) => t(k, 'en', v);
 const memStorage = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v) }; };
@@ -93,7 +94,7 @@ test('reset cancels a pending ending so a reroll never opens the previous run', 
   const progress = { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } };
   const c = createVigilController({
     $, tr, state, progress, storage: memStorage(), announce() {}, notice() {}, adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
-    canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: false,
+    tickNow: () => NIGHT_TICK, skipClock: (minutes, done) => done(), canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: false,
   });
   c.reset();
   c.clue('a'); c.clue('b');
@@ -113,7 +114,7 @@ function lockHarness() {
   let play = true;
   const c = createVigilController({
     $, tr, state, progress, storage: memStorage(), announce() {}, notice: (t) => notices.push(t), adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
-    canPlay: () => play, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+    tickNow: () => NIGHT_TICK, skipClock: (minutes, done) => done(), canPlay: () => play, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
   });
   c.reset();
   return { c, $, notices, setPlay: (v) => { play = v; } };
@@ -182,7 +183,7 @@ test('lanterns past the cap restore no sanity and the same lamp restores once', 
     const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
     const c = createVigilController({
       $, tr, state, progress: { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } }, storage: memStorage(), announce() {}, notice() {},
-      adjust: (d) => gains.push(d), setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {}, canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+      adjust: (d) => gains.push(d), setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {}, tickNow: () => NIGHT_TICK, skipClock: (m, done) => done(), canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
     });
     c.reset();
     return { c };

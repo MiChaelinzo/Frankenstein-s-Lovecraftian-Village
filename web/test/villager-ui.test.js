@@ -59,7 +59,7 @@ test('narrator timeout aborts a hanging request', async () => {
 test('tick param and session clock', () => {
   assert.equal(parseTickParam('?tick=300'), 300); assert.equal(parseTickParam('#seed=1&tick=-5'), -5);
   assert.equal(parseTickParam('?tick=abc'), null); assert.equal(parseTickParam(''), null);
-  assert.equal(sessionTick(0, null), START_TICK); assert.equal(sessionTick(5500, null), 5); assert.equal(sessionTick(99999, 12), 12); assert.equal(sessionTick(NaN, null), START_TICK);
+  assert.equal(sessionTick(0, null), START_TICK); assert.equal(sessionTick(5500, null), START_TICK + 5); assert.equal(sessionTick(5500, null, 100), START_TICK + 105); assert.equal(sessionTick(0, 7, 3), 10); assert.equal(sessionTick(99999, 12), 12); assert.equal(sessionTick(NaN, null), START_TICK);
 });
 const place = (tick, dread) => villagerPlacements({ roster, layout, tick, dread, gridW: 24, gridD: 24, seed: 1818 });
 test('placements are deterministic, inside the grid, and vanish at Abyss', () => {

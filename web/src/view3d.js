@@ -14,6 +14,7 @@ import {
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
 import { omenTargets } from './scene.js';
+import { lookAt } from './daylight.js';
 import { tierFor } from './core.js';
 
 const BOX_COLORS = { house_a: [0.42, 0.35, 0.3], house_b: [0.38, 0.33, 0.3], church: [0.4, 0.4, 0.42], well: [0.35, 0.36, 0.36], altar: [0.3, 0.3, 0.32], dead_tree: [0.2, 0.17, 0.14] };
@@ -240,7 +241,7 @@ void main(){
 }`;
 const SKY_VS = 'attribute vec2 aPos; varying vec2 vNdc; void main(){ vNdc = aPos; gl_Position = vec4(aPos, 0.9999, 1.0); }';
 const SKY_FS = `${FRAG_HEAD}varying vec2 vNdc; uniform vec3 uF; uniform vec3 uR; uniform vec3 uU; uniform float uTy; uniform float uAspect;
-uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uMoonDir; uniform vec3 uMoonColor; uniform float uMoonSize; uniform float uStars; uniform float uCloud; uniform float uTime;
+uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uMoonDir; uniform vec3 uMoonColor; uniform float uMoonSize; uniform float uSun; uniform float uStars; uniform float uCloud; uniform float uTime;
 uniform vec3 uEyeDir; uniform vec4 uEye; uniform float uEyeOpen; uniform float uPupil;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -259,7 +260,8 @@ void main(){
   float halo = pow(max(m, 0.0), 220.0) * 0.4 + pow(max(m, 0.0), 40.0) * 0.1 + pow(max(m, 0.0), 6.0) * 0.04;
   float moonOn = (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
   col += uMoonColor * 0.9 * halo * moonOn;
-  col = mix(col, vec3(0.6, 0.66, 0.78) * (0.85 + 0.15 * vnoise(d.xz * 90.0 + d.y * 40.0)), disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  vec3 discCol = mix(vec3(0.6, 0.66, 0.78), normalize(uMoonColor + 0.001) * 1.25, uSun);
+  col = mix(col, discCol * (0.85 + 0.15 * vnoise(d.xz * 90.0 + d.y * 40.0)), disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
   col += uHorizon * 0.35 * exp(-abs(h) * 9.0) * (0.6 + 0.4 * uMoonColor.z);
   if (uEyeOpen > 0.01 && dot(d, uEyeDir) > 0.0) {
     vec3 tR = normalize(cross(vec3(0.0, 1.0, 0.0), uEyeDir)); vec3 tU = cross(uEyeDir, tR);
@@ -453,7 +455,7 @@ export function createGlRenderer(gl) {
       gl.uniform3fv(sky.u('uZenith'), f.sky.zenith); gl.uniform3fv(sky.u('uHorizon'), f.sky.horizon);
       gl.uniform3fv(sky.u('uMoonDir'), f.moon.dir); gl.uniform3fv(sky.u('uMoonColor'), f.moon.color); gl.uniform1f(sky.u('uMoonSize'), f.moon.size);
       gl.uniform3fv(sky.u('uEyeDir'), f.eye.dir); gl.uniform4f(sky.u('uEye'), f.eye.width, f.eye.height, 0, 0); gl.uniform1f(sky.u('uEyeOpen'), f.eye.open); gl.uniform1f(sky.u('uPupil'), f.reduced ? 0 : Math.sin(f.time / 2.6) * 0.2);
-      gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
+      gl.uniform1f(sky.u('uSun'), f.sunWeight); gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // world
       gl.enable(gl.DEPTH_TEST); gl.useProgram(scene.p);
@@ -668,7 +670,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       view = blendCamera(cam, framing, omenW);
     }
     const eye = { ...view, y: view.y + headBob(bobPhase, Math.min(1, Math.hypot(smooth.forward, smooth.strafe)), reduced) };
-    const sk = hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon = moonParams(s.seed, s.night.number, s.night.sky, s.night.weather);
+    const night = { sky: hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon: moonParams(s.seed, s.night.number, s.night.sky, s.night.weather) };
+    const day = lookAt(Number.isFinite(s.tick) ? s.tick : 0, night.sky, night.moon, s.dread), sk = day.sky, moon = day.moon; // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
     const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
     const fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}`;
@@ -686,20 +689,20 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
-      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 1.0 * k) };
+      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
-    lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0) });
+    lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
     const tentKey = omen.tentacle > 0.01 ? `${omen.tentacle.toFixed(3)}|${reduced ? 0 : time.toFixed(2)}|${s.dread.toFixed(2)}` : '';
     if (tentKey !== lastTent) {
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
-    const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced });
+    const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     renderer.draw({
       vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
     });
   }
 

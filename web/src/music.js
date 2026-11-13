@@ -128,21 +128,21 @@ export function cueNotes(kind, seed = 0) {
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
   let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0, noiseBuf = null, wavesGain = null, wavesFilter = null, wavesLfo = null, coast = 0, foot = 0, noiseCursor = 0; // noiseCursor walks the noise buffer deterministically so bursts differ without randomness
-  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false;
+  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true };
 
   const apply = () => {
     if (!ctx) return;
     const t = ctx.currentTime;
-    const g = masterGain(volume, muted, dread);
+    const g = masterGain(volume, muted, dread) * clamp(num(mix.drone, 1), 0, 1.5);
     master.gain.setTargetAtTime(g, t, 0.25);
     // the LFO adds to the gain param, so gate it too or a muted master still swings around zero
     if (lfoGain) lfoGain.gain.setTargetAtTime(g > 0 ? 0.02 * modulation(reduced).depth : 0, t, 0.25);
     filter.frequency.setTargetAtTime(cutoffFor(dread), t, 0.4);
     droneFrequencies(seed, dread).forEach((f, i) => voices[i].frequency.setTargetAtTime(f, t, 0.8));
-    if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread), t, 0.5);
+    if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread) * clamp(num(mix.wind, 1), 0, 3), t, 0.5);
     if (wavesGain) {
       const w = wavesLayer(coast, dread, reduced);
-      wavesGain.gain.setTargetAtTime(w.gain, t, 0.8); wavesFilter.frequency.setTargetAtTime(w.cutoff, t, 0.8); wavesLfo.gain.setTargetAtTime(w.gain * w.depth, t, 0.8);
+      wavesGain.gain.setTargetAtTime(w.gain * clamp(num(mix.waves, 1), 0, 3), t, 0.8); wavesFilter.frequency.setTargetAtTime(w.cutoff, t, 0.8); wavesLfo.gain.setTargetAtTime(w.gain * w.depth, t, 0.8);
     }
   };
 
@@ -181,7 +181,7 @@ export function createAmbient(AC, opts = {}) {
     if (!running || !ctx) return;
     pulseSchedule(seed, dread, 3, reduced, batch).forEach(ping);
     bellSchedule(seed, dread, 1, reduced, batch).forEach(bell);
-    whisperSchedule(seed, dread, 2, reduced, batch).forEach(whisper);
+    if (mix.whispers) whisperSchedule(seed, dread, 2, reduced, batch).forEach(whisper); // never in full daylight
     batch++;
     if (!reduced) timer = setTimeout(scheduleBatch, 20000);
   }
@@ -244,6 +244,8 @@ export function createAmbient(AC, opts = {}) {
       }
     },
     setDread(d) { dread = clampDread(d); apply(); },
+    /** The clock's ambient mix (daylight.audioMix): drone, wind and waves multipliers and whether whispers may sound. */
+    setMix(m) { mix = { drone: num(m?.drone, 1), wind: num(m?.wind, 1), waves: num(m?.waves, 1), whispers: m?.whispers !== false }; apply(); },
     stop() {
       running = false;
       if (timer) { clearTimeout(timer); timer = null; }

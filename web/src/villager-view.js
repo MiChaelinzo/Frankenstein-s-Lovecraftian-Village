@@ -1,11 +1,11 @@
 // Where villagers stand and how they are listed. Pure: layout, clock tick and dread in, positions and rows out. No DOM, no randomness.
 // Rules (who is where, how they behave) stay in villagers.js; this file only turns them into cell coordinates for 2D, 3D and the minimap.
 import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, causeOf } from './villagers.js';
-import { phaseAt, dayNumber, lanternsLit, PHASE_NAMES } from './clock.js';
+import { phaseAt, dayNumber, lanternsLit, wrapTick, PHASE_NAMES } from './clock.js';
 import { coastSide } from './view3d-math.js';
 
-export const SECONDS_PER_TICK = 1;        // session clock: one real second is one village minute (FEAT-006 owns the full day/night integration)
-export const START_TICK = 0;              // a session starts at dawn
+export const SECONDS_PER_TICK = 1;        // session clock: one real second is one village minute
+export const START_TICK = 960;            // a session starts at the heart of dusk (clock.js: dusk is minutes 840 to 1080), so the first look is the moody hour
 export const FRONT_OFFSET = 0.45;         // cells in front of a building's south wall
 export const SQUARE_RADIUS = 1.6;         // cells; villagers in the square stand on a ring around the grid centre
 export const SHORE_INSET = 0.6;           // cells from the grid edge on the coast side
@@ -19,11 +19,18 @@ export function parseTickParam(source) {
   return raw !== null && /^-?\d{1,9}$/.test(raw) ? Number(raw) : null;
 }
 
-/** Tick for the session: frozen when a tick was requested, else START_TICK plus whole elapsed village minutes. */
-export function sessionTick(elapsedMs, frozenTick = null) {
-  if (frozenTick !== null) return frozenTick;
+/** Tick for the session: frozen when a tick was requested, else START_TICK plus whole elapsed village minutes. skipMinutes is the part of the day Endure ran forward. */
+export function sessionTick(elapsedMs, frozenTick = null, skipMinutes = 0) {
+  const skip = Number.isFinite(skipMinutes) ? Math.round(skipMinutes) : 0;
+  if (frozenTick !== null) return frozenTick + skip;
   const ms = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
-  return START_TICK + Math.floor(ms / (SECONDS_PER_TICK * 1000));
+  return START_TICK + Math.floor(ms / (SECONDS_PER_TICK * 1000)) + skip;
+}
+/** The same clock with the fraction of the current minute, so the sky drifts smoothly between whole ticks (display only; rules use sessionTick). */
+export function sessionTickExact(elapsedMs, frozenTick = null, skipMinutes = 0) {
+  if (frozenTick !== null) return sessionTick(elapsedMs, frozenTick, skipMinutes);
+  const ms = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
+  return START_TICK + ms / (SECONDS_PER_TICK * 1000) + (Number.isFinite(skipMinutes) ? skipMinutes : 0);
 }
 
 const clampCell = (v, max) => Math.max(0.3, Math.min(max - 0.3, v));
@@ -93,3 +100,12 @@ export function nearestVillager(scene, x, z, range) {
   }
   return best;
 }
+
+/** The village day as a 24 hour clock: dawn starts at 04:00, so day is 08:00 to 18:00, dusk 18:00 to 22:00 and night 22:00 to 04:00. */
+export function clockTime(tick) {
+  const m = (wrapTick(tick) + 240) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** What the HUD clock chip shows for a tick: day number, 24 hour time, phase name key, the phase for styling and whether lanterns burn (clock.js, Core mirror). */
+export const clockChipModel = (tick) => ({ day: dayNumber(tick) + 1, time: clockTime(tick), phaseKey: `villagerui.phase.${PHASE_NAMES[phaseAt(tick)]}`, phase: PHASE_NAMES[phaseAt(tick)], lanterns: lanternsLit(tick) });
