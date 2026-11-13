@@ -2,6 +2,7 @@
 // core.js, meshes from glb.js and the interaction rules from InteractionRules in core.js. This file only owns GL objects, shaders,
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
+import { composeDressing, dressingBoxes, DRESSING_KINDS } from './dressing.js';
 import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
@@ -175,13 +176,18 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const lamp = l.post && (meshes.get(lampKind(l)) || meshes.get('lamp'));
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
+  const dressing = composeDressing(seed, gridW, gridD, layout);
+  if (meshes) for (const it of dressing) {
+    const model = meshes.get(it.kind);
+    if (model) appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11, scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y });
+  }
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
   for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
-  return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side };
+  return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
 }
 
 // ---------- shaders ----------
@@ -524,7 +530,7 @@ function loadPackImage(url) {
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager'], console.warn, 'data/village_shapes.json'));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', ...DRESSING_KINDS], console.warn, 'data/village_shapes.json'));
 
 /**
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
@@ -534,7 +540,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  */
 export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, modal = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
-  let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
+  let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let lastVillagers = '', perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
@@ -548,7 +554,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
-    boxes = worldBoxes(s.layout, world.heights); bounds = worldBounds(s.gridW, s.gridD);
+    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = worldBounds(s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = '';
     if (!cam) {
       const sp = spawnPoint(s.layout, s.gridW, s.gridD), override = parseCamParam(camParam);
@@ -578,7 +584,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const v = vs[vHit.index];
       return { piece: { id: 'villager', villagerIndex: v.id, name: v.name }, kind: 'villager', distance: vHit.distance, inRange: InteractionRules.inRange(vHit.distance) };
     }
-    if (!hit) return null;
+    if (!hit || hit.index >= layoutCount) return null; // a dressing prop only blocks the view
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };
   }
