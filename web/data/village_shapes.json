@@ -20,21 +20,22 @@
     "cloth_dark": [0.11, 0.13, 0.17, 1.0],
     "cloth_red": [0.36, 0.1, 0.09, 1.0]
   },
+  "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5},
   "meshes": [
     {"id": "house_a", "group": "catalog", "parts": [
-      {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [4.2, 3.4, 0.4]},
-      {"name": "walls", "material": "wall_a", "shape": "box", "at": [0, 0, 0.4], "size": [4.0, 3.2, 2.4]},
-      {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 2.8], "size": [4.0, 3.2, 1.6], "overhang": 0.15},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.62, 0.4], "size": [0.9, 0.1, 1.7]},
-      {"name": "chimney", "material": "stone", "shape": "box", "at": [1.2, 0.4, 2.8], "size": [0.5, 0.5, 1.9]},
-      {"name": "window", "material": "glow", "shape": "box", "at": [1.2, -1.62, 1.3], "size": [0.7, 0.08, 0.7]}
+      {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [3.5, 3.4, 0.4]},
+      {"name": "walls", "material": "wall_a", "shape": "box", "at": [0, 0, 0.4], "size": [3.3, 3.2, 2.4]},
+      {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 2.8], "size": [3.3, 3.2, 1.6], "overhang": 0.15},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.62, 0.4], "size": [0.9, 0.1, 2.0]},
+      {"name": "chimney", "material": "stone", "shape": "box", "at": [0.9, 0.4, 2.8], "size": [0.5, 0.5, 1.9]},
+      {"name": "window", "material": "glow", "shape": "box", "at": [0.95, -1.62, 1.3], "size": [0.7, 0.08, 0.7]}
     ]},
     {"id": "house_b", "group": "catalog", "parts": [
       {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [3.4, 3.4, 0.3]},
       {"name": "lower", "material": "wall_b", "shape": "box", "at": [0, 0, 0.3], "size": [3.2, 3.2, 2.2]},
       {"name": "upper", "material": "wall_a", "shape": "box", "at": [0, 0, 2.5], "size": [2.6, 2.6, 1.9]},
       {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 4.4], "size": [2.6, 2.6, 1.8], "overhang": 0.15},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.62, 0.3], "size": [0.8, 0.1, 1.6]},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.62, 0.3], "size": [0.8, 0.1, 2.0]},
       {"name": "window", "material": "glow", "shape": "box", "at": [0, -1.32, 3.1], "size": [0.6, 0.08, 0.7]}
     ]},
     {"id": "church", "group": "catalog", "parts": [
@@ -48,10 +49,10 @@
     ]},
     {"id": "well", "group": "catalog", "parts": [
       {"name": "ring", "material": "stone", "shape": "cylinder", "at": [0, 0, 0], "radii": [1.0, 0.9], "height": 0.9, "sides": 10},
-      {"name": "post_l", "material": "wood", "shape": "box", "at": [-0.9, 0, 0.9], "size": [0.18, 0.18, 1.9]},
-      {"name": "post_r", "material": "wood", "shape": "box", "at": [0.9, 0, 0.9], "size": [0.18, 0.18, 1.9]},
-      {"name": "beam", "material": "wood", "shape": "box", "at": [0, 0, 2.7], "size": [2.1, 0.22, 0.2]},
-      {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 2.9], "size": [1.8, 1.4, 0.7], "overhang": 0.15},
+      {"name": "post_l", "material": "wood", "shape": "box", "at": [-0.9, 0, 0.9], "size": [0.18, 0.18, 1.4]},
+      {"name": "post_r", "material": "wood", "shape": "box", "at": [0.9, 0, 0.9], "size": [0.18, 0.18, 1.4]},
+      {"name": "beam", "material": "wood", "shape": "box", "at": [0, 0, 2.1], "size": [2.1, 0.22, 0.2]},
+      {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 2.3], "size": [1.8, 1.4, 0.6], "overhang": 0.15},
       {"name": "water", "material": "rune", "shape": "cylinder", "at": [0, 0, 0.7], "radii": [0.75, 0.75], "height": 0.05, "sides": 10}
     ]},
     {"id": "altar", "group": "catalog", "parts": [
@@ -134,20 +135,20 @@
       {"name": "cap_r", "material": "iron", "shape": "cone", "at": [0.7, 0, 3.12], "radius": 0.22, "height": 0.26, "sides": 6}
     ]},
     {"id": "cottage_thatch", "group": "village", "parts": [
-      {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [3.6, 3.0, 0.3]},
-      {"name": "walls", "material": "wall_a", "shape": "box", "at": [0, 0, 0.3], "size": [3.4, 2.8, 2.0]},
-      {"name": "thatch", "material": "thatch", "shape": "wedge", "at": [0, 0, 2.3], "size": [3.4, 2.8, 1.5], "overhang": 0.3},
-      {"name": "door", "material": "wood", "shape": "box", "at": [-0.7, -1.42, 0.3], "size": [0.8, 0.1, 1.6]},
-      {"name": "window", "material": "glow", "shape": "box", "at": [0.8, -1.42, 1.2], "size": [0.6, 0.08, 0.6]},
-      {"name": "chimney", "material": "stone", "shape": "box", "at": [-1.1, 0.5, 2.3], "size": [0.45, 0.45, 1.5]},
-      {"name": "woodpile", "material": "wood", "shape": "box", "at": [1.2, -1.75, 0.0], "size": [0.9, 0.35, 0.5]}
+      {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [3.2, 3.0, 0.3]},
+      {"name": "walls", "material": "wall_a", "shape": "box", "at": [0, 0, 0.3], "size": [3.0, 2.8, 2.3]},
+      {"name": "thatch", "material": "thatch", "shape": "wedge", "at": [0, 0, 2.6], "size": [3.0, 2.8, 1.5], "overhang": 0.3},
+      {"name": "door", "material": "wood", "shape": "box", "at": [-0.6, -1.42, 0.3], "size": [0.8, 0.1, 2.0]},
+      {"name": "window", "material": "glow", "shape": "box", "at": [0.7, -1.42, 1.2], "size": [0.6, 0.08, 0.6]},
+      {"name": "chimney", "material": "stone", "shape": "box", "at": [-0.9, 0.5, 2.6], "size": [0.45, 0.45, 1.5]},
+      {"name": "woodpile", "material": "wood", "shape": "box", "at": [1.0, -1.75, 0.0], "size": [0.9, 0.35, 0.5]}
     ]},
     {"id": "cottage_tall", "group": "village", "parts": [
       {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [2.8, 2.8, 0.3]},
       {"name": "lower", "material": "wall_b", "shape": "box", "at": [0, 0, 0.3], "size": [2.6, 2.6, 2.4]},
       {"name": "upper", "material": "wall_a", "shape": "box", "at": [0, 0, 2.7], "size": [2.4, 2.4, 1.8]},
       {"name": "roof", "material": "roof", "shape": "wedge", "at": [0, 0, 4.5], "size": [2.4, 2.4, 1.4], "overhang": 0.15},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.32, 0.3], "size": [0.8, 0.1, 1.6]},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.32, 0.3], "size": [0.8, 0.1, 2.0]},
       {"name": "window_low", "material": "glow", "shape": "box", "at": [0.75, -1.32, 1.5], "size": [0.5, 0.08, 0.6]},
       {"name": "window_high", "material": "glow", "shape": "box", "at": [0, -1.22, 3.3], "size": [0.5, 0.08, 0.6]},
       {"name": "chimney", "material": "stone", "shape": "box", "at": [0.9, 0.5, 4.5], "size": [0.4, 0.4, 1.6]}
@@ -159,7 +160,7 @@
       {"name": "wing_base", "material": "stone", "shape": "box", "at": [-1.6, 3.2, 0], "size": [3.0, 2.8, 0.3]},
       {"name": "wing", "material": "wall_b", "shape": "box", "at": [-1.6, 3.2, 0.3], "size": [2.8, 2.6, 2.2]},
       {"name": "wing_roof", "material": "roof", "shape": "wedge", "at": [-1.6, 3.2, 2.5], "size": [2.8, 2.6, 1.4], "overhang": 0.2},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.82, 0.3], "size": [1.0, 0.1, 1.8]},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.82, 0.3], "size": [1.0, 0.1, 2.0]},
       {"name": "window_a", "material": "glow", "shape": "box", "at": [-2.1, -1.82, 1.3], "size": [0.8, 0.08, 0.8]},
       {"name": "window_b", "material": "glow", "shape": "box", "at": [2.1, -1.82, 1.3], "size": [0.8, 0.08, 0.8]},
       {"name": "window_c", "material": "glow", "shape": "box", "at": [1.1, -1.82, 1.3], "size": [0.6, 0.08, 0.8]},
@@ -175,7 +176,7 @@
       {"name": "nave_roof", "material": "roof", "shape": "wedge", "at": [0, 0, 3.1], "size": [5.2, 3.6, 1.6], "overhang": 0.2, "yaw": 90},
       {"name": "turret", "material": "stone", "shape": "box", "at": [0, -2.0, 3.1], "size": [1.2, 1.2, 1.6]},
       {"name": "turret_cap", "material": "roof", "shape": "cone", "at": [0, -2.0, 4.7], "radius": 0.95, "height": 1.4, "sides": 4},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -2.67, 0.3], "size": [0.9, 0.1, 1.9]},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -2.67, 0.3], "size": [0.9, 0.1, 2.0]},
       {"name": "window", "material": "glow", "shape": "box", "at": [0, -2.67, 2.5], "size": [0.4, 0.1, 0.7]},
       {"name": "side_window_l", "material": "glow", "shape": "box", "at": [-1.85, 0.2, 1.4], "size": [0.08, 0.5, 1.0]},
       {"name": "side_window_r", "material": "glow", "shape": "box", "at": [1.85, 0.2, 1.4], "size": [0.08, 0.5, 1.0]}
@@ -188,7 +189,7 @@
       {"name": "gallery", "material": "iron", "shape": "cylinder", "at": [0, 0, 8.0], "radii": [1.5, 1.5], "height": 0.2, "sides": 8},
       {"name": "lamp_room", "material": "glow", "shape": "cylinder", "at": [0, 0, 8.2], "radii": [0.8, 0.8], "height": 1.1, "sides": 8},
       {"name": "cap", "material": "iron", "shape": "cone", "at": [0, 0, 9.3], "radius": 1.0, "height": 0.9, "sides": 8},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.92, 1.0], "size": [0.8, 0.12, 1.5]}
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.92, 1.0], "size": [0.8, 0.12, 2.0]}
     ]},
     {"id": "market_stall", "group": "village", "parts": [
       {"name": "post_a", "material": "wood", "shape": "box", "at": [-1.1, -0.7, 0], "size": [0.12, 0.12, 2.2]},
@@ -250,17 +251,17 @@
       {"name": "picket_5", "material": "iron", "shape": "box", "at": [1.125, 0, 0.1], "size": [0.05, 0.05, 1.0]}
     ]},
     {"id": "villager", "group": "village", "parts": [
-      {"name": "leg_l", "material": "cloth_dark", "shape": "box", "at": [-0.1, 0, 0], "size": [0.14, 0.18, 0.8]},
-      {"name": "leg_r", "material": "cloth_dark", "shape": "box", "at": [0.1, 0, 0], "size": [0.14, 0.18, 0.8]},
-      {"name": "coat", "material": "cloth_dark", "shape": "cylinder", "at": [0, 0, 0.7], "radii": [0.3, 0.2], "height": 0.8, "sides": 8},
-      {"name": "belt", "material": "bark", "shape": "box", "at": [0, 0, 1.0], "size": [0.4, 0.28, 0.06]},
-      {"name": "arm_l", "material": "cloth_dark", "shape": "box", "at": [-0.3, 0, 1.0], "size": [0.1, 0.12, 0.5]},
-      {"name": "arm_r", "material": "cloth_dark", "shape": "box", "at": [0.32, -0.12, 1.15], "size": [0.1, 0.3, 0.1]},
-      {"name": "head", "material": "skin", "shape": "cylinder", "at": [0, 0, 1.5], "radii": [0.12, 0.1], "height": 0.22, "sides": 6},
-      {"name": "hood", "material": "cloth_dark", "shape": "cone", "at": [0, 0, 1.55], "radius": 0.17, "height": 0.3, "sides": 6},
-      {"name": "lantern_handle", "material": "iron", "shape": "box", "at": [0.32, -0.28, 1.1], "size": [0.03, 0.03, 0.18]},
-      {"name": "lantern", "material": "glow", "shape": "box", "at": [0.32, -0.28, 0.85], "size": [0.14, 0.14, 0.24]},
-      {"name": "lantern_cap", "material": "iron", "shape": "cone", "at": [0.32, -0.28, 1.09], "radius": 0.11, "height": 0.1, "sides": 4}
+      {"name": "leg_l", "material": "cloth_dark", "shape": "box", "at": [-0.1, 0, 0.0], "size": [0.14, 0.18, 0.735]},
+      {"name": "leg_r", "material": "cloth_dark", "shape": "box", "at": [0.1, 0, 0.0], "size": [0.14, 0.18, 0.735]},
+      {"name": "coat", "material": "cloth_dark", "shape": "cylinder", "at": [0, 0, 0.643], "radii": [0.3, 0.2], "height": 0.735, "sides": 8},
+      {"name": "belt", "material": "bark", "shape": "box", "at": [0, 0, 0.919], "size": [0.4, 0.28, 0.055]},
+      {"name": "arm_l", "material": "cloth_dark", "shape": "box", "at": [-0.3, 0, 0.919], "size": [0.1, 0.12, 0.459]},
+      {"name": "arm_r", "material": "cloth_dark", "shape": "box", "at": [0.32, -0.12, 1.057], "size": [0.1, 0.3, 0.092]},
+      {"name": "head", "material": "skin", "shape": "cylinder", "at": [0, 0, 1.378], "radii": [0.12, 0.1], "height": 0.202, "sides": 6},
+      {"name": "hood", "material": "cloth_dark", "shape": "cone", "at": [0, 0, 1.424], "radius": 0.17, "height": 0.276, "sides": 6},
+      {"name": "lantern_handle", "material": "iron", "shape": "box", "at": [0.32, -0.28, 1.011], "size": [0.03, 0.03, 0.165]},
+      {"name": "lantern", "material": "glow", "shape": "box", "at": [0.32, -0.28, 0.781], "size": [0.14, 0.14, 0.221]},
+      {"name": "lantern_cap", "material": "iron", "shape": "cone", "at": [0.32, -0.28, 1.002], "radius": 0.11, "height": 0.092, "sides": 4}
     ]}
   ]
 }

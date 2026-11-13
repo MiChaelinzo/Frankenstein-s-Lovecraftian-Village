@@ -2,6 +2,7 @@
 // compile checked against original hand-written stubs only (tests/UnityCompileCheck). The layout it
 // builds comes from VillageLayoutGenerator, which is covered by dotnet property tests.
 using System;
+using Frankenstein.Core;
 using Frankenstein.Runtime;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -164,15 +165,24 @@ namespace Frankenstein.Editor
 
         private static FirstPersonExplorer AddPlayer(VillageBuilder builder, HorrorAmbienceDirector director)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            go.name = "Player";
-            UnityEngine.Object.DestroyImmediate(go.GetComponent<CapsuleCollider>());
-            go.transform.position = new Vector3(builder.width * builder.cellSize * 0.5f, 1.1f, -4f);
+            // Real-world scale (Core WorldScale): the root stays unscaled so the CharacterController is a 1.7 m person; the 2 m primitive capsule is a scaled child.
+            // The root sits at the body centre, so the camera offset is the eye height above the feet minus half the person.
+            var go = new GameObject("Player");
+            go.transform.position = new Vector3(builder.width * builder.cellSize * 0.5f, WorldScale.PersonHeight * 0.5f + 0.05f, -4f);
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            visual.name = "Body";
+            UnityEngine.Object.DestroyImmediate(visual.GetComponent<CapsuleCollider>());
+            visual.transform.SetParent(go.transform, false);
+            visual.transform.localScale = new Vector3(WorldScale.BodyRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.BodyRadius * 2f);
 
             var explorer = go.AddComponent<FirstPersonExplorer>();
             explorer.body = go.AddComponent<CharacterController>();
+            explorer.body.height = WorldScale.PersonHeight;
+            explorer.body.radius = WorldScale.BodyRadius;
+            explorer.body.center = Vector3.zero;
+            explorer.eyeHeight = WorldScale.EyeHeight - WorldScale.PersonHeight * 0.5f;
             explorer.director = director;
-            explorer.bodyRenderer = go.GetComponent<Renderer>();
+            explorer.bodyRenderer = visual.GetComponent<Renderer>();
             explorer.cameraBridge = go.AddComponent<DlnkCameraModeBridge>();
 
             var camGo = new GameObject("Main Camera");

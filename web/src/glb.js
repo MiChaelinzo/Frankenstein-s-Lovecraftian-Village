@@ -1,6 +1,7 @@
 // Minimal dependency-free GLB (glTF 2.0 binary) reader and software projector. Pure logic, no DOM.
 // Reads POSITION, indices and baseColorFactor only; that is all the original Blender meshes use.
 import { buildShapeModel } from './shapes.js';
+import { MAX_PLACE_SCALE } from './world-scale.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
 export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager'];
@@ -181,10 +182,10 @@ export function meshPolygons(model, project, piece, { hs = 1, unitPx = 32, dread
 /** Floats per vertex: position(3) normal(3) colour(3) glow(1) phase(1). */
 export const VERTEX_FLOATS = 11;
 
-/** Uniform scale that fits a mesh into a piece footprint (cell metres per layout cell), 90% like the 2D mesh mode. */
+/** Uniform scale that fits a mesh into a piece footprint (cell metres per layout cell), 90% like the 2D mesh mode. Capped at MAX_PLACE_SCALE: meshes are authored in metres and are shrunk to fit, never enlarged. */
 export function fitScale(model, piece, cell) {
   const { min, max } = model.bounds;
-  return 0.9 * Math.min((piece.sizeX * cell) / (max[0] - min[0] || 1), (piece.sizeZ * cell) / (max[2] - min[2] || 1));
+  return Math.min(MAX_PLACE_SCALE, 0.9 * Math.min((piece.sizeX * cell) / (max[0] - min[0] || 1), (piece.sizeZ * cell) / (max[2] - min[2] || 1)));
 }
 
 /**

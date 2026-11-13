@@ -75,6 +75,9 @@ namespace UnityEngine
     public sealed class CapsuleCollider : Collider { }
     public sealed class CharacterController : Collider
     {
+        public float height { get; set; }
+        public float radius { get; set; }
+        public Vector3 center { get; set; }
         public bool isGrounded { get { return false; } }
         public int Move(Vector3 motion) { return 0; }
     }

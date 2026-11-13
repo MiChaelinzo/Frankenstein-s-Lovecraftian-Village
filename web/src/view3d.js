@@ -12,6 +12,7 @@ import {
   particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
+import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
 import { omenTargets } from './scene.js';
 import { tierFor } from './core.js';
 
@@ -136,6 +137,22 @@ export function buildTentacles({ bases, grow, dread, timeSec = 0, reduced = fals
       for (const v of [p, q, r, p, r, s]) out.push(v[0], v[1], v[2], v[3], 0.2, v[4], tint[0], tint[1], tint[2], 0, 0);
     }
   });
+  return new Float32Array(out);
+}
+
+export const VILLAGER_HEIGHT_SCALE = 1;    // the villager mesh is authored 1.7 m tall (PERSON_HEIGHT), so it is placed unscaled
+export const VILLAGER_SWAY_RAD = 0.05;     // idle sway amplitude in radians; zero with reduced motion
+const VILLAGER_SWAY_STEP = 0.1;            // seconds; sway is sampled so the dynamic buffer is rebuilt at most ten times a second
+
+/** Vertices for the villagers (metres). Idle sway turns each figure slightly; reduced motion holds it still. Empty without the mesh. */
+export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, reduced = false }) {
+  const out = [];
+  if (!model) return new Float32Array(0);
+  const t = Math.floor(timeSec / VILLAGER_SWAY_STEP) * VILLAGER_SWAY_STEP;
+  for (const v of villagers) {
+    const sway = reduced ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD;
+    appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot: v.yaw + sway });
+  }
   return new Float32Array(out);
 }
 
@@ -356,8 +373,8 @@ export function createGlRenderer(gl) {
     }
   }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
-  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
+  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
+  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
     const t = gl.createTexture(), px = proceduralTexture(kind, { size: 64 });
@@ -392,6 +409,7 @@ export function createGlRenderer(gl) {
     setFireflies(data) { upload('fly', data); },
     setHalos(data) { upload('halo', data); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
+    setVillagers(data) { upload('villager', data, gl.DYNAMIC_DRAW); },
     /** Images already cut to power of two canvases; null keeps the procedural default. Only ever called under ?pack=1. */
     setPackTextures(wall, ground) {
       [wall, ground].forEach((img, unit) => {
@@ -450,7 +468,7 @@ export function createGlRenderer(gl) {
       for (const unit of [0, 1]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
       gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
       gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
-      for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3]]) {
+      for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3], ['villager', 3]]) {
         if (!counts[name]) continue;
         gl.uniform1f(scene.u('uMode'), mode); bindScene(bufs[name]); gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
       }
@@ -504,7 +522,7 @@ function loadPackImage(url) {
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock'], console.warn, 'data/village_shapes.json'));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager'], console.warn, 'data/village_shapes.json'));
 
 /**
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
@@ -512,10 +530,10 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, modal = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
-  let perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
+  let lastVillagers = '', perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
   let drive = { forward: 0, strafe: 0 }, stick = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
@@ -551,16 +569,33 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const lamp = s.lamps[lampHit.index];
       return { piece: { id: 'lamp', lampId: lamp.id, lit: !!lamp.lit }, kind: 'lamp', distance: lampHit.distance, inRange: InteractionRules.inRange(lampHit.distance) };
     }
+    // Villagers share the view ray; one wins when it is not clearly behind the wall it stands beside.
+    const vs = s.villagers || [];
+    const vHit = vs.length ? pickLamp(origin, ray, vs, 60, TALK_PICK_RADIUS) : null;
+    if (vHit && (!hit || vHit.distance <= hit.distance + 0.6)) {
+      const v = vs[vHit.index];
+      return { piece: { id: 'villager', villagerIndex: v.id, name: v.name }, kind: 'villager', distance: vHit.distance, inRange: InteractionRules.inRange(vHit.distance) };
+    }
     if (!hit) return null;
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };
   }
   function interact(ray) {
+    if (modal && modal.isOpen()) { modal.close(); return; } // an open dialogue takes the next interact (E, Enter, tap, pad button) to close
     const s = getScene(), tt = now() / 1000;
     const hit = target(ray, s);
     if (!hit || !hit.inRange) return;
     if (!InteractionRules.cooldownElapsed(tt, lastUse)) return;
     lastUse = tt; onInteract(hit.piece, hit.kind); wake();
+  }
+  /** Talks to the villager nearest the camera within range, whatever the view direction (touch button, gamepad trigger). */
+  function talkNearest() {
+    if (!active || !cam) return;
+    if (modal && modal.isOpen()) { modal.close(); return; }
+    const s = getScene(), near = nearestVillager(s.villagers || [], cam.x, cam.z, InteractionRules.RANGE);
+    if (!near) return;
+    const v = s.villagers.find((e) => e.id === near.id);
+    onInteract({ id: 'villager', villagerIndex: v.id, name: v.name }, 'villager'); wake();
   }
   function updatePrompt(s) {
     const hit = cam ? target(centerRay(), s) : null;
@@ -579,7 +614,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const snap = snapshotPad(pads[0]), ax = padAxes3d(snap);
       inp.forward += ax.forward; inp.strafe += ax.strafe; inp.turn += ax.turn; inp.look += ax.look;
       const acts = mapGamepad(padPrev, snap); padPrev = snap;
-      if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
+      if (acts.includes('talk')) talkNearest();
+      else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
       if (acts.includes('whisper')) onExit();
     }
     return inp;
@@ -644,7 +680,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
       lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
     }
-    const lit = nearestLights(lights, view).map((l) => {
+    const vsc = s.villagers || [], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; renderer.setVillagers(buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced })); }
+    const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
+    const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
       return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * 1.0 * k) };
@@ -753,6 +792,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     /** On-screen controls: a held joystick vector, look drag deltas and an interact at the screen centre. */
     setTouchDrive(v) { stick = { forward: v.forward, strafe: v.strafe }; wake(); },
     addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
+    talkNearest,
     interactCenter() { if (active && cam) interact(centerRay()); },
     get camera() { return cam; },
   };
