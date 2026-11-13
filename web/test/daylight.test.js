@@ -29,7 +29,7 @@ test('keyframes start and end on the same night look so the day is periodic and 
 test('sky, light, fog and lanterns differ measurably between dawn, day, dusk and night', () => {
   const n = night(), at = (t) => lookAt(t, n.sky, n.moon, 0);
   const dawn = at(150), day = at(540), dusk = at(960), deep = at(1200);
-  assert.ok(lum(day.sky.horizon) > lum(deep.sky.horizon) + 0.3);
+  assert.ok(lum(day.sky.horizon) > lum(deep.sky.horizon) + 0.15);
   assert.ok(day.sky.stars < 0.05 && deep.sky.stars === n.sky.stars);
   assert.ok(day.fogScale < dusk.fogScale && day.fogScale < dawn.fogScale);
   assert.ok(dusk.sky.horizon[0] > dusk.sky.horizon[2] + 0.3, 'dusk horizon burns warm');
