@@ -108,7 +108,8 @@ async function main() {
     await key('o'); await sleep(300);
     rec('door: O key runs without an exception', errs.length === 0, { narration: (await text('narration')).slice(0, 80) });
 
-    // story mode
+    // story mode (a fresh village: the earlier clues began a vigil, which refuses story playback, see the vigil lock checks)
+    await nav('?intro=0#seed=6161&sanity=100'); await sleep(800);
     await key('s'); await sleep(300);
     const st = [!(await hidden('story')), await text('storyMeta')];
     await key('.'); await sleep(200); const st2 = await text('storyMeta');
@@ -152,7 +153,7 @@ async function main() {
     rec('3d: second Escape returns to the 2D view', await hidden('view3d'), {});
 
     // 3D cinematic
-    await nav('?intro=0&view=3d&cinematic=1#seed=1818&sanity=70');
+    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
     const ca = await shotHash(); await sleep(2500); const cb = await shotHash();
     rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
     await special('Escape', 27, undefined); await sleep(400);
@@ -255,12 +256,17 @@ async function main() {
     rec('vigil: endure is hidden until enough is heard', await hidden('endure'), {});
 
     // Sandbox lock: the vigil is live (started, not finished), so the sandbox controls refuse and say why.
-    const lk = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {ids:['sanity','night','nightPrev','nightNext','reroll','seed','dailyBtn','loadSession','drain'].map((i)=>g(i).disabled&&g(i).getAttribute('aria-disabled')==='true'),reason:g('vigilLock').hidden?'':g('vigilLock').textContent}})()`);
+    const lk = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {ids:['sanity','night','nightPrev','nightNext','reroll','seed','dailyBtn','loadSession','drain','storyOpen','cinemaToggle'].map((i)=>g(i).disabled&&g(i).getAttribute('aria-disabled')==='true'),reason:g('vigilLock').hidden?'':g('vigilLock').textContent}})()`);
     rec('vigil lock: after the first clue the sandbox controls are disabled with a visible reason', lk.ids.every(Boolean) && lk.reason === 'The vigil binds you. End it to tamper.', { lk });
     const seedLive = await ev(`document.getElementById('seed').value`), sanLive = Number(await text('sanityOut'));
     await key(']'); await key('['); await key('['); await key('n'); await key('z'); await key('.'); await key(','); await sleep(250);
     const lk2 = await ev(`[document.getElementById('seed').value, document.getElementById('night').value, location.hash.includes('seed=' + document.getElementById('seed').value)]`);
     rec('vigil lock: sanity keys, new village, daily and night keys are ignored while live', Number(await text('sanityOut')) === sanLive && lk2[0] === seedLive && lk2[1] === '0' && lk2[2] === true && /binds you/.test(await text('narration')), { sanLive, lk2, narration: await text('narration') });
+
+    // Story and cinema change sanity and the night, so a live vigil refuses to open them and keeps its lock.
+    await key('s'); await key('b'); await sleep(300);
+    const sc = await ev(`[document.getElementById('story').hidden, document.documentElement.classList.contains('cinema'), document.getElementById('storyOpen').disabled, document.getElementById('cinemaToggle').disabled, document.getElementById('vigilLock').hidden]`);
+    rec('vigil lock: story and cinema stay closed while the vigil is live and their buttons are disabled', sc[0] === true && sc[1] === false && sc[2] === true && sc[3] === true && sc[4] === false && Number(await text('sanityOut')) === sanLive, { sc });
 
     // A scripted careful player using only real controls. Returns the ending title; seeds are tried in order until the true ending shows.
     const play = (seed) => `(async () => {
@@ -335,6 +341,19 @@ async function main() {
     await touch('touchStart', lookC.x - 30, lookC.y); for (let i = 1; i <= 8; i++) { await touch('touchMove', lookC.x - 30 + i * 7, lookC.y); await sleep(40); } await touch('touchEnd'); await sleep(500);
     const turned = await shotHash();
     rec('touch controls: dragging the look pad turns the camera', turned !== still2, { still2, turned });
+    // Two fingers at once: the stick keeps walking while the look pad is dragged and released (separate drive sources, summed).
+    const touchN = async (type, pts) => send('Input.dispatchTouchEvent', { type, touchPoints: pts });
+    const sPt = (dy) => ({ x: stickC.x, y: stickC.y - dy, id: 1 }), lPt = (dx) => ({ x: lookC.x - 30 + dx, y: lookC.y, id: 2 });
+    await touchN('touchStart', [sPt(0)]); await touchN('touchMove', [sPt(55)]); await sleep(300);
+    await touchN('touchStart', [sPt(55), lPt(0)]);
+    for (let i = 1; i <= 6; i++) { await touchN('touchMove', [sPt(55), lPt(i * 7)]); await sleep(40); }
+    const both1 = await shotHash(); await sleep(500); const both2 = await shotHash();
+    await touchN('touchEnd', [lPt(42)]); await sleep(300);
+    const afterLook1 = await shotHash(); await sleep(600); const afterLook2 = await shotHash();
+    const knobHeld = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
+    await touchN('touchEnd', [sPt(55)]); await sleep(500);
+    const rest1 = await shotHash(); await sleep(500); const rest2 = await shotHash();
+    rec('touch controls: stick and look pad work with two simultaneous pointers, releasing the look pad keeps the stick walking', both1 !== both2 && afterLook1 !== afterLook2 && parseFloat(knobHeld) < 0 && rest1 === rest2, { both1, both2, afterLook1, afterLook2, knobHeld, rest1, rest2 });
     await ev(`document.getElementById('touchLantern').click()`); await sleep(300);
     rec('touch controls: Lantern button runs the lantern action (sanity or lamp count changes)', /lit|lantern|lamp/i.test(await text('vigilNote') + await text('narration') + await text('objectiveText')) || Number(await text('sanityOut')) !== 100, { note: await text('vigilNote'), sanity: await text('sanityOut') });
     await ev(`document.getElementById('touchInteract').click()`); await sleep(200);

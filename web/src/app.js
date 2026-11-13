@@ -635,7 +635,7 @@ $('night').addEventListener('change', () => { playerNight(Number($('night').valu
 $('nightPrev').addEventListener('click', () => playerNight(state.night - 1));
 $('nightNext').addEventListener('click', () => playerNight(state.night + 1));
 $('postcard').addEventListener('click', postcard);
-$('storyOpen').addEventListener('click', toggleStory);
+$('storyOpen').addEventListener('click', playerStory);
 $('storyExit').addEventListener('click', closeStory);
 $('storyPrev').addEventListener('click', () => { progress.arm(); showBeat(prevBeat(story.idx, storyBeats().length), true); });
 $('storyNext').addEventListener('click', () => { progress.arm(); showBeat(nextBeat(story.idx, storyBeats().length), true); });
@@ -691,8 +691,11 @@ function cinemaStep() {
   if (view3d.active) view3d.refresh();
   mark();
 }
+// Story and cinema drive sanity and the night, so a locked vigil refuses to open them (closing is always allowed).
+function playerStory() { if (!story.on && !vigil.allows('story_playback')) return; toggleStory(); }
 function setCinematic(on) {
   if (on === cine.on) return;
+  if (on && !vigil.allows('cinema_playback')) return;
   cine.on = on;
   $('cinemaToggle').setAttribute?.('aria-pressed', String(on));
   document.documentElement?.classList?.toggle?.('cinema', on);
@@ -723,7 +726,7 @@ function doAction(raw) {
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
     case 'cinematic': setCinematic(!cine.on); break;
-    case 'story': toggleStory(); break;
+    case 'story': playerStory(); break;
     case 'nextBeat': if (story.on) showBeat(nextBeat(story.idx, storyBeats().length), true); break;
     case 'prevBeat': if (story.on) showBeat(prevBeat(story.idx, storyBeats().length), true); break;
     default:
@@ -772,7 +775,7 @@ addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeStory(); return; }
   }
   switch (e.key) {
-    case 's': case 'S': toggleStory(); break;
+    case 's': case 'S': playerStory(); break;
     case 'u': case 'U': setMuted(!muted); break;
     case 'w': case 'W': doWhisper(); break;
     case 'c': case 'C': doChurch(); break;

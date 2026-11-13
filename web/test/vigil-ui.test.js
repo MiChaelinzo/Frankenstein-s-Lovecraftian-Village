@@ -127,30 +127,68 @@ test('sandbox lock: free before the first action, engaged after the first clue, 
   assert.ok($('vigilLock').hidden);
   c.clue('walls');
   assert.equal(c.isLocked(), true);
-  for (const id of ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain']) {
+  for (const id of ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain', 'storyOpen', 'cinemaToggle']) {
     assert.equal($(id).disabled, true, id);
     assert.equal($(id).attrs['aria-disabled'], 'true', id);
   }
   assert.equal($('vigilLock').hidden, false);
   assert.equal($('vigilLock').textContent, 'The vigil binds you. End it to tamper.');
   notices.length = 0;
-  for (const id of ['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session', 'made_up']) assert.equal(c.allows(id), false, id);
-  assert.equal(notices.length, 10);
+  for (const id of ['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session', 'story_playback', 'cinema_playback', 'made_up']) assert.equal(c.allows(id), false, id);
+  assert.equal(notices.length, 12);
   assert.ok(notices.every((n) => n === tr('vigil.lock')));
 });
 
-test('sandbox lock releases when the vigil is reset, finishes, or play is suspended', () => {
-  const { c, $, setPlay } = lockHarness();
+test('sandbox lock releases when the vigil is reset or finishes', () => {
+  const { c, $ } = lockHarness();
   c.clue('walls');
   assert.equal(c.isLocked(), true);
-  setPlay(false);
-  assert.equal(c.isLocked(), false, 'story, tour and cinematic are never locked');
-  assert.equal(c.allows('sanity_keys'), true);
-  setPlay(true);
   c.reset();
   assert.equal(c.isLocked(), false);
   assert.equal($('reroll').disabled, false);
   assert.ok($('vigilLock').hidden);
+});
+
+test('story, cinema and tour cannot unlock a begun vigil: the lock does not depend on canPlay', () => {
+  const { c, notices, setPlay } = lockHarness();
+  c.clue('walls');
+  setPlay(false); // story, cinema, tour, title or help open
+  assert.equal(c.isLocked(), true);
+  notices.length = 0;
+  assert.equal(c.allows('story_playback'), false);
+  assert.equal(c.allows('cinema_playback'), false);
+  assert.equal(c.allows('sanity_keys'), false);
+  assert.equal(notices.length, 3);
+  assert.equal(c.clue('church-nave'), false, 'nothing is counted while play is suspended');
+  setPlay(true);
+  assert.equal(c.isLocked(), true);
+});
+
+test('the lock is per the Core begun flag: a restored vigil is locked, a fresh one is not', () => {
+  const a = lockHarness(); a.c.clue('walls');
+  const saved = a.c.serialize();
+  const b = lockHarness();
+  assert.equal(b.c.isLocked(), false);
+  assert.equal(b.c.restore(saved), true);
+  assert.equal(b.c.isLocked(), true);
+});
+
+test('lanterns past the cap restore no sanity and the same lamp restores once', () => {
+  const campaign = generateCampaign(5, 2), ritual = generateRitual(campaign);
+  const gains = [];
+  const { c } = (() => {
+    const els = new Map();
+    const $ = (id) => { if (!els.has(id)) els.set(id, { hidden: false, textContent: '', attrs: {}, showModal() {}, focus() {}, setAttribute() {}, addEventListener() {}, close() {} }); return els.get(id); };
+    const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
+    const c = createVigilController({
+      $, tr, state, progress: { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } }, storage: memStorage(), announce() {}, notice() {},
+      adjust: (d) => gains.push(d), setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {}, canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+    });
+    c.reset();
+    return { c };
+  })();
+  for (const id of ['hearth0', 'hearth0', 'hearth1', 'hearth2', 'hearth3', 'hearth4']) c.lightLamp(id);
+  assert.equal(gains.length, 3, 'three lamps, one gain each');
 });
 
 test('sandbox lock does not block the controller own endure and creep', () => {

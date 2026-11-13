@@ -9,7 +9,7 @@ import {
 
 const ENDING_FADE_MS = 1600;
 /** DOM controls bound to the sandbox lock (the keys and handlers are guarded separately through allows()). */
-const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain'];
+const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain', 'storyOpen', 'cinemaToggle'];
 
 /**
  * deps: $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
@@ -18,14 +18,16 @@ const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 
 export function createVigilController(deps) {
   const { $, tr, state, progress, storage, announce, notice } = deps;
   let endingTimer = 0;
-  let vigil = null, lamps = [], started = false, suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
+  let vigil = null, lamps = [], suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
 
   /** Stable lamp ids from the layout: lanternLights with every house at full detail, so dread never reshuffles the ids. */
   const buildLamps = (layout) => lanternLights(layout.map((p) => ({ ...p, detail: 3 })), CELL).map((l, i) => ({ id: `lamp${i}`, pos: l.pos }));
   const live = () => !!vigil && !vigil.isFinished && deps.canPlay();
   const found = () => loadEndingsFound(storage);
-  /** The sandbox lock engages with the first vigil action and holds until the vigil ends or is reset. */
-  const locked = () => started && live();
+  const started = () => !!vigil && vigil.begun;
+  /** The Core lock state (VigilState.isLocked): engaged by the first vigil action, held until the vigil ends or is reset. It does not
+   *  depend on canPlay, so story, cinema and tour cannot unlock it; those are refused while locked (see allows). */
+  const locked = () => !!vigil && vigil.isLocked;
   /** Asks the Core rule whether a sandbox action is allowed. A refusal says why, quietly, and returns false. */
   function allows(actionId) {
     if (allowsSandboxAction(locked(), actionId)) return true;
@@ -45,16 +47,16 @@ export function createVigilController(deps) {
   function reset() {
     clearTimeout(endingTimer); model = null; // a pending ending from the previous run must not open over the new village
     vigil = state.campaign && state.ritual ? new VigilState(state.campaign, state.ritual) : null;
-    lamps = buildLamps(state.layout); started = false; suspended = false; endingShown = false; lastText = '';
+    lamps = buildLamps(state.layout); suspended = false; endingShown = false; lastText = '';
     render();
   }
   function restore(text) {
     if (!vigil || !text || !vigil.tryRestore(text)) return false;
-    started = true; endingShown = vigil.isFinished;
+    endingShown = vigil.isFinished;
     render();
     return true;
   }
-  const serialize = () => (vigil && started ? vigil.serialize() : '');
+  const serialize = () => (vigil && started() ? vigil.serialize() : '');
 
   function applyCreep() {
     state.sanity.apply(-nightCreep(vigil.night));
@@ -63,8 +65,8 @@ export function createVigilController(deps) {
   }
   /** The first vigil action starts night 1: the dark takes its share before anything else happens. */
   function begin() {
-    if (started) return;
-    started = true;
+    if (started()) return;
+    vigil.begin();
     vigil.recordSanity(sanityPoints(state.sanity.value));
     applyCreep();
   }
@@ -84,7 +86,7 @@ export function createVigilController(deps) {
     if (!live()) return false;
     progress.arm(); begin(); renderLock();
     if (vigil.nightLampIds.has(lampId)) { notice(tr('vigil.lamp.already')); return true; }
-    if (vigil.nightLampIds.size >= VIGIL_LAMPS_PER_NIGHT) { notice(tr('vigil.lamp.none')); return true; }
+    if (!vigil.canLightLantern(lampId)) { notice(tr('vigil.lamp.none')); return true; }
     if (!vigil.lightLantern(lampId)) return true;
     const gain = InteractionRules.sanityDelta('candle');
     deps.adjust(gain, 'the village');
@@ -124,8 +126,8 @@ export function createVigilController(deps) {
   /** Called after every sanity change. Records sanity into the vigil, then reacts to its end. */
   function sync() {
     if (!vigil || suspended) return;
-    if (started && live()) vigil.recordSanity(sanityPoints(state.sanity.value));
-    if (vigil.isFinished && started && !endingShown) { endingShown = true; finish(); }
+    if (started() && live()) vigil.recordSanity(sanityPoints(state.sanity.value));
+    if (vigil.isFinished && started() && !endingShown) { endingShown = true; finish(); }
     render();
   }
 
@@ -194,7 +196,7 @@ export function createVigilController(deps) {
   $('endure')?.addEventListener('click', endure);
 
   // ---------- 2D lamp markers and 3D lamp targets ----------
-  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started }));
+  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started() }));
   /** Small markers on the 2D board: a flickering flame for a lit lantern, a pale ring for the ones this night can still use, a faint dark sconce for the rest. */
   function drawLamps(g, iso, timeMs = 0) {
     if (!vigil || vigil.isFinished) return;
