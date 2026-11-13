@@ -284,7 +284,7 @@ namespace Frankenstein.Core
                 return new VillagerStandPoint { X = x, Z = z, FaceDx = dx, FaceDz = dz };
             }
             double angle = (v.Index / 7.0) * Math.PI * 2;
-            return new VillagerStandPoint { X = gridW / 2.0 + Math.Cos(angle) * SquareRadius, Z = gridD / 2.0 + Math.Sin(angle) * SquareRadius, FaceDx = -Math.Cos(angle), FaceDz = -Math.Sin(angle) };
+            return new VillagerStandPoint { X = gridW / 2.0 + Math.Cos(angle) * SquareRadius, Z = gridD / 2.0 + Math.Sin(angle) * SquareRadius, FaceDx = 0.0 - Math.Cos(angle), FaceDz = 0.0 - Math.Sin(angle) }; // 0.0 - x never yields -0, so golden JSON round-trips
         }
 
         private static double ClampCell(double v, int max) { return Math.Max(EdgeMargin, Math.Min(max - EdgeMargin, v)); }

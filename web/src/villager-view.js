@@ -56,7 +56,7 @@ export function standingPoint(v, kind, layout, gridW, gridD, seed) {
     return { x, z, faceDx: dx, faceDz: dz };
   }
   const angle = (v.index / 7) * Math.PI * 2; // the square, and the fallback when a piece is missing
-  return { x: gridW / 2 + Math.cos(angle) * SQUARE_RADIUS, z: gridD / 2 + Math.sin(angle) * SQUARE_RADIUS, faceDx: -Math.cos(angle), faceDz: -Math.sin(angle) };
+  return { x: gridW / 2 + Math.cos(angle) * SQUARE_RADIUS, z: gridD / 2 + Math.sin(angle) * SQUARE_RADIUS, faceDx: 0 - Math.cos(angle), faceDz: 0 - Math.sin(angle) }; // as in Core: never -0
 }
 
 /**
