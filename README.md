@@ -85,6 +85,7 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 
 ![High contrast theme](docs/media/contrast.png)
 - Optional AI narration: add `?narrator=https://your-endpoint` (POST `{location, dread}`, reply `{text}`); any failure falls back to offline text.
+- Villagers: press `R` for **Who is where** (seven seeded villagers, the village clock) and Talk, or face one in 3D and press `E`/`Enter` (touch Talk button, gamepad RT). Clue and sanity come from Core `talk()` only; the same `?narrator=` endpoint can voice the line (display only, see [docs/HOSTING.md](docs/HOSTING.md)). `?tick=N` freezes the clock.
 
 What the demo does:
 - **Buildings panel (DLNK-style)**: texture themes Bricks, Plaster, Tiles, Wood, Rocks and Water, grouped under the DLNK groups Construction, Manmade and Nature (our own mapping; `?theme=bricks` or `#theme=bricks`). With `?pack=1` the theme uses the matching local pack texture when the manifest has one (Water has none, so it stays procedural). A camera selector (`cam=first|third|top|auto`) offers a first-person look, third-person and a top-down cutaway with a floor peel slider (`floor=N`); top-down is refused at Abyss dread, as in `DreadBuildingPolicy`. Click a door (or press `O`) to see it creak, slam or refuse, chosen by `doorOmen` and deterministic per seed and attempt. Buildings lose detail (textures, lit windows, doors, roofs) as dread rises, via `detailLevel`. Keys: `T` theme, `V` camera, `F` peel, `O` door. Not Unity footage; this is the web port of the policy.

@@ -50,6 +50,36 @@ or drop the `dist/` folder into Netlify Drop. `dist/` is git-ignored. The script
 
 `netlify.toml`, `vercel.json` and `web/_headers` carry the same headers: `nosniff`, a referrer policy, a `Permissions-Policy`, and a Content-Security-Policy that allows same-origin scripts and styles, `data:` and `blob:` images, and `https:` fetches (for the optional `?narrator=` endpoint). There is no catch-all rewrite. The CSP has not been checked in a browser against every feature; if something is blocked on a host, check the console first.
 
+## Optional villager voices (`?narrator=`)
+
+Talking to a villager (R list, or face one in 3D and press E) always resolves in Core first: the clue and sanity effect come from the deterministic `talk()` rule and are applied before any network request starts. If `?narrator=<url>` is set, the demo then POSTs a small JSON body and, when a valid answer arrives within 4 s, shows that text instead of the built-in en/fr line. The answer is display only (written with `textContent`, control characters stripped, capped at 240 characters) and can never change clues, sanity or the vigil. Any failure (unreachable host, CSP block, HTTP error, timeout, malformed JSON, empty text) keeps the deterministic line, so a session plays identically with or without the endpoint.
+
+Request: `{"kind":"villager","villager":"Lucan Tallow","role":"fisher","behavior":0,"cause":"","phase":"dusk","dread":30,"night":1,"lang":"en","fallback":"<built-in line>"}`. Reply: `{"text":"..."}`.
+
+A tiny local endpoint for testing (no keys; echoes the fallback in brackets, replace the body with your own model call that reads its key from an environment variable):
+
+```python
+# villager_echo.py: python3 villager_echo.py, then open http://localhost:8123/?narrator=http://localhost:8787/
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Echo(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "content-type")
+    def do_OPTIONS(self):
+        self.send_response(204); self._cors(); self.end_headers()
+    def do_POST(self):
+        req = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))) or b"{}")
+        body = json.dumps({"text": f"[{req.get('villager', '?')}] {req.get('fallback', '')}"}).encode()
+        self.send_response(200); self._cors(); self.send_header("content-type", "application/json"); self.end_headers()
+        self.wfile.write(body)
+
+HTTPServer(("127.0.0.1", 8787), Echo).serve_forever()
+```
+
+The deployed CSP allows `connect-src 'self' https:` only, so on a host the endpoint must be https; plain `http://localhost` works only with the local `python3 -m http.server` (which sends no CSP). Not run against a real AI service here.
+
 ## Offline mode
 
 `web/sw.js` and `web/manifest.webmanifest` make the demo installable and usable offline. The service worker registers only on https or localhost, precaches an explicit list of core files (never `local-pack`), serves nothing for `?pack=1`, and is network first so updates are not stuck behind a cache. All paths are relative, so it works at a domain root and under `/Frankenstein-s-Lovecraftian-Village/`. The CSP adds `worker-src 'self'` and `manifest-src 'self'`. Not tested on a real host. When you add a file under `web/`, add it to `PRECACHE` in `sw.js` (`web/test/pwa.test.js` fails if a `web/src` module is missing).
