@@ -7,6 +7,8 @@ export const PHASE_LENGTHS = [DAWN_MINUTES, DAY_MINUTES, DUSK_MINUTES, NIGHT_MIN
 export const MINUTES_PER_DAY = DAWN_MINUTES + DAY_MINUTES + DUSK_MINUTES + NIGHT_MINUTES;
 export const PHASE_NAMES = ['dawn', 'day', 'dusk', 'night'];
 export const FULL_DAYLIGHT_PERCENT = 100;
+/** Where a play session's clock starts: the heart of dusk (mirror of GameClock.SessionStartTick). */
+export const SESSION_START_TICK = DAWN_MINUTES + DAY_MINUTES + DUSK_MINUTES / 2;
 
 /** Tick folded into [0, MINUTES_PER_DAY), also for negative ticks. */
 export const wrapTick = (tick) => ((Math.trunc(tick) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;

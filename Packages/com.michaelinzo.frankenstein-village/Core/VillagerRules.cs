@@ -246,6 +246,9 @@ namespace Frankenstein.Core
             }
         }
 
+        /// <summary>A villager's carried lantern burns from dusk until dawn; the lamplighter always carries a lit one.</summary>
+        public static bool CarriesLitLantern(Villager v, int tick) { return GameClock.LanternsLit(tick) || v.Role == VillagerRole.Lamplighter; }
+
         // ---------- where a villager stands inside the place (the web mirror is standingPoint in web/src/villager-view.js) ----------
         /// <summary>Cells in front of a building's south wall.</summary>
         public const double FrontOffset = 0.45;

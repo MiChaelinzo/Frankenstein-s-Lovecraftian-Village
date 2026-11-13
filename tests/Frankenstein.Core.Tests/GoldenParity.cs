@@ -570,7 +570,7 @@ namespace Frankenstein.Core.Tests
         {
             string J(object o) { return JsonSerializer.Serialize(o); }
             sb.Append("  \"villagers\": {\n    \"clockConstants\": [").Append(GameClock.DawnMinutes).Append(", ").Append(GameClock.DayMinutes).Append(", ")
-              .Append(GameClock.DuskMinutes).Append(", ").Append(GameClock.NightMinutes).Append(", ").Append(GameClock.MinutesPerDay).Append("],\n    \"clock\": [");
+              .Append(GameClock.DuskMinutes).Append(", ").Append(GameClock.NightMinutes).Append(", ").Append(GameClock.MinutesPerDay).Append("],\n    \"sessionStart\": ").Append(GameClock.SessionStartTick).Append(",\n    \"clock\": [");
             for (int i = 0; i < ClockTicks.Length; i++)
             {
                 int t = ClockTicks[i];
@@ -624,6 +624,10 @@ namespace Frankenstein.Core.Tests
                           .Append(", ").Append(pt.FaceDx.ToString("R", CultureInfo.InvariantCulture)).Append(", ").Append(pt.FaceDz.ToString("R", CultureInfo.InvariantCulture)).Append(']');
                         firstStand = false;
                     }
+                sb.Append("], \"lanterns\": [");
+                bool firstLamp = true;
+                foreach (var v in roster)
+                    foreach (var t in VillagerTicks) { sb.Append(firstLamp ? "" : ", ").Append(VillagerRules.CarriesLitLantern(v, t) ? 1 : 0); firstLamp = false; }
                 sb.Append("], \"talks\": [");
                 bool firstTalk = true;
                 foreach (var v in roster)

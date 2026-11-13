@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, generateCampaign, InteractionRules } from '../src/core.js';
-import { MINUTES_PER_DAY, PHASE_LENGTHS, wrapTick, dayNumber, phaseAt, daylightPercent, lanternsLit } from '../src/clock.js';
+import { MINUTES_PER_DAY, PHASE_LENGTHS, wrapTick, dayNumber, phaseAt, daylightPercent, lanternsLit, SESSION_START_TICK } from '../src/clock.js';
 import {
   ROLE_IDS, generateRoster, scheduledKind, scheduledPlace, behaviorAt, locationAt, talk, lineKey, causeOf, LINE_VARIANTS,
+  carriesLitLantern,
 } from '../src/villagers.js';
 import { standingPoint } from '../src/villager-view.js';
 import { villagerTalkCountsAsClue } from '../src/core.js';
@@ -19,6 +20,7 @@ const num = (d) => (typeof d === 'string' ? Number(d) : d);
 
 test('clock matches C# GameClock', () => {
   assert.deepEqual([...PHASE_LENGTHS, MINUTES_PER_DAY], golden.clockConstants);
+  assert.equal(SESSION_START_TICK, golden.sessionStart);
   for (const [tick, wrapped, day, phase, light, lit] of golden.clock) {
     assert.equal(wrapTick(tick), wrapped, `wrap ${tick}`);
     assert.equal(dayNumber(tick), day, `day ${tick}`);
@@ -54,6 +56,7 @@ test('roster, schedule, locations and talk match C# for every golden seed', () =
     }
     assert.deepEqual(locations, w.locations, `locations ${w.seed}`);
     assert.deepEqual(talks, w.talks, `talks ${w.seed}`);
+    assert.deepEqual(roster.flatMap((v) => golden.ticks.map((t) => (carriesLitLantern(v, t) ? 1 : 0))), w.lanterns, `lanterns ${w.seed}`);
     const stand = [];
     for (const v of roster) for (let k = 0; k <= 3; k++) { const pt = standingPoint(v, k, layout, 24, 24, w.seed); stand.push([k, pt.x, pt.z, pt.faceDx, pt.faceDz]); }
     assert.equal(stand.length, w.stand.length);

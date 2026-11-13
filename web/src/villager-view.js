@@ -1,11 +1,11 @@
 // Where villagers stand and how they are listed. Pure: layout, clock tick and dread in, positions and rows out. No DOM, no randomness.
 // Rules (who is where, how they behave) stay in villagers.js; this file only turns them into cell coordinates for 2D, 3D and the minimap.
-import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, causeOf } from './villagers.js';
-import { phaseAt, dayNumber, lanternsLit, wrapTick, PHASE_NAMES } from './clock.js';
+import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, causeOf, carriesLitLantern } from './villagers.js';
+import { phaseAt, dayNumber, lanternsLit, wrapTick, PHASE_NAMES, SESSION_START_TICK } from './clock.js';
 import { coastSide } from './view3d-math.js';
 
 export const SECONDS_PER_TICK = 1;        // session clock: one real second is one village minute
-export const START_TICK = 960;            // a session starts at the heart of dusk (clock.js: dusk is minutes 840 to 1080), so the first look is the moody hour
+export const START_TICK = SESSION_START_TICK; // a session starts at the heart of dusk (Core GameClock.SessionStartTick)
 export const FRONT_OFFSET = 0.45;         // cells in front of a building's south wall
 export const SQUARE_RADIUS = 1.6;         // cells; villagers in the square stand on a ring around the grid centre
 export const SHORE_INSET = 0.6;           // cells from the grid edge on the coast side
@@ -64,13 +64,12 @@ export function standingPoint(v, kind, layout, gridW, gridD, seed) {
  * lantern is true when the carried lantern burns (not in daylight; the lamplighter always carries a lit one).
  */
 export function villagerPlacements({ roster, layout, tick, dread, gridW, gridD, seed }) {
-  const night = lanternsLit(tick);
   return roster.map((v) => {
     const behavior = behaviorAt(v, tick, dread), loc = locationAt(v, tick, dread), roleId = ROLE_IDS[v.role];
     const base = { index: v.index, name: v.name, role: v.role, roleId, behavior, behaviorName: BEHAVIOR_NAMES[behavior], cause: causeOf(behavior), placeKind: loc.kind, placeName: PLACE_KIND_NAMES[loc.kind] };
     if (loc.kind === GONE) return { ...base, gone: true, x: 0, z: 0, yaw: 0, lantern: false };
     const pt = standingPoint(v, loc.kind, layout, gridW, gridD, seed);
-    return { ...base, gone: false, x: pt.x, z: pt.z, yaw: yawToward(pt.faceDx, pt.faceDz), lantern: night || v.role === 3 };
+    return { ...base, gone: false, x: pt.x, z: pt.z, yaw: yawToward(pt.faceDx, pt.faceDz), lantern: carriesLitLantern(v, tick) };
   });
 }
 

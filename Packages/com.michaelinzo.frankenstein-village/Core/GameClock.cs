@@ -17,6 +17,8 @@ namespace Frankenstein.Core
         public const int MinutesPerDay = DawnMinutes + DayMinutes + DuskMinutes + NightMinutes;
         public const int PhaseCount = 4;
         public const int FullDaylightPercent = 100;
+        /// <summary>Where a play session's clock starts: the heart of dusk, so the first look at the village is the moody hour and the first watch is near.</summary>
+        public const int SessionStartTick = DawnMinutes + DayMinutes + DuskMinutes / 2;
 
         public static readonly string[] PhaseNames = { "dawn", "day", "dusk", "night" };
         public static readonly int[] PhaseLengths = { DawnMinutes, DayMinutes, DuskMinutes, NightMinutes };

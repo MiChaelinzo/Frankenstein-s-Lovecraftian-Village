@@ -1,6 +1,6 @@
 // JS port of Core/VillagerRules.cs. Enums are the same integers as in C#. Wording lives in i18n.js (villager.*), never read by these rules.
 import { SeededRandom, sanitizeDread, tierFor, villagerTalkCountsAsClue, InteractionRules } from './core.js';
-import { phaseAt, isDaylight } from './clock.js';
+import { phaseAt, isDaylight, lanternsLit } from './clock.js';
 
 export const ROLE_IDS = ['fisher', 'priest', 'innkeeper', 'lamplighter', 'lighthouse_keeper', 'widow', 'child'];
 export const DISPOSITION_NAMES = ['kind', 'wary', 'haunted', 'closed'];
@@ -120,3 +120,6 @@ export function lineKey(v, behavior, lineVariant) {
     default: return `villager.greet.${id}.${lineVariant === 0 ? 0 : 1}`;
   }
 }
+
+/** A villager's carried lantern burns from dusk until dawn; the lamplighter (role 3) always carries a lit one. Mirror of VillagerRules.CarriesLitLantern. */
+export const carriesLitLantern = (v, tick) => lanternsLit(tick) || v.role === 3;
