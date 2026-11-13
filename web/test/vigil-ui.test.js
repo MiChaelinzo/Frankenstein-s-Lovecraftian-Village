@@ -10,6 +10,7 @@ import {
   drawResultCard, spokenName, ENDINGS_KEY, CARD_WIDTH, CARD_HEIGHT, lampMarkerStates, flameFlicker,
 } from '../src/vigil-view.js';
 
+const NIGHT_TICK = 1100; // 1080 is the first minute of night (clock.js)
 const make = (seed = 1818, nights = 3) => { const c = generateCampaign(seed, nights); return new VigilState(c, generateRitual(c)); };
 const tr = (k, v) => t(k, 'en', v);
 const memStorage = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v) }; };
@@ -93,7 +94,7 @@ test('reset cancels a pending ending so a reroll never opens the previous run', 
   const progress = { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } };
   const c = createVigilController({
     $, tr, state, progress, storage: memStorage(), announce() {}, notice() {}, adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
-    canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: false,
+    tickNow: () => NIGHT_TICK, skipClock: (minutes, done) => done(), canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: false,
   });
   c.reset();
   c.clue('a'); c.clue('b');
@@ -113,7 +114,7 @@ function lockHarness() {
   let play = true;
   const c = createVigilController({
     $, tr, state, progress, storage: memStorage(), announce() {}, notice: (t) => notices.push(t), adjust() {}, setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {},
-    canPlay: () => play, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+    tickNow: () => NIGHT_TICK, skipClock: (minutes, done) => done(), canPlay: () => play, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
   });
   c.reset();
   return { c, $, notices, setPlay: (v) => { play = v; } };
@@ -182,7 +183,7 @@ test('lanterns past the cap restore no sanity and the same lamp restores once', 
     const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
     const c = createVigilController({
       $, tr, state, progress: { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } }, storage: memStorage(), announce() {}, notice() {},
-      adjust: (d) => gains.push(d), setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {}, canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+      adjust: (d) => gains.push(d), setSanity() {}, selectNight() {}, syncUi() {}, pushHash() {}, tickNow: () => NIGHT_TICK, skipClock: (m, done) => done(), canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
     });
     c.reset();
     return { c };
@@ -231,4 +232,46 @@ test('epilogue links: one pure params entry per ending, deterministic and seed d
   assert.notEqual(epilogueHref('dawn', args), epilogueHref('dawn', { ...args, seed: 7 }));
   assert.equal(epilogueHref('nope', args), '');
   assert.ok(EPILOGUE_LOOKS.dawn.sanity > EPILOGUE_LOOKS.witness.sanity && EPILOGUE_LOOKS.vessel.sanity > EPILOGUE_LOOKS.name_spoken.sanity);
+});
+
+function clockHarness(startTick) {
+  const campaign = generateCampaign(5, 3), ritual = generateRitual(campaign), notices = [], els = new Map();
+  const $ = (id) => { if (!els.has(id)) els.set(id, { hidden: false, textContent: '', showModal() {}, focus() {}, setAttribute() {}, addEventListener() {}, close() {} }); return els.get(id); };
+  const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
+  const clock = { tick: startTick };
+  const c = createVigilController({
+    $, tr, state, progress: { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } }, storage: memStorage(), announce() {}, notice: (t) => notices.push(t),
+    adjust() {}, setSanity: (v) => { state.sanity.value = v; }, selectNight() {}, syncUi() {}, pushHash() {},
+    tickNow: () => clock.tick, skipClock: (m, done) => { clock.tick += m; done(); }, canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+  });
+  c.reset();
+  return { c, $, clock, notices, state };
+}
+
+test('by day the Endure control waits for dusk, then endures to dawn and the next night begins', () => {
+  const { c, $, clock, notices } = clockHarness(400); // day
+  c.clue('a'); c.clue('b'); c.sync(); // the app syncs after every sanity change
+  assert.equal($('endure').hidden, false);
+  assert.equal($('endure').textContent, 'Wait for dusk (E)');
+  assert.equal(c.endure(), true);
+  assert.equal(clock.tick, 840, 'clock ran to dusk');
+  assert.ok(notices.some((t) => /Dusk falls/.test(t)));
+  c.sync();
+  assert.equal($('endure').textContent, 'Endure the night (E)');
+  assert.equal(c.endure(), true);
+  assert.equal(clock.tick, 1440, 'clock ran to dawn');
+  assert.ok(notices.some((t) => /Night 2 begins/.test(t)));
+});
+
+test('dawn without the clue target is a missed dawn: sanity drops, the night repeats, the lock holds', () => {
+  const { c, clock, notices, state } = clockHarness(1100); // night
+  c.clue('a');
+  const before = state.sanity.value;
+  clock.tick = 1439; assert.equal(c.watchClock(clock.tick), false);
+  clock.tick = 1440; assert.equal(c.watchClock(clock.tick), true);
+  assert.ok(notices.some((t) => /Dawn comes and the name is still unheard/.test(t)));
+  assert.ok(state.sanity.value < before);
+  assert.equal(c.isLocked(), true);
+  assert.equal(c.watchClock(1500), false, 'the next judgement is the following dawn');
+  assert.equal(c.watchClock(2880), true);
 });

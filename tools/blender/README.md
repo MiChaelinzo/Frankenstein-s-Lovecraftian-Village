@@ -1,6 +1,6 @@
 # tools/blender
 
-Headless Blender scripts that build ORIGINAL low-poly meshes for the catalog kinds (house_a, house_b, church, well, altar, dead_tree) plus a lamp prop. Geometry is plain Python in `mesh_defs.py`; no pack asset is read.
+Headless Blender scripts that build 25 ORIGINAL low-poly meshes (catalog kinds, coast props and village pieces). Shapes are data: `Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json`, read by `mesh_defs.py` (and by `web/src/shapes.js`); no pack asset is read. After editing the data, copy it to `web/data/village_shapes.json` and rerun `gen_meshes.py`.
 
 | Script | Purpose |
 | --- | --- |

@@ -74,3 +74,6 @@ Never feed pack meshes or textures into Blender sessions that produce files you 
 
 - Nothing on this page has been executed against a live Unity or Blender MCP server.
 - `tests/UnityCompileCheck` is a stub-based syntax and type check, not a Unity build.
+
+## Round 19 note
+Villager AI lines on the web use `?narrator=<url>`, a plain HTTP endpoint, not MCP. No MCP server was run in round 19 either; the Unity and Blender prompts above remain Unverified. The Blender meshes are generated headless from `village_shapes.json`, with no pack input.

@@ -317,6 +317,15 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendVigil(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendVillagers(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendDressing(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -529,11 +538,168 @@ namespace Frankenstein.Core.Tests
             return "[" + string.Join(", ", rows) + "]";
         }
 
+        private static readonly int[] VigilClockTicks = { 0, 1, 239, 240, 839, 840, 841, 1079, 1080, 1439, 1440, 1441, 2279, 2280, 2900, -1, -240, -600, -1441 };
+        /// <summary>Clock rules of the vigil: rows [tick, watchHour, watchStart, nightEnd, dueBeforeEnd, dueAtEnd, endureWait, canEndureMet, waitForDusk] plus a scripted ResolveDawn trace.</summary>
+        private static string VigilClock()
+        {
+            var rows = new List<string>();
+            foreach (int t in VigilClockTicks)
+                rows.Add("[" + t + ", " + (VigilRules.IsWatchHour(t) ? 1 : 0) + ", " + VigilRules.WatchStartTick(t) + ", " + VigilRules.NightEndTick(t) + ", "
+                    + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t) - 1) ? 1 : 0) + ", " + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t)) ? 1 : 0) + ", "
+                    + VigilRules.EndureWaitMinutes(t) + ", " + (VigilRules.CanEndureAt(t, true) ? 1 : 0) + ", " + VigilRules.WaitForDuskMinutes(t) + "]");
+            var camp = CampaignGenerator.Generate(1818, 3);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            var trace = new List<string>();
+            Action<string, bool, int> step = (label, endured, sanity) => trace.Add("[" + JsonSerializer.Serialize(label) + ", " + (endured ? 1 : 0) + ", " + sanity + ", " + v.NightsEndured + ", "
+                + v.NightClues + ", " + (v.IsFinished ? 1 : 0) + ", " + (v.IsCollapsed ? 1 : 0) + "]");
+            int next;
+            v.Begin(); v.RecordSanity(70);
+            bool ok = v.ResolveDawn(70, out next); step("missed with no clues", ok, next);
+            v.RecordClue("a"); ok = v.ResolveDawn(next, out next); step("missed with one clue", ok, next);
+            for (int i = 0; i < 6 && !v.CanEndureNight; i++) v.RecordClue("c" + i);
+            ok = v.ResolveDawn(next, out next); step("endured", ok, next);
+            v.RecordSanity(VigilRules.MissedDawnSanityLoss);
+            ok = v.ResolveDawn(VigilRules.MissedDawnSanityLoss, out next); step("missed collapses", ok, next);
+            ok = v.ResolveDawn(50, out next); step("finished is unchanged", ok, next);
+            return "{\"ticks\": [" + string.Join(", ", rows) + "], \"missedLoss\": " + VigilRules.MissedDawnSanityLoss + ", \"resolve\": [" + string.Join(", ", trace) + "]}";
+        }
+
+        private static readonly int[] ClockTicks = { 0, 1, 119, 239, 240, 839, 840, 1079, 1080, 1439, 1440, 1441, 2900, -1, -240, -1441 };
+        private static readonly int[] VillagerTicks = { 0, 300, 900, 1100, 1300, 1439 };
+        private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
+
+        /// <summary>Top level key "dressing": the seeded harbour, square and churchyard dressing on the real layout, per seed and grid.</summary>
+        private static void AppendDressing(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"dressing\": [");
+            bool firstWorld = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var items = VillageDressing.Compose(seed, grid, grid, layout);
+                    sb.Append(firstWorld ? "\n    " : ",\n    ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"dockU\": ")
+                      .Append(VillageDressing.DockU(seed, grid, grid).ToString("R", inv)).Append(", \"items\": [");
+                    firstWorld = false;
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        var it = items[i];
+                        sb.Append(i > 0 ? ", " : "").Append('[').Append('"').Append(it.Kind).Append('"').Append(", ").Append(it.X.ToString("R", inv)).Append(", ").Append(it.Y.ToString("R", inv)).Append(", ")
+                          .Append(it.Z.ToString("R", inv)).Append(", ").Append(it.Yaw.ToString("R", inv)).Append(", ").Append(it.Scale.ToString("R", inv)).Append(']');
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n  ]\n");
+        }
+
+        /// <summary>Top level key "villagers": clock, seeded rosters on the real layout, schedules, locations, behaviors, clue rule and talk results.</summary>
+        private static void AppendVillagers(StringBuilder sb, PrefabCatalog cat)
+        {
+            string J(object o) { return JsonSerializer.Serialize(o); }
+            sb.Append("  \"villagers\": {\n    \"clockConstants\": [").Append(GameClock.DawnMinutes).Append(", ").Append(GameClock.DayMinutes).Append(", ")
+              .Append(GameClock.DuskMinutes).Append(", ").Append(GameClock.NightMinutes).Append(", ").Append(GameClock.MinutesPerDay).Append("],\n    \"sessionStart\": ").Append(GameClock.SessionStartTick).Append(",\n    \"clock\": [");
+            for (int i = 0; i < ClockTicks.Length; i++)
+            {
+                int t = ClockTicks[i];
+                sb.Append(i > 0 ? ", " : "").Append('[').Append(t).Append(", ").Append(GameClock.Wrap(t)).Append(", ").Append(GameClock.DayNumber(t)).Append(", ")
+                  .Append((int)GameClock.PhaseAt(t)).Append(", ").Append(GameClock.DaylightPercent(t)).Append(", ").Append(GameClock.LanternsLit(t) ? 1 : 0).Append(']');
+            }
+            sb.Append("],\n    \"clueRule\": [");
+            bool firstRule = true;
+            for (int d = 0; d < 4; d++)
+                for (int b = 0; b < 5; b++)
+                {
+                    sb.Append(firstRule ? "" : ", ").Append('[').Append(d).Append(", ").Append(b).Append(", ")
+                      .Append(VigilRules.VillagerTalkCountsAsClue((VillagerDisposition)d, (VillagerBehavior)b) ? 1 : 0).Append(", ").Append(InteractionRules.TalkSanityDelta((VillagerBehavior)b, d % 2 == 0).ToString("R", CultureInfo.InvariantCulture)).Append(']');
+                    firstRule = false;
+                }
+            sb.Append("],\n    \"worlds\": [");
+            bool firstWorld = true;
+            foreach (var seed in VigilSeeds)
+            {
+                var layout = VillageLayoutGenerator.Generate(cat, 24, 24, 40, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var campaign = CampaignGenerator.Generate(seed, 5);
+                sb.Append(firstWorld ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"roster\": [");
+                firstWorld = false;
+                foreach (var v in roster)
+                    sb.Append(v.Index > 0 ? ", " : "").Append('[').Append(J(v.Name)).Append(", ").Append((int)v.Role).Append(", ").Append((int)v.Disposition).Append(", ").Append(v.HomeIndex).Append(", ").Append(v.WorkIndex).Append(']');
+                sb.Append("], \"schedule\": [");
+                foreach (var v in roster)
+                {
+                    sb.Append(v.Index > 0 ? ", " : "").Append('[');
+                    for (int p = 0; p < GameClock.PhaseCount; p++) sb.Append(p > 0 ? ", " : "").Append((int)VillagerRules.ScheduledKind(v, (DayPhase)p));
+                    sb.Append(']');
+                }
+                sb.Append("], \"locations\": [");
+                bool firstLoc = true;
+                foreach (var v in roster)
+                    foreach (var t in VillagerTicks)
+                        foreach (var d in VillagerDreads)
+                        {
+                            var place = VillagerRules.LocationAt(v, t, d);
+                            sb.Append(firstLoc ? "" : ", ").Append('[').Append((int)VillagerRules.BehaviorAt(v, t, d)).Append(", ").Append((int)place.Kind).Append(", ").Append(place.PieceIndex).Append(']');
+                            firstLoc = false;
+                        }
+                sb.Append("], \"stand\": [");
+                bool firstStand = true;
+                foreach (var v in roster)
+                    for (int k = 0; k <= (int)VillagerPlaceKind.Shore; k++)
+                    {
+                        var pt = VillagerRules.StandPoint(v, (VillagerPlaceKind)k, layout, 24, 24, seed);
+                        sb.Append(firstStand ? "" : ", ").Append('[').Append(k).Append(", ").Append(pt.X.ToString("R", CultureInfo.InvariantCulture)).Append(", ").Append(pt.Z.ToString("R", CultureInfo.InvariantCulture))
+                          .Append(", ").Append(pt.FaceDx.ToString("R", CultureInfo.InvariantCulture)).Append(", ").Append(pt.FaceDz.ToString("R", CultureInfo.InvariantCulture)).Append(']');
+                        firstStand = false;
+                    }
+                sb.Append("], \"lanterns\": [");
+                bool firstLamp = true;
+                foreach (var v in roster)
+                    foreach (var t in VillagerTicks) { sb.Append(firstLamp ? "" : ", ").Append(VillagerRules.CarriesLitLantern(v, t) ? 1 : 0); firstLamp = false; }
+                sb.Append("], \"talks\": [");
+                bool firstTalk = true;
+                foreach (var v in roster)
+                    foreach (var t in VillagerTicks)
+                        foreach (var d in VillagerDreads)
+                        {
+                            int night = 1 + (v.Index + t) % 7;
+                            var r = VillagerRules.Talk(seed, v, t, d, campaign, night);
+                            sb.Append(firstTalk ? "" : ", ").Append('[').Append(night).Append(", ").Append(r.Available ? 1 : 0).Append(", ").Append((int)r.Behavior).Append(", ")
+                              .Append(r.YieldsClue ? 1 : 0).Append(", ").Append(J(r.ClueId)).Append(", ").Append(r.SanityDelta.ToString("R", CultureInfo.InvariantCulture)).Append(", ")
+                              .Append(r.LineVariant).Append(", ").Append(J(r.Rumor)).Append(']');
+                            firstTalk = false;
+                        }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ],\n    \"ticks\": ").Append(J(VillagerTicks)).Append(",\n    \"dreads\": [");
+            for (int i = 0; i < VillagerDreads.Length; i++) sb.Append(i > 0 ? ", " : "").Append(DreadToken(VillagerDreads[i], CultureInfo.InvariantCulture));
+            sb.Append("]\n  }\n");
+        }
+
         private static readonly string[] VigilBadCodes =
         {
             "", "V1", "V1-5-dawn", "V2-5-dawn-10", "V1-5-nobody-10", "V1-5-dawn--10", "V1-5-dawn-+10", "V1-05-dawn-10", "V1--0-dawn-10",
             "V1-5-dawn-010", "V1-abc-dawn-10", "V1-99999999999-dawn-10", "V1-5-dawn-10-", "V1--7-name_spoken-3400", "V1-2147483647-vessel-0",
         };
+
+        /// <summary>Top level key "shapes": per mesh part count, triangle count, material count and Unity-axis bounds (3 decimals) from Data/village_shapes.json.</summary>
+        private static void AppendShapes(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = ShapeLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_shapes.json")));
+            sb.Append("  \"shapes\": [");
+            bool first = true;
+            foreach (var id in lib.MeshIds)
+            {
+                var m = lib.Build(id);
+                var b = m.Bounds();
+                sb.Append(first ? "\n    " : ",\n    ").Append("[\"").Append(id).Append("\", ").Append(m.PartCount).Append(", ").Append(m.TriangleCount).Append(", ").Append(m.Submeshes.Count);
+                foreach (var x in b) sb.Append(", ").Append(Math.Round((double)x, 3).ToString("0.###", inv));
+                sb.Append(']');
+                first = false;
+            }
+            sb.Append("\n  ]\n");
+        }
 
         /// <summary>Top level key "vigil": clue targets, endings, scores, result codes, name reveals and scripted playthroughs.</summary>
         private static void AppendVigil(StringBuilder sb)
@@ -625,7 +791,7 @@ namespace Frankenstein.Core.Tests
                     sb.Append(first ? "" : ", ").Append('[').Append(J(id)).Append(", ").Append(live ? 1 : 0).Append(", ").Append(VigilRules.AllowsSandboxAction(live, id) ? 1 : 0).Append(']');
                     first = false;
                 }
-            sb.Append("],\n    \"gates\": ").Append(VigilGates()).Append(",\n    \"clueKinds\": [");
+            sb.Append("],\n    \"gates\": ").Append(VigilGates()).Append(",\n    \"clock\": ").Append(VigilClock()).Append(",\n    \"clueKinds\": [");
             for (int k = 0; k <= (int)InteractionKind.Candle; k++)
                 sb.Append(k > 0 ? ", " : "").Append('[').Append(k).Append(", ").Append(VigilRules.CountsAsClue((InteractionKind)k) ? 1 : 0).Append(']');
             sb.Append("]\n  }\n");

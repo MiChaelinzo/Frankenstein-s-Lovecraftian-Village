@@ -127,6 +127,74 @@ namespace Frankenstein.Core
             return kind == InteractionKind.Whisper || kind == InteractionKind.Landmark;
         }
 
+        /// <summary>
+        /// Whether talking to a villager is a vigil clue. Kind and haunted villagers share what they know; wary and closed ones
+        /// only slip once they face the sea or repeat themselves. A vanished villager yields nothing. Existing clue kinds are unchanged.
+        /// </summary>
+        public static bool VillagerTalkCountsAsClue(VillagerDisposition disposition, VillagerBehavior behavior)
+        {
+            if (behavior == VillagerBehavior.Vanished) return false;
+            return disposition == VillagerDisposition.Kind || disposition == VillagerDisposition.Haunted || behavior >= VillagerBehavior.FacingSea;
+        }
+
+        // ---------- the clock: the vigil keeps watch at night, the day is free exploration ----------
+        // The watch is dusk and night (GameClock). A night is over at the next dawn. Clues, lanterns and talk count at any hour, so the
+        // day can be spent gathering what tonight needs. Endure is only possible during the watch and runs the clock to dawn, where
+        // the night is judged. Dawn with the clue target met endures the night. Dawn without it is a missed dawn: the night does not
+        // count, sanity drops by MissedDawnSanityLoss, the clues found stay, and the same night is watched again at the next dusk.
+        // Beginning the vigil by day waits for dusk: the first watch starts at the next dusk, so the first night ends at the following dawn.
+        // By day the player may choose to wait for dusk (WaitForDuskMinutes runs the clock to the watch); Endure is then offered.
+
+        /// <summary>Sanity lost when dawn comes before the clue target is met. The night does not count and is watched again.</summary>
+        public const int MissedDawnSanityLoss = 10;
+
+        /// <summary>The watch hours: dusk and night.</summary>
+        public static bool IsWatchHour(int tick)
+        {
+            DayPhase phase = GameClock.PhaseAt(tick);
+            return phase == DayPhase.Dusk || phase == DayPhase.Night;
+        }
+
+        /// <summary>The tick the watch starts at or after <paramref name="tick"/>: the tick itself during the watch, else the next dusk.</summary>
+        public static int WatchStartTick(int tick)
+        {
+            if (IsWatchHour(tick)) return tick;
+            return tick - GameClock.Wrap(tick) + GameClock.PhaseStart(DayPhase.Dusk);
+        }
+
+        /// <summary>First dawn strictly after <paramref name="tick"/> (an absolute tick, never wrapped).</summary>
+        public static int DawnTickAfter(int tick)
+        {
+            return tick - GameClock.Wrap(tick) + GameClock.MinutesPerDay;
+        }
+
+        /// <summary>The tick at which the night that began at <paramref name="anchorTick"/> is judged: the first dawn after its watch starts.</summary>
+        public static int NightEndTick(int anchorTick)
+        {
+            return DawnTickAfter(WatchStartTick(anchorTick));
+        }
+
+        /// <summary>True once the clock has reached the dawn that ends the night anchored at <paramref name="anchorTick"/>.</summary>
+        public static bool DawnDue(int anchorTick, int tick)
+        {
+            return tick >= NightEndTick(anchorTick);
+        }
+
+        /// <summary>Endure the night needs the clue target met and the watch under way. By day it is refused (wait for dusk first).</summary>
+        public static bool CanEndureAt(int tick, bool targetMet)
+        {
+            return targetMet && IsWatchHour(tick);
+        }
+
+        /// <summary>Minutes "wait for dusk" runs the clock forward to reach the watch: 0 during the watch.</summary>
+        public static int WaitForDuskMinutes(int tick) { return WatchStartTick(tick) - tick; }
+
+        /// <summary>Minutes Endure runs the clock forward to reach dawn, or -1 outside the watch.</summary>
+        public static int EndureWaitMinutes(int tick)
+        {
+            return IsWatchHour(tick) ? DawnTickAfter(tick) - tick : -1;
+        }
+
         /// <summary>Clues needed to endure a night. Rises with the night number, clamped. Nights below 1 count as night 1.</summary>
         public static int ClueTarget(int night)
         {
@@ -386,6 +454,25 @@ namespace Frankenstein.Core
             if (_nightsEndured >= NightsTotal) return _sanity;
             _sanity = VigilRules.NextNightSanity(_sanity);
             return _sanity;
+        }
+
+        /// <summary>
+        /// Judges the night at dawn. With the clue target met it endures the night exactly like <see cref="EndureNight"/> and returns true
+        /// (nextSanity is the next night's starting sanity, or the final sanity after the last night). Otherwise the dawn is missed:
+        /// sanity drops by <see cref="VigilRules.MissedDawnSanityLoss"/> (which can collapse the vigil), clues and lanterns stay, and false is returned.
+        /// A finished vigil is left unchanged.
+        /// </summary>
+        public bool ResolveDawn(int carriedSanity, out int nextSanity)
+        {
+            if (IsFinished) { nextSanity = _sanity; return false; }
+            if (CanEndureNight)
+            {
+                nextSanity = EndureNight(carriedSanity);
+                return !IsCollapsed;
+            }
+            RecordSanity(carriedSanity - VigilRules.MissedDawnSanityLoss);
+            nextSanity = _sanity;
+            return false;
         }
 
         /// <summary>The outcome, or null while the vigil is still running.</summary>

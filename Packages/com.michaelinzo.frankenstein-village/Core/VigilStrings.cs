@@ -43,6 +43,9 @@ namespace Frankenstein.Core
             "vigil.end.score",
             "vigil.end.name",
             "vigil.end.stats",
+            "vigil.wait",
+            "vigil.dusk",
+            "vigil.dawn.missed",
         };
 
         private static readonly Dictionary<string, string[]> Table = new Dictionary<string, string[]>
@@ -75,7 +78,10 @@ namespace Frankenstein.Core
                 "The dark takes {n} from you as night {night} begins.",
                 "Score {score}, rank {rank}",
                 "The name: {name}",
-                "Clues {clues}, lanterns {lanterns}, nights endured {nights}/{total}, ritual stage {stage}/{stages}, sanity {sanity}."
+                "Clues {clues}, lanterns {lanterns}, nights endured {nights}/{total}, ritual stage {stage}/{stages}, sanity {sanity}.",
+                "Wait for dusk (E)",
+                "You wait out the grey hours. Dusk falls, and the vigil is kept until dawn.",
+                "Dawn comes and the name is still unheard. The night does not count (sanity -{n}); the clues stay. Watch again at dusk."
             } },
             { "fr", new[]
             {
@@ -105,7 +111,10 @@ namespace Frankenstein.Core
                 "Le noir vous prend {n} au debut de la nuit {night}.",
                 "Score {score}, rang {rank}",
                 "Le nom : {name}",
-                "Indices {clues}, lanternes {lanterns}, nuits endurees {nights}/{total}, etape du rituel {stage}/{stages}, raison {sanity}."
+                "Indices {clues}, lanternes {lanterns}, nuits endurees {nights}/{total}, etape du rituel {stage}/{stages}, raison {sanity}.",
+                "Attendre le crepuscule (E)",
+                "Vous laissez passer les heures grises. Le crepuscule tombe, et la veillee dure jusqu'a l'aube.",
+                "L'aube vient et le nom reste inentendu. La nuit ne compte pas (raison -{n}); les indices restent. Veillez a nouveau au crepuscule."
             } },
         };
 

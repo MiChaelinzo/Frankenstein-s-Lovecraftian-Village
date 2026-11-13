@@ -1,8 +1,11 @@
 // Minimal dependency-free GLB (glTF 2.0 binary) reader and software projector. Pure logic, no DOM.
 // Reads POSITION, indices and baseColorFactor only; that is all the original Blender meshes use.
+import { buildShapeModel } from './shapes.js';
+import { MAX_PLACE_SCALE } from './world-scale.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
-export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS];
+export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager'];
+export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS, ...VILLAGE_KINDS]; // a test keeps this list equal to data/village_shapes.json
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
 const NCOMP = { SCALAR: 1, VEC3: 3 };
@@ -109,15 +112,34 @@ export function projectModel(model, { yaw = 0.6, pitch = 0.5, w = 240, h = 240, 
 
 // ---- village mesh mode (?meshes=1) ----
 
-/** Loads every kind through the injected fetch. Failures are logged once per kind and left out of the map, so callers fall back to procedural drawing. */
-export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.warn) {
+/**
+ * Loads every kind through the injected fetch. A failed GLB is logged once per kind. With shapesUrl, the mesh is then built from the shared
+ * shape data (data/village_shapes.json) instead; without it, or when that also fails, the kind is left out so callers use the procedural drawing.
+ */
+export async function loadMeshSet(fetchFn, base, kinds = KINDS, warn = console.warn, shapesUrl = null) {
   const set = new Map();
+  let shapes = null;
+  const shapeFallback = async (kind) => {
+    if (!shapesUrl) return null;
+    if (!shapes) {
+      const res = await fetchFn(shapesUrl);
+      if (!res.ok) throw new Error('shapes HTTP ' + res.status);
+      shapes = await res.json();
+    }
+    return buildShapeModel(shapes, kind);
+  };
   for (const kind of kinds) {
     try {
       const res = await fetchFn(base + kind + '.glb');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       set.set(kind, loadGlbBuffer(await res.arrayBuffer()));
-    } catch (e) { warn(`[meshes] ${kind} failed (${e.message}); using the procedural drawing`); }
+    } catch (e) {
+      try {
+        const model = await shapeFallback(kind);
+        if (model) { set.set(kind, model); warn(`[meshes] ${kind} GLB failed (${e.message}); built from the shape data`); continue; }
+      } catch (e2) { e = new Error(`${e.message}; shape data: ${e2.message}`); }
+      warn(`[meshes] ${kind} failed (${e.message}); using the procedural drawing`);
+    }
   }
   return set;
 }
@@ -160,25 +182,25 @@ export function meshPolygons(model, project, piece, { hs = 1, unitPx = 32, dread
 /** Floats per vertex: position(3) normal(3) colour(3) glow(1) phase(1). */
 export const VERTEX_FLOATS = 11;
 
-/** Uniform scale that fits a mesh into a piece footprint (cell metres per layout cell), 90% like the 2D mesh mode. */
+/** Uniform scale that fits a mesh into a piece footprint (cell metres per layout cell), 90% like the 2D mesh mode. Capped at MAX_PLACE_SCALE: meshes are authored in metres and are shrunk to fit, never enlarged. */
 export function fitScale(model, piece, cell) {
   const { min, max } = model.bounds;
-  return 0.9 * Math.min((piece.sizeX * cell) / (max[0] - min[0] || 1), (piece.sizeZ * cell) / (max[2] - min[2] || 1));
+  return Math.min(MAX_PLACE_SCALE, 0.9 * Math.min((piece.sizeX * cell) / (max[0] - min[0] || 1), (piece.sizeZ * cell) / (max[2] - min[2] || 1)));
 }
 
 /**
  * Appends one placed mesh to the flat array `out` and returns the placed height in metres.
  * Emissive triangles get glow = opts.glow (window light on or off) and phase for flicker. tint [r,g,b] 0..255 blends 30%.
- * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians).
+ * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians); opts.lift raises it (a church rise).
  */
-export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0 } = {}) {
+export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0 } = {}) {
   const { min, max } = model.bounds;
   const s = scale ?? fitScale(model, piece, cell);
   const cx = at ? at[0] : (piece.x + piece.sizeX / 2) * cell, cz = at ? at[1] : (piece.z + piece.sizeZ / 2) * cell;
   const mx = (min[0] + max[0]) / 2, mz = (min[2] + max[2]) / 2;
   const cr = Math.cos(rot), sr = Math.sin(rot);
   for (const t of model.triangles) {
-    const q = t.p.map((p) => [cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, p[1] * s, cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s]);
+    const q = t.p.map((p) => [cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, lift + p[1] * s, cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s]);
     const u = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]], v = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]];
     let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
     const nl = Math.hypot(...n) || 1; n = n.map((c) => c / nl);
@@ -188,5 +210,5 @@ export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 
     });
     for (const p of q) out.push(p[0], p[1], p[2], n[0], n[1], n[2], rgb[0], rgb[1], rgb[2], t.emissive ? glow : 0, phase);
   }
-  return max[1] * s;
+  return lift + max[1] * s;
 }

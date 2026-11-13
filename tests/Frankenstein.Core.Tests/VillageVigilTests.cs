@@ -389,4 +389,135 @@ namespace Frankenstein.Core.Tests
             Assert.True(recklessCollapsed * 100 > seeds * 50, "reckless collapsed " + recklessCollapsed + "/" + seeds);
         }
     }
+
+    /// <summary>Property tests for how the vigil keeps time: watch at dusk and night, free day, dawn judgement.</summary>
+    public class VigilClockProperties
+    {
+        private static VigilState Fresh(int seed)
+        {
+            var camp = CampaignGenerator.Generate(seed, 3);
+            return new VigilState(camp, RitualChain.Generate(camp));
+        }
+
+        [Fact]
+        public void Watch_starts_now_during_dusk_and_night_and_at_the_next_dusk_by_day()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                int tick = r.Next(20 * GameClock.MinutesPerDay) - 10 * GameClock.MinutesPerDay;
+                int start = VigilRules.WatchStartTick(tick);
+                Assert.True(start >= tick);
+                Assert.True(VigilRules.IsWatchHour(start));
+                Assert.Equal(VigilRules.IsWatchHour(tick), start == tick);
+                Assert.True(start - tick < GameClock.DawnMinutes + GameClock.DayMinutes);
+                if (!VigilRules.IsWatchHour(tick)) Assert.Equal(DayPhase.Dusk, GameClock.PhaseAt(start));
+                Assert.Equal(start - tick, VigilRules.WaitForDuskMinutes(tick));
+                Assert.True(VigilRules.CanEndureAt(tick + VigilRules.WaitForDuskMinutes(tick), true));
+            });
+        }
+
+        [Fact]
+        public void A_night_ends_at_the_first_dawn_after_its_watch_and_never_before_it_starts()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                int anchor = r.Next(20 * GameClock.MinutesPerDay) - 10 * GameClock.MinutesPerDay;
+                int end = VigilRules.NightEndTick(anchor);
+                Assert.Equal(0, GameClock.Wrap(end));
+                Assert.Equal(DayPhase.Dawn, GameClock.PhaseAt(end));
+                Assert.True(end > VigilRules.WatchStartTick(anchor));
+                Assert.True(end - VigilRules.WatchStartTick(anchor) <= GameClock.DuskMinutes + GameClock.NightMinutes);
+                Assert.False(VigilRules.DawnDue(anchor, end - 1));
+                Assert.True(VigilRules.DawnDue(anchor, end));
+                Assert.True(VigilRules.DawnDue(anchor, end + 1));
+                Assert.Equal(end, VigilRules.NightEndTick(end - 1));
+            });
+        }
+
+        [Fact]
+        public void Beginning_by_day_waits_for_dusk_and_beginning_at_night_is_judged_at_the_coming_dawn()
+        {
+            int midDay = GameClock.PhaseStart(DayPhase.Day) + 100;
+            Assert.Equal(GameClock.PhaseStart(DayPhase.Dusk), VigilRules.NightEndTick(midDay) - GameClock.DuskMinutes - GameClock.NightMinutes);
+            Assert.Equal(GameClock.MinutesPerDay, VigilRules.NightEndTick(midDay));
+            int midNight = GameClock.PhaseStart(DayPhase.Night) + 10;
+            Assert.Equal(GameClock.MinutesPerDay, VigilRules.NightEndTick(midNight));
+            int dawnItself = GameClock.MinutesPerDay;
+            Assert.Equal(2 * GameClock.MinutesPerDay, VigilRules.NightEndTick(dawnItself));
+        }
+
+        [Fact]
+        public void Endure_is_refused_by_day_and_runs_the_clock_to_dawn_during_the_watch()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                int tick = r.Next(10 * GameClock.MinutesPerDay);
+                bool watch = VigilRules.IsWatchHour(tick);
+                Assert.Equal(watch, VigilRules.CanEndureAt(tick, true));
+                Assert.False(VigilRules.CanEndureAt(tick, false));
+                int wait = VigilRules.EndureWaitMinutes(tick);
+                if (!watch) { Assert.Equal(-1, wait); return; }
+                Assert.InRange(wait, 1, GameClock.DuskMinutes + GameClock.NightMinutes);
+                Assert.Equal(DayPhase.Dawn, GameClock.PhaseAt(tick + wait));
+                Assert.Equal(0, GameClock.Wrap(tick + wait));
+            });
+        }
+
+        [Fact]
+        public void Dawn_with_the_target_met_endures_exactly_like_endure_night()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                var a = Fresh(seed); var b = Fresh(seed);
+                a.Begin(); b.Begin();
+                for (int i = 0; i < a.ClueTarget; i++) { a.RecordClue("c" + i); b.RecordClue("c" + i); }
+                int carried = 20 + r.Next(80);
+                int expected = a.EndureNight(carried);
+                int got;
+                Assert.True(b.ResolveDawn(carried, out got));
+                Assert.Equal(expected, got);
+                Assert.Equal(a.NightsEndured, b.NightsEndured);
+                Assert.Equal(a.Serialize(), b.Serialize());
+            });
+        }
+
+        [Fact]
+        public void A_missed_dawn_costs_sanity_keeps_clues_and_never_advances_the_night()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                var v = Fresh(seed);
+                v.Begin();
+                int found = r.Next(v.ClueTarget);
+                for (int i = 0; i < found; i++) v.RecordClue("c" + i);
+                int carried = 1 + r.Next(100);
+                int night = v.Night, endured = v.NightsEndured, clues = v.TotalClues;
+                int next;
+                Assert.False(v.ResolveDawn(carried, out next));
+                Assert.Equal(Math.Max(0, carried - VigilRules.MissedDawnSanityLoss), next);
+                Assert.Equal(night, v.Night);
+                Assert.Equal(endured, v.NightsEndured);
+                Assert.Equal(clues, v.TotalClues);
+                Assert.Equal(found, v.NightClues);
+                Assert.Equal(next <= 0, v.IsCollapsed);
+                Assert.Equal(next <= 0, v.IsFinished);
+            });
+        }
+
+        [Fact]
+        public void A_finished_vigil_is_unchanged_by_dawn_and_the_sandbox_lock_still_holds_until_then()
+        {
+            var v = Fresh(1818);
+            Assert.True(VigilRules.AllowsSandboxAction(v.IsLocked, VigilRules.ActionNewVillage));
+            v.Begin();
+            foreach (var id in VigilRules.SandboxActionIds) Assert.False(VigilRules.AllowsSandboxAction(v.IsLocked, id));
+            v.RecordSanity(0);
+            Assert.True(v.IsFinished);
+            string saved = v.Serialize();
+            int next;
+            Assert.False(v.ResolveDawn(80, out next));
+            Assert.Equal(saved, v.Serialize());
+            foreach (var id in VigilRules.SandboxActionIds) Assert.True(VigilRules.AllowsSandboxAction(v.IsLocked, id));
+        }
+    }
 }

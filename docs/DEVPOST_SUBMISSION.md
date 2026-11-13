@@ -62,6 +62,7 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [ ] Demo video under 3 minutes, public (timed script with a 40 to 60 second Kiro segment in `docs/DEMO_SCRIPT.md`; no DLNK trailer footage or copyrighted music, credit DLNK)
 - [x] Kiro pitch (60 to 90 second spoken script) and short Devpost write-up drafted in `docs/KIRO_PITCH.md`; paste the write-up into the Devpost Kiro field
 - [x] Kiro usage write-up finished (`docs/KIRO_USAGE.md`)
+- [x] Round 19 screenshots (`docs/media/r19-*.png`) are original content only, each under 700 KB; no pack data in the repo. Record the day, dusk and night shots in the video (see `docs/DEMO_SCRIPT.md`)
 - [ ] Category selected: Frankenstein
 
 ## Bonus prizes

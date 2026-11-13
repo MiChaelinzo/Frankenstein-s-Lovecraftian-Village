@@ -49,6 +49,19 @@ namespace Frankenstein.Core
             }
         }
 
+        /// <summary>
+        /// Sanity change for talking to a villager. A clue costs what studying a landmark costs; a villager at the window costs the same;
+        /// one facing the sea or repeating a phrase costs what a whisper costs; a vanished villager costs nothing. The worst applies.
+        /// </summary>
+        public static float TalkSanityDelta(VillagerBehavior behavior, bool yieldsClue)
+        {
+            if (behavior == VillagerBehavior.Vanished) return 0f;
+            float delta = yieldsClue ? SanityDelta(InteractionKind.Landmark) : 0f;
+            if (behavior >= VillagerBehavior.FacingSea) return Math.Min(delta, SanityDelta(InteractionKind.Whisper));
+            if (behavior == VillagerBehavior.AtWindow) return Math.Min(delta, SanityDelta(InteractionKind.Landmark));
+            return delta;
+        }
+
         /// <summary>What a catalog category does when touched: houses have doors, landmarks are studied, everything else whispers.</summary>
         public static InteractionKind KindForCategory(string category)
         {

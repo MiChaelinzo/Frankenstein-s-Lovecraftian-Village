@@ -1,6 +1,6 @@
 // Vigil DOM controller. Owns the VigilState instance, the objective line, the endure prompt and the ending dialog.
 // Every rule (clue/lantern uniqueness, targets, creep, endings, score) comes from VigilState and friends in core.js; this file forwards player actions.
-import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
+import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, canEndureAt, endureWaitMinutes, waitForDuskMinutes, isWatchHour, dawnDue, nightEndTick, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
@@ -12,12 +12,13 @@ const ENDING_FADE_MS = 1600;
 const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain', 'storyOpen', 'cinemaToggle'];
 
 /**
- * deps: $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
+ * deps: tickNow() (the session clock tick), skipClock(minutes, done) (runs the clock forward, then calls done), $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
  *  cue(kind) optional UI sound ('lantern', 'ending-warm', 'ending-cold'), syncUi(), pushHash(), canPlay() (false during cinematic, tour, intro, story), exit3d(), reroll(), download(name, blob, mime), shareLink(), reduceMotion.
  */
 export function createVigilController(deps) {
   const { $, tr, state, progress, storage, announce, notice } = deps;
   let endingTimer = 0;
+  let anchorTick = 0, enduring = false;
   let vigil = null, lamps = [], suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
 
   /** Stable lamp ids from the layout: lanternLights with every house at full detail, so dread never reshuffles the ids. */
@@ -47,12 +48,12 @@ export function createVigilController(deps) {
   function reset() {
     clearTimeout(endingTimer); model = null; // a pending ending from the previous run must not open over the new village
     vigil = state.campaign && state.ritual ? new VigilState(state.campaign, state.ritual) : null;
-    lamps = buildLamps(state.layout); suspended = false; endingShown = false; lastText = '';
+    lamps = buildLamps(state.layout); suspended = false; enduring = false; endingShown = false; lastText = '';
     render();
   }
   function restore(text) {
     if (!vigil || !text || !vigil.tryRestore(text)) return false;
-    endingShown = vigil.isFinished;
+    endingShown = vigil.isFinished; anchorTick = deps.tickNow(); // a restored vigil keeps watch from now: the clock is not saved
     render();
     return true;
   }
@@ -66,7 +67,7 @@ export function createVigilController(deps) {
   /** The first vigil action starts night 1: the dark takes its share before anything else happens. */
   function begin() {
     if (started()) return;
-    vigil.begin();
+    vigil.begin(); anchorTick = deps.tickNow();
     vigil.recordSanity(sanityPoints(state.sanity.value));
     applyCreep();
   }
@@ -105,21 +106,52 @@ export function createVigilController(deps) {
     return lightLamp(next);
   }
 
-  function endure() {
-    if (!live() || !vigil.canEndureNight) return false;
-    progress.arm(); begin();
+  /** Applies the result of a night judged at dawn: the next night begins, or the dawn was missed and the same night is watched again. */
+  function resolveDawn() {
+    if (!vigil || !live() || !started()) return false;
+    const dawn = nightEndTick(anchorTick);
     suspended = true;
-    const next = vigil.endureNight(sanityPoints(state.sanity.value));
-    if (next < 0) { suspended = false; return false; }
-    if (!vigil.isFinished) {
-      deps.selectNight(vigil.night - 1, true);
-      deps.setSanity(next, true);
-      applyCreep();
-      notice(tr('vigil.night', { night: vigil.night }));
+    const r = vigil.resolveDawn(sanityPoints(state.sanity.value));
+    anchorTick = dawn;
+    if (r.endured) {
+      if (!vigil.isFinished) {
+        deps.selectNight(vigil.night - 1, true);
+        deps.setSanity(r.sanity, true);
+        applyCreep();
+        notice(tr('vigil.night', { night: vigil.night }));
+        deps.syncUi(); deps.pushHash();
+      }
+    } else if (!vigil.isFinished) {
+      deps.setSanity(r.sanity, true);
+      notice(tr('vigil.dawn.missed', { n: VIGIL_MISSED_DAWN_SANITY_LOSS }));
       deps.syncUi(); deps.pushHash();
     }
     suspended = false;
     sync();
+    return r.endured;
+  }
+
+  /** Endure the night: once the clue target is met. During the watch (dusk, night) it runs the clock to dawn, where the night is judged; by day it waits for dusk first. */
+  function endure() {
+    if (!live() || !vigil.canEndureNight || enduring) return false;
+    const tick = deps.tickNow();
+    progress.arm(); begin();
+    enduring = true;
+    if (!canEndureAt(tick, true)) { // by day the same control waits for dusk; Endure is offered once the watch begins
+      deps.skipClock(waitForDuskMinutes(tick), () => { enduring = false; notice(tr('vigil.dusk')); render(); });
+      render();
+      return true;
+    }
+    deps.skipClock(endureWaitMinutes(tick), () => { enduring = false; resolveDawn(); });
+    return true;
+  }
+
+  /** Called every clock second by the app: when the dawn of the current night has come, judge it. */
+  function watchClock(tick) {
+    if (!enduring && vigil && !vigil.isFinished) render(); // the Endure label follows the hour (wait for dusk by day)
+    if (enduring || !vigil || !started() || !live() || vigil.isFinished) return false;
+    if (!dawnDue(anchorTick, tick)) return false;
+    resolveDawn();
     return true;
   }
 
@@ -138,8 +170,9 @@ export function createVigilController(deps) {
     if (vigil) {
       const m = objectiveModel(vigil);
       text = m.finished ? tr('vigil.objective.done', { found: tr('vigil.end.found', { n: found().length, total: VIGIL_ENDING_IDS.length }) }) : objectiveText(m, tr);
-      $('endure').hidden = !(m.canEndure && !m.finished);
-      $('endure').textContent = tr(vigil.night >= vigil.nightsTotal ? 'vigil.finish' : 'vigil.endure');
+      $('endure').hidden = !(m.canEndure && !m.finished && !enduring);
+      const label = !isWatchHour(deps.tickNow()) ? 'vigil.wait' : vigil.night >= vigil.nightsTotal ? 'vigil.finish' : 'vigil.endure';
+      if ($('endure').textContent !== tr(label)) $('endure').textContent = tr(label);
     }
     if (text !== lastText) { lastText = text; $('objectiveText').textContent = text; }
   }
@@ -217,7 +250,7 @@ export function createVigilController(deps) {
   }
 
   return {
-    reset, restore, serialize, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
+    reset, restore, serialize, watchClock, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
     endingOpen: () => endingIsOpen, canEndure: () => !!vigil && vigil.canEndureNight && !vigil.isFinished,
     isFinished: () => !!vigil && vigil.isFinished, isLive: live,
   };

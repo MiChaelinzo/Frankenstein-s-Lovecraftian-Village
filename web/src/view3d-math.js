@@ -6,7 +6,7 @@ import { queryParam } from './util.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
-export const EYE_HEIGHT = 1.6;
+export { EYE_HEIGHT } from './world-scale.js';
 export const BODY_RADIUS = 0.35;
 export const WALK_SPEED = 3.2;    // metres per second
 export const TURN_SPEED = 1.9;    // radians per second (stick and arrow keys)
@@ -557,7 +557,7 @@ export const FRAME_BUDGET = Object.freeze({ drawCalls: 12, triangles: 60000, poi
 
 /** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
 export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false }) {
-  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle'];
+  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle', 'villager'];
   const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
   return { drawCalls, triangles, points: rain + mist + halos + fireflies, lights: Math.min(lights, MAX_LIGHTS), halos };

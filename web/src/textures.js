@@ -1,5 +1,5 @@
 // Texture sources for the canvas renderer: the optional local pack (?pack=1) and the procedural pattern library.
-import { SeededRandom } from './core.js';
+import { proceduralTexture } from './proc-textures.js';
 import { validateLayout } from './dlnk-layout.js';
 import { validateManifest, hintFor, tintChannel } from './pack.js';
 import { THEMES, themeColors } from './building.js';
@@ -46,33 +46,15 @@ export function createTextures({ ctx, params, tr }) {
       console.warn(`[pack] no scene layout: ${err.message}`);
     }
   }
-  // Procedural texture library (no assets): one small seamless pattern per theme, built once on a tiny offscreen canvas.
+  // Procedural texture library (no assets): one small seamless pattern per theme from proc-textures.js, built once on a tiny offscreen canvas.
   const procPatterns = {};
+  const THEME_TEXTURE = { bricks: 'brick', plaster: 'plaster', tiles: 'roof', wood: 'wood', rocks: 'stone' };
   function buildProcPattern(id) {
     const [lit, shaded] = themeColors(id);
-    const S = 64, off = document.createElement('canvas'); off.width = S; off.height = S;
-    const o = off.getContext('2d'), r = new SeededRandom(id.length * 977 + id.charCodeAt(0));
-    const c = (a, t = 0) => `rgb(${a.map((v) => Math.max(0, Math.min(255, v + t)) | 0).join(',')})`;
-    o.fillStyle = c(lit); o.fillRect(0, 0, S, S);
-    o.lineWidth = 1;
-    if (id === 'bricks') {
-      for (let row = 0; row < 8; row++) for (let col = 0; col < 4; col++) {
-        o.fillStyle = c(lit, r.next(30) - 15); o.fillRect(col * 16 + (row % 2) * 8, row * 8, 15, 7);
-      }
-      o.fillStyle = c(shaded, -20); for (let row = 0; row < 8; row++) o.fillRect(0, row * 8 + 7, S, 1);
-    } else if (id === 'plaster') {
-      for (let i = 0; i < 160; i++) { o.fillStyle = c(i % 2 ? shaded : lit, r.next(24) - 12); o.fillRect(r.next(S), r.next(S), 1 + r.next(3), 1 + r.next(2)); }
-    } else if (id === 'tiles') {
-      for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) { o.fillStyle = c(lit, r.next(24) - 12); o.fillRect(col * 16 + 1, row * 16 + 1, 14, 14); }
-      o.fillStyle = c(shaded, -25); for (let i = 0; i < 4; i++) { o.fillRect(0, i * 16, S, 1); o.fillRect(i * 16, 0, 1, S); }
-    } else if (id === 'wood') {
-      for (let p = 0; p < 8; p++) { o.fillStyle = c(lit, r.next(30) - 15); o.fillRect(p * 8, 0, 8, S); o.fillStyle = c(shaded, -20); o.fillRect(p * 8, 0, 1, S); }
-      o.strokeStyle = c(shaded); for (let i = 0; i < 14; i++) { const x = r.next(S); o.beginPath(); o.moveTo(x, 0); o.lineTo(x + r.next(3) - 1, S); o.stroke(); }
-    } else if (id === 'rocks') {
-      for (let i = 0; i < 26; i++) { o.fillStyle = c(r.next(2) ? lit : shaded, r.next(30) - 15); o.beginPath(); o.ellipse(r.next(S), r.next(S), 5 + r.next(8), 4 + r.next(6), r.next(31) / 10, 0, 7); o.fill(); }
-    } else {
-      o.strokeStyle = c(shaded, 30); for (let row = 0; row < 8; row++) { o.beginPath(); for (let x = 0; x <= S; x += 4) o.lineTo(x, row * 8 + 4 + Math.sin((x / S) * 6.283 * 2 + row) * 2); o.stroke(); }
-    }
+    const tex = proceduralTexture(THEME_TEXTURE[id] || 'water', { size: 64, lit, shaded });
+    const off = document.createElement('canvas'); off.width = tex.size; off.height = tex.size;
+    const o = off.getContext('2d'), img = o.createImageData(tex.size, tex.size);
+    if (img) { img.data.set(tex.data); o.putImageData(img, 0, 0); } // no ImageData under the headless test stubs
     return ctx.createPattern(off, 'repeat');
   }
   function ensureProcPatterns() { for (const t of THEMES) if (!procPatterns[`proc_${t.id}`]) procPatterns[`proc_${t.id}`] = buildProcPattern(t.id); }

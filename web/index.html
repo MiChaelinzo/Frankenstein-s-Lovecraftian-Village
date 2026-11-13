@@ -43,6 +43,13 @@
           <canvas id="view3d" class="view3d" width="960" height="560" tabindex="0" role="img" aria-label="First-person 3D view of the village" data-i18n-aria="aria.view3d" hidden></canvas>
           <div id="view3dPrompt" class="view3d-prompt" role="status" aria-live="polite" hidden></div>
           <div id="narration" class="narration" aria-live="polite"></div>
+          <div id="villagerDialog" class="villager-dialog" role="dialog" aria-labelledby="villagerName" aria-describedby="villagerLine" hidden>
+            <h2 id="villagerName"></h2>
+            <p id="villagerRole" class="stats"></p>
+            <p id="villagerLine" class="villager-line"></p>
+            <p id="villagerEffect" class="stats"></p>
+            <button id="villagerClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
+          </div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
@@ -53,6 +60,7 @@
           <div id="touchStick" class="touch-stick" role="group" aria-label="Walk" data-i18n-aria="touch.stick"><i id="touchKnob" class="touch-knob" aria-hidden="true"></i></div>
           <div class="touch-buttons">
             <button id="touchInteract" type="button" data-i18n="touch.interact">Interact</button>
+            <button id="touchTalk" type="button" data-i18n="touch.talk">Talk</button>
             <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
             <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
             <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
@@ -60,6 +68,8 @@
           <div id="touchLook" class="touch-look" role="group" aria-label="Look" data-i18n-aria="touch.look"><span aria-hidden="true" data-i18n="touch.look.label">Look</span></div>
         </section>
         <section class="objective" aria-label="Vigil objective" data-i18n-aria="vigil.aria">
+          <p id="clockChip" class="clock-chip" role="timer" aria-live="off" data-phase="dusk"><span id="clockChipText"></span> <span id="clockLanterns" class="clock-lanterns" data-i18n="clock.lanterns" hidden>Lanterns lit</span></p>
+          <p id="clockHint" class="stats clock-hint" role="note" hidden><span data-i18n="clock.hint">The village keeps time.</span> <button id="clockHintClose" type="button" data-i18n="clock.hint.close">Understood</button></p>
           <p id="objective" class="objective-line" role="status"><span id="objectiveText"></span></p>
           <p id="vigilNote" class="stats" role="status"></p>
           <p id="vigilLock" class="stats vigil-lock" role="status" hidden></p>
@@ -154,6 +164,7 @@
           <div class="row">
             <button id="saveSession" type="button" data-i18n="btn.save">Save session</button>
             <button id="loadSession" type="button" data-i18n="btn.load">Load session</button>
+            <button id="villagerToggle" type="button" aria-pressed="false" aria-controls="villagerPanel" data-i18n="btn.villagers">Villagers (R)</button>
             <button id="mapToggle" type="button" aria-pressed="false" aria-controls="mapPanel" data-i18n="btn.map">Map (G)</button>
             <button id="invToggle" type="button" aria-pressed="false" data-i18n="btn.investigator">Investigator (I)</button>
             <button id="cinemaToggle" type="button" aria-pressed="false" data-i18n="btn.cinematic">Cinematic (B)</button>
@@ -189,6 +200,11 @@
             <ol id="progressLog" class="whispers"><li class="empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
           </div>
         </section>
+        <section id="villagerPanel" class="panel villagers" aria-labelledby="villagerPanelTitle" hidden>
+          <h2 id="villagerPanelTitle" data-i18n="villagerui.panel">Who is where</h2>
+          <p id="villagerClock" class="stats" role="status"></p>
+          <ul id="villagerList" class="villager-list"></ul>
+        </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
           <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds" data-i18n-aria="aria.minimap"></canvas>
@@ -213,7 +229,7 @@
     </div>
 
     <footer>
-      <p data-i18n-html="foot.html">Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page uses only procedural shapes and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the title screen, or ?lang=fr for the French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
+      <p data-i18n-html="foot.html">Same Core logic as the Unity 6 HDRP project (<a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village">source</a>), ported to dependency-free JS and checked against C# output. The Unity build uses the DLNK Artworks Lovecraftian Village pack; this page runs on original Blender meshes, procedural textures and an original procedural soundtrack (no audio files, off until you opt in). Add ?intro=0 to skip the title screen, or ?lang=fr for the French strings. Apache-2.0. <a href="selftest.html">Run the parity self-test</a>.</p>
     </footer>
   </main>
   <div id="title" class="title" role="dialog" aria-modal="true" aria-labelledby="titleHeading" aria-describedby="titleRumor" hidden>
@@ -262,6 +278,7 @@
           <li data-i18n-html="keys.nights"><kbd>,</kbd> <kbd>.</kbd> previous / next night</li>
           <li data-i18n-html="keys.door"><kbd>O</kbd> try the next door</li>
           <li data-i18n-html="keys.story"><kbd>S</kbd> story mode; while open <kbd>,</kbd> <kbd>.</kbd> or <kbd>Left</kbd> <kbd>Right</kbd> step beats, <kbd>Space</kbd> play/pause, <kbd>Esc</kbd> exit</li>
+          <li data-i18n-html="keys.villagers"><kbd>R</kbd> villagers list; pick Talk, or in 3D face a villager and press <kbd>E</kbd> or <kbd>Enter</kbd>; <kbd>Esc</kbd> closes</li>
           <li data-i18n-html="keys.focus">View focused: <kbd>Left</kbd> <kbd>Right</kbd> pick a landmark, <kbd>Enter</kbd> listen</li>
         </ul>
       </section>
@@ -306,8 +323,8 @@
   </dialog>
   <dialog id="about" class="about" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle" data-i18n="about.title">About and credits</h2>
-    <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo uses only procedural shapes and an original procedural soundtrack. Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
-    <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: thirteen low-poly models made for this project, drawn by a small software projector.</p>
+    <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo runs on original Blender meshes, procedural textures and an original procedural soundtrack, with no pack needed (the pack only appears with ?pack=1 on your own machine). Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
+    <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: twenty five low-poly models made for this project, drawn by a small software projector.</p>
     <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
   </dialog>
   <dialog id="ending" class="about ending" aria-labelledby="endingTitle" aria-describedby="endingEpitaph">

@@ -32,13 +32,13 @@ namespace Frankenstein.Core
         /// </summary>
         public static readonly string[] PlaceKeys =
         {
-            "loc.church", "loc.altar", "loc.well", "loc.the_walls", "loc.the_village",
+            "loc.church", "loc.altar", "loc.well", "loc.dead_tree", "loc.the_walls", "loc.the_village",
         };
 
         private static readonly Dictionary<string, string[]> Places = new Dictionary<string, string[]>
         {
-            { "en", new[] { "church", "altar", "well", "the walls", "the village" } },
-            { "fr", new[] { "l'eglise", "l'autel", "le puits", "les murs", "le village" } },
+            { "en", new[] { "church", "altar", "well", "dead tree", "the walls", "the village" } },
+            { "fr", new[] { "l'eglise", "l'autel", "le puits", "l'arbre mort", "les murs", "le village" } },
         };
 
         /// <summary>The i18n key for an interaction kind. Order of <see cref="Keys"/> matches <see cref="InteractionKind"/>.</summary>
