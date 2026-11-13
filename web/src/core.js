@@ -1,6 +1,7 @@
 // Dependency-free JS port of Packages/com.michaelinzo.frankenstein-village/Core. Keep behavior identical to the C# source;
 // test/parity.test.js checks it against test/golden.json emitted by the C# tests.
 
+import { phaseAt as clockPhaseAt, phaseStart as clockPhaseStart, wrapTick, MINUTES_PER_DAY } from './clock.js';
 import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';
 
 const MAX_SANITY = 100;
@@ -801,6 +802,23 @@ export const countsAsClue = (kind) => kind === 'whisper' || kind === 'landmark';
 export const villagerTalkCountsAsClue = (disposition, behavior) => behavior !== 4 && (disposition === 0 || disposition === 2 || behavior >= 2);
 export const nextNightSanity = (carried) => clampInt(carried + VIGIL_DAWN_RECOVERY, 0, MAX_SANITY);
 
+// ---------- the clock: the vigil keeps watch at night, the day is free exploration (mirror of C# VigilRules) ----------
+/** Sanity lost when dawn comes before the clue target is met: the night does not count and is watched again. */
+export const VIGIL_MISSED_DAWN_SANITY_LOSS = 10;
+/** The watch hours are dusk and night. */
+export const isWatchHour = (tick) => { const p = clockPhaseAt(tick); return p === 2 || p === 3; };
+/** The tick the watch starts at or after tick: the tick itself during the watch, else the next dusk. */
+export const watchStartTick = (tick) => (isWatchHour(tick) ? tick : tick - wrapTick(tick) + clockPhaseStart(2));
+/** First dawn strictly after tick (absolute, never wrapped). */
+export const dawnTickAfter = (tick) => tick - wrapTick(tick) + MINUTES_PER_DAY;
+/** The tick at which the night anchored at anchorTick is judged: the first dawn after its watch starts. */
+export const nightEndTick = (anchorTick) => dawnTickAfter(watchStartTick(anchorTick));
+export const dawnDue = (anchorTick, tick) => tick >= nightEndTick(anchorTick);
+/** Endure needs the clue target met and the watch under way. */
+export const canEndureAt = (tick, targetMet) => !!targetMet && isWatchHour(tick);
+/** Minutes Endure runs the clock forward to reach dawn, or -1 outside the watch. */
+export const endureWaitMinutes = (tick) => (isWatchHour(tick) ? dawnTickAfter(tick) - tick : -1);
+
 /** The ritual name with a middle dot for each hidden letter, revealed in a seeded order that never hides a letter again. */
 export function nameReveal(ritual, cluesFound, cluesTotal) {
   if (!ritual || !ritual.name) return '';
@@ -933,6 +951,13 @@ export class VigilState {
     if (this.nightsEndured >= this.nightsTotal) return this.sanity;
     this.sanity = nextNightSanity(this.sanity);
     return this.sanity;
+  }
+  /** Judges the night at dawn. Target met: endures it like endureNight and returns { endured: true, sanity }. Otherwise the dawn is missed: sanity drops by VIGIL_MISSED_DAWN_SANITY_LOSS (which can collapse), clues stay. Mirrors C# ResolveDawn. */
+  resolveDawn(carriedSanity) {
+    if (this.isFinished) return { endured: false, sanity: this.sanity };
+    if (this.canEndureNight) { const sanity = this.endureNight(carriedSanity); return { endured: !this.isCollapsed, sanity }; }
+    this.recordSanity(carriedSanity - VIGIL_MISSED_DAWN_SANITY_LOSS);
+    return { endured: false, sanity: this.sanity };
   }
   /** The outcome, or null while the vigil is running. */
   outcome(codexEntries) {

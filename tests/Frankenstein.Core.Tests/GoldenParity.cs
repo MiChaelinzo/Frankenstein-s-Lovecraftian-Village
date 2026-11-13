@@ -535,6 +535,32 @@ namespace Frankenstein.Core.Tests
             return "[" + string.Join(", ", rows) + "]";
         }
 
+        private static readonly int[] VigilClockTicks = { 0, 1, 239, 240, 839, 840, 841, 1079, 1080, 1439, 1440, 1441, 2279, 2280, 2900, -1, -240, -600, -1441 };
+        /// <summary>Clock rules of the vigil: rows [tick, watchHour, watchStart, nightEnd, dueBeforeEnd, dueAtEnd, endureWait, canEndureMet] plus a scripted ResolveDawn trace.</summary>
+        private static string VigilClock()
+        {
+            var rows = new List<string>();
+            foreach (int t in VigilClockTicks)
+                rows.Add("[" + t + ", " + (VigilRules.IsWatchHour(t) ? 1 : 0) + ", " + VigilRules.WatchStartTick(t) + ", " + VigilRules.NightEndTick(t) + ", "
+                    + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t) - 1) ? 1 : 0) + ", " + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t)) ? 1 : 0) + ", "
+                    + VigilRules.EndureWaitMinutes(t) + ", " + (VigilRules.CanEndureAt(t, true) ? 1 : 0) + "]");
+            var camp = CampaignGenerator.Generate(1818, 3);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            var trace = new List<string>();
+            Action<string, bool, int> step = (label, endured, sanity) => trace.Add("[" + JsonSerializer.Serialize(label) + ", " + (endured ? 1 : 0) + ", " + sanity + ", " + v.NightsEndured + ", "
+                + v.NightClues + ", " + (v.IsFinished ? 1 : 0) + ", " + (v.IsCollapsed ? 1 : 0) + "]");
+            int next;
+            v.Begin(); v.RecordSanity(70);
+            bool ok = v.ResolveDawn(70, out next); step("missed with no clues", ok, next);
+            v.RecordClue("a"); ok = v.ResolveDawn(next, out next); step("missed with one clue", ok, next);
+            for (int i = 0; i < 6 && !v.CanEndureNight; i++) v.RecordClue("c" + i);
+            ok = v.ResolveDawn(next, out next); step("endured", ok, next);
+            v.RecordSanity(VigilRules.MissedDawnSanityLoss);
+            ok = v.ResolveDawn(VigilRules.MissedDawnSanityLoss, out next); step("missed collapses", ok, next);
+            ok = v.ResolveDawn(50, out next); step("finished is unchanged", ok, next);
+            return "{\"ticks\": [" + string.Join(", ", rows) + "], \"missedLoss\": " + VigilRules.MissedDawnSanityLoss + ", \"resolve\": [" + string.Join(", ", trace) + "]}";
+        }
+
         private static readonly int[] ClockTicks = { 0, 1, 119, 239, 240, 839, 840, 1079, 1080, 1439, 1440, 1441, 2900, -1, -240, -1441 };
         private static readonly int[] VillagerTicks = { 0, 300, 900, 1100, 1300, 1439 };
         private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
@@ -723,7 +749,7 @@ namespace Frankenstein.Core.Tests
                     sb.Append(first ? "" : ", ").Append('[').Append(J(id)).Append(", ").Append(live ? 1 : 0).Append(", ").Append(VigilRules.AllowsSandboxAction(live, id) ? 1 : 0).Append(']');
                     first = false;
                 }
-            sb.Append("],\n    \"gates\": ").Append(VigilGates()).Append(",\n    \"clueKinds\": [");
+            sb.Append("],\n    \"gates\": ").Append(VigilGates()).Append(",\n    \"clock\": ").Append(VigilClock()).Append(",\n    \"clueKinds\": [");
             for (int k = 0; k <= (int)InteractionKind.Candle; k++)
                 sb.Append(k > 0 ? ", " : "").Append('[').Append(k).Append(", ").Append(VigilRules.CountsAsClue((InteractionKind)k) ? 1 : 0).Append(']');
             sb.Append("]\n  }\n");

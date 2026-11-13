@@ -13,7 +13,7 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
-  clueTarget, sourcesOffered, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
+  clueTarget, sourcesOffered, isWatchHour, watchStartTick, nightEndTick, dawnDue, canEndureAt, endureWaitMinutes, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
   parseVigilResultCode, VigilState, VIGIL_ENDING_IDS, VIGIL_EPITAPHS, VIGIL_RANK_NAMES, VIGIL_RANK_THRESHOLDS,
   VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES,
 } from '../src/core.js';
@@ -226,6 +226,28 @@ test('vigil lock and lantern cap trace matches C# VigilState', () => {
   r2.tryRestore(v.serialize());
   got.push(['restored', r2.begun ? 1 : 0, r2.isLocked ? 1 : 0, 0, -1, r2.nightLampIds.size]);
   assert.deepEqual(got, g);
+});
+
+test('vigil clock rules and the dawn judgement match C# VigilRules and VigilState', () => {
+  const g = golden.vigil.clock;
+  assert.ok(g.ticks.length >= 15 && g.resolve.length === 5);
+  assert.equal(VIGIL_MISSED_DAWN_SANITY_LOSS, g.missedLoss);
+  for (const [t, watch, start, end, dueBefore, dueAt, wait, canMet] of g.ticks) {
+    assert.deepEqual([isWatchHour(t) ? 1 : 0, watchStartTick(t), nightEndTick(t), dawnDue(t, nightEndTick(t) - 1) ? 1 : 0, dawnDue(t, nightEndTick(t)) ? 1 : 0, endureWaitMinutes(t), canEndureAt(t, true) ? 1 : 0],
+      [watch, start, end, dueBefore, dueAt, wait, canMet], `tick ${t}`);
+  }
+  const v = new VigilState(generateCampaign(1818, 3), null);
+  const got = [];
+  const step = (label, r) => got.push([label, r.endured ? 1 : 0, r.sanity, v.nightsEndured, v.nightClueIds.size, v.isFinished ? 1 : 0, v.isCollapsed ? 1 : 0]);
+  v.begin(); v.recordSanity(70);
+  let r = v.resolveDawn(70); step('missed with no clues', r);
+  v.recordClue('a'); r = v.resolveDawn(r.sanity); step('missed with one clue', r);
+  for (let i = 0; i < 6 && !v.canEndureNight; i++) v.recordClue(`c${i}`);
+  r = v.resolveDawn(r.sanity); step('endured', r);
+  v.recordSanity(VIGIL_MISSED_DAWN_SANITY_LOSS);
+  r = v.resolveDawn(VIGIL_MISSED_DAWN_SANITY_LOSS); step('missed collapses', r);
+  r = v.resolveDawn(50); step('finished is unchanged', r);
+  assert.deepEqual(got, g.resolve);
 });
 
 test('vigil rules, endings, scores, codes, reveals and playthroughs match C# VillageVigil', () => {
