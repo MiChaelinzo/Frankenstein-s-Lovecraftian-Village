@@ -784,7 +784,7 @@ export function sanityPoints(sanity) {
   return Math.floor(Math.fround(sanity) + 0.5);
 }
 /** Sandbox action ids (mirror of C# VigilRules.SandboxActionIds): controls that change sanity, night, seed or village outside play. */
-export const VIGIL_SANDBOX_ACTIONS = Object.freeze(['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session']);
+export const VIGIL_SANDBOX_ACTIONS = Object.freeze(['sanity_slider', 'sanity_keys', 'night_select', 'night_step', 'dread_creep', 'new_village', 'seed_entry', 'daily', 'load_session', 'story_playback', 'cinema_playback']);
 /** The sandbox lock: while a vigil is live every sandbox action (listed or not) is refused; otherwise all are allowed. Refuse, never mark tampered. */
 export const allowsSandboxAction = (vigilLive, _actionId) => !vigilLive;
 /** Whether an interaction kind ('door', 'whisper', 'landmark', 'candle') is a vigil clue: whispers and landmarks only. */
@@ -865,6 +865,7 @@ export class VigilState {
     this.ritual = ritual || null;
     this.nightClueIds = new Set();
     this.nightLampIds = new Set();
+    this.begun = false;
     this.nightsEndured = 0;
     this.clues = 0;
     this.lanterns = 0;
@@ -876,6 +877,9 @@ export class VigilState {
   get night() { return Math.max(1, Math.min(this.nightsEndured + 1, Math.max(1, this.nightsTotal))); }
   get clueTarget() { return clueTarget(this.night); }
   get cluesRequired() { return totalClues(this.nightsTotal); }
+  /** The value for allowsSandboxAction: begun (first action or restored save) and not finished. Mirrors C# VigilState.IsLocked. */
+  get isLocked() { return this.begun && !this.isFinished; }
+  begin() { this.begun = true; }
   get isCollapsed() { return this.minSanity <= 0; }
   get isFinished() { return this.isCollapsed || this.nightsEndured >= this.nightsTotal; }
   get isNamed() { return this.cluesRequired > 0 && this.clues >= this.cluesRequired; }
@@ -892,9 +896,13 @@ export class VigilState {
     this.clues++;
     return true;
   }
-  /** True only the first time this lamp is lit on this night. The caller applies the sanity gain. */
+  /** Valid, not yet lit and under the lamp cap. The caller applies the sanity gain only when this is true. Mirrors C# CanLightLantern. */
+  canLightLantern(lampId) {
+    return !this.isFinished && validVigilId(lampId) && !this.nightLampIds.has(lampId) && this.nightLampIds.size < VIGIL_LAMPS_PER_NIGHT;
+  }
+  /** True only when canLightLantern allows it. The caller applies the sanity gain. */
   lightLantern(lampId) {
-    if (this.isFinished || !validVigilId(lampId) || this.nightLampIds.has(lampId)) return false;
+    if (!this.canLightLantern(lampId)) return false;
     this.nightLampIds.add(lampId);
     this.lanterns++;
     return true;
@@ -956,6 +964,7 @@ export class VigilState {
     if (nightClues.size > VIGIL_MAX_CLUE_TARGET || nightLamps.size > VIGIL_LAMPS_PER_NIGHT) return false;
     this.nightsEndured = endured; this.sanity = sanity; this.minSanity = min; this.clues = clues; this.lanterns = lanterns;
     this.nightClueIds = nightClues; this.nightLampIds = nightLamps;
+    this.begun = true;
     return true;
   }
 }

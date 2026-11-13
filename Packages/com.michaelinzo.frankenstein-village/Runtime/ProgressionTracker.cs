@@ -43,13 +43,13 @@ namespace Frankenstein.Runtime
 
         private void OnEnable()
         {
-            if (interactor != null) { interactor.Interacted += OnInteracted; interactor.InteractedTarget += OnInteractedTarget; }
+            if (interactor != null) { interactor.Interacted += OnInteracted; interactor.InteractedTarget += OnInteractedTarget; interactor.SanityGate = AllowsSanityEffect; }
             if (director != null) director.OmenCrossed += OnOmenCrossed;
         }
 
         private void OnDisable()
         {
-            if (interactor != null) { interactor.Interacted -= OnInteracted; interactor.InteractedTarget -= OnInteractedTarget; }
+            if (interactor != null) { interactor.Interacted -= OnInteracted; interactor.InteractedTarget -= OnInteractedTarget; interactor.SanityGate = null; }
             if (director != null) director.OmenCrossed -= OnOmenCrossed;
         }
 
@@ -68,20 +68,25 @@ namespace Frankenstein.Runtime
 
         private void OnInteracted(InteractionKind kind) { Publish(Session.RecordInteraction(kind)); }
 
-        // While a vigil runs (VigilDirector starts it) clue and lantern events are forwarded by location id, then the new sanity.
-        // Core decides what counts: VigilRules.CountsAsClue for clues, VigilRules.LampsPerNight as the lantern cap. The sanity gain
-        // of a candle is applied by InteractionRaycaster through InteractionRules before this event arrives.
+        /// <summary>
+        /// Whether the raycaster may apply this target's sanity effect. During a vigil a candle restores sanity only when Core
+        /// VigilState.CanLightLantern allows the lamp (not already lit, under VigilRules.LampsPerNight), as in the web.
+        /// </summary>
+        public bool AllowsSanityEffect(InteractionTarget target)
+        {
+            if (target == null || target.kind != InteractionKind.Candle || Session.Vigil == null || !Session.Vigil.IsLocked) return true;
+            return Session.Vigil.CanLightLantern(target.locationId);
+        }
+
+        // While a vigil runs (VigilDirector starts it) clue and lantern events are forwarded by location id. Core decides what counts:
+        // VigilRules.CountsAsClue for clues, VigilState.LightLantern for the lamp cap (AllowsSanityEffect gates the restore).
+        // The sanity is published after every interaction, so a dip caused by a door or a refused candle is never missed.
         private void OnInteractedTarget(InteractionTarget target)
         {
             if (target == null || Session.Vigil == null || director == null) return;
-            ProgressionUpdate update;
-            if (target.kind == InteractionKind.Candle)
-            {
-                if (Session.Vigil.NightLanterns >= VigilRules.LampsPerNight) return;
-                Session.RecordVigilLantern(target.locationId, out update);
-            }
+            ProgressionUpdate update = null;
+            if (target.kind == InteractionKind.Candle) Session.RecordVigilLantern(target.locationId, out update);
             else if (VigilRules.CountsAsClue(target.kind)) Session.RecordVigilClue(target.locationId, out update);
-            else return;
             Publish(update);
             Publish(Session.RecordVigilSanity(VigilRules.SanityPoints(director.Sanity.Value)));
         }

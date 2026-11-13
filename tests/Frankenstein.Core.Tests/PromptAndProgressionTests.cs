@@ -146,6 +146,21 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void A_new_ritual_seed_drops_the_vigil_and_the_same_seed_keeps_it()
+        {
+            var s = new ProgressionSession();
+            var camp = CampaignGenerator.Generate(5, 4);
+            s.SetRitual(RitualChain.Generate(camp));
+            s.StartVigil(camp);
+            s.Vigil.Begin();
+            s.SetRitual(RitualChain.Generate(camp));
+            Assert.NotNull(s.Vigil);
+            Assert.True(s.Vigil.IsLocked);
+            s.SetRitual(Ritual(6, 4));
+            Assert.Null(s.Vigil);
+        }
+
+        [Fact]
         public void Session_restore_drops_foreign_ids_and_roundtrips_text()
         {
             var ritual = Ritual(9, 4);

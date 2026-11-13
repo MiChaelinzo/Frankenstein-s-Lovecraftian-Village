@@ -142,6 +142,52 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Lanterns_are_capped_per_night_and_the_cap_is_asked_before_any_sanity_is_restored()
+        {
+            var camp = CampaignGenerator.Generate(7, 3);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            for (int i = 0; i < VigilRules.LampsPerNight; i++)
+            {
+                Assert.True(v.CanLightLantern("lamp" + i));
+                Assert.True(v.LightLantern("lamp" + i));
+                Assert.False(v.CanLightLantern("lamp" + i), "an already lit lamp restores nothing");
+            }
+            Assert.False(v.CanLightLantern("lamp9"), "past the cap nothing restores");
+            Assert.False(v.LightLantern("lamp9"));
+            Assert.Equal(VigilRules.LampsPerNight, v.NightLanterns);
+            Assert.Equal(VigilRules.LampsPerNight, v.TotalLanterns);
+        }
+
+        [Fact]
+        public void The_lock_starts_at_Begin_not_at_construction_and_ends_with_the_vigil()
+        {
+            var camp = CampaignGenerator.Generate(7, 3);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            Assert.True(v.IsLive);
+            Assert.False(v.Begun);
+            Assert.False(v.IsLocked, "a vigil nobody acted in leaves the sandbox free");
+            v.Begin();
+            v.Begin();
+            Assert.True(v.IsLocked);
+            v.RecordSanity(0);
+            Assert.True(v.IsFinished);
+            Assert.False(v.IsLocked, "a finished vigil releases the lock");
+        }
+
+        [Fact]
+        public void A_restored_vigil_is_locked_and_a_refused_restore_is_not()
+        {
+            var camp = CampaignGenerator.Generate(7, 3);
+            var a = new VigilState(camp, RitualChain.Generate(camp));
+            a.RecordClue("well");
+            var b = new VigilState(camp, RitualChain.Generate(camp));
+            Assert.False(b.TryRestore("garbage"));
+            Assert.False(b.IsLocked);
+            Assert.True(b.TryRestore(a.Serialize()));
+            Assert.True(b.IsLocked);
+        }
+
+        [Fact]
         public void Endure_night_is_gated_by_the_clue_target()
         {
             var camp = CampaignGenerator.Generate(11, 3);
@@ -284,7 +330,9 @@ namespace Frankenstein.Core.Tests
         [Fact]
         public void Sandbox_actions_are_refused_while_the_vigil_is_live_and_allowed_otherwise()
         {
-            Assert.Equal(9, VigilRules.SandboxActionIds.Length);
+            Assert.Equal(11, VigilRules.SandboxActionIds.Length);
+            Assert.Contains(VigilRules.ActionStory, VigilRules.SandboxActionIds);
+            Assert.Contains(VigilRules.ActionCinema, VigilRules.SandboxActionIds);
             foreach (var id in VigilRules.SandboxActionIds)
             {
                 Assert.False(VigilRules.AllowsSandboxAction(true, id), id);

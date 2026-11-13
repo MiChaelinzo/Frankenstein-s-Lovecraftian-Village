@@ -98,16 +98,18 @@ namespace Frankenstein.Core
         public const string ActionSeedEntry = "seed_entry";
         public const string ActionDaily = "daily";
         public const string ActionLoadSession = "load_session";
+        public const string ActionStory = "story_playback";
+        public const string ActionCinema = "cinema_playback";
 
         /// <summary>All sandbox action ids. Clients disable the matching controls while a vigil is live.</summary>
         public static readonly string[] SandboxActionIds =
         {
             ActionSanitySlider, ActionSanityKeys, ActionNightSelect, ActionNightStep, ActionDreadCreep,
-            ActionNewVillage, ActionSeedEntry, ActionDaily, ActionLoadSession,
+            ActionNewVillage, ActionSeedEntry, ActionDaily, ActionLoadSession, ActionStory, ActionCinema,
         };
 
         /// <summary>
-        /// The sandbox lock. While a vigil is live (started and not finished) every sandbox action is refused, listed or not,
+        /// The sandbox lock. While a vigil is locked (VigilState.IsLocked: begun and not finished) every sandbox action is refused, listed or not,
         /// so scores and endings stay honest; refusing rather than marking the run tampered keeps the rule deterministic.
         /// Outside a live vigil everything is allowed. The vigil's own sanity and night changes do not go through this rule.
         /// </summary>
@@ -283,6 +285,7 @@ namespace Frankenstein.Core
         private readonly Ritual _ritual;
         private readonly HashSet<string> _nightClues = new HashSet<string>();
         private readonly HashSet<string> _nightLamps = new HashSet<string>();
+        private bool _begun;
         private int _nightsEndured;
         private int _sanity;
         private int _minSanity;
@@ -311,8 +314,14 @@ namespace Frankenstein.Core
         /// <summary>Clues the whole campaign asks for.</summary>
         public int CluesRequired { get { return VigilRules.TotalClues(NightsTotal); } }
         public bool IsCollapsed { get { return _minSanity <= 0; } }
-        /// <summary>True while the vigil is running (not finished). Callers combine it with whether the first action has started the run.</summary>
+        /// <summary>True while the vigil is not finished. Does not say whether the player committed to it, see <see cref="IsLocked"/>.</summary>
         public bool IsLive { get { return !IsFinished; } }
+        /// <summary>True once <see cref="Begin"/> was called (or a save was restored). Clients decide what the first action is.</summary>
+        public bool Begun { get { return _begun; } }
+        /// <summary>The sandbox lock state, the value to pass to VigilRules.AllowsSandboxAction: begun and not finished. Web and Unity both use it.</summary>
+        public bool IsLocked { get { return _begun && !IsFinished; } }
+        /// <summary>Commits the player to the vigil. Idempotent. Before this the village, seed and sanity may still be chosen.</summary>
+        public void Begin() { _begun = true; }
         public bool IsFinished { get { return IsCollapsed || _nightsEndured >= NightsTotal; } }
         public bool IsNamed { get { return CluesRequired > 0 && _clues >= CluesRequired; } }
 
@@ -337,10 +346,19 @@ namespace Frankenstein.Core
             return true;
         }
 
-        /// <summary>Counts a lit lantern. True only the first time this lamp is lit on this night. The caller applies the sanity gain.</summary>
+        /// <summary>
+        /// Whether this lamp can still be lit tonight: valid, not yet lit and under the lamp cap. Callers apply the sanity gain only when
+        /// this is true (or when <see cref="LightLantern"/> returned true), so the cap bounds the sanity economy as well as the count.
+        /// </summary>
+        public bool CanLightLantern(string lampId)
+        {
+            return !IsFinished && IsValidId(lampId) && !_nightLamps.Contains(lampId) && _nightLamps.Count < VigilRules.LampsPerNight;
+        }
+
+        /// <summary>Counts a lit lantern. True only when <see cref="CanLightLantern"/> allows it. The caller applies the sanity gain.</summary>
         public bool LightLantern(string lampId)
         {
-            if (IsFinished || !IsValidId(lampId) || !_nightLamps.Add(lampId)) return false;
+            if (!CanLightLantern(lampId) || !_nightLamps.Add(lampId)) return false;
             _lanterns++;
             return true;
         }
@@ -424,6 +442,7 @@ namespace Frankenstein.Core
             _nightsEndured = endured; _sanity = sanity; _minSanity = min; _clues = clues; _lanterns = lanterns;
             _nightClues.Clear(); _nightClues.UnionWith(nightClues);
             _nightLamps.Clear(); _nightLamps.UnionWith(nightLamps);
+            _begun = true;
             return true;
         }
 

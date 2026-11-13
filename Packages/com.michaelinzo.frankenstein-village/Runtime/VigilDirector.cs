@@ -37,8 +37,8 @@ namespace Frankenstein.Runtime
 
         private VigilState Vigil { get { return tracker != null ? tracker.Session.Vigil : null; } }
 
-        /// <summary>True while a vigil is running (started and not finished). Core VigilState.IsLive.</summary>
-        public bool Locked { get { return Vigil != null && Vigil.IsLive; } }
+        /// <summary>True while the vigil is begun and not finished. Core VigilState.IsLocked, the same value the web passes to VigilRules.AllowsSandboxAction.</summary>
+        public bool Locked { get { return Vigil != null && Vigil.IsLocked; } }
 
         private void OnEnable()
         {
@@ -55,7 +55,13 @@ namespace Frankenstein.Runtime
         private void Update()
         {
             if (tracker == null || director == null) return;
-            if (Vigil == null) { if (startOnPlay) TryBegin(); return; }
+            if (Vigil == null)
+            {
+                // A new ritual seed in the tracker drops the vigil (Core ProgressionSession.SetRitual); release the lock until a new one begins.
+                if (walkthrough != null) walkthrough.SandboxLocked = false;
+                if (startOnPlay) TryBegin();
+                return;
+            }
             if (walkthrough != null) walkthrough.SandboxLocked = Locked;
 
             if (Locked)
@@ -78,6 +84,7 @@ namespace Frankenstein.Runtime
         {
             if (walkthrough == null || walkthrough.Campaign == null || !tracker.RitualBound) return false;
             tracker.Session.StartVigil(walkthrough.Campaign);
+            Vigil.Begin(); // Unity has no sandbox to tweak before play: starting the vigil is the first action (the web begins on its first clue).
             _announced = false;
             _endureOffered = false;
             ApplyNightCreep();
