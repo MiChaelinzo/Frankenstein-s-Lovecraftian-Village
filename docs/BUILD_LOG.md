@@ -227,3 +227,33 @@ From `git log` (oldest first).
 - `d6129c1` docs: vigil clock rule, day and night look, Unity clock and villagers, Nivalis nights as genre inspiration only
 - `ab73549` test: browser checks for clock phases (sampled sky pixels), chip, hint and the vigil at night and by day; chip refreshes on clock skips
 - Counts after these commits: dotnet 157, node 403, 10 `tools/test_*.py`, validator OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 93 of 93 (local headless SwiftShader). Unity runtime Unverified.
+
+## Round 19 final validation (FEAT-007)
+Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry (later docs commits are not listed).
+- `c6c8ca4` feat: shared village_shapes.json drives Blender meshes and a JS fallback, 12 new original meshes
+- `10bd0e4` feat: original procedural textures, default 3D surfaces, DLNK only on opt-in paths, sw v16
+- `5119565` feat: Core ShapeLibrary and Unity original mesh generator, no pack or glTFast needed
+- `bcbcb97` feat: Core GameClock, seeded villagers, dread behavior and talk rules with en/fr lines and JS mirror
+- `0e46e74` fix: one real-world scale standard (1.7 m person, 1.6 m eye, 2 m doors), meshes placed at scale 1, Core WorldScale, Unity player 1.7 m
+- `5349124` feat: villagers on the web: 2D/3D figures, minimap, Who is where, accessible talk dialogue, display-only ?narrator voice, sw v18
+- `ee36e6f` docs: villager talk, narrator endpoint example and determinism guarantee
+- `48f5764` feat: vigil keeps watch at dusk and night, dawn judges the night (Core rules, JS mirror, golden parity)
+- `2ea2b7a` feat: clock drives 3D sky, sun, fog, lantern gain and ambient mix; vigil Endure runs to dawn; HUD clock chip and first-play hint (en/fr)
+- `a29f722` test: daylight contrast threshold matches the overcast day palette
+- `869accc` feat: Core VillagerRules.StandPoint and CoastSide (web standingPoint is the golden-checked mirror), ProgressionSession.ResolveVigilDawn
+- `a86d999` fix: stand point facing never emits -0 so golden data round-trips through embed_golden
+- `d50c06d` feat: Core GameClock.SessionStartTick (dusk) and VillagerRules.CarriesLitLantern with JS mirrors and golden parity
+- `74cd88d` feat: Unity DayNightDirector and VillagerAgent over Core, vigil watch and dawn with the clock, scene builder spawns the roster at person height (compile checked)
+- `a5dfec8` feat: by day the Endure control waits for dusk (Core VigilRules.WaitForDuskMinutes, web and Unity), en/fr strings, vigil clock UI tests
+- `d6129c1` docs: vigil clock rule, day and night look, Unity clock and villagers, Nivalis nights as genre inspiration only
+- `ab73549` test: browser checks for clock phases (sampled sky pixels), chip, hint and the vigil at night and by day; chip refreshes on clock skips
+- `e63c0c9` docs: build log for the round 19 clock integration commits
+- `1e0fc55` feat: seeded harbour quarter dressing in Core with JS mirror and golden parity
+- `1e7bc84` feat: render the village dressing in the 3D world with collisions, precache and cache v20
+- `dc29515` docs: art direction note, changelog and Unity follow-up task
+- `d0ebc9c` chore: refresh stitch.json after the dressing commits (counts)
+- `de4e0e1` docs: round 19 screenshots (dawn, day with villagers, dusk, night, scale reference)
+- `d743278` docs: README gallery and scale standard, changelog, contributing baseline
+- `963a48d` docs: round 19 scale standard, Unity setup, MCP note, pitch, checklist, steering and spec tasks
+- Counts: dotnet 159, node 408, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 93 of 93 (local headless SwiftShader, run in the foreground). `web/data/stitch.json` was stale after the dressing commits and was regenerated (the validator and `test_gen_stitch.py` caught it).
+- Unverified: Unity runtime, real GPU look and frame times, audio by ear, real devices.
