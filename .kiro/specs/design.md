@@ -72,3 +72,20 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 ## Round 17: Vigil, title screen and post pass
 `Core/VillageVigil.cs` (`VigilRules`, `VigilState`, `VigilOutcome`) owns every rule; `web/src/core.js` mirrors it and `vigil.test.js` checks the golden `vigil` section. `vigil-view.js` is pure view models (objective line, ending model, result text); `vigil-ui.js` owns the DOM. `title.js` decides whether the title shows, `title-ui.js` draws it. In 3D, lantern pools, cold fill light, the moon (a disc that replaces the sky behind it, never adds up to white), a hue preserving highlight shoulder on lit walls and one fullscreen post pass are web only presentation. Moon, lantern gain and bloom threshold are tuned so lit walls keep their colour and the moon stays pale.
+
+## Round 19: GameClock, villagers and talk
+**Goal.** A cozy day and night village whose residents keep a routine that dread slowly bends. Genre inspiration only: "Nivalis nights" was read as a cozy day/night sim with NPC schedules; nothing is copied from any such game, and the author may correct this reading.
+
+**Inputs.** Seed, the village layout (`PlacedPiece` list from `VillageLayoutGenerator`, unchanged), a tick (one village minute, wraps per day), dread (float, sanitized like `DreadThresholds`), the campaign and night number for rumors.
+
+**Outputs.** `GameClock`: phase (dawn 240, day 600, dusk 240, night 360 minutes; named constants), daylight percent, lanterns lit. `VillagerRules.GenerateRoster`: seven villagers (fisher, priest, innkeeper, lamplighter, lighthouse keeper, widow, child) with unique seeded names, a seeded disposition (kind, wary, haunted, closed), a home on a house piece and a workplace on a matching piece (church or altar, a second house, well, dead tree or altar), falling back to the home. `ScheduledPlace`, `BehaviorAt`, `LocationAt`, `CauseOf`, `Talk` (clue flag, sanity delta, line variant, campaign rumor). `VillagerStrings` gives en and fr wording (mirrors the `villager.*` entries of `web/src/i18n.js`).
+
+**Behavior ladder (causes, not randomness).** Dread picks a severity: window at Uneasy (the village watches the lights), facing the sea at 0.5 (the tide calls), repeating a phrase at Dire (the name in the water), vanished at Abyss (taken by the deep). Haunted villagers react one level earlier. Daylight takes two levels off, so by day and at low dread everyone is normal. Abyss vanishes everyone at any hour.
+
+**Talk.** `VigilRules.VillagerTalkCountsAsClue` (kind and haunted villagers, or any villager facing the sea or repeating themselves, but never a vanished one); sanity from `InteractionRules.TalkSanityDelta` (clue costs a landmark study, sea or phrase costs a whisper, vanished is free); rumor from `CampaignGenerator`. Existing `CountsAsClue` and the existing golden sections are unchanged.
+
+**Constraints.** Core only, no UnityEngine, integer ticks, seed-only randomness. The talk result holds no display text, so AI or translated text can never change a clue or a sanity cost. JS mirror: `web/src/clock.js`, `web/src/villagers.js`, rules in `core.js`; parity via the `villagers` golden section and the Villagers self-test group.
+
+**Failure conditions.** Empty layout gives piece index -1 and no crash. Unknown language falls back to English. A null campaign gives an empty rumor. NaN or infinite dread counts as 0. Negative ticks wrap.
+
+**Test cases.** `VillagerProperties.cs` (same seed same roster, full-day schedule validity, monotonic behavior in dread, Abyss vanishes, day normal at low dread, talk deterministic and text independent, i18n drift) and `web/test/villagers.test.js` plus golden parity. Status: Verified by dotnet and node tests; Unity runtime Unverified (no Unity wiring yet).

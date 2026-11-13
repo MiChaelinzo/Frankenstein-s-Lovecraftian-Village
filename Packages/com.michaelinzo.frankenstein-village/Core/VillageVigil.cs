@@ -127,6 +127,16 @@ namespace Frankenstein.Core
             return kind == InteractionKind.Whisper || kind == InteractionKind.Landmark;
         }
 
+        /// <summary>
+        /// Whether talking to a villager is a vigil clue. Kind and haunted villagers share what they know; wary and closed ones
+        /// only slip once they face the sea or repeat themselves. A vanished villager yields nothing. Existing clue kinds are unchanged.
+        /// </summary>
+        public static bool VillagerTalkCountsAsClue(VillagerDisposition disposition, VillagerBehavior behavior)
+        {
+            if (behavior == VillagerBehavior.Vanished) return false;
+            return disposition == VillagerDisposition.Kind || disposition == VillagerDisposition.Haunted || behavior >= VillagerBehavior.FacingSea;
+        }
+
         /// <summary>Clues needed to endure a night. Rises with the night number, clamped. Nights below 1 count as night 1.</summary>
         public static int ClueTarget(int night)
         {

@@ -659,6 +659,14 @@ export const InteractionRules = {
     if (kind === 'candle') return SanityModel.CANDLE_RESTORE;
     return 0;
   },
+  /** Talking to a villager (behavior id 0..4): clue costs like a landmark, window like a landmark, sea or phrase like a whisper, vanished is free. */
+  talkSanityDelta(behavior, yieldsClue) {
+    if (behavior >= 4) return 0;
+    const delta = yieldsClue ? InteractionRules.sanityDelta('landmark') : 0;
+    if (behavior >= 2) return Math.min(delta, InteractionRules.sanityDelta('whisper'));
+    if (behavior === 1) return Math.min(delta, InteractionRules.sanityDelta('landmark'));
+    return delta;
+  },
   /** Houses have doors, landmarks are studied, everything else whispers. */
   kindForCategory(category) {
     return category === 'House' ? 'door' : category === 'Landmark' ? 'landmark' : 'whisper';
@@ -789,6 +797,8 @@ export const VIGIL_SANDBOX_ACTIONS = Object.freeze(['sanity_slider', 'sanity_key
 export const allowsSandboxAction = (vigilLive, _actionId) => !vigilLive;
 /** Whether an interaction kind ('door', 'whisper', 'landmark', 'candle') is a vigil clue: whispers and landmarks only. */
 export const countsAsClue = (kind) => kind === 'whisper' || kind === 'landmark';
+/** Talking to a villager is a clue for kind and haunted dispositions, or once the behavior reaches facing the sea (2). Vanished (4) never. Ids follow VillagerDisposition and VillagerBehavior in C#. */
+export const villagerTalkCountsAsClue = (disposition, behavior) => behavior !== 4 && (disposition === 0 || disposition === 2 || behavior >= 2);
 export const nextNightSanity = (carried) => clampInt(carried + VIGIL_DAWN_RECOVERY, 0, MAX_SANITY);
 
 /** The ritual name with a middle dot for each hidden letter, revealed in a seeded order that never hides a letter again. */

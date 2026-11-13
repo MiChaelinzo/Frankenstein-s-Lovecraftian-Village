@@ -5,6 +5,7 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   Investigator, simulateInvestigator, describeInvestigatorHit,
 } from './core.js';
+import { generateRoster, behaviorAt, locationAt, talk } from './villagers.js';
 import { buildStory } from './story.js';
 import { creatureOrder, CREATURE_COUNT } from './codex.js';
 import { dailyVillage } from './daily.js';
@@ -50,6 +51,17 @@ export function runSelfTest(golden, catalogEntries) {
     const inv = new Investigator(layout, 24, 24, g.seed);
     return inv.route.length === g.length && same(inv.route.map((c) => [c.x, c.z]), g.cells) &&
       same(simulateInvestigator(layout, 24, 24, g.seed).map(describeInvestigatorHit), g.hits);
+  });
+  for (const g of (golden.villagers && golden.villagers.worlds) || []) check('Villagers', `seed ${g.seed}`, () => {
+    const roster = generateRoster(g.seed, generateLayout(catalog, 24, 24, 40, g.seed));
+    const campaign = generateCampaign(g.seed, 5);
+    const locations = [], talks = [];
+    for (const v of roster) for (const t of golden.villagers.ticks) for (const raw of golden.villagers.dreads) {
+      const d = Number(raw), place = locationAt(v, t, d), night = 1 + (v.index + t) % 7, r = talk(g.seed, v, t, d, campaign, night);
+      locations.push([behaviorAt(v, t, d), place.kind, place.pieceIndex]);
+      talks.push([night, r.available ? 1 : 0, r.behavior, r.yieldsClue ? 1 : 0, r.clueId, r.sanityDelta, r.lineVariant, r.rumor]);
+    }
+    return same(roster.map((v) => [v.name, v.role, v.disposition, v.homeIndex, v.workIndex]), g.roster) && same(locations, g.locations) && same(talks, g.talks);
   });
   if (golden.matcher) {
     const names = [...new Set(golden.matcher.scores.map((s) => s[1]))];
