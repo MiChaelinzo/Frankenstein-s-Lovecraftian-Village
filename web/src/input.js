@@ -82,6 +82,13 @@ export function touchDrive(start, cur) {
   return { strafe: unit((cur.x - start.x) / TOUCH_DRIVE_RADIUS_PX), forward: unit(-(cur.y - start.y) / TOUCH_DRIVE_RADIUS_PX) };
 }
 
+/** Sums drive vectors from separate sources (canvas gesture, on-screen stick) so neither overwrites the other, clamped to -1..1. */
+export function combineDrive(...sources) {
+  const sum = { forward: 0, strafe: 0 };
+  for (const d of sources) { if (!d) continue; if (Number.isFinite(d.forward)) sum.forward += d.forward; if (Number.isFinite(d.strafe)) sum.strafe += d.strafe; }
+  return { forward: unit(sum.forward), strafe: unit(sum.strafe) };
+}
+
 /** A tap is a short touch that barely moved. */
 export const isTap = (x0, y0, x1, y1, ms) => [x0, y0, x1, y1, ms].every(Number.isFinite) && ms >= 0 && ms <= TAP_MAX_MS && Math.hypot(x1 - x0, y1 - y0) <= TAP_MAX_PX;
 

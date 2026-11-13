@@ -3,7 +3,7 @@
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
 import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
-import { mapGamepad, padAxes3d, snapshotPad, touchDrive, isTap, lookDelta } from './input.js';
+import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
@@ -509,7 +509,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   let perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
-  let drive = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
+  let drive = { forward: 0, strafe: 0 }, stick = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
 
   const wake = () => { dirty = true; if (active && !running) { running = true; last = 0; rafId = requestAnimationFrame(loop); } };
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
@@ -563,7 +563,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const updatePromptOff = () => { if (!prompt.hidden) prompt.hidden = true; };
 
   function currentInput() {
-    const inp = { forward: drive.forward, strafe: drive.strafe, turn: 0, look: 0 };
+    const inp = { ...combineDrive(drive, stick), turn: 0, look: 0 }; // canvas gesture and on-screen stick are separate sources, so two fingers never fight
     for (const code of keys) { const m = KEY_MOVE[code]; if (m) inp[m[0]] = Math.max(-1, Math.min(1, inp[m[0]] + m[1])); }
     const pads = navigator.getGamepads ? Array.from(navigator.getGamepads() || []).filter(Boolean) : [];
     if (pads.length) {
@@ -734,7 +734,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     },
     exit() {
       if (!active) return;
-      active = false; keys.clear(); touches.clear(); drive = { forward: 0, strafe: 0 }; prompt.hidden = true;
+      active = false; keys.clear(); touches.clear(); drive = { forward: 0, strafe: 0 }; stick = { forward: 0, strafe: 0 }; prompt.hidden = true;
       if (rafId) cancelAnimationFrame(rafId); rafId = 0; running = false;
       if (document.pointerLockElement === canvas) document.exitPointerLock();
       for (const [target_, type, fn] of listeners) target_.removeEventListener(type, fn);
@@ -742,7 +742,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     /** Called by the app when layout, dread or night changed while the view is open. */
     refresh: wake,
     /** On-screen controls: a held joystick vector, look drag deltas and an interact at the screen centre. */
-    setTouchDrive(v) { drive = { forward: v.forward, strafe: v.strafe }; wake(); },
+    setTouchDrive(v) { stick = { forward: v.forward, strafe: v.strafe }; wake(); },
     addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
     interactCenter() { if (active && cam) interact(centerRay()); },
     get camera() { return cam; },

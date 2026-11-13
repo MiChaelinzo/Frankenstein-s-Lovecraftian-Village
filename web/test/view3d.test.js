@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, InteractionRules } from '../src/core.js';
 import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../src/glb.js';
-import { padAxes3d, touchDrive, isTap } from '../src/input.js';
+import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
 import * as M from '../src/view3d-math.js';
 import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
@@ -452,4 +452,12 @@ test('surfaceAt: wood on the dock, wet near the shore, gravel inland; coast clos
   const close = (v) => { const p = M.coastToWorld(f, dock.u, v); return M.coastCloseness(p.x, p.z, 24, 24, 1818); };
   assert.equal(close(0), 1); assert.ok(close(-15) < 1 && close(-15) > 0); assert.equal(close(-40), 0);
   for (const seed of [1, 7, 4242]) assert.ok(['gravel', 'wood', 'wet'].includes(M.surfaceAt(48, 48, 24, 24, seed)));
+});
+
+test('combineDrive sums the canvas gesture and the on-screen stick, clamped, ignoring bad input', () => {
+  assert.deepEqual(combineDrive({ forward: 0.5, strafe: 0 }, { forward: 0, strafe: -0.5 }), { forward: 0.5, strafe: -0.5 });
+  assert.deepEqual(combineDrive({ forward: 1, strafe: 1 }, { forward: 1, strafe: 1 }), { forward: 1, strafe: 1 });
+  assert.deepEqual(combineDrive({ forward: 1, strafe: 0 }, { forward: -1, strafe: 0 }), { forward: 0, strafe: 0 });
+  assert.deepEqual(combineDrive(null, { forward: NaN, strafe: 0.25 }), { forward: 0, strafe: 0.25 });
+  assert.deepEqual(combineDrive(), { forward: 0, strafe: 0 });
 });
