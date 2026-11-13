@@ -213,3 +213,17 @@ From `git log main..HEAD` (oldest first); the docs commit for this round is in `
 
 - Final counts at the end of round 18: dotnet 127, node 356, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 73 of 73 (local headless Chromium, SwiftShader).
 - Unverified: the Unity runtime (compile checked only) and touch controls on real devices (DevTools touch emulation only).
+
+## Round 19 clock integration commits (FEAT-006)
+From `git log` (oldest first).
+- `48f5764` feat: vigil keeps watch at dusk and night, dawn judges the night (Core rules, JS mirror, golden parity)
+- `2ea2b7a` feat: clock drives 3D sky, sun, fog, lantern gain and ambient mix; vigil Endure runs to dawn; HUD clock chip and first-play hint (en/fr)
+- `a29f722` test: daylight contrast threshold matches the overcast day palette
+- `869accc` feat: Core VillagerRules.StandPoint and CoastSide (web standingPoint is the golden-checked mirror), ProgressionSession.ResolveVigilDawn
+- `a86d999` fix: stand point facing never emits -0 so golden data round-trips through embed_golden
+- `d50c06d` feat: Core GameClock.SessionStartTick (dusk) and VillagerRules.CarriesLitLantern with JS mirrors and golden parity
+- `74cd88d` feat: Unity DayNightDirector and VillagerAgent over Core, vigil watch and dawn with the clock, scene builder spawns the roster at person height (compile checked)
+- `a5dfec8` feat: by day the Endure control waits for dusk (Core VigilRules.WaitForDuskMinutes, web and Unity), en/fr strings, vigil clock UI tests
+- `d6129c1` docs: vigil clock rule, day and night look, Unity clock and villagers, Nivalis nights as genre inspiration only
+- `ab73549` test: browser checks for clock phases (sampled sky pixels), chip, hint and the vigil at night and by day; chip refreshes on clock skips
+- Counts after these commits: dotnet 157, node 403, 10 `tools/test_*.py`, validator OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 93 of 93 (local headless SwiftShader). Unity runtime Unverified.
