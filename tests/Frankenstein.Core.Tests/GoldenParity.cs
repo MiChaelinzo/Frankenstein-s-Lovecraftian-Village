@@ -322,6 +322,9 @@ namespace Frankenstein.Core.Tests
             AppendVillagers(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendDressing(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -564,6 +567,31 @@ namespace Frankenstein.Core.Tests
         private static readonly int[] ClockTicks = { 0, 1, 119, 239, 240, 839, 840, 1079, 1080, 1439, 1440, 1441, 2900, -1, -240, -1441 };
         private static readonly int[] VillagerTicks = { 0, 300, 900, 1100, 1300, 1439 };
         private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
+
+        /// <summary>Top level key "dressing": the seeded harbour, square and churchyard dressing on the real layout, per seed and grid.</summary>
+        private static void AppendDressing(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"dressing\": [");
+            bool firstWorld = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var items = VillageDressing.Compose(seed, grid, grid, layout);
+                    sb.Append(firstWorld ? "\n    " : ",\n    ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"dockU\": ")
+                      .Append(VillageDressing.DockU(seed, grid, grid).ToString("R", inv)).Append(", \"items\": [");
+                    firstWorld = false;
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        var it = items[i];
+                        sb.Append(i > 0 ? ", " : "").Append('[').Append('"').Append(it.Kind).Append('"').Append(", ").Append(it.X.ToString("R", inv)).Append(", ").Append(it.Y.ToString("R", inv)).Append(", ")
+                          .Append(it.Z.ToString("R", inv)).Append(", ").Append(it.Yaw.ToString("R", inv)).Append(", ").Append(it.Scale.ToString("R", inv)).Append(']');
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n  ]\n");
+        }
 
         /// <summary>Top level key "villagers": clock, seeded rosters on the real layout, schedules, locations, behaviors, clue rule and talk results.</summary>
         private static void AppendVillagers(StringBuilder sb, PrefabCatalog cat)

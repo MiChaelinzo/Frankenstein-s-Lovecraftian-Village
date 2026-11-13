@@ -191,16 +191,16 @@ export function fitScale(model, piece, cell) {
 /**
  * Appends one placed mesh to the flat array `out` and returns the placed height in metres.
  * Emissive triangles get glow = opts.glow (window light on or off) and phase for flicker. tint [r,g,b] 0..255 blends 30%.
- * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians).
+ * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians); opts.lift raises it (a church rise).
  */
-export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0 } = {}) {
+export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0 } = {}) {
   const { min, max } = model.bounds;
   const s = scale ?? fitScale(model, piece, cell);
   const cx = at ? at[0] : (piece.x + piece.sizeX / 2) * cell, cz = at ? at[1] : (piece.z + piece.sizeZ / 2) * cell;
   const mx = (min[0] + max[0]) / 2, mz = (min[2] + max[2]) / 2;
   const cr = Math.cos(rot), sr = Math.sin(rot);
   for (const t of model.triangles) {
-    const q = t.p.map((p) => [cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, p[1] * s, cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s]);
+    const q = t.p.map((p) => [cx + ((p[0] - mx) * cr + (p[2] - mz) * sr) * s, lift + p[1] * s, cz + (-(p[0] - mx) * sr + (p[2] - mz) * cr) * s]);
     const u = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]], v = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]];
     let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
     const nl = Math.hypot(...n) || 1; n = n.map((c) => c / nl);
@@ -210,5 +210,5 @@ export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 
     });
     for (const p of q) out.push(p[0], p[1], p[2], n[0], n[1], n[2], rgb[0], rgb[1], rgb[2], t.emissive ? glow : 0, phase);
   }
-  return max[1] * s;
+  return lift + max[1] * s;
 }
