@@ -206,6 +206,10 @@ From `git log main..HEAD` (oldest first); the docs commit for this round is in `
 - `b993d65` fix: poll in browser_check door prompt and GLB checks so slow software GL no longer fails them
 - `bc027a3` feat: epilogue shore link per ending with pure params table, plus a11y browser checks
 - `b900608` docs: retake r18 gallery stills, clamp shore epilogue pitch, sw v14
+- `cd2bcb7` docs: bring round 18 docs, specs and verification counts current
+- `9da60c9` fix: one Core vigil lock (Begin, IsLocked) and lamp cap gate on candle sanity, mirrored in Unity and web
+- `57410e7` fix: web vigil lock independent of canPlay, story and cinema refused while locked
+- `6a53839` fix: touch stick and canvas gesture drive separate vectors summed per frame, sw v15
 
-- Final counts at the end of round 18: dotnet 123, node 350, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 71 of 71 (local headless Chromium, SwiftShader).
+- Final counts at the end of round 18: dotnet 127, node 356, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 73 of 73 (local headless Chromium, SwiftShader).
 - Unverified: the Unity runtime (compile checked only) and touch controls on real devices (DevTools touch emulation only).
