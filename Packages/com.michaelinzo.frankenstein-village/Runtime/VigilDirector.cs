@@ -97,7 +97,7 @@ namespace Frankenstein.Runtime
         }
 
         /// <summary>
-        /// Endure the night when Core allows it. With a clock, Core VigilRules.CanEndureAt refuses it by day and the clock runs forward to dawn,
+        /// Endure the night when Core allows it. With a clock, by day this waits for dusk instead (Core VigilRules.CanEndureAt, WaitForDuskMinutes); during the watch the clock runs forward to dawn,
         /// where the night is judged (ResolveDawn). Without a clock the night ends at once. Returns false when refused.
         /// </summary>
         public bool Endure()
@@ -107,7 +107,9 @@ namespace Frankenstein.Runtime
             if (clock == null) return EndureNow(vigil);
             if (!VigilRules.CanEndureAt(clock.Tick, true))
             {
-                if (hud != null) hud.ShowMessage(VigilStrings.Template(language, "vigil.endure.day"));
+                // By day the same action waits for dusk (Core VigilRules.WaitForDuskMinutes); Endure is offered once the watch begins.
+                clock.Advance(VigilRules.WaitForDuskMinutes(clock.Tick));
+                if (hud != null) hud.ShowMessage(VigilStrings.Template(language, "vigil.dusk"));
                 return false;
             }
             clock.Advance(VigilRules.EndureWaitMinutes(clock.Tick));
@@ -166,7 +168,7 @@ namespace Frankenstein.Runtime
             if (hud == null) return;
             hud.SetObjective(VigilStrings.Objective(language, vigil));
             bool canEndure = vigil.CanEndureNight;
-            string key = vigil.Night >= vigil.NightsTotal ? "vigil.finish" : "vigil.endure";
+            string key = clock != null && !VigilRules.IsWatchHour(clock.Tick) ? "vigil.wait" : vigil.Night >= vigil.NightsTotal ? "vigil.finish" : "vigil.endure";
             hud.SetEndure(canEndure, VigilStrings.Template(language, key));
             if (canEndure && !_endureOffered) hud.ShowMessage(VigilStrings.Template(language, "vigil.endure.ready"));
             _endureOffered = canEndure;

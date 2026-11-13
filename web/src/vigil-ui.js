@@ -1,6 +1,6 @@
 // Vigil DOM controller. Owns the VigilState instance, the objective line, the endure prompt and the ending dialog.
 // Every rule (clue/lantern uniqueness, targets, creep, endings, score) comes from VigilState and friends in core.js; this file forwards player actions.
-import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, canEndureAt, endureWaitMinutes, dawnDue, nightEndTick, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
+import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, canEndureAt, endureWaitMinutes, waitForDuskMinutes, isWatchHour, dawnDue, nightEndTick, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
@@ -131,19 +131,24 @@ export function createVigilController(deps) {
     return r.endured;
   }
 
-  /** Endure the night: allowed once the clue target is met and the watch (dusk, night) is under way. Runs the clock to dawn, where the night is judged. */
+  /** Endure the night: once the clue target is met. During the watch (dusk, night) it runs the clock to dawn, where the night is judged; by day it waits for dusk first. */
   function endure() {
     if (!live() || !vigil.canEndureNight || enduring) return false;
     const tick = deps.tickNow();
-    if (!canEndureAt(tick, true)) { notice(tr('vigil.endure.day')); return false; }
     progress.arm(); begin();
     enduring = true;
+    if (!canEndureAt(tick, true)) { // by day the same control waits for dusk; Endure is offered once the watch begins
+      deps.skipClock(waitForDuskMinutes(tick), () => { enduring = false; notice(tr('vigil.dusk')); render(); });
+      render();
+      return true;
+    }
     deps.skipClock(endureWaitMinutes(tick), () => { enduring = false; resolveDawn(); });
     return true;
   }
 
   /** Called every clock second by the app: when the dawn of the current night has come, judge it. */
   function watchClock(tick) {
+    if (!enduring && vigil && !vigil.isFinished) render(); // the Endure label follows the hour (wait for dusk by day)
     if (enduring || !vigil || !started() || !live() || vigil.isFinished) return false;
     if (!dawnDue(anchorTick, tick)) return false;
     resolveDawn();
@@ -166,7 +171,8 @@ export function createVigilController(deps) {
       const m = objectiveModel(vigil);
       text = m.finished ? tr('vigil.objective.done', { found: tr('vigil.end.found', { n: found().length, total: VIGIL_ENDING_IDS.length }) }) : objectiveText(m, tr);
       $('endure').hidden = !(m.canEndure && !m.finished && !enduring);
-      $('endure').textContent = tr(vigil.night >= vigil.nightsTotal ? 'vigil.finish' : 'vigil.endure');
+      const label = !isWatchHour(deps.tickNow()) ? 'vigil.wait' : vigil.night >= vigil.nightsTotal ? 'vigil.finish' : 'vigil.endure';
+      if ($('endure').textContent !== tr(label)) $('endure').textContent = tr(label);
     }
     if (text !== lastText) { lastText = text; $('objectiveText').textContent = text; }
   }

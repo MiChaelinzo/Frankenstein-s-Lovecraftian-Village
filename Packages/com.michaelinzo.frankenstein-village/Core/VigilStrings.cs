@@ -43,7 +43,8 @@ namespace Frankenstein.Core
             "vigil.end.score",
             "vigil.end.name",
             "vigil.end.stats",
-            "vigil.endure.day",
+            "vigil.wait",
+            "vigil.dusk",
             "vigil.dawn.missed",
         };
 
@@ -78,7 +79,8 @@ namespace Frankenstein.Core
                 "Score {score}, rank {rank}",
                 "The name: {name}",
                 "Clues {clues}, lanterns {lanterns}, nights endured {nights}/{total}, ritual stage {stage}/{stages}, sanity {sanity}.",
-                "The night has not fallen. Endure the night once dusk comes.",
+                "Wait for dusk (E)",
+                "You wait out the grey hours. Dusk falls, and the vigil is kept until dawn.",
                 "Dawn comes and the name is still unheard. The night does not count (sanity -{n}); the clues stay. Watch again at dusk."
             } },
             { "fr", new[]
@@ -110,7 +112,8 @@ namespace Frankenstein.Core
                 "Score {score}, rang {rank}",
                 "Le nom : {name}",
                 "Indices {clues}, lanternes {lanterns}, nuits endurees {nights}/{total}, etape du rituel {stage}/{stages}, raison {sanity}.",
-                "La nuit n'est pas tombee. Endurez la nuit quand le crepuscule viendra.",
+                "Attendre le crepuscule (E)",
+                "Vous laissez passer les heures grises. Le crepuscule tombe, et la veillee dure jusqu'a l'aube.",
                 "L'aube vient et le nom reste inentendu. La nuit ne compte pas (raison -{n}); les indices restent. Veillez a nouveau au crepuscule."
             } },
         };

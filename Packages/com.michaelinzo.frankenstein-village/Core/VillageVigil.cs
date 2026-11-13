@@ -143,6 +143,7 @@ namespace Frankenstein.Core
         // the night is judged. Dawn with the clue target met endures the night. Dawn without it is a missed dawn: the night does not
         // count, sanity drops by MissedDawnSanityLoss, the clues found stay, and the same night is watched again at the next dusk.
         // Beginning the vigil by day waits for dusk: the first watch starts at the next dusk, so the first night ends at the following dawn.
+        // By day the player may choose to wait for dusk (WaitForDuskMinutes runs the clock to the watch); Endure is then offered.
 
         /// <summary>Sanity lost when dawn comes before the clue target is met. The night does not count and is watched again.</summary>
         public const int MissedDawnSanityLoss = 10;
@@ -179,11 +180,14 @@ namespace Frankenstein.Core
             return tick >= NightEndTick(anchorTick);
         }
 
-        /// <summary>Endure the night needs the clue target met and the watch under way. By day it is refused.</summary>
+        /// <summary>Endure the night needs the clue target met and the watch under way. By day it is refused (wait for dusk first).</summary>
         public static bool CanEndureAt(int tick, bool targetMet)
         {
             return targetMet && IsWatchHour(tick);
         }
+
+        /// <summary>Minutes "wait for dusk" runs the clock forward to reach the watch: 0 during the watch.</summary>
+        public static int WaitForDuskMinutes(int tick) { return WatchStartTick(tick) - tick; }
 
         /// <summary>Minutes Endure runs the clock forward to reach dawn, or -1 outside the watch.</summary>
         public static int EndureWaitMinutes(int tick)

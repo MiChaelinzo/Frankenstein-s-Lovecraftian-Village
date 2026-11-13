@@ -816,6 +816,8 @@ export const nightEndTick = (anchorTick) => dawnTickAfter(watchStartTick(anchorT
 export const dawnDue = (anchorTick, tick) => tick >= nightEndTick(anchorTick);
 /** Endure needs the clue target met and the watch under way. */
 export const canEndureAt = (tick, targetMet) => !!targetMet && isWatchHour(tick);
+/** Minutes "wait for dusk" runs the clock forward to reach the watch: 0 during the watch. */
+export const waitForDuskMinutes = (tick) => watchStartTick(tick) - tick;
 /** Minutes Endure runs the clock forward to reach dawn, or -1 outside the watch. */
 export const endureWaitMinutes = (tick) => (isWatchHour(tick) ? dawnTickAfter(tick) - tick : -1);
 

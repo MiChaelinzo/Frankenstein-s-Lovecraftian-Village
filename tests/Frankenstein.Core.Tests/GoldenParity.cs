@@ -536,14 +536,14 @@ namespace Frankenstein.Core.Tests
         }
 
         private static readonly int[] VigilClockTicks = { 0, 1, 239, 240, 839, 840, 841, 1079, 1080, 1439, 1440, 1441, 2279, 2280, 2900, -1, -240, -600, -1441 };
-        /// <summary>Clock rules of the vigil: rows [tick, watchHour, watchStart, nightEnd, dueBeforeEnd, dueAtEnd, endureWait, canEndureMet] plus a scripted ResolveDawn trace.</summary>
+        /// <summary>Clock rules of the vigil: rows [tick, watchHour, watchStart, nightEnd, dueBeforeEnd, dueAtEnd, endureWait, canEndureMet, waitForDusk] plus a scripted ResolveDawn trace.</summary>
         private static string VigilClock()
         {
             var rows = new List<string>();
             foreach (int t in VigilClockTicks)
                 rows.Add("[" + t + ", " + (VigilRules.IsWatchHour(t) ? 1 : 0) + ", " + VigilRules.WatchStartTick(t) + ", " + VigilRules.NightEndTick(t) + ", "
                     + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t) - 1) ? 1 : 0) + ", " + (VigilRules.DawnDue(t, VigilRules.NightEndTick(t)) ? 1 : 0) + ", "
-                    + VigilRules.EndureWaitMinutes(t) + ", " + (VigilRules.CanEndureAt(t, true) ? 1 : 0) + "]");
+                    + VigilRules.EndureWaitMinutes(t) + ", " + (VigilRules.CanEndureAt(t, true) ? 1 : 0) + ", " + VigilRules.WaitForDuskMinutes(t) + "]");
             var camp = CampaignGenerator.Generate(1818, 3);
             var v = new VigilState(camp, RitualChain.Generate(camp));
             var trace = new List<string>();

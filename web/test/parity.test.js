@@ -13,7 +13,7 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
-  clueTarget, sourcesOffered, isWatchHour, watchStartTick, nightEndTick, dawnDue, canEndureAt, endureWaitMinutes, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
+  clueTarget, sourcesOffered, isWatchHour, watchStartTick, nightEndTick, dawnDue, canEndureAt, endureWaitMinutes, waitForDuskMinutes, VIGIL_MISSED_DAWN_SANITY_LOSS, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
   parseVigilResultCode, VigilState, VIGIL_ENDING_IDS, VIGIL_EPITAPHS, VIGIL_RANK_NAMES, VIGIL_RANK_THRESHOLDS,
   VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES,
 } from '../src/core.js';
@@ -232,9 +232,9 @@ test('vigil clock rules and the dawn judgement match C# VigilRules and VigilStat
   const g = golden.vigil.clock;
   assert.ok(g.ticks.length >= 15 && g.resolve.length === 5);
   assert.equal(VIGIL_MISSED_DAWN_SANITY_LOSS, g.missedLoss);
-  for (const [t, watch, start, end, dueBefore, dueAt, wait, canMet] of g.ticks) {
-    assert.deepEqual([isWatchHour(t) ? 1 : 0, watchStartTick(t), nightEndTick(t), dawnDue(t, nightEndTick(t) - 1) ? 1 : 0, dawnDue(t, nightEndTick(t)) ? 1 : 0, endureWaitMinutes(t), canEndureAt(t, true) ? 1 : 0],
-      [watch, start, end, dueBefore, dueAt, wait, canMet], `tick ${t}`);
+  for (const [t, watch, start, end, dueBefore, dueAt, wait, canMet, dusk] of g.ticks) {
+    assert.deepEqual([isWatchHour(t) ? 1 : 0, watchStartTick(t), nightEndTick(t), dawnDue(t, nightEndTick(t) - 1) ? 1 : 0, dawnDue(t, nightEndTick(t)) ? 1 : 0, endureWaitMinutes(t), canEndureAt(t, true) ? 1 : 0, waitForDuskMinutes(t)],
+      [watch, start, end, dueBefore, dueAt, wait, canMet, dusk], `tick ${t}`);
   }
   const v = new VigilState(generateCampaign(1818, 3), null);
   const got = [];

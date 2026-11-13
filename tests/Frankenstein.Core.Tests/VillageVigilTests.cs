@@ -411,6 +411,8 @@ namespace Frankenstein.Core.Tests
                 Assert.Equal(VigilRules.IsWatchHour(tick), start == tick);
                 Assert.True(start - tick < GameClock.DawnMinutes + GameClock.DayMinutes);
                 if (!VigilRules.IsWatchHour(tick)) Assert.Equal(DayPhase.Dusk, GameClock.PhaseAt(start));
+                Assert.Equal(start - tick, VigilRules.WaitForDuskMinutes(tick));
+                Assert.True(VigilRules.CanEndureAt(tick + VigilRules.WaitForDuskMinutes(tick), true));
             });
         }
 
