@@ -42,7 +42,8 @@ function seaDirection(seed) {
   return side === 0 ? [-1, 0] : side === 1 ? [1, 0] : [0, -1];
 }
 
-function standingPoint(v, kind, layout, gridW, gridD, seed) {
+/** Mirror of Core VillagerRules.StandPoint (golden-checked in web/test/villagers.test.js). */
+export function standingPoint(v, kind, layout, gridW, gridD, seed) {
   const spread = ((v.index % 3) - 1) * 0.6;
   if (kind === HOME || kind === WORKPLACE) {
     const p = layout[kind === HOME ? v.homeIndex : v.workIndex];

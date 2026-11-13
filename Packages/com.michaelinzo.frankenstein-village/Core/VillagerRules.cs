@@ -22,6 +22,15 @@ namespace Frankenstein.Core
         public int PieceIndex;
     }
 
+    /// <summary>Where a villager stands, in cell coordinates (fractional), and the unit direction they face in (x, z).</summary>
+    public struct VillagerStandPoint
+    {
+        public double X;
+        public double Z;
+        public double FaceDx;
+        public double FaceDz;
+    }
+
     public sealed class Villager
     {
         public int Index;
@@ -236,6 +245,49 @@ namespace Frankenstein.Core
                 default: return ScheduledPlace(v, tick);
             }
         }
+
+        // ---------- where a villager stands inside the place (the web mirror is standingPoint in web/src/villager-view.js) ----------
+        /// <summary>Cells in front of a building's south wall.</summary>
+        public const double FrontOffset = 0.45;
+        /// <summary>Cells; villagers in the square stand on a ring around the grid centre.</summary>
+        public const double SquareRadius = 1.6;
+        /// <summary>Cells from the grid edge on the coast side.</summary>
+        public const double ShoreInset = 0.6;
+        /// <summary>Cells kept between a villager and the grid edge.</summary>
+        public const double EdgeMargin = 0.3;
+
+        /// <summary>Which side the sea lies on for a seed: 0 west (-x), 1 east (+x), 2 north (-z). Same roll as the web coast.</summary>
+        public static int CoastSide(int seed) { return new SeededRandom(seed ^ 0x2f6b).Next(3); }
+
+        /// <summary>
+        /// The point a villager stands at for a place kind. Home and workplace: in front of the building, spread by index, facing it.
+        /// Shore: along the coast edge, facing the sea. Square (and a missing piece): a ring around the grid centre, facing inward. Gone has no point (the square is returned).
+        /// </summary>
+        public static VillagerStandPoint StandPoint(Villager v, VillagerPlaceKind kind, IList<PlacedPiece> layout, int gridW, int gridD, int seed)
+        {
+            double spread = ((v.Index % 3) - 1) * 0.6;
+            if (kind == VillagerPlaceKind.Home || kind == VillagerPlaceKind.Workplace)
+            {
+                int i = kind == VillagerPlaceKind.Home ? v.HomeIndex : v.WorkIndex;
+                if (layout != null && i >= 0 && i < layout.Count)
+                {
+                    var p = layout[i];
+                    return new VillagerStandPoint { X = ClampCell(p.X + p.SizeX / 2.0 + spread, gridW), Z = ClampCell(p.Z + p.SizeZ + FrontOffset, gridD), FaceDx = 0, FaceDz = -1 };
+                }
+            }
+            if (kind == VillagerPlaceKind.Shore)
+            {
+                int side = CoastSide(seed);
+                double dx = side == 0 ? -1 : side == 1 ? 1 : 0, dz = side == 2 ? -1 : 0, along = 0.2 + 0.6 * (v.Index / 6.0);
+                double x = dx == 0 ? gridW * along : dx < 0 ? ShoreInset : gridW - ShoreInset;
+                double z = dz == 0 ? gridD * along : ShoreInset;
+                return new VillagerStandPoint { X = x, Z = z, FaceDx = dx, FaceDz = dz };
+            }
+            double angle = (v.Index / 7.0) * Math.PI * 2;
+            return new VillagerStandPoint { X = gridW / 2.0 + Math.Cos(angle) * SquareRadius, Z = gridD / 2.0 + Math.Sin(angle) * SquareRadius, FaceDx = -Math.Cos(angle), FaceDz = -Math.Sin(angle) };
+        }
+
+        private static double ClampCell(double v, int max) { return Math.Max(EdgeMargin, Math.Min(max - EdgeMargin, v)); }
 
         /// <summary>
         /// Talking to a villager. Clue and sanity come from <see cref="VigilRules.VillagerTalkCountsAsClue"/> and

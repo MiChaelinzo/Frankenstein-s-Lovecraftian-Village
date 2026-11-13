@@ -249,5 +249,41 @@ namespace Frankenstein.Core.Tests
             Assert.Equal(VillagerStrings.Line("en", VillagerRole.Fisher, VillagerBehavior.Normal, 0, "x"), VillagerStrings.Line("xx", VillagerRole.Fisher, VillagerBehavior.Normal, 0, "x"));
             Assert.Contains("Ansel", VillagerStrings.Line("en", VillagerRole.Child, VillagerBehavior.AtWindow, 0, "Ansel"));
         }
+
+        [Fact]
+        public void Stand_points_stay_inside_the_grid_face_a_unit_direction_and_are_deterministic()
+        {
+            foreach (int seed in new[] { 1, 42, -7, 1818, 99 })
+            {
+                var (layout, roster) = World(seed);
+                foreach (var v in roster)
+                    for (int k = 0; k <= (int)VillagerPlaceKind.Gone; k++)
+                    {
+                        var pt = VillagerRules.StandPoint(v, (VillagerPlaceKind)k, layout, 24, 24, seed);
+                        Assert.InRange(pt.X, 0.0, 24.0);
+                        Assert.InRange(pt.Z, 0.0, 24.0);
+                        Assert.InRange(Math.Sqrt(pt.FaceDx * pt.FaceDx + pt.FaceDz * pt.FaceDz), 0.999, 1.001);
+                        var again = VillagerRules.StandPoint(v, (VillagerPlaceKind)k, layout, 24, 24, seed);
+                        Assert.Equal(pt.X, again.X); Assert.Equal(pt.Z, again.Z);
+                    }
+                Assert.InRange(VillagerRules.CoastSide(seed), 0, 2);
+            }
+        }
+
+        [Fact]
+        public void Session_dawn_forwards_the_vigil_judgement()
+        {
+            var camp = CampaignGenerator.Generate(1818, 3);
+            var session = new ProgressionSession();
+            session.SetRitual(RitualChain.Generate(camp));
+            session.StartVigil(camp);
+            session.Vigil.Begin();
+            int next; ProgressionUpdate update;
+            Assert.False(session.ResolveVigilDawn(60, out next, out update));
+            Assert.Equal(60 - VigilRules.MissedDawnSanityLoss, next);
+            for (int i = 0; i < session.Vigil.ClueTarget; i++) session.RecordVigilClue("c" + i, out update);
+            Assert.True(session.ResolveVigilDawn(next, out next, out update));
+            Assert.Equal(1, session.Vigil.NightsEndured);
+        }
     }
 }

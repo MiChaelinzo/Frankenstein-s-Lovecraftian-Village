@@ -614,6 +614,16 @@ namespace Frankenstein.Core.Tests
                             sb.Append(firstLoc ? "" : ", ").Append('[').Append((int)VillagerRules.BehaviorAt(v, t, d)).Append(", ").Append((int)place.Kind).Append(", ").Append(place.PieceIndex).Append(']');
                             firstLoc = false;
                         }
+                sb.Append("], \"stand\": [");
+                bool firstStand = true;
+                foreach (var v in roster)
+                    for (int k = 0; k <= (int)VillagerPlaceKind.Shore; k++)
+                    {
+                        var pt = VillagerRules.StandPoint(v, (VillagerPlaceKind)k, layout, 24, 24, seed);
+                        sb.Append(firstStand ? "" : ", ").Append('[').Append(k).Append(", ").Append(pt.X.ToString("R", CultureInfo.InvariantCulture)).Append(", ").Append(pt.Z.ToString("R", CultureInfo.InvariantCulture))
+                          .Append(", ").Append(pt.FaceDx.ToString("R", CultureInfo.InvariantCulture)).Append(", ").Append(pt.FaceDz.ToString("R", CultureInfo.InvariantCulture)).Append(']');
+                        firstStand = false;
+                    }
                 sb.Append("], \"talks\": [");
                 bool firstTalk = true;
                 foreach (var v in roster)

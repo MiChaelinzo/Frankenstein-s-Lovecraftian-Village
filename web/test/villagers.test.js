@@ -8,6 +8,7 @@ import { MINUTES_PER_DAY, PHASE_LENGTHS, wrapTick, dayNumber, phaseAt, daylightP
 import {
   ROLE_IDS, generateRoster, scheduledKind, scheduledPlace, behaviorAt, locationAt, talk, lineKey, causeOf, LINE_VARIANTS,
 } from '../src/villagers.js';
+import { standingPoint } from '../src/villager-view.js';
 import { villagerTalkCountsAsClue } from '../src/core.js';
 import { STRINGS } from '../src/i18n.js';
 
@@ -53,6 +54,10 @@ test('roster, schedule, locations and talk match C# for every golden seed', () =
     }
     assert.deepEqual(locations, w.locations, `locations ${w.seed}`);
     assert.deepEqual(talks, w.talks, `talks ${w.seed}`);
+    const stand = [];
+    for (const v of roster) for (let k = 0; k <= 3; k++) { const pt = standingPoint(v, k, layout, 24, 24, w.seed); stand.push([k, pt.x, pt.z, pt.faceDx, pt.faceDz]); }
+    assert.equal(stand.length, w.stand.length);
+    stand.forEach((row, i) => row.forEach((x, j) => assert.ok(Math.abs(x - w.stand[i][j]) < 1e-9, `stand ${w.seed} ${i}.${j}: ${x} vs ${w.stand[i][j]}`)));
   }
 });
 

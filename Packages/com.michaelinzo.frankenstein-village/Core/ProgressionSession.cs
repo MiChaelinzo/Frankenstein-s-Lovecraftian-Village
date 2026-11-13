@@ -92,6 +92,15 @@ namespace Frankenstein.Core
             return next;
         }
 
+        /// <summary>Judges the night at dawn (VigilState.ResolveDawn). Returns true when the night was endured; nextSanity is the sanity to continue with.</summary>
+        public bool ResolveVigilDawn(int carriedSanity, out int nextSanity, out ProgressionUpdate update)
+        {
+            nextSanity = carriedSanity;
+            bool endured = _vigil != null && _vigil.ResolveDawn(carriedSanity, out nextSanity);
+            update = Refresh();
+            return endured;
+        }
+
         /// <summary>Records the omen tier reached (0 Calm .. 3 Abyss). The highest tier seen is kept.</summary>
         public ProgressionUpdate RecordOmenTier(int tier)
         {
