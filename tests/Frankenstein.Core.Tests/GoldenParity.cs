@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Frankenstein.Core;
@@ -510,6 +511,24 @@ namespace Frankenstein.Core.Tests
 
 
         private static readonly int[] VigilSeeds = { 1, 42, -7, 1818, 123456789 };
+        /// <summary>Scripted lock and lantern-cap trace: [step, begun, locked, canLightProbe, lightResult, nightLanterns] rows for the JS mirror.</summary>
+        private static string VigilGates()
+        {
+            var camp = CampaignGenerator.Generate(1818, 3);
+            var v = new VigilState(camp, RitualChain.Generate(camp));
+            var rows = new List<string>();
+            Action<string, string, int> row = (step, probe, result) => rows.Add("[" + JsonSerializer.Serialize(step) + ", " + (v.Begun ? 1 : 0) + ", " + (v.IsLocked ? 1 : 0) + ", "
+                + (v.CanLightLantern(probe) ? 1 : 0) + ", " + result + ", " + v.NightLanterns + "]");
+            row("new", "a", -1);
+            v.Begin(); row("begin", "a", -1);
+            foreach (var id in new[] { "a", "a", "b", "c", "d", "bad;id" }) { int r = v.LightLantern(id) ? 1 : 0; row("light " + id, id, r); }
+            v.RecordSanity(0); row("collapse", "e", -1);
+            var restored = new VigilState(camp, RitualChain.Generate(camp));
+            restored.TryRestore(v.Serialize());
+            rows.Add("[\"restored\", " + (restored.Begun ? 1 : 0) + ", " + (restored.IsLocked ? 1 : 0) + ", 0, -1, " + restored.NightLanterns + "]");
+            return "[" + string.Join(", ", rows) + "]";
+        }
+
         private static readonly string[] VigilBadCodes =
         {
             "", "V1", "V1-5-dawn", "V2-5-dawn-10", "V1-5-nobody-10", "V1-5-dawn--10", "V1-5-dawn-+10", "V1-05-dawn-10", "V1--0-dawn-10",
@@ -598,6 +617,17 @@ namespace Frankenstein.Core.Tests
                       .Append(", \"named\": ").Append(o.Named ? "true" : "false").Append(", \"ritualComplete\": ").Append(o.RitualComplete ? "true" : "false").Append(" }");
                     first = false;
                 }
+            sb.Append("],\n    \"sandboxActions\": ").Append(J(VigilRules.SandboxActionIds)).Append(",\n    \"sandboxRule\": [");
+            first = true;
+            foreach (var id in VigilRules.SandboxActionIds.Concat(new[] { "unknown_cheat", "" }))
+                foreach (var live in new[] { true, false })
+                {
+                    sb.Append(first ? "" : ", ").Append('[').Append(J(id)).Append(", ").Append(live ? 1 : 0).Append(", ").Append(VigilRules.AllowsSandboxAction(live, id) ? 1 : 0).Append(']');
+                    first = false;
+                }
+            sb.Append("],\n    \"gates\": ").Append(VigilGates()).Append(",\n    \"clueKinds\": [");
+            for (int k = 0; k <= (int)InteractionKind.Candle; k++)
+                sb.Append(k > 0 ? ", " : "").Append('[').Append(k).Append(", ").Append(VigilRules.CountsAsClue((InteractionKind)k) ? 1 : 0).Append(']');
             sb.Append("]\n  }\n");
         }
 

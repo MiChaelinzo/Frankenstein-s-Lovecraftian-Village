@@ -75,6 +75,8 @@ async function main() {
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
   const shotHash = async () => { const s = (await send('Page.captureScreenshot', { format: 'png' })).result.data; let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
   const rec = (name, ok, evidence) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} :: ${JSON.stringify(evidence)}`); };
+  /** Polls fn until it returns a truthy value or ms passes; software GL frames can be seconds apart, so fixed sleeps give false failures. */
+  const until = async (fn, ms = 12000) => { for (let t0 = Date.now(); Date.now() - t0 < ms; await sleep(250)) { const v = await fn(); if (v) return v; } return fn(); };
   const text = (idv) => ev(`document.getElementById('${idv}').textContent`);
   const hidden = (idv) => ev(`document.getElementById('${idv}').hidden`);
 
@@ -106,7 +108,8 @@ async function main() {
     await key('o'); await sleep(300);
     rec('door: O key runs without an exception', errs.length === 0, { narration: (await text('narration')).slice(0, 80) });
 
-    // story mode
+    // story mode (a fresh village: the earlier clues began a vigil, which refuses story playback, see the vigil lock checks)
+    await nav('?intro=0#seed=6161&sanity=100'); await sleep(800);
     await key('s'); await sleep(300);
     const st = [!(await hidden('story')), await text('storyMeta')];
     await key('.'); await sleep(200); const st2 = await text('storyMeta');
@@ -150,7 +153,7 @@ async function main() {
     rec('3d: second Escape returns to the 2D view', await hidden('view3d'), {});
 
     // 3D cinematic
-    await nav('?intro=0&view=3d&cinematic=1#seed=1818&sanity=70');
+    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
     const ca = await shotHash(); await sleep(2500); const cb = await shotHash();
     rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
     await special('Escape', 27, undefined); await sleep(400);
@@ -158,7 +161,8 @@ async function main() {
     // 3D: stand 2.5 m south of the house at layout cell (18, 21) of seed 1818 facing it, then interact with the door (E; a click would first take the pointer lock)
     await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=74,90.5,0,0');
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
-    const promptText = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
     const j1 = await ev(`document.getElementById('whispers').children.length`);
@@ -178,7 +182,7 @@ async function main() {
 
     // ?meshes=1 on the 2D board and the meshes page
     await nav('?intro=0&meshes=1#seed=1818&sanity=100');
-    const glbs = await ev(`performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length`);
+    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=13?n:0})()`));
     rec('meshes: ?meshes=1 fetches all 13 original GLBs without an exception', glbs >= 13 && errs.length === 0, { glbRequests: glbs });
     await nav('meshes.html');
     let mp = await text('summary');
@@ -251,6 +255,19 @@ async function main() {
     rec('vigil: no sanity once the night\'s lanterns are lit', sNone <= sFull && /No unlit lantern/.test(await text('narration')), { sFull, sNone, narration: await text('narration') });
     rec('vigil: endure is hidden until enough is heard', await hidden('endure'), {});
 
+    // Sandbox lock: the vigil is live (started, not finished), so the sandbox controls refuse and say why.
+    const lk = await ev(`(()=>{const g=(i)=>document.getElementById(i);return {ids:['sanity','night','nightPrev','nightNext','reroll','seed','dailyBtn','loadSession','drain','storyOpen','cinemaToggle'].map((i)=>g(i).disabled&&g(i).getAttribute('aria-disabled')==='true'),reason:g('vigilLock').hidden?'':g('vigilLock').textContent}})()`);
+    rec('vigil lock: after the first clue the sandbox controls are disabled with a visible reason', lk.ids.every(Boolean) && lk.reason === 'The vigil binds you. End it to tamper.', { lk });
+    const seedLive = await ev(`document.getElementById('seed').value`), sanLive = Number(await text('sanityOut'));
+    await key(']'); await key('['); await key('['); await key('n'); await key('z'); await key('.'); await key(','); await sleep(250);
+    const lk2 = await ev(`[document.getElementById('seed').value, document.getElementById('night').value, location.hash.includes('seed=' + document.getElementById('seed').value)]`);
+    rec('vigil lock: sanity keys, new village, daily and night keys are ignored while live', Number(await text('sanityOut')) === sanLive && lk2[0] === seedLive && lk2[1] === '0' && lk2[2] === true && /binds you/.test(await text('narration')), { sanLive, lk2, narration: await text('narration') });
+
+    // Story and cinema change sanity and the night, so a live vigil refuses to open them and keeps its lock.
+    await key('s'); await key('b'); await sleep(300);
+    const sc = await ev(`[document.getElementById('story').hidden, document.documentElement.classList.contains('cinema'), document.getElementById('storyOpen').disabled, document.getElementById('cinemaToggle').disabled, document.getElementById('vigilLock').hidden]`);
+    rec('vigil lock: story and cinema stay closed while the vigil is live and their buttons are disabled', sc[0] === true && sc[1] === false && sc[2] === true && sc[3] === true && sc[4] === false && Number(await text('sanityOut')) === sanLive, { sc });
+
     // A scripted careful player using only real controls. Returns the ending title; seeds are tried in order until the true ending shows.
     const play = (seed) => `(async () => {
       const $ = (i) => document.getElementById(i), wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -286,11 +303,91 @@ async function main() {
     await ev(`document.getElementById('endingAgain').click()`); await sleep(500);
     const again = await ev(`[document.getElementById('ending').open, document.getElementById('seed').value, document.getElementById('objectiveText').textContent]`);
     rec('vigil: Begin again closes the dialog and starts a fresh vigil on a new seed', again[0] === false && again[1] !== seedBefore && /clues 0\//.test(again[2]), { seedBefore, again });
+    const rel = await ev(`['sanity','night','reroll','seed','dailyBtn'].map((i)=>document.getElementById(i).disabled).concat(document.getElementById('vigilLock').hidden)`);
+    rec('vigil lock: Begin again releases the lock', rel.slice(0, 5).every((d) => d === false) && rel[5] === true, { rel });
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&reduced=1#seed=4322&sanity=100');
+    const freeBefore = Number(await text('sanityOut'));
+    await key('['); await sleep(200);
+    const freeAfter = Number(await text('sanityOut'));
+    rec('vigil lock: free roam before any vigil action is unaffected (sanity key works, controls enabled)', freeAfter === freeBefore - 5 && await ev(`!document.getElementById('sanity').disabled && !document.getElementById('reroll').disabled`), { freeBefore, freeAfter });
     await ev(`(async()=>{for(let i=0;i<16&&!document.getElementById('ending').open;i++){document.getElementById('whisper').click();await new Promise((r)=>setTimeout(r,40))}})()`); await sleep(500);
     const hollow = await ev(`[document.getElementById('ending').open, document.getElementById('endingTitle').textContent]`);
     rec('vigil: whispering sanity down to 0 ends the vigil as Hollowed', hollow[0] === true && hollow[1] === 'Hollowed', { hollow });
+    // Round 18 on-screen touch controls: hidden on desktop, forced by ?touch=1, driven through real DevTools touch events.
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&reduced=1#seed=4400&sanity=100');
+    rec('touch controls: hidden on desktop without ?touch=1', await ev(`document.getElementById('touchDock').hidden || getComputedStyle(document.getElementById('touchDock')).display === 'none'`), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await nav('?intro=0&view=3d&touch=1&reduced=1#seed=4400&sanity=100'); await sleep(1500);
+    const rects = await ev(`(()=>{const R=(id)=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};const ids=['touchInteract','touchLantern','touchHelp','touchStick','touchLook'];return {dock:getComputedStyle(document.getElementById('touchDock')).display,boxes:Object.fromEntries(ids.map((i)=>[i,R(i)])),objective:R('objective'),caption:R('narration'),prompt:R('view3dPrompt'),cinema:R('cinemaCaption'),endureHidden:document.getElementById('touchEndure').hidden,touchPoints:navigator.maxTouchPoints}})()`);
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const boxes = Object.values(rects.boxes);
+    rec('touch controls: ?touch=1 shows the dock, targets are at least 44 px', rects.dock !== 'none' && boxes.every((b) => b.w >= 44 && b.h >= 44), { rects: rects.boxes });
+    rec('touch controls: dock never overlaps the caption, objective HUD or prompt', boxes.every((b) => !hit(b, rects.objective) && !hit(b, rects.caption) && !hit(b, rects.prompt) && !hit(b, rects.cinema)), { objective: rects.objective, caption: rects.caption });
+    rec('touch controls: Endure button hidden until the vigil allows it', rects.endureHidden === true, {});
+    const touch = async (type, x, y) => send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+    const centreOf = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+    const stickC = centreOf(rects.boxes.touchStick), lookC = centreOf(rects.boxes.touchLook);
+    const stable = await shotHash(); await sleep(400); const stable2 = await shotHash();
+    await touch('touchStart', stickC.x, stickC.y); await touch('touchMove', stickC.x, stickC.y - 55); await sleep(1200);
+    const knobMoved = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
+    const walked = await shotHash(); await touch('touchEnd');
+    rec('touch controls: dragging the joystick up walks the 3D camera', stable === stable2 && walked !== stable && parseFloat(knobMoved) < 0, { stable, walked, knobMoved });
+    await sleep(500); const still = await shotHash(); await sleep(400); const still2 = await shotHash();
+    rec('touch controls: releasing the joystick stops the camera', still === still2, { still, still2 });
+    await touch('touchStart', lookC.x - 30, lookC.y); for (let i = 1; i <= 8; i++) { await touch('touchMove', lookC.x - 30 + i * 7, lookC.y); await sleep(40); } await touch('touchEnd'); await sleep(500);
+    const turned = await shotHash();
+    rec('touch controls: dragging the look pad turns the camera', turned !== still2, { still2, turned });
+    // Two fingers at once: the stick keeps walking while the look pad is dragged and released (separate drive sources, summed).
+    const touchN = async (type, pts) => send('Input.dispatchTouchEvent', { type, touchPoints: pts });
+    const sPt = (dy) => ({ x: stickC.x, y: stickC.y - dy, id: 1 }), lPt = (dx) => ({ x: lookC.x - 30 + dx, y: lookC.y, id: 2 });
+    await touchN('touchStart', [sPt(0)]); await touchN('touchMove', [sPt(55)]); await sleep(300);
+    await touchN('touchStart', [sPt(55), lPt(0)]);
+    for (let i = 1; i <= 6; i++) { await touchN('touchMove', [sPt(55), lPt(i * 7)]); await sleep(40); }
+    const both1 = await shotHash(); await sleep(500); const both2 = await shotHash();
+    await touchN('touchEnd', [lPt(42)]); await sleep(300);
+    const afterLook1 = await shotHash(); await sleep(600); const afterLook2 = await shotHash();
+    const knobHeld = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
+    await touchN('touchEnd', [sPt(55)]); await sleep(500);
+    const rest1 = await shotHash(); await sleep(500); const rest2 = await shotHash();
+    rec('touch controls: stick and look pad work with two simultaneous pointers, releasing the look pad keeps the stick walking', both1 !== both2 && afterLook1 !== afterLook2 && parseFloat(knobHeld) < 0 && rest1 === rest2, { both1, both2, afterLook1, afterLook2, knobHeld, rest1, rest2 });
+    await ev(`document.getElementById('touchLantern').click()`); await sleep(300);
+    rec('touch controls: Lantern button runs the lantern action (sanity or lamp count changes)', /lit|lantern|lamp/i.test(await text('vigilNote') + await text('narration') + await text('objectiveText')) || Number(await text('sanityOut')) !== 100, { note: await text('vigilNote'), sanity: await text('sanityOut') });
+    await ev(`document.getElementById('touchInteract').click()`); await sleep(200);
+    await ev(`document.getElementById('endure').hidden = false`); await sleep(100);
+    rec('touch controls: Endure button mirrors the vigil Endure state', (await hidden('touchEndure')) === false, {});
+    await ev(`document.getElementById('endure').hidden = true`); await sleep(100);
+    await ev(`document.getElementById('touchHelp').click()`); await sleep(300);
+    rec('touch controls: Help button opens the help dialog', await ev(`document.getElementById('help').open`), {});
+    await special('Escape', 27); await sleep(300);
+    await send('Emulation.setTouchEmulationEnabled', { enabled: false }); await send('Emulation.clearDeviceMetricsOverride');
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&touch=0#seed=4400&sanity=100');
+    rec('touch controls: ?touch=0 hides the dock', await ev(`getComputedStyle(document.getElementById('touchDock')).display === 'none'`), {});
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+
+    // Round 18 accessibility on the dialogs: in the high contrast theme every control of the title, help and ending dialogs shows a 3 px focus ring and the help text (gamepad prompts included) is legible
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?contrast=1');
+    const ringOf = (ids) => ev(`(()=>{const out={};for(const id of ${JSON.stringify(ids)}){const el=document.getElementById(id);if(!el){out[id]='missing';continue;}el.focus();const c=getComputedStyle(el);out[id]=c.outlineStyle!=='none'&&parseFloat(c.outlineWidth)>=2?'ring':'no ring: '+c.outlineStyle+' '+c.outlineWidth}return out})()`);
+    const titleRings = await ringOf(['titleEnter3d', 'titleMap2d', 'titleHelp', 'titleSound']);
+    rec('a11y: high contrast shows a focus ring on every title control', Object.values(titleRings).every((v) => v === 'ring'), titleRings);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&contrast=1#seed=1818&sanity=100');
+    await ev(`document.getElementById('helpBtn').click()`); await sleep(300);
+    const helpRings = await ringOf(['helpClose']);
+    const helpText = await ev(`(()=>{const lum=(c)=>{const v=c.match(/[\\d.]+/g).slice(0,3).map((x)=>{x=Number(x)/255;return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4)});return 0.2126*v[0]+0.7152*v[1]+0.0722*v[2]};const dlg=document.getElementById('help');const bg=getComputedStyle(dlg).backgroundColor;const pad=dlg.querySelector('[data-device=pad]');const cs=[pad,dlg.querySelector('h2')].map((el)=>getComputedStyle(el).color);const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05)};return {bg,padText:pad.textContent.slice(0,40),ratios:cs.map((c)=>Math.round(ratio(c,bg)*10)/10)}})()`);
+    rec('a11y: high contrast help dialog has a focus ring on Close and gamepad prompt text with contrast of at least 7:1', helpRings.helpClose === 'ring' && /Gamepad/.test(helpText.padText) && helpText.ratios.every((r) => r >= 7), { helpRings, helpText });
+    await special('Escape', 27); await sleep(300);
+    await ev(`document.getElementById('ending').showModal()`); await sleep(200);
+    const endRings = await ringOf(['endingCard', 'endingCopy', 'endingAgain', 'endingEpilogue', 'endingKeep']);
+    const endOrder = await ev(`[...document.getElementById('ending').querySelectorAll('button,a[href]')].map((e)=>e.id)`);
+    rec('a11y: high contrast ending dialog has focus rings, and the shore link follows the buttons in focus order', Object.values(endRings).every((v) => v === 'ring') && endOrder.join() === 'endingCard,endingCopy,endingAgain,endingEpilogue,endingKeep', { endRings, endOrder });
+    await special('Escape', 27); await sleep(300);
+
     // title screen: bare URL shows it with both entries, nothing plays until opted in; ?webgl=0 is the documented no-WebGL switch
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('');

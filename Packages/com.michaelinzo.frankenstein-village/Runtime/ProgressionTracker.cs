@@ -32,6 +32,9 @@ namespace Frankenstein.Runtime
         /// <summary>The finished vigil's outcome, or null while it is running or not started. Rules live in Core VigilState.</summary>
         public VigilOutcome VigilOutcome { get { return Session.Vigil == null ? null : Session.Vigil.Outcome(Session.UnlockedCodexIds.Count); } }
 
+        /// <summary>True once the village ritual is bound to the session; a vigil can only start after that.</summary>
+        public bool RitualBound { get { return _boundRitual != null; } }
+
         private void Awake()
         {
             if (useDailySeed && walkthrough != null)
@@ -40,13 +43,13 @@ namespace Frankenstein.Runtime
 
         private void OnEnable()
         {
-            if (interactor != null) { interactor.Interacted += OnInteracted; interactor.InteractedTarget += OnInteractedTarget; }
+            if (interactor != null) { interactor.Interacted += OnInteracted; interactor.InteractedTarget += OnInteractedTarget; interactor.SanityGate = AllowsSanityEffect; }
             if (director != null) director.OmenCrossed += OnOmenCrossed;
         }
 
         private void OnDisable()
         {
-            if (interactor != null) { interactor.Interacted -= OnInteracted; interactor.InteractedTarget -= OnInteractedTarget; }
+            if (interactor != null) { interactor.Interacted -= OnInteracted; interactor.InteractedTarget -= OnInteractedTarget; interactor.SanityGate = null; }
             if (director != null) director.OmenCrossed -= OnOmenCrossed;
         }
 
@@ -65,21 +68,33 @@ namespace Frankenstein.Runtime
 
         private void OnInteracted(InteractionKind kind) { Publish(Session.RecordInteraction(kind)); }
 
-        // Inert until something calls Session.StartVigil (no scene does yet). Forwards clue and lantern events by location id, then the new sanity. Core decides what counts.
+        /// <summary>
+        /// Whether the raycaster may apply this target's sanity effect. During a vigil a candle restores sanity only when Core
+        /// VigilState.CanLightLantern allows the lamp (not already lit, under VigilRules.LampsPerNight), as in the web.
+        /// </summary>
+        public bool AllowsSanityEffect(InteractionTarget target)
+        {
+            if (target == null || target.kind != InteractionKind.Candle || Session.Vigil == null || !Session.Vigil.IsLocked) return true;
+            return Session.Vigil.CanLightLantern(target.locationId);
+        }
+
+        // While a vigil runs (VigilDirector starts it) clue and lantern events are forwarded by location id. Core decides what counts:
+        // VigilRules.CountsAsClue for clues, VigilState.LightLantern for the lamp cap (AllowsSanityEffect gates the restore).
+        // The sanity is published after every interaction, so a dip caused by a door or a refused candle is never missed.
         private void OnInteractedTarget(InteractionTarget target)
         {
             if (target == null || Session.Vigil == null || director == null) return;
-            ProgressionUpdate update;
+            ProgressionUpdate update = null;
             if (target.kind == InteractionKind.Candle) Session.RecordVigilLantern(target.locationId, out update);
-            else if (target.kind != InteractionKind.Door) Session.RecordVigilClue(target.locationId, out update);
-            else return;
+            else if (VigilRules.CountsAsClue(target.kind)) Session.RecordVigilClue(target.locationId, out update);
             Publish(update);
             Publish(Session.RecordVigilSanity(VigilRules.SanityPoints(director.Sanity.Value)));
         }
 
         private void OnOmenCrossed(DreadEvent e) { if (e.Rising) Publish(Session.RecordOmenTier(e.Tier)); }
 
-        private void Publish(ProgressionUpdate update)
+        /// <summary>Persists newly unlocked ids and raises <see cref="Unlocked"/>. Does nothing for an empty update.</summary>
+        public void Publish(ProgressionUpdate update)
         {
             if (update == null || !update.Any) return;
             PlayerPrefs.SetString(CodexPrefsKey, ProgressionSession.SerializeIds(Session.UnlockedCodexIds));

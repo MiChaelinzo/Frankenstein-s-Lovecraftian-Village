@@ -24,6 +24,12 @@ namespace Frankenstein.Runtime
         /// <summary>Raised with the target that was used, so listeners can key clues and lamps by its location id.</summary>
         public event Action<InteractionTarget> InteractedTarget;
 
+        /// <summary>
+        /// Optional gate asked before a target's sanity effect is applied. ProgressionTracker sets it so a lantern past the
+        /// vigil's lamp cap restores nothing. Null means every effect applies.
+        /// </summary>
+        public Func<InteractionTarget, bool> SanityGate;
+
         private float _lastUse = float.NegativeInfinity;
 
         /// <summary>The target under the crosshair this frame, or null.</summary>
@@ -64,7 +70,7 @@ namespace Frankenstein.Runtime
             {
                 text = director.Describe(target.locationId);
             }
-            director.Sanity.Apply(InteractionRules.SanityDelta(target.kind));
+            if (SanityGate == null || SanityGate(target)) director.Sanity.Apply(InteractionRules.SanityDelta(target.kind));
             if (hud != null) hud.ShowMessage(text);
             if (Interacted != null) Interacted(target.kind);
             if (InteractedTarget != null) InteractedTarget(target);

@@ -34,6 +34,7 @@ namespace UnityEngine
         public Transform transform { get { return null; } }
         public string tag { get; set; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
+        public void SetActive(bool value) { }
         public T GetComponent<T>() { return default; }
         public T GetComponentInChildren<T>() { return default; }
         public T[] GetComponentsInChildren<T>() { return new T[0]; }
@@ -95,7 +96,7 @@ namespace UnityEngine
         public static T GetBuiltinResource<T>(string path) where T : Object { return null; }
     }
     public class TextAsset : Object { public string text { get { return ""; } } }
-    public enum TextAnchor { UpperLeft, MiddleCenter, LowerCenter }
+    public enum TextAnchor { UpperLeft, UpperCenter, MiddleCenter, LowerCenter }
     public enum RenderMode { ScreenSpaceOverlay }
     public sealed class Canvas : Behaviour { public RenderMode renderMode { get; set; } }
     public sealed class RectTransform : Component
@@ -204,7 +205,20 @@ namespace UnityEngine.UI
         public Color color { get; set; }
         public bool raycastTarget { get; set; }
         public string text { get; set; }
+        public RectTransform rectTransform { get { return null; } }
     }
+    public class Image : Behaviour { public Color color { get; set; } }
+    public class Button : Behaviour { public Events.UnityEvent onClick { get { return null; } } }
+}
+
+namespace UnityEngine.EventSystems
+{
+    public class EventSystem : Behaviour { }
+}
+
+namespace UnityEngine.InputSystem.UI
+{
+    public class InputSystemUIInputModule : Behaviour { }
 }
 
 namespace UnityEngine.InputSystem
@@ -233,8 +247,10 @@ namespace UnityEngine.InputSystem
 namespace UnityEngine.Events
 {
     public delegate void UnityAction<T0>(T0 a);
+    public delegate void UnityAction();
     public class UnityEvent
     {
+        public void AddListener(UnityAction call) { }
         public void Invoke() { }
     }
     public class UnityEvent<T0>

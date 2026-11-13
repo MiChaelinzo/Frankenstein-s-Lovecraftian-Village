@@ -1,13 +1,15 @@
 // Vigil DOM controller. Owns the VigilState instance, the objective line, the endure prompt and the ending dialog.
 // Every rule (clue/lantern uniqueness, targets, creep, endings, score) comes from VigilState and friends in core.js; this file forwards player actions.
-import { VigilState, InteractionRules, nightCreep, sanityPoints, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
+import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPoints, VIGIL_LAMPS_PER_NIGHT, VIGIL_ENDING_IDS } from './core.js';
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
-  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind,
+  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker, epilogueHref,
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
+/** DOM controls bound to the sandbox lock (the keys and handlers are guarded separately through allows()). */
+const LOCKED_CONTROLS = ['sanity', 'night', 'nightPrev', 'nightNext', 'reroll', 'seed', 'dailyBtn', 'loadSession', 'drain', 'storyOpen', 'cinemaToggle'];
 
 /**
  * deps: $, tr, state, progress, storage, announce, notice(text), adjust(delta, where), setSanity(v, quiet), selectNight(i, quiet),
@@ -16,26 +18,45 @@ const ENDING_FADE_MS = 1600;
 export function createVigilController(deps) {
   const { $, tr, state, progress, storage, announce, notice } = deps;
   let endingTimer = 0;
-  let vigil = null, lamps = [], started = false, suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
+  let vigil = null, lamps = [], suspended = false, endingShown = false, endingIsOpen = false, lastText = '', card = null;
 
   /** Stable lamp ids from the layout: lanternLights with every house at full detail, so dread never reshuffles the ids. */
   const buildLamps = (layout) => lanternLights(layout.map((p) => ({ ...p, detail: 3 })), CELL).map((l, i) => ({ id: `lamp${i}`, pos: l.pos }));
   const live = () => !!vigil && !vigil.isFinished && deps.canPlay();
   const found = () => loadEndingsFound(storage);
+  const started = () => !!vigil && vigil.begun;
+  /** The Core lock state (VigilState.isLocked): engaged by the first vigil action, held until the vigil ends or is reset. It does not
+   *  depend on canPlay, so story, cinema and tour cannot unlock it; those are refused while locked (see allows). */
+  const locked = () => !!vigil && vigil.isLocked;
+  /** Asks the Core rule whether a sandbox action is allowed. A refusal says why, quietly, and returns false. */
+  function allows(actionId) {
+    if (allowsSandboxAction(locked(), actionId)) return true;
+    notice(tr('vigil.lock'));
+    return false;
+  }
+  function renderLock() {
+    const on = locked();
+    for (const id of LOCKED_CONTROLS) {
+      const el = $(id); if (!el) continue;
+      el.disabled = on; el.setAttribute?.('aria-disabled', String(on));
+    }
+    const reason = $('vigilLock');
+    if (reason) { reason.hidden = !on; reason.textContent = on ? tr('vigil.lock') : ''; }
+  }
 
   function reset() {
     clearTimeout(endingTimer); model = null; // a pending ending from the previous run must not open over the new village
     vigil = state.campaign && state.ritual ? new VigilState(state.campaign, state.ritual) : null;
-    lamps = buildLamps(state.layout); started = false; suspended = false; endingShown = false; lastText = '';
+    lamps = buildLamps(state.layout); suspended = false; endingShown = false; lastText = '';
     render();
   }
   function restore(text) {
     if (!vigil || !text || !vigil.tryRestore(text)) return false;
-    started = true; endingShown = vigil.isFinished;
+    endingShown = vigil.isFinished;
     render();
     return true;
   }
-  const serialize = () => (vigil && started ? vigil.serialize() : '');
+  const serialize = () => (vigil && started() ? vigil.serialize() : '');
 
   function applyCreep() {
     state.sanity.apply(-nightCreep(vigil.night));
@@ -44,8 +65,8 @@ export function createVigilController(deps) {
   }
   /** The first vigil action starts night 1: the dark takes its share before anything else happens. */
   function begin() {
-    if (started) return;
-    started = true;
+    if (started()) return;
+    vigil.begin();
     vigil.recordSanity(sanityPoints(state.sanity.value));
     applyCreep();
   }
@@ -53,7 +74,7 @@ export function createVigilController(deps) {
   /** A listen/whisper/landmark source. Returns true when it was a new clue (the sanity cost is applied by the caller either way). */
   function clue(sourceId) {
     if (!live()) return false;
-    progress.arm(); begin();
+    progress.arm(); begin(); renderLock();
     if (!vigil.recordClue(sourceId)) { $('vigilNote').textContent = tr('vigil.clue.again'); return false; }
     const text = tr('vigil.clue', { n: vigil.nightClueIds.size, target: vigil.clueTarget });
     $('vigilNote').textContent = text; announce(text);
@@ -63,9 +84,9 @@ export function createVigilController(deps) {
 
   function lightLamp(lampId) {
     if (!live()) return false;
-    progress.arm(); begin();
+    progress.arm(); begin(); renderLock();
     if (vigil.nightLampIds.has(lampId)) { notice(tr('vigil.lamp.already')); return true; }
-    if (vigil.nightLampIds.size >= VIGIL_LAMPS_PER_NIGHT) { notice(tr('vigil.lamp.none')); return true; }
+    if (!vigil.canLightLantern(lampId)) { notice(tr('vigil.lamp.none')); return true; }
     if (!vigil.lightLantern(lampId)) return true;
     const gain = InteractionRules.sanityDelta('candle');
     deps.adjust(gain, 'the village');
@@ -105,12 +126,13 @@ export function createVigilController(deps) {
   /** Called after every sanity change. Records sanity into the vigil, then reacts to its end. */
   function sync() {
     if (!vigil || suspended) return;
-    if (started && live()) vigil.recordSanity(sanityPoints(state.sanity.value));
-    if (vigil.isFinished && started && !endingShown) { endingShown = true; finish(); }
+    if (started() && live()) vigil.recordSanity(sanityPoints(state.sanity.value));
+    if (vigil.isFinished && started() && !endingShown) { endingShown = true; finish(); }
     render();
   }
 
   function render() {
+    renderLock();
     const bar = $('objective'); if (!bar) return;
     let text = '';
     if (vigil) {
@@ -144,6 +166,8 @@ export function createVigilController(deps) {
     $('endingStats').textContent = endingStatsText(model, tr);
     $('endingFound').textContent = tr('vigil.end.found', { n: model.found, total: model.foundTotal });
     $('endingNote').textContent = '';
+    const shore = $('endingEpilogue');
+    if (shore) shore.href = epilogueHref(model.id, { seed: state.seed, nightNumber: vigil.night, gridW: deps.gridW, gridD: deps.gridD }) || '#';
     const d = $('ending'); endingIsOpen = true;
     if (d.showModal) d.showModal(); else d.setAttribute?.('open', '');
     $('endingKeep').focus?.();
@@ -172,21 +196,28 @@ export function createVigilController(deps) {
   $('endure')?.addEventListener('click', endure);
 
   // ---------- 2D lamp markers and 3D lamp targets ----------
-  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started }));
-  /** Small markers on the 2D board: a warm flame for a lit lantern, a pale ring for one still dark. iso maps grid cells to pixels. */
-  function drawLamps(g, iso) {
+  const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started() }));
+  /** Small markers on the 2D board: a flickering flame for a lit lantern, a pale ring for the ones this night can still use, a faint dark sconce for the rest. */
+  function drawLamps(g, iso, timeMs = 0) {
     if (!vigil || vigil.isFinished) return;
-    for (const l of lampTargets()) {
+    lampMarkerStates(lamps, vigil.nightLampIds).forEach((l, i) => {
       const p = iso(l.pos[0] / CELL, l.pos[2] / CELL);
       g.save();
-      if (l.lit) { g.fillStyle = 'rgba(255,196,110,0.9)'; g.shadowColor = '#ffb25c'; g.shadowBlur = 12; g.beginPath(); g.arc(p.x, p.y - 4, 3.5, 0, 6.283); g.fill(); }
-      else { g.strokeStyle = 'rgba(190,210,200,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y - 4, 3, 0, 6.283); g.stroke(); }
+      if (l.state === 'lit') {
+        const f = flameFlicker(timeMs, i, deps.reduceMotion);
+        g.fillStyle = `rgba(255,196,110,${(0.9 * f).toFixed(3)})`; g.shadowColor = '#ffb25c'; g.shadowBlur = 8 + 8 * f;
+        g.beginPath(); g.arc(p.x, p.y - 4, 3.5, 0, 6.283); g.fill();
+      } else if (l.state === 'reachable') {
+        g.strokeStyle = 'rgba(190,210,200,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y - 4, 3, 0, 6.283); g.stroke();
+      } else {
+        g.fillStyle = 'rgba(120,130,125,0.28)'; g.beginPath(); g.arc(p.x, p.y - 4, 1.6, 0, 6.283); g.fill();
+      }
       g.restore();
-    }
+    });
   }
 
   return {
-    reset, restore, serialize, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
+    reset, restore, serialize, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
     endingOpen: () => endingIsOpen, canEndure: () => !!vigil && vigil.canEndureNight && !vigil.isFinished,
     isFinished: () => !!vigil && vigil.isFinished, isLive: live,
   };

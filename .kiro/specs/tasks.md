@@ -85,4 +85,5 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 80. Author: record the side-by-side video with own footage (no DLNK trailer, no copyrighted music), run the Unity steps for the first time and report what breaks
 - [x] 81. Round 17: Vigil in Core with JS mirror and golden parity, title screen, help dialog, loading veil, share metadata, 3D lantern pools, post pass, sea, fog sheets, fireflies, procedural footsteps and cues
 - [x] 82. Round 17 polish: `?caption=0` and `?grain=0` stills, pale moon disc and hue preserving highlight shoulder, retaken share image and README screenshots, README starts with hero, Play now, pitch and How to play
+- [x] 83a. Round 18: Unity `VigilDirector` and HUD (compile checked, 0 warnings), vigil sandbox lock in Core with JS mirror and golden parity, localized `VigilStrings`, web touch controls, honest 2D lanterns, seeded epilogue link, accessibility browser checks; dotnet 127, node 356, browser check 73 of 73
 - [ ] 83. Author: try the 3D view on a real GPU, listen to the audio and test on a real phone

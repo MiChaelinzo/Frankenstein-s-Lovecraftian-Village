@@ -14,11 +14,13 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 3. **Clues and lanterns:** each night asks for a few clues (listen at doors, wells and altars) and three lantern candles (`L`, the candle button, or `E` on a lamp in 3D). Every candle steadies you; every unheard clue costs sanity.
 4. **Endure the night:** once enough is found, `Endure the night` appears. Surviving carries your sanity into the next of five nights, and the masked name of the thing under the village fills in as you learn.
 5. **Endings:** six endings (Hollowed, Name Spoken, Dawn, Fever, Witness, Vessel). The result card is a PNG you can share; the result code replays the same seed.
+6. **The vigil binds you:** once a vigil has begun (your first clue or lantern) the sandbox is locked until it ends: the sanity slider and `[` `]`, the night controls, `D`, new village (`N`), seed, daily, load, story playback and the cinematic are refused with a quiet note, since they change sanity or the night. Free exploration before the first action and the tour are never locked. The rule lives in Core (`VigilRules.AllowsSandboxAction` with `VigilState.IsLocked`, begun and not finished) and refuses rather than marking a run tampered.
 
 | | |
 |---|---|
-| ![Lantern light on a wall](docs/media/r17-lanterns-close.png) | ![Fog and a red moon](docs/media/r17-lantern-fog.png) |
-| ![The sky eye at high dread](docs/media/r17-omen-eye.png) | ![Phone layout, 390 by 844](docs/media/r17-mobile-3d.png) |
+| ![Lantern light on a wall](docs/media/r17-lanterns-close.png) | ![Fog and a red moon](docs/media/r18-lantern-fog.png) |
+| ![The sky eye at high dread](docs/media/r18-omen-eye.png) | ![Phone layout, 390 by 844](docs/media/r17-mobile-3d.png) |
+| ![Dawn epilogue: the shore, calm and unwatched](docs/media/r18-epilogue-dawn.png) | ![Touch controls](docs/media/r18-touch-controls.png) |
 
 Screenshots are headless Chromium with software WebGL (SwiftShader), taken with `?caption=0&grain=0` (see "Stills" below).
 
@@ -69,6 +71,7 @@ A judge-friendly web demo lives in [`web/`](web). It uses the same Core logic as
 - Story deep links: `#seed=1818&story=1&night=3&beat=2` (beat is 0-based within the night); `?story=1&autoplay=1` starts playing. `?intro=0` or `#intro=0` skips the title screen, and any `#seed=`, `#story=`, `#sanity=` or `#night=` link skips it automatically.
 - Share a state with the URL hash, for example `#seed=1818&sanity=35`.
 - **Cinematic mode** for clean video takes: `?intro=0&cinematic=1#seed=1818&night=3` (or press `B`). Chrome is hidden and a scripted camera pans through that night's story beats on fixed timings, then the page returns. Reduced motion keeps the camera still. See [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+- **On-screen touch controls (3D)**: on coarse-pointer or touch devices, or with `?touch=1` (`?touch=0` forces them off), the 3D view shows a walk stick, a look pad and Interact, Lantern, Help buttons (Endure appears when the vigil allows it), all at least 44 px, under the view so they never cover the caption or objective. They call the same paths as the keys, so the vigil lock applies. Pure maths is node-tested; a DevTools touch-emulation run in `tools/browser_check.mjs` verified walking, looking, buttons and layout rects (Partially Verified: no real device). Screenshot: `docs/media/r18-touch-controls.png`.
 - **Gamepad and touch**: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic; swipe sideways on the view to pick a landmark, up for a candle, down for a whisper. Mapping is unit tested; not tried on real hardware here.
 
 ![Cinematic mode](docs/media/cinematic.png)
@@ -122,17 +125,17 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 114 passing property tests (including the Vigil rules) |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 335 passing, including golden parity with C# output |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 127 passing property tests (including the Vigil rules, sandbox lock and `VigilStrings` drift test) |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 356 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
-| Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 1 warning against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
-| Unity Vigil hook (`ProgressionTracker` forwarding) | Unverified | Compile-checked only; no scene starts a vigil, so it is inert. Core rules are Verified separately |
-| Ending and help dialog accessibility (gamepad prompts, focus rings, high contrast); on-screen touch controls | Unverified | Not checked; touch controls do not exist yet (swipes and keys only) |
-| Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (53 of 53 on local headless Chromium) |
+| Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 0 warnings against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
+| Unity Vigil (`VigilDirector`, `ProgressionTracker` forwarding, `DreadHud` objective, Endure button and ending panel, generated scene) | Partially Verified | Compile-checked (`dotnet build tests/UnityCompileCheck`: 0 errors, 0 warnings); the Unity runtime behaviour is Unverified, never run in Unity. Core rules (`VigilRules`, `VigilState`, `CountsAsClue`, `AllowsSandboxAction`) and wording (`VigilStrings` vs `web/src/i18n.js`) are Verified by dotnet tests |
+| Ending and help dialog accessibility (gamepad prompts, focus rings, high contrast) | Partially Verified | `tools/browser_check.mjs` asserts high-contrast focus rings on the title, help and ending dialogs, gamepad prompt contrast (16.8:1) and focus order in local headless Chromium; no screen reader or real gamepad was used |
+| Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (73 of 73 on local headless Chromium at the end of round 18, including the sandbox lock, touch controls, the epilogue link and accessibility checks) |
 | Web 3D look (lantern pools, post pass, moon, sea, fog) | Partially Verified | Seen only in SwiftShader (software GL) screenshots under `docs/media`; the post pass and its `?post=0` fallback render non-blank in the browser check. Real GPU look and frame times are Unverified |
 | Real-GPU performance, audio by ear, phones and tablets | Unverified | No real GPU, speakers or mobile device were available; only schedules and a 390 by 844 emulated layout were checked |
-| Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 53 of 53 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
+| Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 73 of 73 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
 | Web 3D view (`?view=3d`, `view3d.js`) | Partially Verified | Maths and a stub-GL render smoke test are node-tested. `node tools/browser_check.mjs` drove local headless Chromium (SwiftShader GL) over DevTools: WASD changed the rendered frame, a click acquired pointer lock, Escape released it then exited, drag-look worked with `requestPointerLock` removed, `?view=3d&cinematic=1` changed frames and showed captions, 0 uncaught errors. Real GPUs, real mouse hardware, touch, gamepad and clicking a specific door were not exercised. Frame time over 259 real-time frames: mean 23.2 ms (about 43 fps), median 16.7, p95 33.5 on SwiftShader software GL, indicative only |
 | Web soundtrack (`music.js`) | Partially Verified | Pure logic is node-tested; the audio output was never listened to |

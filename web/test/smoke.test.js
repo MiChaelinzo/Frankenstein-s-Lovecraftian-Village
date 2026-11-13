@@ -107,6 +107,12 @@ test('app renders frames at several sanity levels without throwing', async () =>
   press('o'); press('t'); press('v'); press('f');
   assert.match(globalThis.location.hash, /theme=|cam=|floor=|night=/);
   // story mode: open with S, step with next/prev and keys, autoplay toggle, exit
+  // a begun vigil refuses story and cinema; the church drains sanity until the vigil collapses and the lock lifts
+  press('s');
+  assert.ok(!els.story || els.story.hidden !== false, 'story must not open during a locked vigil');
+  assert.equal(els.vigilLock.hidden, false);
+  for (let i = 0; i < 40 && els.vigilLock.hidden === false; i++) els.church.listeners.click();
+  assert.equal(els.vigilLock.hidden, true, 'a finished vigil releases the lock');
   press('s');
   assert.equal(els.story.hidden, false);
   assert.match(els.storyText.textContent, /^Night \d+: /);

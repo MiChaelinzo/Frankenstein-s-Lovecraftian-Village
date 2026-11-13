@@ -1,5 +1,6 @@
 // Pure view-model helpers for the Vigil: objective text, ending dialog model, result card art and the endings-found record.
 // No DOM here and no rules: every number comes from VigilState / the Core mirror in core.js, so node tests can pin it.
+import { omenFraming } from './view3d-math.js';
 import { SeededRandom, VIGIL_ENDING_IDS, VIGIL_LAMPS_PER_NIGHT, VIGIL_HIDDEN_LETTER } from './core.js';
 
 export const ENDINGS_KEY = 'flv.endings.v1';
@@ -18,6 +19,26 @@ export function objectiveModel(vigil) {
 }
 export function objectiveText(m, tr) {
   return tr('vigil.objective', { night: m.night, nights: m.nights, clues: m.clues, target: m.target, lit: m.lit, lamps: m.lamps, name: m.name });
+}
+
+/**
+ * How each lantern reads on the 2D board. Lit ones carry a flame. While the night still wants lanterns, the next unlit ones in candle()
+ * order (layout order) are 'reachable' and get a ring; every other lantern is a faint 'sconce' with no ring, so the board never promises a lantern the night cannot use.
+ */
+export function lampMarkerStates(lamps, litIds, perNight = VIGIL_LAMPS_PER_NIGHT) {
+  let slots = Math.max(0, perNight - litIds.size);
+  return lamps.map((l) => {
+    if (litIds.has(l.id)) return { id: l.id, pos: l.pos, state: 'lit' };
+    if (slots > 0) { slots--; return { id: l.id, pos: l.pos, state: 'reachable' }; }
+    return { id: l.id, pos: l.pos, state: 'sconce' };
+  });
+}
+
+/** Flame brightness 0.75..1 from time in ms; a slow uneven shimmer per lantern, a steady 1 with reduced motion. */
+export function flameFlicker(timeMs, index, reduced) {
+  if (reduced) return 1;
+  const t = timeMs / 1000;
+  return 0.875 + 0.075 * Math.sin(t * 5.3 + index * 1.7) + 0.05 * Math.sin(t * 11.1 + index * 0.9);
 }
 
 /** Strips the middle dots so a screen reader hears only the letters found so far. */
@@ -114,4 +135,29 @@ export function drawResultCard(g, m, w = CARD_WIDTH, h = CARD_HEIGHT) {
   g.fillStyle = '#cfd8d3'; g.font = '28px Georgia, serif'; g.fillText(`${m.rankName}  |  ${m.score}`, w / 2, 424);
   g.font = 'italic 22px Georgia, serif'; g.fillStyle = '#9db0aa'; g.fillText(m.name, w / 2, 466);
   g.font = '18px monospace'; g.fillStyle = '#7f918b'; g.fillText(`${m.code}   seed ${m.seed}`, w / 2, h - 28);
+}
+
+// ---------- epilogue stills (web only: a 3D framing of the village after each ending; Core has no camera) ----------
+
+/**
+ * Pure params per ending id: the sanity the still is shown at (it drives dread, so the sky eye and tentacles follow the same tier rules as play)
+ * how much of the omen the camera frames, and maxPitchDeg: endings whose dread tier shows no sky eye keep the camera on the shore instead of an empty sky. The village is only ever seen from the shore, watching or being watched; nothing here is random,
+ * the seed only chooses which stretch of coast faces the sea.
+ */
+export const EPILOGUE_LOOKS = {
+  dawn: { sanity: 90, grow: 0, eyeOpen: 1, maxPitchDeg: 3 },
+  witness: { sanity: 60, grow: 0, eyeOpen: 1, maxPitchDeg: 3 },
+  hollowing: { sanity: 40, grow: 0.4, eyeOpen: 1, maxPitchDeg: 90 },
+  fever: { sanity: 25, grow: 0.7, eyeOpen: 1, maxPitchDeg: 90 },
+  vessel: { sanity: 10, grow: 1, eyeOpen: 1, maxPitchDeg: 90 },
+  name_spoken: { sanity: 3, grow: 1, eyeOpen: 1, maxPitchDeg: 90 },
+};
+
+/** The ?view=3d link for an ending's epilogue still, or '' for an unknown ending. Same inputs, same link. */
+export function epilogueHref(endingId, { seed, nightNumber, gridW, gridD }) {
+  const look = EPILOGUE_LOOKS[endingId];
+  if (!look) return '';
+  const cam = omenFraming({ gridW, gridD, seed, nightNumber, grow: look.grow, eyeOpen: look.eyeOpen });
+  const deg = (v) => Math.round(((v * 180) / Math.PI) * 10) / 10, r1 = (v) => Math.round(v * 10) / 10;
+  return `?intro=0&view=3d&caption=0&cam3d=${r1(cam.x)},${r1(cam.z)},${deg(cam.yaw)},${Math.min(deg(cam.pitch), look.maxPitchDeg)}#seed=${seed}&sanity=${look.sanity}&night=${nightNumber}`;
 }

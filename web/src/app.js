@@ -29,6 +29,7 @@ import { createStoryController } from './story-ui.js';
 import { createTitleController } from './title-ui.js';
 import { tourWanted } from './tour.js';
 import { createTourController } from './tour-ui.js';
+import { createTouchControls } from './touch-ui.js';
 import { esc } from './util.js';
 import { createProgressController } from './progress-ui.js';
 import { createVigilController } from './vigil-ui.js';
@@ -111,6 +112,7 @@ function setView3d(on) {
   if (on && !state.catalog) return;
   if (on) { $('view3d').hidden = false; if (!view3d.enter()) { $('view3d').hidden = true; return; } $('view').style.visibility = 'hidden'; $('hint').textContent = tr('view3d.hint'); }
   else { view3d.exit(); $('view3d').hidden = true; $('view').style.visibility = ''; $('hint').textContent = tr('hint.view'); mark(); }
+  touchControls?.sync(on && view3d.active);
   $('view3dBtn').setAttribute('aria-pressed', String(on)); $('view3dBtn').textContent = tr(on ? 'btn.view3dexit' : 'btn.view3d');
 }
 function interact3d(p, kind) {
@@ -223,7 +225,7 @@ function trackRitual() {
   renderRitual();
   progress.update();
 }
-function playerNight(i) { progress.arm(); selectNight(i); }
+function playerNight(i, action = 'night_step') { if (!vigil.allows(action)) return; progress.arm(); selectNight(i); }
 function selectNight(i, quiet) {
   if (!state.campaign) return;
   state.night = Math.max(0, Math.min(state.campaign.nights.length - 1, i));
@@ -307,7 +309,7 @@ function frame(now) {
   if (!state.visible) { requestAnimationFrame(frame); return; }
   dirty = false;
   renderer.drawScene(now, real, dread, tier);
-  if (!state.dlnk) vigil.drawLamps(ctx, iso);
+  if (!state.dlnk) vigil.drawLamps(ctx, iso, now);
   tickPerf(now);
   requestAnimationFrame(frame);
 }
@@ -479,7 +481,8 @@ function applyHash() {
   syncUi();
   applyStoryHash();
 }
-function reroll() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio(); }
+function reroll() { if (!vigil.allows('new_village')) return; rerollVillage(); }
+function rerollVillage() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio(); }
 function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
@@ -514,14 +517,14 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const vigil = createVigilController({
-  $, tr, state, progress, storage, announce, reduceMotion,
+  $, tr, state, progress, storage, announce, reduceMotion, gridW: GRID_W, gridD: GRID_D,
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
   syncUi: () => syncUi(), pushHash: () => pushHash(),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
   exit3d: () => { if (view3d.active) setView3d(false); },
-  reroll: () => reroll(),
+  reroll: () => rerollVillage(),
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
 });
@@ -582,6 +585,11 @@ function setHelp(on) {
 $('help').addEventListener('close', () => { if (helpIsOpen) { helpIsOpen = false; resumeTour(); helpPrevFocus?.focus?.(); } });
 $('help').addEventListener('keydown', (e) => e.stopPropagation()); // Escape closes the dialog, not the 3D view behind it
 $('helpBtn').addEventListener('click', () => setHelp(true));
+// On-screen 3D controls: they call the same candle/endure/help paths as the keys and buttons, so the vigil sandbox lock applies.
+const touchControls = createTouchControls({
+  doc: document, view3d, query: location.search + location.hash, coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints || 0,
+  actions: { candle: () => doCandle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
+});
 $('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
 $('aboutClose').addEventListener('click', () => setAbout(false));
@@ -605,7 +613,7 @@ canvas.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') { setFocus(-1); state.doorFocus = -1; mark(); }
 });
 $('listen').addEventListener('change', () => { const v = $('listen').value; if (v === '') setFocus(-1); else listen(Number(v)); });
-$('seed').addEventListener('change', () => { const v = Number.parseInt($('seed').value, 10); state.seed = Number.isFinite(v) ? v | 0 : 1818; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); });
+$('seed').addEventListener('change', () => { if (!vigil.allows('seed_entry')) { $('seed').value = state.seed; return; } const v = Number.parseInt($('seed').value, 10); state.seed = Number.isFinite(v) ? v | 0 : 1818; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); });
 $('reroll').addEventListener('click', reroll);
 $('theme').addEventListener('change', () => setTheme($('theme').value));
 $('camera').addEventListener('change', () => setCamera($('camera').value));
@@ -613,7 +621,7 @@ $('floor').addEventListener('input', () => setFloor(Number($('floor').value)));
 $('door').addEventListener('click', tryNextDoor);
 $('view3dBtn').addEventListener('click', () => setView3d(!view3d.active));
 $('share').addEventListener('click', async () => { pushHash(); try { await navigator.clipboard.writeText(!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : location.href); $('share').textContent = tr('btn.shared'); } catch (err) { console.warn(`[share] clipboard write failed: ${err.message}`); $('share').textContent = tr('btn.sharefail'); } setTimeout(() => ($('share').textContent = tr('btn.share')), 1800); });
-$('sanity').addEventListener('input', () => { progress.arm(); setSanity(Number($('sanity').value)); });
+$('sanity').addEventListener('input', () => { if (!vigil.allows('sanity_slider')) { $('sanity').value = state.sanity.value; return; } progress.arm(); setSanity(Number($('sanity').value)); });
 const doWhisper = () => { progress.note.whisper(); vigil.clue('walls'); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
 const doChurch = () => { vigil.clue('church-nave'); requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
 // With a live vigil the candle lights the next unlit lantern (limited by the lamps); otherwise it is the free-roam candle.
@@ -621,13 +629,13 @@ const doCandle = () => { if (!vigil.candle()) adjust(SanityModel.CANDLE_RESTORE,
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
-$('drain').addEventListener('change', (e) => { state.drain = e.target.checked; });
+$('drain').addEventListener('change', (e) => { if (!vigil.allows('dread_creep')) { e.target.checked = state.drain; return; } state.drain = e.target.checked; });
 $('sound').addEventListener('change', (e) => setSound(e.target.checked));
-$('night').addEventListener('change', () => playerNight(Number($('night').value)));
+$('night').addEventListener('change', () => { playerNight(Number($('night').value), 'night_select'); $('night').value = String(state.night); });
 $('nightPrev').addEventListener('click', () => playerNight(state.night - 1));
 $('nightNext').addEventListener('click', () => playerNight(state.night + 1));
 $('postcard').addEventListener('click', postcard);
-$('storyOpen').addEventListener('click', toggleStory);
+$('storyOpen').addEventListener('click', playerStory);
 $('storyExit').addEventListener('click', closeStory);
 $('storyPrev').addEventListener('click', () => { progress.arm(); showBeat(prevBeat(story.idx, storyBeats().length), true); });
 $('storyNext').addEventListener('click', () => { progress.arm(); showBeat(nextBeat(story.idx, storyBeats().length), true); });
@@ -640,7 +648,7 @@ $('dlJson').addEventListener('click', () => download(reportFilename(state.seed, 
 $('dlCase').addEventListener('click', () => download(caseFileName(state.seed, 'md'), caseMarkdown(), 'text/markdown'));
 $('dlCaseHtml').addEventListener('click', () => download(caseFileName(state.seed, 'html'), caseFileHtml(caseMarkdown()), 'text/html'));
 $('saveSession').addEventListener('click', () => sessionNote(saveSession(storage, currentSession()) ? 'msg.saved' : 'msg.nosave'));
-$('loadSession').addEventListener('click', () => { const s = loadSession(storage); if (s) { applySession(s); sessionNote('msg.loaded'); } else sessionNote('msg.nosave'); });
+$('loadSession').addEventListener('click', () => { if (!vigil.allows('load_session')) return; const s = loadSession(storage); if (s) { applySession(s); sessionNote('msg.loaded'); } else sessionNote('msg.nosave'); });
 $('mapToggle').addEventListener('click', () => setMap(!mapOn));
 $('perfToggle').addEventListener('click', () => setPerf(!perfOn));
 $('invToggle').addEventListener('click', () => setInvestigator(!state.investigatorOn));
@@ -655,6 +663,7 @@ function setContrast(on, persist) {
 }
 function noteDaily(d) { const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
 function applyDaily() {
+  if (!vigil.allows('daily')) return;
   const d = dailyVillage();
   if (!d) { $('sessionNote').textContent = tr('msg.dailyfail'); return; }
   state.seed = d.seed; $('seed').value = d.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio();
@@ -682,8 +691,11 @@ function cinemaStep() {
   if (view3d.active) view3d.refresh();
   mark();
 }
+// Story and cinema drive sanity and the night, so a locked vigil refuses to open them (closing is always allowed).
+function playerStory() { if (!story.on && !vigil.allows('story_playback')) return; toggleStory(); }
 function setCinematic(on) {
   if (on === cine.on) return;
+  if (on && !vigil.allows('cinema_playback')) return;
   cine.on = on;
   $('cinemaToggle').setAttribute?.('aria-pressed', String(on));
   document.documentElement?.classList?.toggle?.('cinema', on);
@@ -714,7 +726,7 @@ function doAction(raw) {
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
     case 'cinematic': setCinematic(!cine.on); break;
-    case 'story': toggleStory(); break;
+    case 'story': playerStory(); break;
     case 'nextBeat': if (story.on) showBeat(nextBeat(story.idx, storyBeats().length), true); break;
     case 'prevBeat': if (story.on) showBeat(prevBeat(story.idx, storyBeats().length), true); break;
     default:
@@ -763,16 +775,16 @@ addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeStory(); return; }
   }
   switch (e.key) {
-    case 's': case 'S': toggleStory(); break;
+    case 's': case 'S': playerStory(); break;
     case 'u': case 'U': setMuted(!muted); break;
     case 'w': case 'W': doWhisper(); break;
     case 'c': case 'C': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
     case 'e': case 'E': vigil.endure(); break;
     case 'n': case 'N': reroll(); break;
-    case '[': progress.arm(); setSanity(state.sanity.value - 5); break;
-    case ']': progress.arm(); setSanity(state.sanity.value + 5); break;
-    case 'd': case 'D': $('drain').checked = !$('drain').checked; state.drain = $('drain').checked; break;
+    case '[': if (vigil.allows('sanity_keys')) { progress.arm(); setSanity(state.sanity.value - 5); } break;
+    case ']': if (vigil.allows('sanity_keys')) { progress.arm(); setSanity(state.sanity.value + 5); } break;
+    case 'd': case 'D': if (!vigil.allows('dread_creep')) break; $('drain').checked = !$('drain').checked; state.drain = $('drain').checked; break;
     case 'm': case 'M': setSound(!$('sound').checked); break;
     case ',': playerNight(state.night - 1); break;
     case '.': playerNight(state.night + 1); break;

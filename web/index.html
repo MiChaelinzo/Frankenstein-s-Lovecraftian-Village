@@ -49,9 +49,20 @@
           <button id="cinemaExit" class="cinema-exit" type="button" data-i18n="btn.cinemaexit" hidden>Exit</button>
           <div id="hint" class="hint" data-i18n="hint.view">Click a building to listen, or a door to try it. Keyboard: focus the view, arrow keys, Enter; O tries a door.</div>
         </section>
+        <section id="touchDock" class="touch-dock" aria-label="Touch controls" data-i18n-aria="touch.aria" hidden>
+          <div id="touchStick" class="touch-stick" role="group" aria-label="Walk" data-i18n-aria="touch.stick"><i id="touchKnob" class="touch-knob" aria-hidden="true"></i></div>
+          <div class="touch-buttons">
+            <button id="touchInteract" type="button" data-i18n="touch.interact">Interact</button>
+            <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
+            <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
+            <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
+          </div>
+          <div id="touchLook" class="touch-look" role="group" aria-label="Look" data-i18n-aria="touch.look"><span aria-hidden="true" data-i18n="touch.look.label">Look</span></div>
+        </section>
         <section class="objective" aria-label="Vigil objective" data-i18n-aria="vigil.aria">
           <p id="objective" class="objective-line" role="status"><span id="objectiveText"></span></p>
           <p id="vigilNote" class="stats" role="status"></p>
+          <p id="vigilLock" class="stats vigil-lock" role="status" hidden></p>
           <button id="endure" type="button" data-i18n="vigil.endure" hidden>Endure the night (E)</button>
         </section>
         <p id="viewDesc" class="sr-only"></p>
@@ -235,7 +246,7 @@
     <p id="helpDevice" class="stats" role="status"></p>
     <div id="helpDevices" class="help-devices">
       <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic.</p>
-      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, drag the left side to walk and the right side to look.</p>
+      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, touch devices (or ?touch=1) show a stick to walk, a pad to look and Interact, Lantern, Endure and Help buttons; dragging the view itself works too.</p>
     </div>
     <div class="help-groups">
       <section class="help-group">
@@ -311,6 +322,7 @@
       <button id="endingCard" type="button" data-i18n="btn.vigilcard">Result card (PNG)</button>
       <button id="endingCopy" type="button" data-i18n="btn.vigilcopy">Copy result</button>
       <button id="endingAgain" type="button" data-i18n="btn.vigilagain">Begin again</button>
+      <a id="endingEpilogue" class="btn" href="#" target="_blank" rel="noopener" data-i18n="btn.vigilepilogue">See the shore</a>
       <button id="endingKeep" type="button" data-i18n="btn.vigilkeep">Keep exploring</button>
     </div>
   </dialog>

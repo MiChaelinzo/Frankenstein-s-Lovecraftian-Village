@@ -143,3 +143,25 @@ test('endings, ranks and achievements have en and fr strings', () => {
   }
   for (let i = 0; i < VIGIL_ENDING_IDS.length; i++) assert.equal(STRINGS.en[`vigil.ending.${VIGIL_ENDING_IDS[i]}`], VIGIL_EPITAPHS[i]);
 });
+
+test('clue classification: only whispers and landmarks count', async () => {
+  const { countsAsClue, allowsSandboxAction, VIGIL_SANDBOX_ACTIONS } = await import('../src/core.js');
+  assert.deepEqual(['door', 'whisper', 'landmark', 'candle'].map(countsAsClue), [false, true, true, false]);
+  assert.equal(countsAsClue('church'), false);
+  for (const id of VIGIL_SANDBOX_ACTIONS) { assert.equal(allowsSandboxAction(true, id), false); assert.equal(allowsSandboxAction(false, id), true); }
+  assert.equal(allowsSandboxAction(true, 'unknown'), false);
+});
+
+test('VigilState.canLightLantern is the lamp cap and lightLantern obeys it', async () => {
+  const { VigilState, generateCampaign, generateRitual, VIGIL_LAMPS_PER_NIGHT } = await import('../src/core.js');
+  const camp = generateCampaign(7, 3);
+  const v = new VigilState(camp, generateRitual(camp));
+  assert.equal(v.begun, false); assert.equal(v.isLocked, false);
+  v.begin(); assert.equal(v.isLocked, true);
+  for (let i = 0; i < VIGIL_LAMPS_PER_NIGHT; i++) { assert.equal(v.canLightLantern(`l${i}`), true); assert.equal(v.lightLantern(`l${i}`), true); assert.equal(v.canLightLantern(`l${i}`), false); }
+  assert.equal(v.canLightLantern('extra'), false);
+  assert.equal(v.lightLantern('extra'), false);
+  assert.equal(v.lanterns, VIGIL_LAMPS_PER_NIGHT);
+  v.recordSanity(0);
+  assert.equal(v.isLocked, false);
+});

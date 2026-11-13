@@ -14,7 +14,8 @@ label { color: var(--dim); }
 input[type=number] { width: 9em; background: #0a1011; color: var(--ink); border: 1px solid #2a3b3d; padding: 6px 8px; font: inherit; }
 input[type=range] { flex: 1 1 220px; accent-color: var(--moss); }
 button { background: #101a1c; color: var(--ink); border: 1px solid #2f4547; padding: 7px 12px; font: inherit; cursor: pointer; }
-button:hover, button:focus-visible { border-color: var(--moss); box-shadow: 0 0 10px rgba(95,143,120,.4); outline: none; }
+a.btn { display: inline-block; background: #101a1c; color: var(--ink); border: 1px solid #2f4547; padding: 7px 12px; text-decoration: none; }
+button:hover, button:focus-visible, a.btn:hover, a.btn:focus-visible { border-color: var(--moss); box-shadow: 0 0 10px rgba(95,143,120,.4); outline: none; }
 .check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .meter { flex: 0 0 120px; height: 8px; background: #0a1011; border: 1px solid #2a3b3d; }
 .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--moss), var(--blood)); }
@@ -23,7 +24,7 @@ button:hover, button:focus-visible { border-color: var(--moss); box-shadow: 0 0 
 footer { margin-top: 18px; color: var(--dim); font-size: .85rem; }
 a { color: var(--moss); }
 select { background: #0a1011; color: var(--ink); border: 1px solid #2a3b3d; padding: 6px 8px; font: inherit; max-width: 100%; }
-select:focus-visible, input:focus-visible, button:focus-visible, canvas:focus-visible, summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+select:focus-visible, input:focus-visible, button:focus-visible, a.btn:focus-visible, canvas:focus-visible, summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 canvas:focus-visible { outline-offset: -3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
@@ -39,7 +40,7 @@ h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 400; letter-spacing: .06em
 .keys ul { margin: 8px 0 0; padding: 0; list-style: none; font-size: .85rem; color: var(--dim); }
 .keys li { margin: 3px 0; }
 kbd { display: inline-block; min-width: 1.6em; padding: 0 5px; text-align: center; border: 1px solid #2f4547; border-bottom-width: 2px; background: #0a1011; color: var(--ink); font: .8rem/1.5 ui-monospace, monospace; }
-@media (max-width: 600px) { .row { gap: 8px; } .row button { flex: 1 1 100%; } input[type=number] { flex: 1 1 6em; } .hint { display: none; } }
+@media (max-width: 600px) { .row { gap: 8px; } .row button, .row a.btn { flex: 1 1 100%; text-align: center; } input[type=number] { flex: 1 1 6em; } .hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { .narration { transition: none; } }
 html.reduced .narration { transition: none; }
 .campaign .stats { color: var(--ink); }
@@ -87,9 +88,9 @@ html.cinema body { min-height: 0; }
 html.hc { --ink: #ffffff; --dim: #e6e6e6; --moss: #7dffc0; --blood: #ff6b6b; }
 html.hc body { background: #000; }
 html.hc .panel, html.hc .title-card { background: #000; border: 2px solid #ffffff; }
-html.hc button, html.hc select, html.hc input[type=number] { background: #000; color: #fff; border: 2px solid #fff; }
+html.hc button, html.hc a.btn, html.hc select, html.hc input[type=number] { background: #000; color: #fff; border: 2px solid #fff; }
 html.hc button[aria-pressed=true] { background: #fff; color: #000; }
-html.hc button:hover, html.hc button:focus-visible, html.hc select:focus-visible, html.hc input:focus-visible, html.hc canvas:focus-visible, html.hc summary:focus-visible { outline: 3px solid #ffeb3b; outline-offset: 2px; box-shadow: none; border-color: #ffeb3b; }
+html.hc button:hover, html.hc button:focus-visible, html.hc a.btn:focus-visible, html.hc select:focus-visible, html.hc input:focus-visible, html.hc canvas:focus-visible, html.hc summary:focus-visible { outline: 3px solid #ffeb3b; outline-offset: 2px; box-shadow: none; border-color: #ffeb3b; }
 html.hc a { color: #8ecbff; text-decoration: underline; }
 html.hc kbd { background: #000; color: #fff; border-color: #fff; }
 html.hc .meter { border-color: #fff; background: #000; }
@@ -193,3 +194,16 @@ html.reduced .loading-ink { animation: none; }
 .group > summary { cursor: pointer; color: var(--moss); letter-spacing: .05em; padding: 4px 0; }
 .group > summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
 .keys .stats { margin: 0; }
+.vigil-lock { margin: 0 0 4px; font-style: italic; color: #b7a88a; }
+
+/* On-screen touch controls (3D view, touch devices or ?touch=1). In normal flow under the view, so they never cover the caption or the objective. */
+.touch-dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; touch-action: none; user-select: none; }
+.touch-dock[hidden], html.cinema .touch-dock { display: none; }
+.touch-stick, .touch-look { position: relative; flex: 0 0 auto; width: 120px; height: 120px; border-radius: 50%; border: 2px solid #5b6f66; background: #0b1012cc; touch-action: none; display: flex; align-items: center; justify-content: center; color: #9fb3aa; font-size: .8rem; }
+.touch-knob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: #8fb3a3; border: 2px solid #e8f2ed; transform: translate(var(--kx, 0px), var(--ky, 0px)); }
+.touch-buttons { order: 3; display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; flex: 1 0 100%; }
+.touch-buttons button { min-width: 44px; min-height: 44px; padding: 8px; }
+.touch-buttons button[hidden] { display: none; }
+html.hc .touch-stick, html.hc .touch-look { border: 3px solid #fff; background: #000; color: #fff; }
+html.hc .touch-knob { background: #fff; border-color: #000; }
+@media (forced-colors: active) { .touch-stick, .touch-look { border: 2px solid CanvasText; background: Canvas; color: CanvasText; } .touch-knob { background: Highlight; border-color: CanvasText; forced-color-adjust: none; } }

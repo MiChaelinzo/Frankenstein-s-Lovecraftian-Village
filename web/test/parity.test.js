@@ -13,7 +13,7 @@ import {
   DreadEventTracker, eventToString, buildVillageReport, reportToMarkdown, reportToJson, generateCampaign, PrefabNameMatcher,
   generateRitual, Investigator, simulateInvestigator, describeInvestigatorHit, describeRitualStage, ritualProgress, describeRitualProgress,
   stableHash, detailLevel, InteractionRules, INTERACTION_KINDS, clampFloor, floorVisible, doorOmen, suggestedCamera, allowedCamera,
-  clueTarget, sourcesOffered, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
+  clueTarget, sourcesOffered, VIGIL_SANDBOX_ACTIONS, allowsSandboxAction, countsAsClue, nightCreep, totalClues, sanityPoints, nameReveal, endingFor, vigilScore, vigilRank, vigilResultCode,
   parseVigilResultCode, VigilState, VIGIL_ENDING_IDS, VIGIL_EPITAPHS, VIGIL_RANK_NAMES, VIGIL_RANK_THRESHOLDS,
   VIGIL_DAWN_RECOVERY, VIGIL_LAMPS_PER_NIGHT, VIGIL_STEADY_SANITY, VIGIL_SPARE_SOURCES,
 } from '../src/core.js';
@@ -203,6 +203,29 @@ test('first-person interaction rules match C# InteractionRules exactly', () => {
   for (const [category, kind] of g.kinds) assert.equal(INTERACTION_KINDS.indexOf(InteractionRules.kindForCategory(category)), kind, category);
   assert.equal(InteractionRules.cooldownElapsed(5, NaN), true);
   assert.equal(InteractionRules.cooldownElapsed(5, -Infinity), true);
+});
+
+test('vigil sandbox lock and clue classification match C# VigilRules', () => {
+  const g = golden.vigil;
+  assert.ok(g.sandboxRule.length > 0 && g.clueKinds.length === 4);
+  assert.deepEqual([...VIGIL_SANDBOX_ACTIONS], g.sandboxActions);
+  for (const [id, live, allowed] of g.sandboxRule) assert.equal(allowsSandboxAction(live === 1, id), allowed === 1, `${id} live=${live}`);
+  for (const [kind, clue] of g.clueKinds) assert.equal(countsAsClue(INTERACTION_KINDS[kind]), clue === 1, INTERACTION_KINDS[kind]);
+});
+
+test('vigil lock and lantern cap trace matches C# VigilState', () => {
+  const g = golden.vigil.gates;
+  assert.ok(g.length >= 9);
+  const v = new VigilState(generateCampaign(1818, 3), null);
+  const row = (step, probe, result) => [step, v.begun ? 1 : 0, v.isLocked ? 1 : 0, v.canLightLantern(probe) ? 1 : 0, result, v.nightLampIds.size];
+  const got = [row('new', 'a', -1)];
+  v.begin(); got.push(row('begin', 'a', -1));
+  for (const id of ['a', 'a', 'b', 'c', 'd', 'bad;id']) { const r = v.lightLantern(id) ? 1 : 0; got.push(row(`light ${id}`, id, r)); }
+  v.recordSanity(0); got.push(row('collapse', 'e', -1));
+  const r2 = new VigilState(generateCampaign(1818, 3), null);
+  r2.tryRestore(v.serialize());
+  got.push(['restored', r2.begun ? 1 : 0, r2.isLocked ? 1 : 0, 0, -1, r2.nightLampIds.size]);
+  assert.deepEqual(got, g);
 });
 
 test('vigil rules, endings, scores, codes, reveals and playthroughs match C# VillageVigil', () => {

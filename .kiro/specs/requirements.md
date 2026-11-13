@@ -92,6 +92,13 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Codex entries and achievements are awarded only after a player action. Deep links and restored sessions only preview, and a preview never overwrites saved progress.
 - The journal has Story and Progress tabs, with a badge for unseen progress.
 
+## Round 18: Unity vigil, touch and lock
+- While a vigil is live the sandbox cheats (sanity slider, night stepping, seed entry, new village, daily, load session, drain) are refused with a localized reason; the rule lives in `VigilRules.AllowsSandboxAction`, and only whisper and landmark interactions count as clues.
+- Unity runs the same vigil through a thin `VigilDirector`; vigil text comes from Core `VigilStrings`.
+- The 3D view offers on-screen touch controls on touch or coarse-pointer devices (`?touch=1` forces them), 44 px minimum targets.
+- Each ending links to a seeded epilogue still (web only).
+- Unity runtime and real touch devices stay Unverified.
+
 ## Round 17: first impression and the Vigil
 - A bare URL opens a title screen with the seeded first-night rumor, a 3D entry and a 2D entry; 3D is disabled with a reason when WebGL is missing. Deep links and capture flags skip it.
 - The Vigil is the game loop: per night a clue target and three lanterns, endure the night, sanity carried between five nights, six endings, an integer score and a result code. Rules live in Core and are mirrored in JS with golden parity; the web only draws them.
