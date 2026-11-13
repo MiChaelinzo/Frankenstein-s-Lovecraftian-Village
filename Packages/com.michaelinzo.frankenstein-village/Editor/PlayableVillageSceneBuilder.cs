@@ -32,7 +32,9 @@ namespace Frankenstein.Editor
             var catalog = LoadOrCreateCatalog();
             bool packImported = AssetDatabase.IsValidFolder(CatalogAutoBinder.DefaultRoot);
             if (packImported) CatalogAutoBinder.Bind(catalog, CatalogAutoBinder.DefaultRoot);
-            else Debug.LogWarning("[Frankenstein] No pack found at '" + CatalogAutoBinder.DefaultRoot + "'. Building with plain blocks. See docs/UNITY_SETUP.md to import your own copy of the pack.");
+            else Debug.LogWarning("[Frankenstein] No pack found at '" + CatalogAutoBinder.DefaultRoot + "'. Using the original generated meshes. See docs/UNITY_SETUP.md to import your own copy of the pack.");
+            OriginalVillageAssetGenerator.Generate();
+            int original = OriginalVillageAssetGenerator.BindMissing(catalog);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AddSun();
@@ -64,7 +66,7 @@ namespace Frankenstein.Editor
             vigil.hud = hud;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
-            Debug.Log("[Frankenstein] Saved " + ScenePath + (packImported ? " (pack prefabs bound where names matched)." : " (primitive fallback, pack not imported)."));
+            Debug.Log("[Frankenstein] Saved " + ScenePath + (packImported ? " (pack prefabs bound where names matched, " : " (pack not imported, ") + original + " original meshes bound to the remaining entries; any entry without a mesh stays a plain block).");
         }
 
         private static VillageCatalogAsset LoadOrCreateCatalog()

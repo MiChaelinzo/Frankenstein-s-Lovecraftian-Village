@@ -91,3 +91,19 @@ test('procedural textures are deterministic, opaque, tileable-sized and distinct
   assert.notDeepEqual(proceduralTexture('stone', { lit: [200, 0, 0] }).data, proceduralTexture('stone').data);
   assert.throws(() => proceduralTexture('lava'), /unknown kind "lava"/);
 });
+
+test('JS shape models match the C# ShapeMeshBuilder golden (parts, triangles, materials, bounds)', () => {
+  const golden = JSON.parse(readFileSync(join(web, 'test', 'golden.json'), 'utf8')).shapes;
+  assert.equal(golden.length, shapes.meshes.length);
+  for (const [id, parts, tris, mats, ...b] of golden) {
+    const mesh = shapes.meshes.find((m) => m.id === id);
+    const model = buildShapeModel(shapes, id);
+    assert.equal(mesh.parts.length, parts, `${id} parts`);
+    assert.equal(model.stats.triangles, tris, `${id} triangles`);
+    assert.equal(model.stats.materials, mats, `${id} materials`);
+    // glTF (x, y, z) is Unity (x, y, -z)
+    const { min, max } = model.bounds;
+    const js = [min[0], min[1], -max[2], max[0], max[1], -min[2]];
+    js.forEach((v, k) => assert.ok(Math.abs(v - b[k]) < 0.002, `${id} bound ${k}: ${v} vs ${b[k]}`));
+  }
+});

@@ -29,6 +29,7 @@ namespace UnityEditor
     public static class PrefabUtility
     {
         public static Object InstantiatePrefab(Object assetComponentOrGameObject) { return null; }
+        public static GameObject SaveAsPrefabAsset(GameObject instanceRoot, string assetPath) { return null; }
     }
 
     public sealed class SceneView
@@ -67,6 +68,7 @@ namespace UnityEditor
         public static string GUIDToAssetPath(string guid) { return ""; }
         public static T LoadAssetAtPath<T>(string path) where T : Object { return null; }
         public static void SaveAssets() { }
+        public static bool DeleteAsset(string path) { return true; }
         public static void CreateAsset(Object asset, string path) { }
         public static void AddObjectToAsset(Object obj, Object assetObject) { }
         public static string CreateFolder(string parent, string newFolderName) { return ""; }

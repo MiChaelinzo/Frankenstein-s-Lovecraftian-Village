@@ -317,6 +317,9 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendVigil(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -534,6 +537,25 @@ namespace Frankenstein.Core.Tests
             "", "V1", "V1-5-dawn", "V2-5-dawn-10", "V1-5-nobody-10", "V1-5-dawn--10", "V1-5-dawn-+10", "V1-05-dawn-10", "V1--0-dawn-10",
             "V1-5-dawn-010", "V1-abc-dawn-10", "V1-99999999999-dawn-10", "V1-5-dawn-10-", "V1--7-name_spoken-3400", "V1-2147483647-vessel-0",
         };
+
+        /// <summary>Top level key "shapes": per mesh part count, triangle count, material count and Unity-axis bounds (3 decimals) from Data/village_shapes.json.</summary>
+        private static void AppendShapes(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = ShapeLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_shapes.json")));
+            sb.Append("  \"shapes\": [");
+            bool first = true;
+            foreach (var id in lib.MeshIds)
+            {
+                var m = lib.Build(id);
+                var b = m.Bounds();
+                sb.Append(first ? "\n    " : ",\n    ").Append("[\"").Append(id).Append("\", ").Append(m.PartCount).Append(", ").Append(m.TriangleCount).Append(", ").Append(m.Submeshes.Count);
+                foreach (var x in b) sb.Append(", ").Append(Math.Round((double)x, 3).ToString("0.###", inv));
+                sb.Append(']');
+                first = false;
+            }
+            sb.Append("\n  ]\n");
+        }
 
         /// <summary>Top level key "vigil": clue targets, endings, scores, result codes, name reveals and scripted playthroughs.</summary>
         private static void AppendVigil(StringBuilder sb)

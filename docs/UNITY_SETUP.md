@@ -60,9 +60,10 @@ The scene contains: `VillageBuilder`, `HorrorAmbienceDirector`, `DreadVolumeBlen
 
 The builder adds HDRP Fog and Vignette overrides to the two Volume profiles by reflection (so URP projects still compile). If an override or field is missing in your HDRP version it logs a warning and leaves the profile for you to edit. Directional light intensity is set to 2 (HDRP uses lux): raise it, add a sky and tune the Fog to taste. Getting close to the foggy dusk of the DLNK trailer is manual work in the Volume profiles and with the pack's own scenes; this repo does not reproduce that footage or those assets.
 
-### Optional: GLB meshes (decision, not implemented)
+### Original meshes, no pack and no glTFast (compile checked, runtime Unverified)
+`Tools > Frankenstein > Generate Original Village Assets` (also run by Create Playable Village Scene) writes meshes, materials and one prefab per village shape into `Assets/FrankensteinVillage/Generated` in your project, never into the package. The geometry comes from `Data/village_shapes.json`, the same file read by `tools/blender/mesh_defs.py` and `web/src/shapes.js`, through the engine-free Core class `ShapeLibrary`. The scene builder binds these prefabs only to catalog entries that no pack prefab covers, so a pack you own always wins. Materials use the active pipeline's lit shader (HDRP Lit or URP Lit, then Standard); glow and rune slots are emissive.
 
-The scene builder does not load GLB files. Adding a `com.unity.cloud.gltfast` path would be code that cannot be exercised without Unity and the package, so it stays out until someone can run it. If you want the committed Blender meshes in Unity, install glTFast yourself and assign them to the catalog by hand. Status: Unverified, deliberately deferred.
+Decision: glTFast is not used. It would add a package dependency and a loader that cannot run in the sandbox, while one shape file plus a small Core builder gives the same look in Blender, the web demo and Unity with no new dependency. A golden check (`golden.json` key `shapes`) compares the C# and JS builders per mesh. Status: shape math Verified (dotnet and node); Unity asset creation Unverified (never run in Unity, compile check only).
 
 ## 3b. Showcase tools (record Unity next to the web demo)
 

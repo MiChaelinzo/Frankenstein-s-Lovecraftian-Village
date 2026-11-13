@@ -50,8 +50,25 @@ namespace UnityEngine
         public void SetParent(Transform parent, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 position, Quaternion rotation) { }
     }
-    public class Renderer : Component { public bool enabled { get; set; } }
-    public class Mesh : Object { }
+    public class Renderer : Component { public bool enabled { get; set; } public Material[] sharedMaterials { get; set; } }
+    public class Mesh : Object
+    {
+        public Vector3[] vertices { get; set; }
+        public int subMeshCount { get; set; }
+        public void SetTriangles(int[] triangles, int submesh) { }
+        public void RecalculateNormals() { }
+        public void RecalculateBounds() { }
+    }
+    public sealed class Shader : Object { public static Shader Find(string name) { return null; } }
+    public class Material : Object
+    {
+        public Material(Shader shader) { }
+        public bool HasProperty(string name) { return false; }
+        public void SetColor(string name, Color value) { }
+        public void SetFloat(string name, float value) { }
+        public void EnableKeyword(string keyword) { }
+    }
+    public sealed class MeshRenderer : Renderer { }
     public sealed class MeshFilter : Component { public Mesh sharedMesh { get; set; } }
     public class Collider : Component { }
     public sealed class MeshCollider : Collider { public Mesh sharedMesh { get; set; } }
@@ -159,6 +176,7 @@ namespace UnityEngine
     {
         public static void Log(object message) { }
         public static void LogWarning(object message) { }
+        public static void LogError(object message) { }
     }
 
     public static class PlayerPrefs
@@ -266,6 +284,8 @@ namespace UnityEngine.Events
 
 namespace UnityEngine.Rendering
 {
+    public class RenderPipelineAsset : ScriptableObject { }
+    public static class GraphicsSettings { public static RenderPipelineAsset currentRenderPipeline { get { return null; } } }
     public class Volume : MonoBehaviour
     {
         public float weight { get; set; }
