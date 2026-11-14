@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 20 (FEAT-005)
+- CC0 assets from Poly Haven under `web/assets/third_party/` (686 KB in total, listed with author, source and licence in `THIRD_PARTY_ASSETS.md`, reproducible with `tools/fetch_third_party.py`): stone, slate roof, cobble and mud photo textures at 512 px, and a barrel and a painted bench as GLBs with an embedded 512 px base colour texture. Timber walls stay procedural.
+- `glb.js` reads node transforms (translation, rotation, scale, matrix, children), `TEXCOORD_0` and one embedded JPEG or PNG base colour image. `fitModelInto` puts a prop inside the original mesh's box; `atlasModel` and `loadThirdPartyModels` place the props in a 2 by 2 atlas.
+- 3D view: the props are drawn in the building buffer with a parallel uv buffer, so there is no new draw call. Material photos replace the procedural ground, stone, roof and cobble (a `?pack=1` texture still wins). Everything loads lazily after the original meshes, is never precached by `sw.js`, warns `[third-party]` on failure and keeps the original. `#thirdparty=0` turns it off.
+- `tools/validate_repo.py` (through `tools/third_party_assets.py`) fails on an unlisted or non-CC0 file under `web/assets/third_party/`, a stale row, a file over 5 MB or a total over 40 MB. README credits and the About dialog (en and fr) name the authors.
+- A crate (wooden_crate_02, 5176 triangles) was left out: two crates broke the 60% triangle budget test.
+- Status: Verified by tests (node, `tools/test_third_party_assets.py`, validator). Partially Verified: the look, seen only in SwiftShader stills `docs/media/materials-before.png` and `materials-after.png`. Real GPU look is Unverified.
+
 ### Round 20 (FEAT-004)
 - Weather: `GameClock.WeatherForDay(seed, day)` (mirror `clock.js weatherForDay`, golden-checked) gives one of clear, overcast, drizzle, rain, storm, fog (heavy fog), mist (sea mist) per village day, with 40% chance to repeat the day before. `CampaignGenerator` and the story take their weather from it (campaign goldens changed: the weather roll no longer consumes the campaign RNG). Core API for Unity: `WeatherNames`, `HasLightning`, `PrecipitationPercent`.
 - 3D weather: `WEATHER_LOOK` table in `view3d-math.js` drives fog, sky, moon veil, sea ripple, particles, lantern and window gain. Wind (`windState`) bends trees, bushes, reeds and dead trees in the scene vertex shader and slants rain. Storm lightning uses `stormFlash` through the existing capped, rate-limited `applyFlash` gate and is off under reduced motion; thunder and a rain hiss bed are in `music.js`. `?weather=NAME` overrides the night's weather for QA. en/fr names.

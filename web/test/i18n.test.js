@@ -97,3 +97,16 @@ test('every omen site id has a localised name in every language', async () => {
     }
   }
 });
+
+test('About credits the CC0 third party assets in English and French, with the same links, and index.html shows the English text', async () => {
+  const { readFileSync } = await import('node:fs');
+  const links = (s) => (s.match(/href="[^"]+"/g) || []).join(' ');
+  for (const lang of ['en', 'fr']) {
+    const s = STRINGS[lang]['about.thirdparty'];
+    assert.match(s, /THIRD_PARTY_ASSETS\.md/); assert.match(s, /Poly Haven/); assert.match(s, /CC0/); assert.match(s, /#thirdparty=0/);
+    for (const name of ['Charlotte Baglioni', 'Rob Tuytel', 'Serhii Khromov', 'Kirill Sannikov']) assert.ok(s.includes(name), `${lang}: ${name}`);
+  }
+  assert.equal(links(STRINGS.fr['about.thirdparty']), links(STRINGS.en['about.thirdparty']));
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.includes(`<p data-i18n-html="about.thirdparty">${STRINGS.en['about.thirdparty']}</p>`));
+});

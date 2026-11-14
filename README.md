@@ -150,6 +150,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (93 of 93 on local headless Chromium at the end of round 19, including the sandbox lock, touch controls, the epilogue link and accessibility checks) |
 | Real-world scale standard (person 1.7 m, eye 1.6 m, door 2.0 m, meshes at scale 1) | Verified | Core `WorldScale.cs` and `web/src/world-scale.js` by dotnet and node tests (`WorldScaleTests`, `world-scale.test.js`) and golden shape bounds; the Unity player capsule (1.7 m CharacterController) is compile checked only, runtime Unverified |
 | Web 3D look (lantern pools, post pass, moon, sea, fog) | Partially Verified | Seen only in SwiftShader (software GL) screenshots under `docs/media`; the post pass and its `?post=0` fallback render non-blank in the browser check. Real GPU look and frame times are Unverified |
+| Web 3D CC0 materials and props (`web/assets/third_party`, [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)) | Partially Verified | glb texture and node reading, prop fitting, atlas uv, budgets, fallbacks with `[third-party]` warnings and the service worker exclusion by node tests (`web/test/third-party.test.js`); the manifest and size rules by `tools/test_third_party_assets.py`. The look is seen only in SwiftShader screenshots (`docs/media/materials-before.png`, `docs/media/materials-after.png`); real GPUs Unverified |
 | Real-GPU performance, audio by ear, phones and tablets | Unverified | No real GPU, speakers or mobile device were available; only schedules and a 390 by 844 emulated layout were checked |
 | Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 93 of 93 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
@@ -309,5 +310,7 @@ This submission combines:
 ## Credits
 
 Environment assets courtesy of DLNK Artworks' Lovecraftian Village environment pack.
+
+The browser 3D view also uses CC0 assets from [Poly Haven](https://polyhaven.com): the Old Stone Wall texture by Charlotte Baglioni, the Roof Slates 02, Cobblestone Floor 04 and Brown Mud Leaves 01 textures by Rob Tuytel, the Barrel 03 model by Serhii Khromov and the Painted Wooden Bench model by Kirill Sannikov. Files, sources and licences are listed in [`THIRD_PARTY_ASSETS.md`](THIRD_PARTY_ASSETS.md); `python3 tools/validate_repo.py` fails when a file under `web/assets/third_party/` has no CC0 entry there.
 
 Created by Michael G. Inso for Kiroween 2026.
