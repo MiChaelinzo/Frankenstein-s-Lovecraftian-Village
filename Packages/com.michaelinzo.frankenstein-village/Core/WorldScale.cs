@@ -23,6 +23,13 @@ namespace Frankenstein.Core
         public const float RidgeMax = 10.0f;
         /// <summary>A village house covers at least this many layout cells along both axes (catalog footprints), so its mass fills a block, not a cell.</summary>
         public const int HouseFootprintMinCells = 2;
+        /// <summary>Eye height setting range of the first-person view, metres. The default is <see cref="EyeHeight"/>.</summary>
+        public const float EyeMin = 1.5f;
+        public const float EyeMax = 1.8f;
+        /// <summary>Vertical field of view range of the first-person view, degrees. Narrower reads as a tunnel, wider stretches the street.</summary>
+        public const float FovMinDegrees = 55f;
+        public const float FovMaxDegrees = 75f;
+        public const float FovDefaultDegrees = 64f;
         /// <summary>CharacterController radius for the explorer, a shoulder-width body.</summary>
         public const float BodyRadius = 0.3f;
     }

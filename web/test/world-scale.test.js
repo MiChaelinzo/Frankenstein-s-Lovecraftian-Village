@@ -90,3 +90,19 @@ test('the lamp GLB equals the shapes data height', () => {
   const g = loadGlbBuffer(readFileSync(join(web, 'assets', 'meshes', 'house_a.glb')));
   assert.ok(Math.abs(g.bounds.max[1] - top('house_a')) < 1e-3);
 });
+
+test('every mesh is within its believable real-world height range (propHeights in the shapes data)', () => {
+  const ranges = shapes.propHeights;
+  for (const m of shapes.meshes) {
+    const r = ranges[m.id];
+    assert.ok(Array.isArray(r) && r[0] < r[1], `no range for ${m.id}`);
+    const h = top(m.id);
+    assert.ok(h >= r[0] - 1e-9 && h <= r[1] + 1e-9, `${m.id} is ${h} m, expected ${r[0]} to ${r[1]}`);
+  }
+  for (const id of Object.keys(ranges)) if (id !== 'comment') assert.ok(shapes.meshes.some((m) => m.id === id), `range for unknown mesh ${id}`);
+});
+
+test('props that sit in the street are smaller than a person or a door, and houses dwarf them', () => {
+  for (const k of ['barrel', 'bench', 'sack', 'crate_stack', 'cart', 'bush', 'rock']) assert.ok(top(k) < scale.DOOR_HEIGHT, k);
+  assert.ok(top('house_a') >= 3 * scale.PERSON_HEIGHT);
+});

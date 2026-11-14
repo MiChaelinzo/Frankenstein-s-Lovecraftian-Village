@@ -176,10 +176,10 @@ test('fly-through: starts on stop 0, reaches the next stop at each beat boundary
   near3(pos(at(9500 + TAIL_MS)), flyStop(3, W).pos);
   const a = pos(at(1500)); assert.notDeepEqual(a, flyStop(0, W).pos); assert.notDeepEqual(a, flyStop(1, W).pos);
 });
-test('fly-through: stays over the roofs, looks at the village, yaw and pitch are finite and pitch is bounded', () => {
+test('fly-through: stays at street level (1.6 to 2.2 m), looks at the village, yaw and pitch are finite and pitch is bounded', () => {
   for (let t = 0; t <= totalMs(D); t += 250) {
     const c = flythroughCamera(t, D, W);
-    assert.ok(Object.values(c).every(Number.isFinite)); assert.ok(c.y >= 4.6, 'above the 3 m houses'); assert.ok(Math.abs(c.pitch) < 1.2);
+    assert.ok(Object.values(c).every(Number.isFinite)); assert.ok(c.y >= 1.6 - 1e-9 && c.y <= 2.2 + 1e-9, 'street level, 1.6 to 2.2 m'); assert.ok(Math.abs(c.pitch) < 1.2);
     const cx = 48, cz = 48, toward = Math.hypot(c.x - cx, c.z - cz); assert.ok(toward > 20 && toward < 90);
   }
   const c = flythroughCamera(0, D, W), s = flyStop(0, W), dx = s.look[0] - s.pos[0], dz = s.look[2] - s.pos[2];

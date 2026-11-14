@@ -82,6 +82,39 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Every_mesh_is_within_its_believable_real_world_height_range()
+        {
+            var root = JsonDocument.Parse(ShapesJson()).RootElement;
+            var lib = ShapeLibrary.Parse(ShapesJson());
+            var ranges = root.GetProperty("propHeights");
+            int checkedMeshes = 0;
+            foreach (var m in root.GetProperty("meshes").EnumerateArray())
+            {
+                string id = m.GetProperty("id").GetString();
+                Assert.True(ranges.TryGetProperty(id, out var r), "no height range for " + id);
+                float h = Height(lib, id);
+                Assert.InRange(h, r[0].GetSingle() - 1e-4f, r[1].GetSingle() + 1e-4f);
+                checkedMeshes++;
+            }
+            Assert.True(checkedMeshes >= 30);
+        }
+
+        [Fact]
+        public void View_setting_ranges_keep_the_default_eye_and_field_of_view_inside()
+        {
+            Assert.InRange(WorldScale.EyeHeight, WorldScale.EyeMin, WorldScale.EyeMax);
+            Assert.InRange(WorldScale.FovDefaultDegrees, WorldScale.FovMinDegrees, WorldScale.FovMaxDegrees);
+            Assert.True(WorldScale.EyeMax < WorldScale.PersonHeight + 0.1f);
+        }
+
+        [Fact]
+        public void Fly_through_drifts_at_street_level_eye_height()
+        {
+            Assert.InRange(FlythroughPath.BaseHeight - FlythroughPath.HeightSway, WorldScale.EyeMin, WorldScale.EyeMax);
+            Assert.InRange(FlythroughPath.BaseHeight + FlythroughPath.HeightSway, WorldScale.EyeMin, 2.2 + 1e-9);
+        }
+
+        [Fact]
         public void Eye_height_sits_below_the_door_lintel_in_every_house()
         {
             Assert.InRange(WorldScale.DoorHeight / WorldScale.EyeHeight, 1.15f, 1.4f);

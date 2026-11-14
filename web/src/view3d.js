@@ -9,7 +9,7 @@ import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
+  CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
@@ -254,19 +254,19 @@ void main(){
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
   vec3 base = vColor;
   if (uMode > 0.5 && uMode < 1.5) {
-    if (vPhase < -3.0) base *= mix(vec3(1.0), texture2D(uCobbleTex, vPos.xz * 0.5).rgb * 1.6, 0.9); // cobbled lanes and square
+    if (vPhase < -3.0) base *= mix(vec3(1.0), texture2D(uCobbleTex, vPos.xz * ${INV_TILE.cobble}).rgb * 1.6, 0.9); // cobbled lanes and square
     else {
       base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
-      if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.3).rgb * 1.6, 0.9);
+      if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * ${INV_TILE.ground}).rgb * 1.6, 0.9);
     }
   }
   if (vUv.x > -0.5) base *= texture2D(uPropTex, vUv).rgb; // CC0 prop: its own base colour from the atlas (vColor is its white factor)
   else if (uMode < 0.5 && uHasWall > 0.5) {
     float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
-    if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
-    else if (vNormal.y > 0.35 && vPos.y > 2.2) base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * 0.42).rgb * 1.6, 0.9);   // slate and shingle on roof slopes
-    else if (sat < 0.06) base *= mix(vec3(1.0), texture2D(uStoneTex, vec2(vPos.x + vPos.z, vPos.y) * 0.35).rgb * 1.6, 0.9); // stone blocks on grey masonry
-    else base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) / 3.0).rgb * 1.6, 0.9);                   // timber framed plaster, one bay and storey per tile
+    if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.wall}).rgb * 1.6, 0.85);
+    else if (vNormal.y > 0.35 && vPos.y > 2.2) base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * ${INV_TILE.roof}).rgb * 1.6, 0.9);   // slate and shingle on roof slopes
+    else if (sat < 0.06) base *= mix(vec3(1.0), texture2D(uStoneTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.stone}).rgb * 1.6, 0.9); // stone blocks on grey masonry
+    else base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.timber}).rgb * 1.6, 0.9);                   // timber framed plaster, one bay and storey per tile
   }
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
@@ -539,7 +539,7 @@ export function createGlRenderer(gl) {
       const b = f.basis; gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
       const sl = gl.getAttribLocation(sky.p, 'aPos'); gl.enableVertexAttribArray(sl); gl.vertexAttribPointer(sl, 2, gl.FLOAT, false, 8, 0);
       gl.uniform3fv(sky.u('uF'), b.f); gl.uniform3fv(sky.u('uR'), b.r); gl.uniform3fv(sky.u('uU'), b.u);
-      gl.uniform1f(sky.u('uTy'), Math.tan(FOV_Y / 2)); gl.uniform1f(sky.u('uAspect'), f.aspect);
+      gl.uniform1f(sky.u('uTy'), Math.tan(f.fovY / 2)); gl.uniform1f(sky.u('uAspect'), f.aspect);
       gl.uniform3fv(sky.u('uZenith'), f.sky.zenith); gl.uniform3fv(sky.u('uHorizon'), f.sky.horizon);
       gl.uniform3fv(sky.u('uMoonDir'), f.moon.dir); gl.uniform3fv(sky.u('uMoonColor'), f.moon.color); gl.uniform1f(sky.u('uMoonSize'), f.moon.size);
       gl.uniform3fv(sky.u('uEyeDir'), f.eye.dir); gl.uniform4f(sky.u('uEye'), f.eye.width, f.eye.height, 0, 0); gl.uniform1f(sky.u('uEyeOpen'), f.eye.open); gl.uniform1f(sky.u('uPupil'), f.reduced ? 0 : Math.sin(f.time / 2.6) * 0.2);
@@ -662,6 +662,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
+  let settings = sanitizeViewSettings(null); // eye height and field of view, set by the app from localStorage
   let lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
@@ -690,6 +691,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     rainKey = key; renderer.setParticles(particleSeeds(s.seed, counts.rain, 1), particleSeeds(s.seed, counts.mist, 2));
   }
 
+  /** The fly-through drifts at street level, so it must not pass through a wall: slide it out of any box it overlaps. */
+  function streetFly(c) {
+    const p = resolveCollisions(c.x, c.z, BODY_RADIUS * 2, boxes);
+    return { ...c, x: p.x, z: p.z };
+  }
   function centerRay() { return forwardVector(cam.yaw, cam.pitch); }
   function target(ray, s) {
     const origin = [cam.x, cam.y, cam.z], hit = pickBox(origin, ray, boxes, 60);
@@ -762,7 +768,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     smooth = smoothDrive(smooth, raw, dt); // eased walking; turning and looking stay direct (no mouse smoothing)
     const inp = { ...raw, forward: smooth.forward, strafe: smooth.strafe }, mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
     const before = cam;
-    cam = s.fly ? { ...s.fly } : stepCamera(cam, inp, dt, boxes, bounds, mouse); look = { dx: 0, dy: 0 }; pendingMouse = null;
+    cam = s.fly ? streetFly(s.fly) : stepCamera(cam, inp, dt, boxes, bounds, mouse);
+    if (!s.fly) cam = { ...cam, y: settings.eye }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset look = { dx: 0, dy: 0 }; pendingMouse = null;
     const moved = cam.x !== before.x || cam.z !== before.z || cam.yaw !== before.yaw || cam.pitch !== before.pitch;
     const speed = Math.min(1, Math.hypot(inp.forward, inp.strafe)), moving = speed > 0.01 || !!(raw.forward || raw.strafe);
     if (speed > 0.05) {
@@ -843,7 +850,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     renderer.draw({
-      vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
+      vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
       fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
     });
   }
@@ -885,7 +892,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       if (tch.role === 'drive') drive = { forward: 0, strafe: 0 };
       if (isTap(tch.x0, tch.y0, e.clientX, e.clientY, now() - tch.t0)) {
         const r = canvas.getBoundingClientRect();
-        interact(screenRay(cam, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, canvas.width / canvas.height));
+        interact(screenRay(cam, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, canvas.width / canvas.height, fovRadians(settings.fovDeg)));
       }
       wake(); return;
     }
@@ -894,7 +901,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (lockedBeforeDown) interact(centerRay());
     else if (!canvas.requestPointerLock || document.pointerLockElement !== canvas) {
       const r = canvas.getBoundingClientRect();
-      interact(screenRay(cam, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, canvas.width / canvas.height));
+      interact(screenRay(cam, ((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2, canvas.width / canvas.height, fovRadians(settings.fovDeg)));
     }
   };
   const onResize = () => wake();
@@ -944,6 +951,9 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
     talkNearest,
     interactCenter() { if (active && cam) interact(centerRay()); },
+    /** Eye height (m) and field of view (deg) from the saved settings; values are clamped. */
+    setSettings(next) { settings = sanitizeViewSettings(next); wake(); },
+    get settings() { return settings; },
     get camera() { return cam; },
   };
 }

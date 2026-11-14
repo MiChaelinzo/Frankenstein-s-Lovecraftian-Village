@@ -31,7 +31,7 @@ namespace Frankenstein.Core.Tests
                     var b = FlythroughPath.Camera(t, Beats, 24, 24, seed);
                     Assert.Equal(a, b);
                     foreach (var v in new[] { a.X, a.Y, a.Z, a.Yaw, a.Pitch }) Assert.False(double.IsNaN(v) || double.IsInfinity(v));
-                    Assert.True(a.Y > 4.6);
+                    Assert.InRange(a.Y, 1.6 - 1e-9, 2.2 + 1e-9); // street level: walking eye height
                     Assert.Equal(FlythroughPath.Camera(0, Beats, 24, 24, seed, true), FlythroughPath.Camera(t, Beats, 24, 24, seed, true));
                 }
         }

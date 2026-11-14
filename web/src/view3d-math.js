@@ -7,13 +7,19 @@ import { facingDx, facingDz } from './streets.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
-export { EYE_HEIGHT } from './world-scale.js';
+import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG } from './world-scale.js';
+export { EYE_HEIGHT };
 export const BODY_RADIUS = 0.35;
 export const WALK_SPEED = 3.2;    // metres per second
 export const TURN_SPEED = 1.9;    // radians per second (stick and arrow keys)
 export const MOUSE_SENSITIVITY = 0.0022;
-export const FOV_Y = 1.12;        // about 64 degrees
+export const FOV_Y = (FOV_DEFAULT_DEG * Math.PI) / 180; // 64 degrees, the default of the field of view setting
 export const NEAR = 0.1;
+// Metres covered by one repeat of each texture in the 3D shader, chosen so one texel feature has a real size: a procedural cobble is 1/7 of
+// its tile (1.4 m gives 0.2 m stones), a stone block about 0.4 of the tile (1.2 m gives 0.5 m blocks), a slate row 1/4 (1.2 m gives 0.3 m),
+// a timber bay is one storey tall (3 m, beams drawn 0.23 m thick).
+export const TILE_M = Object.freeze({ cobble: 1.4, ground: 3.3, wall: 3.3, roof: 1.2, stone: 1.2, timber: 3 });
+export const INV_TILE = Object.freeze(Object.fromEntries(Object.entries(TILE_M).map(([k, m]) => [k, (1 / m).toFixed(4)])));
 export const FAR = 400;
 export const MAX_PITCH = 1.25;
 export const MAX_LIGHTS = 8;
@@ -70,7 +76,24 @@ export function multiply(a, b) {
   }
   return out;
 }
-export const viewProjection = (cam, aspect) => multiply(perspective(FOV_Y, aspect, NEAR, FAR), viewMatrix(cam));
+export const viewProjection = (cam, aspect, fovY = FOV_Y) => multiply(perspective(fovY, aspect, NEAR, FAR), viewMatrix(cam));
+
+// ---------- eye height and field of view settings (kept in localStorage by the app, display only; ranges in world-scale.js) ----------
+export const VIEW_SETTINGS_KEY = 'flv-view-settings';
+/** Always returns finite, clamped { eye, fovDeg } (defaults for anything missing or not a number). */
+export function sanitizeViewSettings(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const eye = Number(o.eye), fov = Number(o.fovDeg);
+  return {
+    eye: Number.isFinite(eye) && o.eye !== null && o.eye !== '' ? Math.round(clamp(eye, EYE_MIN, EYE_MAX) * 100) / 100 : EYE_HEIGHT,
+    fovDeg: Number.isFinite(fov) && o.fovDeg !== null && o.fovDeg !== '' ? Math.round(clamp(fov, FOV_MIN_DEG, FOV_MAX_DEG)) : FOV_DEFAULT_DEG,
+  };
+}
+export const fovRadians = (fovDeg) => (fovDeg * Math.PI) / 180;
+/** Settings from a storage text; the default settings when the text is missing or not JSON. */
+export function parseViewSettings(text) {
+  try { return sanitizeViewSettings(JSON.parse(text)); } catch { return sanitizeViewSettings(null); }
+}
 
 /** Projects a world point to normalised device coordinates, or null when it is behind the camera. */
 export function projectPoint(vp, p) {
@@ -197,8 +220,8 @@ export function pickLamp(origin, dir, lamps, maxDistance = FAR, radius = LAMP_PI
 }
 
 /** View ray for a point on screen (ndc -1..1, y up). Used for taps and clicks when the pointer is not locked. */
-export function screenRay(cam, ndcX, ndcY, aspect) {
-  const { f, r, u } = cameraBasis(cam), ty = Math.tan(FOV_Y / 2), tx = ty * aspect;
+export function screenRay(cam, ndcX, ndcY, aspect, fovY = FOV_Y) {
+  const { f, r, u } = cameraBasis(cam), ty = Math.tan(fovY / 2), tx = ty * aspect;
   const d = [0, 1, 2].map((k) => f[k] + r[k] * ndcX * tx + u[k] * ndcY * ty);
   const l = Math.hypot(d[0], d[1], d[2]);
   return d.map((v) => v / l);

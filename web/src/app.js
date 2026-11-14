@@ -19,7 +19,7 @@ import {
 } from './building.js';
 import { loadMeshSet } from './glb.js';
 import { createView3d } from './view3d.js';
-import { view3dWanted, CELL } from './view3d-math.js';
+import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTINGS_KEY } from './view3d-math.js';
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -345,6 +345,19 @@ function start() { if (view3d.active) view3d.refresh(); if (running) return; run
 
 // ---------- session, minimap, case file, perf HUD, i18n, offline ----------
 const storage = safeStorage();
+// Eye height and field of view for the 3D view (display only), kept in localStorage and clamped on every read.
+const applyViewSettings = (raw, save) => {
+  const v = sanitizeViewSettings(raw);
+  view3d.setSettings(v);
+  $('eyeRange').value = String(v.eye); $('fovRange').value = String(v.fovDeg);
+  $('eyeOut').textContent = `${v.eye.toFixed(2)} m`; $('fovOut').textContent = `${v.fovDeg}\u00b0`;
+  if (save && storage) { try { storage.setItem(VIEW_SETTINGS_KEY, JSON.stringify(v)); } catch (e) { console.warn('[view] settings not saved', e); } }
+};
+let savedView = null;
+try { savedView = storage ? storage.getItem(VIEW_SETTINGS_KEY) : null; } catch (e) { console.warn('[view] settings not read', e); }
+applyViewSettings(parseViewSettings(savedView), false);
+for (const id of ['eyeRange', 'fovRange']) $(id).addEventListener('input', () => applyViewSettings({ eye: $('eyeRange').value, fovDeg: $('fovRange').value }, true));
+$('viewReset').addEventListener('click', () => applyViewSettings(null, true));
 const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {

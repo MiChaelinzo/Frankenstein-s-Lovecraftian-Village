@@ -177,6 +177,10 @@ async function main() {
     await key('e'); await sleep(900);
     const ls2 = Number(await text('sanityOut'));
     rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
+    // Scale: standing at the door (eye 1.6 m, level gaze) the 2.0 m door top must project above the screen centre, and the 0 m threshold below it.
+    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:34,y:s.eye,z:75,yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[34,w.DOOR_HEIGHT,72.5]),foot=m.projectPoint(vp,[34,0,72.5]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
+    const dn = JSON.parse(doorNdc || '{}');
+    rec('scale: a 2.0 m door top projects above the screen centre when looking level, its foot below', dn.top > 0.05 && dn.foot < -0.05, dn);
     rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
     await special('Escape', 27, undefined); await sleep(300);
 
