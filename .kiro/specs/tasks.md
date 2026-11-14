@@ -116,10 +116,11 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - Real browser checks (author only); Unity ignores the layout `Facing` and `WeatherForDay`; builder cell 6 m versus Core dressing 4 m.
 
 ## Roadmap
-- Round 21: inventory, items, finding and storing, sleep and food sanity recovery.
-- Round 22: economy, shops, buy/sell, the horror restaurant.
-- Round 23: monsters on the ground and in the sky, sanity exposure over time.
-- Round 24: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
-- Round 25: lore, stories and adventures.
-- Round 26: procedural regions beyond the village.
-- Round 27: Unity parity, performance and polish.
+- Round 21: scale perception, performance and visual polish (street-level fly-through, real-metre texture repeats, prop scale audit, first-person anchor, eye height and FOV settings).
+- Round 22: inventory, items, finding and storing, sleep and food sanity recovery.
+- Round 23: economy, shops, buy/sell, the horror restaurant.
+- Round 24: monsters on the ground and in the sky, sanity exposure over time.
+- Round 25: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 26: lore, stories and adventures.
+- Round 27: procedural regions beyond the village.
+- Round 28: Unity parity, performance and polish.
