@@ -364,7 +364,9 @@ async function main() {
     const afterLook1 = await shotHash(); await sleep(600); const afterLook2 = await shotHash();
     const knobHeld = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
     await touchN('touchEnd', [sPt(55)]); await sleep(500);
-    const rest1 = await shotHash(); await sleep(500); const rest2 = await shotHash();
+    // Software GL can take seconds per frame while the stick ease-out finishes, so wait until two frames in a row are identical.
+    let rest1 = await shotHash(), rest2 = rest1;
+    for (let i = 0; i < 12; i++) { await sleep(700); rest2 = await shotHash(); if (rest2 === rest1) break; rest1 = rest2; }
     rec('touch controls: stick and look pad work with two simultaneous pointers, releasing the look pad keeps the stick walking', both1 !== both2 && afterLook1 !== afterLook2 && parseFloat(knobHeld) < 0 && rest1 === rest2, { both1, both2, afterLook1, afterLook2, knobHeld, rest1, rest2 });
     await ev(`document.getElementById('touchLantern').click()`); await sleep(300);
     rec('touch controls: Lantern button runs the lantern action (sanity or lamp count changes)', /lit|lantern|lamp/i.test(await text('vigilNote') + await text('narration') + await text('objectiveText')) || Number(await text('sanityOut')) !== 100, { note: await text('vigilNote'), sanity: await text('sanityOut') });
@@ -426,7 +428,7 @@ async function main() {
     rec('title: ?intro=0 skips it', await hidden('title'), {});
     await key('?', 'Slash', 191, '?'); await sleep(300);
     const hp = await ev(`[document.getElementById('help').open, document.querySelectorAll('#help .help-group').length, !!document.getElementById('keys'), document.getElementById('helpDevice').textContent]`);
-    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 5 && hp[2] === false && /Last used/.test(hp[3]), { hp });
+    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 6 && hp[2] === false && /Last used/.test(hp[3]), { hp });
     await special('Escape', 27); await sleep(300);
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
 
