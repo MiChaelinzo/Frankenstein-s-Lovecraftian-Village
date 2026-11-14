@@ -27,7 +27,7 @@ export function runSelfTest(golden, catalogEntries) {
     return same(g.uints.map(() => r.nextUInt()), g.uints) && same(g.next10.map(() => r2.next(10)), g.next10);
   });
   for (const g of golden.layouts) check('Layout', `seed ${g.seed} ${g.width}x${g.depth}x${g.count}`, () =>
-    same(generateLayout(catalog, g.width, g.depth, g.count, g.seed).map((p) => [p.id, p.x, p.z, p.sizeX, p.sizeZ]), g.pieces));
+    same(generateLayout(catalog, g.width, g.depth, g.count, g.seed).map((p) => [p.id, p.x, p.z, p.sizeX, p.sizeZ, p.facing]), g.pieces));
   const narrator = new StaticNarrationProvider();
   golden.narration.forEach((n, i) => check('Narration', `line ${i + 1} at ${n.location}`, () => narrator.narrate(n.location, n.dread) === n.text));
   golden.dread.forEach(([s, d]) => check('Dread', `sanity ${s}`, () => SanityModel.dreadFor(s) === d));

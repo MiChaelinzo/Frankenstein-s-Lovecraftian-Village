@@ -17,7 +17,7 @@ namespace Frankenstein.Core.Tests
     public class GoldenParity
     {
         private static readonly int[] Seeds = { 0, 1, 42, 1818, -7, 123456789, int.MaxValue, int.MinValue };
-        private static readonly (int w, int d, int n)[] Grids = { (24, 24, 40), (16, 12, 25), (8, 8, 100) };
+        private static readonly (int w, int d, int n)[] Grids = { (24, 24, 40), (16, 12, 25), (8, 8, 100), (20, 20, 60) };
         private static readonly float[] Dreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f };
 
         private static readonly int[] CampaignNightCounts = { 1, 3, 5, 9, 0, 40 };
@@ -104,7 +104,7 @@ namespace Frankenstein.Core.Tests
                     {
                         var p = layout[i];
                         sb.Append(i > 0 ? ", " : "").Append("[\"").Append(p.Id).Append("\", ").Append(p.X).Append(", ")
-                          .Append(p.Z).Append(", ").Append(p.SizeX).Append(", ").Append(p.SizeZ).Append(']');
+                          .Append(p.Z).Append(", ").Append(p.SizeX).Append(", ").Append(p.SizeZ).Append(", ").Append(p.Facing).Append(']');
                     }
                     sb.Append("] }");
                 }

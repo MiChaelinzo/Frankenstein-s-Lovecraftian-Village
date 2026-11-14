@@ -18,7 +18,8 @@
     "red": [0.42, 0.11, 0.09, 1.0],
     "skin": [0.52, 0.4, 0.33, 1.0],
     "cloth_dark": [0.11, 0.13, 0.17, 1.0],
-    "cloth_red": [0.36, 0.1, 0.09, 1.0]
+    "cloth_red": [0.36, 0.1, 0.09, 1.0],
+    "moss": [0.1, 0.17, 0.12, 1.0]
   },
   "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5, "storeyHeight": 3.0, "houseStoreys": 2, "ridgeMin": 6.0, "ridgeMax": 10.0, "houseFootprintMinCells": 2},
   "meshes": [
@@ -311,6 +312,107 @@
       {"name": "lantern_handle", "material": "iron", "shape": "box", "at": [0.32, -0.28, 1.011], "size": [0.03, 0.03, 0.165]},
       {"name": "lantern", "material": "glow", "shape": "box", "at": [0.32, -0.28, 0.781], "size": [0.14, 0.14, 0.221]},
       {"name": "lantern_cap", "material": "iron", "shape": "cone", "at": [0.32, -0.28, 1.002], "radius": 0.11, "height": 0.092, "sides": 4}
+    ]},
+    {"id": "cart", "group": "village", "parts": [
+      {"name": "bed", "material": "wood", "shape": "box", "at": [0, 0, 0.55], "size": [1.8, 1.0, 0.1]},
+      {"name": "side_l", "material": "wood", "shape": "box", "at": [0, 0.5, 0.65], "size": [1.8, 0.06, 0.3]},
+      {"name": "side_r", "material": "wood", "shape": "box", "at": [0, -0.5, 0.65], "size": [1.8, 0.06, 0.3]},
+      {"name": "back", "material": "wood", "shape": "box", "at": [0.9, 0, 0.65], "size": [0.06, 1.0, 0.3]},
+      {"name": "axle", "material": "iron", "shape": "box", "at": [-0.1, 0, 0.4], "size": [0.1, 1.3, 0.08]},
+      {"name": "wheel_l_a", "material": "bark", "shape": "box", "at": [-0.1, 0.62, 0], "size": [0.9, 0.08, 0.14]},
+      {"name": "wheel_l_b", "material": "bark", "shape": "box", "at": [-0.1, 0.62, 0], "size": [0.14, 0.08, 0.9]},
+      {"name": "wheel_l_c", "material": "wood", "shape": "box", "at": [-0.1, 0.62, 0.16], "size": [0.62, 0.08, 0.62]},
+      {"name": "wheel_r_a", "material": "bark", "shape": "box", "at": [-0.1, -0.62, 0], "size": [0.9, 0.08, 0.14]},
+      {"name": "wheel_r_b", "material": "bark", "shape": "box", "at": [-0.1, -0.62, 0], "size": [0.14, 0.08, 0.9]},
+      {"name": "wheel_r_c", "material": "wood", "shape": "box", "at": [-0.1, -0.62, 0.16], "size": [0.62, 0.08, 0.62]},
+      {"name": "shaft_l", "material": "bark", "shape": "box", "at": [-1.35, 0.3, 0.5], "size": [1.0, 0.07, 0.07]},
+      {"name": "shaft_r", "material": "bark", "shape": "box", "at": [-1.35, -0.3, 0.5], "size": [1.0, 0.07, 0.07]},
+      {"name": "load", "material": "cloth", "shape": "box", "at": [0.25, 0, 0.65], "size": [0.9, 0.7, 0.35]},
+      {"name": "rope", "material": "bark", "shape": "box", "at": [0.25, 0, 1.0], "size": [0.95, 0.08, 0.04]}
+    ]},
+    {"id": "sack", "group": "village", "parts": [
+      {"name": "sack_a", "material": "cloth", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.32, 0.22], "height": 0.55, "sides": 7},
+      {"name": "sack_b", "material": "cloth", "shape": "cylinder", "at": [0.55, 0.1, 0], "radii": [0.3, 0.2], "height": 0.5, "sides": 7},
+      {"name": "sack_c", "material": "cloth", "shape": "cylinder", "at": [0.25, -0.35, 0], "radii": [0.3, 0.2], "height": 0.48, "sides": 7},
+      {"name": "sack_top", "material": "cloth", "shape": "cylinder", "at": [0.25, 0.05, 0.5], "radii": [0.24, 0.14], "height": 0.4, "sides": 7},
+      {"name": "tie", "material": "bark", "shape": "box", "at": [0, 0, 0.5], "size": [0.14, 0.14, 0.05]}
+    ]},
+    {"id": "wall_low", "group": "village", "parts": [
+      {"name": "course_0", "material": "stone", "shape": "box", "at": [-1.05, 0, 0], "size": [1.0, 0.45, 0.55]},
+      {"name": "course_1", "material": "rock", "shape": "box", "at": [0, 0, 0], "size": [1.05, 0.45, 0.62]},
+      {"name": "course_2", "material": "stone", "shape": "box", "at": [1.05, 0, 0], "size": [1.0, 0.45, 0.5]},
+      {"name": "upper_0", "material": "rock", "shape": "box", "at": [-0.5, 0.02, 0.55], "size": [1.1, 0.4, 0.28]},
+      {"name": "upper_1", "material": "stone", "shape": "box", "at": [0.65, -0.02, 0.62], "size": [1.2, 0.4, 0.24]},
+      {"name": "cap", "material": "lime", "shape": "box", "at": [0, 0, 0.84], "size": [2.9, 0.5, 0.08]}
+    ]},
+    {"id": "net", "group": "village", "parts": [
+      {"name": "pole_l", "material": "wood", "shape": "box", "at": [-1.3, 0, 0], "size": [0.1, 0.1, 1.9]},
+      {"name": "pole_r", "material": "wood", "shape": "box", "at": [1.3, 0, 0], "size": [0.1, 0.1, 1.9]},
+      {"name": "spar", "material": "bark", "shape": "box", "at": [0, 0, 1.8], "size": [2.7, 0.07, 0.07]},
+      {"name": "mesh", "material": "cloth", "shape": "box", "at": [0, 0, 0.75], "size": [2.5, 0.03, 1.05]},
+      {"name": "lead_edge", "material": "bark", "shape": "box", "at": [0, 0, 0.72], "size": [2.5, 0.05, 0.06]},
+      {"name": "float_0", "material": "red", "shape": "box", "at": [-0.8, 0, 1.2], "size": [0.12, 0.1, 0.12]},
+      {"name": "float_1", "material": "red", "shape": "box", "at": [0, 0, 1.25], "size": [0.12, 0.1, 0.12]},
+      {"name": "float_2", "material": "red", "shape": "box", "at": [0.8, 0, 1.2], "size": [0.12, 0.1, 0.12]}
+    ]},
+    {"id": "bench", "group": "village", "parts": [
+      {"name": "seat", "material": "wood", "shape": "box", "at": [0, 0, 0.45], "size": [1.5, 0.4, 0.07]},
+      {"name": "back", "material": "wood", "shape": "box", "at": [0, 0.18, 0.75], "size": [1.5, 0.05, 0.3]},
+      {"name": "leg_l", "material": "bark", "shape": "box", "at": [-0.62, 0, 0], "size": [0.08, 0.36, 0.45]},
+      {"name": "leg_r", "material": "bark", "shape": "box", "at": [0.62, 0, 0], "size": [0.08, 0.36, 0.45]},
+      {"name": "back_post_l", "material": "bark", "shape": "box", "at": [-0.62, 0.18, 0.45], "size": [0.07, 0.07, 0.55]},
+      {"name": "back_post_r", "material": "bark", "shape": "box", "at": [0.62, 0.18, 0.45], "size": [0.07, 0.07, 0.55]}
+    ]},
+    {"id": "sign", "group": "village", "parts": [
+      {"name": "post", "material": "wood", "shape": "box", "at": [0, 0, 0], "size": [0.14, 0.14, 2.4]},
+      {"name": "arm", "material": "wood", "shape": "box", "at": [0.45, 0, 2.1], "size": [0.9, 0.1, 0.1]},
+      {"name": "board", "material": "bark", "shape": "box", "at": [0.55, 0, 1.55], "size": [0.8, 0.06, 0.5]},
+      {"name": "plate", "material": "cloth", "shape": "box", "at": [0.55, -0.04, 1.62], "size": [0.6, 0.02, 0.34]},
+      {"name": "emblem", "material": "red", "shape": "box", "at": [0.55, -0.05, 1.7], "size": [0.2, 0.02, 0.16]},
+      {"name": "cap", "material": "iron", "shape": "box", "at": [0, 0, 2.4], "size": [0.2, 0.2, 0.06]}
+    ]},
+    {"id": "wall_lantern", "group": "village", "parts": [
+      {"name": "bracket", "material": "iron", "shape": "box", "at": [0, -0.06, 0.0], "size": [0.05, 0.12, 0.4]},
+      {"name": "arm", "material": "iron", "shape": "box", "at": [0, -0.18, 0.38], "size": [0.05, 0.3, 0.04]},
+      {"name": "lantern", "material": "glow", "shape": "box", "at": [0, -0.3, 0.12], "size": [0.16, 0.16, 0.26]},
+      {"name": "hood", "material": "iron", "shape": "cone", "at": [0, -0.3, 0.38], "radius": 0.13, "height": 0.12, "sides": 4}
+    ]},
+    {"id": "tree", "group": "village", "parts": [
+      {"name": "trunk", "material": "bark", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.38, 0.2], "height": 3.0, "sides": 6},
+      {"name": "root", "material": "bark", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.55, 0.38], "height": 0.35, "sides": 6},
+      {"name": "crown_low", "material": "moss", "shape": "cylinder", "at": [0, 0, 1.8], "radii": [1.0, 0.6], "height": 1.6, "sides": 7},
+      {"name": "crown_mid", "material": "moss", "shape": "cylinder", "at": [0.1, 0.1, 3.0], "radii": [0.85, 0.45], "height": 1.5, "sides": 7},
+      {"name": "crown_top", "material": "moss", "shape": "cone", "at": [0.0, 0.0, 4.2], "radius": 0.6, "height": 1.8, "sides": 7}
+    ]},
+    {"id": "bush", "group": "village", "parts": [
+      {"name": "clump_a", "material": "moss", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.7, 0.35], "height": 0.8, "sides": 6},
+      {"name": "clump_b", "material": "moss", "shape": "cylinder", "at": [0.6, 0.2, 0], "radii": [0.55, 0.28], "height": 0.65, "sides": 6},
+      {"name": "clump_c", "material": "moss", "shape": "cylinder", "at": [-0.5, -0.25, 0], "radii": [0.5, 0.25], "height": 0.6, "sides": 6}
+    ]},
+    {"id": "reeds", "group": "village", "parts": [
+      {"name": "reed_0", "material": "moss", "shape": "cone", "at": [0.12, 0.0, 0], "radius": 0.035, "height": 1.3, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
+      {"name": "reed_1", "material": "thatch", "shape": "cone", "at": [-0.14, 0.128, 0], "radius": 0.035, "height": 1.42, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
+      {"name": "reed_2", "material": "thatch", "shape": "cone", "at": [0.023, -0.259, 0], "radius": 0.035, "height": 1.54, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}},
+      {"name": "reed_3", "material": "moss", "shape": "cone", "at": [0.201, 0.262, 0], "radius": 0.035, "height": 1.66, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
+      {"name": "reed_4", "material": "thatch", "shape": "cone", "at": [-0.118, -0.021, 0], "radius": 0.035, "height": 1.78, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
+      {"name": "reed_5", "material": "thatch", "shape": "cone", "at": [0.16, -0.102, 0], "radius": 0.035, "height": 1.3, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}},
+      {"name": "reed_6", "material": "moss", "shape": "cone", "at": [-0.068, 0.251, 0], "radius": 0.035, "height": 1.42, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
+      {"name": "reed_7", "material": "thatch", "shape": "cone", "at": [-0.152, -0.293, 0], "radius": 0.035, "height": 1.54, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
+      {"name": "reed_8", "material": "thatch", "shape": "cone", "at": [0.113, 0.041, 0], "radius": 0.035, "height": 1.66, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}}
+    ]},
+    {"id": "rock", "group": "village", "parts": [
+      {"name": "boulder", "material": "rock", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.75, 0.4], "height": 0.7, "sides": 6},
+      {"name": "boulder_b", "material": "stone", "shape": "cylinder", "at": [0.7, 0.35, 0], "radii": [0.45, 0.25], "height": 0.42, "sides": 5},
+      {"name": "pebble", "material": "rock", "shape": "cylinder", "at": [-0.55, -0.4, 0], "radii": [0.3, 0.16], "height": 0.25, "sides": 5}
+    ]},
+    {"id": "laundry_line", "group": "village", "parts": [
+      {"name": "pole_l", "material": "wood", "shape": "box", "at": [-2.0, 0, 0], "size": [0.1, 0.1, 2.3]},
+      {"name": "pole_r", "material": "wood", "shape": "box", "at": [2.0, 0, 0], "size": [0.1, 0.1, 2.3]},
+      {"name": "line", "material": "bark", "shape": "box", "at": [0, 0, 2.15], "size": [4.0, 0.02, 0.02]},
+      {"name": "sheet_a", "material": "lime", "shape": "box", "at": [-1.2, 0, 1.35], "size": [0.7, 0.03, 0.8]},
+      {"name": "shirt", "material": "cloth", "shape": "box", "at": [-0.2, 0, 1.55], "size": [0.5, 0.03, 0.6]},
+      {"name": "cloth_red", "material": "cloth_red", "shape": "box", "at": [0.6, 0, 1.6], "size": [0.45, 0.03, 0.55]},
+      {"name": "sheet_b", "material": "lime", "shape": "box", "at": [1.45, 0, 1.3], "size": [0.75, 0.03, 0.85]}
     ]}
   ]
 }

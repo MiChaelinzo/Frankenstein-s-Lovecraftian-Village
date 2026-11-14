@@ -40,7 +40,7 @@ test('SeededRandom matches C# xorshift32', () => {
 test('layouts match C# VillageLayoutGenerator exactly', () => {
   assert.ok(golden.layouts.length > 0);
   for (const g of golden.layouts) {
-    const actual = generateLayout(catalog, g.width, g.depth, g.count, g.seed).map((p) => [p.id, p.x, p.z, p.sizeX, p.sizeZ]);
+    const actual = generateLayout(catalog, g.width, g.depth, g.count, g.seed).map((p) => [p.id, p.x, p.z, p.sizeX, p.sizeZ, p.facing]);
     assert.deepEqual(actual, g.pieces, `seed ${g.seed} ${g.width}x${g.depth}x${g.count}`);
   }
 });

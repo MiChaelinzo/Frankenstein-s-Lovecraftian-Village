@@ -2,6 +2,7 @@
 // test/parity.test.js checks it against test/golden.json emitted by the C# tests.
 
 import { phaseAt as clockPhaseAt, phaseStart as clockPhaseStart, wrapTick, MINUTES_PER_DAY } from './clock.js';
+import { isStreetCell, streetsEnabled, isBuilding, facingFor } from './streets.js';
 import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';
 
 const MAX_SANITY = 100;
@@ -168,12 +169,13 @@ export const PrefabNameMatcher = (() => {
   return { EXACT_SCORE, TOKEN_SCORE, ALIAS_SCORE, tokenize, normalize, score, best, resolve };
 })();
 
-/** Returns [{id, x, z, sizeX, sizeZ}] with the same placement order as VillageLayoutGenerator.cs. */
+/** Returns [{id, x, z, sizeX, sizeZ, facing}] (facing: quarter turns of the door side, see streets.js) with the same placement order as VillageLayoutGenerator.cs. */
 export function generateLayout(catalog, width, depth, targetCount, seed) {
   const result = [];
   if (!catalog || catalog.entries.length === 0 || width <= 0 || depth <= 0 || targetCount <= 0) return result;
   const rng = new SeededRandom(seed);
   const occupied = new Uint8Array(width * depth);
+  for (let sx = 0; sx < width; sx++) for (let sz = 0; sz < depth; sz++) if (isStreetCell(width, depth, sx, sz)) occupied[sx * depth + sz] = 1;
   const total = catalog.totalWeight;
   const attempts = targetCount * 20;
   for (let i = 0; i < attempts && result.length < targetCount; i++) {
@@ -183,8 +185,13 @@ export function generateLayout(catalog, width, depth, targetCount, seed) {
     const sx = entry.footprintX;
     const sz = entry.footprintZ;
     if (!fits(occupied, width, depth, x, z, sx, sz)) continue;
+    let facing = 0;
+    if (streetsEnabled(width, depth) && isBuilding(sx, sz)) {
+      facing = facingFor(width, depth, x, z, sx, sz);
+      if (facing < 0) continue;
+    }
     for (let dx = 0; dx < sx; dx++) for (let dz = 0; dz < sz; dz++) occupied[(x + dx) * depth + (z + dz)] = 1;
-    result.push({ id: entry.id, x, z, sizeX: sx, sizeZ: sz });
+    result.push({ id: entry.id, x, z, sizeX: sx, sizeZ: sz, facing });
   }
   return result;
 }
