@@ -175,7 +175,7 @@ test('smoke: the GL renderer runs a frame against a recording stub context', () 
   const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'rain', 0.4, 2);
   r.setTentacles(buildTentacles({ bases: M.tentacleBases(24, 24, 7), grow: 1, dread: 0.9, timeSec: 1 }));
   r.draw({ vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'rain'),
-    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90,
+    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], windU: [1, 0, 0.5, 0.5], rain: M.precipitationStyle('rain', M.windState({ weather: 'rain', seed: 7 })), pointScale: 90,
     moonLight: M.moonBoost(M.moonParams(7, 1, 'night', 'rain').color), sea: M.seaParams({ dread: 0.4 }), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0.4, false), post: M.postParams({ dread: 0.4 }) });
   assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 8, 'sky, sea, ground, buildings, coast, tentacles, halos, rain/mist');
 });
@@ -188,7 +188,7 @@ test('smoke: post pass runs through the offscreen target when complete, and warn
       const r = createGlRenderer(gl), cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'clear', 0.4, 2);
       r.resize(320, 180);
       const frame = { vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'clear'), moonLight: [0.5, 0.5, 0.5],
-        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
+        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], windU: [1, 0, 0.5, 0.5], rain: M.precipitationStyle('rain', M.windState({ weather: 'rain', seed: 7 })), pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
       r.draw(frame); r.draw(frame);
     } finally { console.warn = orig; }
     return { calls, warns };

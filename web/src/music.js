@@ -82,6 +82,20 @@ export function wavesLayer(coast, dread, reduced) {
 /** The wind bed gain: grows with dread (the existing bed is 0.02 + 0.06 * dread). */
 export const windGain = (dread) => 0.02 + 0.06 * clampDread(dread);
 
+/**
+ * Weather bed of the soundtrack: rain hiss gain (0 when dry), a wind multiplier on the existing wind bed, and the hiss filter cutoff
+ * (a drizzle is a soft high patter, a storm a broad roar). Sound is not motion, so reduced motion keeps it.
+ */
+export function weatherAudio(weather) {
+  const t = { drizzle: [0.012, 1.3, 5200], rain: [0.03, 1.7, 3800], storm: [0.05, 2.6, 2600], overcast: [0, 1.2, 4000], mist: [0, 0.8, 4000], fog: [0, 0.7, 4000] }[weather] || [0, 1, 4000];
+  return { rain: t[0], wind: t[1], cutoff: t[2] };
+}
+/** A rolling thunder burst, `delayMs` after the flash: a low rumble that swells and fades. Deterministic parameters from the delay (farther is longer and lower). */
+export function thunderParams(delayMs) {
+  const far = clamp((num(delayMs, 400) - 400) / 1800, 0, 1);
+  return { atMs: Math.max(0, num(delayMs, 400)), durMs: 2200 + 2600 * far, gain: 0.35 - 0.18 * far, filter: 'lowpass', freq: 260 - 120 * far, q: 0.7, swell: true, thump: 52 - 14 * far };
+}
+
 export const BELL_PARTIALS = [[1, 1], [2.76, 0.5], [5.4, 0.28], [8.93, 0.14]]; // inharmonic ratios and relative gains
 /** Rare distant bell strikes: [{ atMs, freq, durMs, gain }], 25..70 s apart, softer at low dread. Empty under reduced motion. */
 export function bellSchedule(seed, dread, count, reduced, batch = 0) {
@@ -128,7 +142,7 @@ export function cueNotes(kind, seed = 0) {
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
   let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0, noiseBuf = null, wavesGain = null, wavesFilter = null, wavesLfo = null, coast = 0, foot = 0, noiseCursor = 0; // noiseCursor walks the noise buffer deterministically so bursts differ without randomness
-  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true };
+  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true }, weather = 'clear', rainGain = null, rainFilter = null;
 
   const apply = () => {
     if (!ctx) return;
@@ -139,7 +153,9 @@ export function createAmbient(AC, opts = {}) {
     if (lfoGain) lfoGain.gain.setTargetAtTime(g > 0 ? 0.02 * modulation(reduced).depth : 0, t, 0.25);
     filter.frequency.setTargetAtTime(cutoffFor(dread), t, 0.4);
     droneFrequencies(seed, dread).forEach((f, i) => voices[i].frequency.setTargetAtTime(f, t, 0.8));
-    if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread) * clamp(num(mix.wind, 1), 0, 3), t, 0.5);
+    const wa = weatherAudio(weather);
+    if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread) * clamp(num(mix.wind, 1), 0, 3) * wa.wind, t, 0.5);
+    if (rainGain) { rainGain.gain.setTargetAtTime(wa.rain, t, 0.8); rainFilter.frequency.setTargetAtTime(wa.cutoff, t, 0.8); }
     if (wavesGain) {
       const w = wavesLayer(coast, dread, reduced);
       wavesGain.gain.setTargetAtTime(w.gain * clamp(num(mix.waves, 1), 0, 3), t, 0.8); wavesFilter.frequency.setTargetAtTime(w.cutoff, t, 0.8); wavesLfo.gain.setTargetAtTime(w.gain * w.depth, t, 0.8);
@@ -207,6 +223,11 @@ export function createAmbient(AC, opts = {}) {
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.8;
     noiseGain = ctx.createGain(); noiseGain.gain.value = 0.02; noiseBuf = buf;
     src.connect(bp); bp.connect(noiseGain); noiseGain.connect(master); src.start();
+    // rain: the same noise through a high-passed, band-limited hiss whose gain follows the weather
+    const rsrc = ctx.createBufferSource(); rsrc.buffer = buf; rsrc.loop = true; rsrc.playbackRate.value = 1.3;
+    const rhp = ctx.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 900;
+    rainFilter = ctx.createBiquadFilter(); rainFilter.type = 'lowpass'; rainFilter.frequency.value = 4000;
+    rainGain = ctx.createGain(); rainGain.gain.value = 0; rsrc.connect(rhp); rhp.connect(rainFilter); rainFilter.connect(rainGain); rainGain.connect(master); rsrc.start();
     // waves: the same noise through a low-pass whose gain breathes slowly
     const wsrc = ctx.createBufferSource(); wsrc.buffer = buf; wsrc.loop = true; wsrc.playbackRate.value = 0.6;
     wavesFilter = ctx.createBiquadFilter(); wavesFilter.type = 'lowpass'; wavesFilter.frequency.value = 400;
@@ -244,6 +265,10 @@ export function createAmbient(AC, opts = {}) {
       }
     },
     setDread(d) { dread = clampDread(d); apply(); },
+    /** The night's weather name (clock.js WEATHER_NAMES): sets the rain hiss and wind bed. Unknown names are dry. */
+    setWeather(w) { weather = String(w || 'clear'); apply(); },
+    /** Thunder trailing a lightning flash by delayMs. Silent when stopped, muted or never started. */
+    thunder(delayMs) { if (live()) burst(thunderParams(delayMs)); },
     /** The clock's ambient mix (daylight.audioMix): drone, wind and waves multipliers and whether whispers may sound. */
     setMix(m) { mix = { drone: num(m?.drone, 1), wind: num(m?.wind, 1), waves: num(m?.waves, 1), whispers: m?.whispers !== false }; apply(); },
     stop() {
@@ -254,7 +279,7 @@ export function createAmbient(AC, opts = {}) {
     /** Stop and release the AudioContext. The controller cannot be restarted afterwards. */
     dispose() {
       this.stop();
-      const c = ctx; ctx = null; master = filter = lfoGain = noiseGain = noiseBuf = wavesGain = wavesFilter = wavesLfo = null; voices = [];
+      const c = ctx; ctx = null; master = filter = lfoGain = rainGain = rainFilter = noiseGain = noiseBuf = wavesGain = wavesFilter = wavesLfo = null; voices = [];
       c?.close?.();
     },
   };

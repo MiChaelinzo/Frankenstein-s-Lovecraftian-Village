@@ -206,10 +206,24 @@ export function screenRay(cam, ndcX, ndcY, aspect) {
 
 // ---------- atmosphere ----------
 
-const WEATHER_FOG = { clear: 0.011, rain: 0.017, fog: 0.03 };
+/**
+ * One row per weather name (clock.js WEATHER_NAMES): fog and ground-mist density, sky grey/cloud/stars gains, moon veil, sea ripple added,
+ * wind strength 0..1, fog drift in metres per second, particle counts (rain streaks, null mist = the dread formula) and lantern/window gains.
+ * clear, rain and fog keep the values they had before round 20 so existing stills do not move.
+ */
+export const WEATHER_LOOK = Object.freeze({
+  clear:    { fog: 0.011, ground: 0.02,  grey: 0,    cloud: 0.15, stars: 1,   veil: 1,    ripple: 0,    wind: 0.2,  drift: [0.22, 0.12], rain: 0,   mist: null, glow: 1,    pool: 1 },
+  overcast: { fog: 0.014, ground: 0.025, grey: 0.25, cloud: 0.7,  stars: 0.3, veil: 0.45, ripple: 0.01, wind: 0.35, drift: [0.3, 0.16],  rain: 0,   mist: null, glow: 1.08, pool: 1.05 },
+  drizzle:  { fog: 0.016, ground: 0.03,  grey: 0.3,  cloud: 0.8,  stars: 0.12, veil: 0.35, ripple: 0.03, wind: 0.35, drift: [0.4, 0.2],   rain: 350, mist: null, glow: 1.15, pool: 1.12 },
+  rain:     { fog: 0.017, ground: 0.032, grey: 0.35, cloud: 0.85, stars: 0.1, veil: 0.3,  ripple: 0.06, wind: 0.5,  drift: [0.55, 0.3],  rain: 900, mist: null, glow: 1.2,  pool: 1.15 },
+  storm:    { fog: 0.02,  ground: 0.036, grey: 0.55, cloud: 1,    stars: 0,   veil: 0.2,  ripple: 0.12, wind: 1,    drift: [0.9, 0.5],   rain: 900, mist: null, glow: 1.25, pool: 1.15 },
+  fog:      { fog: 0.03,  ground: 0.05,  grey: 0.45, cloud: 0.6,  stars: 0.2, veil: 0.5,  ripple: 0,    wind: 0.1,  drift: [0.35, 0.2],  rain: 0,   mist: 140,  glow: 1.3,  pool: 1.3 },
+  mist:     { fog: 0.02,  ground: 0.042, grey: 0.3,  cloud: 0.5,  stars: 0.3, veil: 0.6,  ripple: 0,    wind: 0.15, drift: [0.3, 0.18],  rain: 0,   mist: 110,  glow: 1.2,  pool: 1.2 },
+});
+export const weatherLook = (weather) => WEATHER_LOOK[weather] || WEATHER_LOOK.clear;
 /** Exponential squared fog density per metre. Dread thickens it; a slow 11 s breath is added unless motion is reduced. */
 export function fogDensity({ dread = 0, weather = 'clear', timeSec = 0, reduced = false } = {}) {
-  const base = (WEATHER_FOG[weather] ?? WEATHER_FOG.clear) + clamp(dread, 0, 1) * 0.02;
+  const base = weatherLook(weather).fog + clamp(dread, 0, 1) * 0.02;
   const breath = reduced ? 0 : Math.sin((timeSec * Math.PI * 2) / 11) * 0.06 * clamp(dread, 0, 1);
   return base * (1 + breath);
 }
@@ -220,11 +234,10 @@ const SKIES = {
   night: { zenith: [0.02, 0.05, 0.15], horizon: [0.2, 0.34, 0.5], ambient: [0.15, 0.21, 0.32], stars: 0.95 },
   witching: { zenith: [0.025, 0.02, 0.1], horizon: [0.18, 0.15, 0.32], ambient: [0.12, 0.13, 0.25], stars: 1 },
 };
-const WEATHER_SKY = { clear: { grey: 0, cloud: 0.15, stars: 1 }, rain: { grey: 0.35, cloud: 0.85, stars: 0.1 }, fog: { grey: 0.45, cloud: 0.6, stars: 0.2 } };
 
 /** Sky and ambient colours (0..1 rgb) for a campaign night. The fog colour matches the horizon so the world fades into the sky. */
 export function skyColors(sky, weather, dread = 0) {
-  const s = SKIES[sky] || SKIES.night, w = WEATHER_SKY[weather] || WEATHER_SKY.clear, d = clamp(dread, 0, 1);
+  const s = SKIES[sky] || SKIES.night, w = weatherLook(weather), d = clamp(dread, 0, 1);
   const grey = (c) => mixc(c, [(c[0] + c[1] + c[2]) / 3, (c[0] + c[1] + c[2]) / 3, (c[0] + c[1] + c[2]) / 3], w.grey);
   const sick = [0.2, 0.16, 0.12];
   const zenith = mixc(grey(s.zenith), sick.map((v) => v * 0.4), d * 0.35);
@@ -238,7 +251,7 @@ export function moonParams(seed, nightNumber, sky, weather) {
   const rng = new SeededRandom(((seed | 0) * 31 + (nightNumber | 0) * 7919 + 17) | 0);
   const azimuth = (rng.next(360) * Math.PI) / 180, elevation = ((sky === 'dusk' ? 14 : 28) + rng.next(25)) * (Math.PI / 180);
   const dir = [Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation), -Math.cos(azimuth) * Math.cos(elevation)];
-  const veil = weather === 'clear' ? 1 : weather === 'fog' ? 0.5 : 0.3;
+  const veil = weatherLook(weather).veil;
   return { dir, color: [0.34 * veil, 0.4 * veil, 0.55 * veil], size: 0.05 + rng.next(20) / 1000, glow: veil };
 }
 
@@ -347,8 +360,37 @@ export function terrainRects(gridW, gridD, seed, cell = CELL) {
 export function particleCounts({ weather, dread, reduced }) {
   if (reduced) return { rain: 0, mist: 0 };
   const d = clamp(dread, 0, 1);
-  return { rain: weather === 'rain' ? 900 : 0, mist: weather === 'fog' ? 140 : Math.round(40 + 60 * d) };
+  const w = weatherLook(weather);
+  return { rain: w.rain, mist: w.mist ?? Math.round(40 + 60 * d) };
 }
+/**
+ * Wind for a weather: a fixed seeded heading, strength 0..1 and a slow gust (0 under reduced motion, which keeps a still lean instead).
+ * Foliage bends along dir by strength + gust, rain slants with it, and the wind bed of the soundtrack follows strength.
+ */
+export function windState({ weather, seed = 0, timeSec = 0, reduced = false } = {}) {
+  const a = ((new SeededRandom(((seed | 0) ^ 0x71d) | 0).next(360)) * Math.PI) / 180, base = weatherLook(weather).wind;
+  const gust = reduced ? 0 : 0.3 * Math.sin(timeSec * 0.55) * Math.sin(timeSec * 0.23 + 1.3) + 0.15 * Math.sin(timeSec * 1.7);
+  return { dir: [Math.cos(a), Math.sin(a)], strength: clamp(base * (1 + gust), 0, 1.2), base };
+}
+
+/** Rain streak motion for a weather and wind: velocity in m/s (down and slanted with the wind), size and alpha. Drizzle falls slow and fine, a storm fast and hard. */
+export function precipitationStyle(weather, wind) {
+  const speed = weather === 'drizzle' ? 7 : weather === 'storm' ? 26 : 16, slant = speed * 0.5 * (wind ? wind.strength : 0);
+  return {
+    vel: [(wind ? wind.dir[0] : 0) * slant, -speed, (wind ? wind.dir[1] : 0) * slant],
+    size: weather === 'drizzle' ? 0.05 : weather === 'storm' ? 0.095 : 0.08, alpha: weather === 'drizzle' ? 0.32 : weather === 'storm' ? 0.55 : 0.5,
+  };
+}
+
+/** Lightning brightens the sky and fog toward a cold white by `level` (0..FLASH_MAX). Returns new colour objects and leaves the input alone. */
+export function flashSky(sky, level) {
+  const k = clamp(level, 0, 1) * 1.8, cold = [0.78, 0.84, 1];
+  if (!(k > 0)) return sky;
+  return { ...sky, zenith: mixc(sky.zenith, cold, k * 0.8), horizon: mixc(sky.horizon, cold, k), fog: mixc(sky.fog, cold, k * 0.9), ambient: sky.ambient.map((v, i) => v + cold[i] * level * 1.4) };
+}
+/** Flash level after dtSec: a fast fall (about 0.25 s to nothing). */
+export const decayFlash = (level, dtSec) => (level * Math.exp(-Math.max(0, dtSec) * 9) < 0.004 ? 0 : level * Math.exp(-Math.max(0, dtSec) * 9));
+
 /** Seeded 0..1 positions for a particle field of n points: flat [x, y, z, ...]. */
 export function particleSeeds(seed, n, salt = 0) {
   const r = new SeededRandom(((seed | 0) ^ (salt * 0x9e37)) | 0), out = new Float32Array(n * 3);
@@ -410,11 +452,11 @@ export function hazedSky(sky, weather, dread, nightNumber) {
 export function fogLayers({ dread = 0, weather = 'clear', timeSec = 0, reduced = false } = {}) {
   const density = fogDensity({ dread, weather, timeSec, reduced });
   const d = clamp(dread, 0, 1), breath = reduced ? 0 : Math.sin((timeSec * Math.PI * 2) / 17) * 0.15;
-  const ground = (weather === 'fog' ? 0.05 : weather === 'rain' ? 0.032 : 0.02) * (1 + d * 0.6) * (1 + breath);
+  const ground = weatherLook(weather).ground * (1 + d * 0.6) * (1 + breath);
   return { density, ground, groundHeight: 2.2 + d * 1.4, drift: fogDrift(weather, reduced) };
 }
 /** Metres per second the low fog sheets slide across the water and lanes: slow, mostly with the wind. Exactly zero under reduced motion. */
-export const fogDrift = (weather, reduced) => (reduced ? [0, 0] : weather === 'rain' ? [0.55, 0.3] : weather === 'fog' ? [0.35, 0.2] : [0.22, 0.12]);
+export const fogDrift = (weather, reduced) => (reduced ? [0, 0] : weatherLook(weather).drift);
 
 /**
  * Sea look. ripple: normal slope amplitude; speed: ripple animation rate (0 under reduced motion, so the water is still);
@@ -423,7 +465,7 @@ export const fogDrift = (weather, reduced) => (reduced ? [0, 0] : weather === 'r
 export function seaParams({ dread = 0, weather = 'clear', reduced = false } = {}) {
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1);
   return {
-    ripple: 0.07 + (weather === 'rain' ? 0.06 : 0) + 0.03 * d, speed: reduced ? 0 : 1, fresnel: 3,
+    ripple: 0.07 + weatherLook(weather).ripple + 0.03 * d, speed: reduced ? 0 : 1, fresnel: 3,
     tint: mixc([0.02, 0.07, 0.11], [0.08, 0.05, 0.06], d), moonGain: 4.5, lanternGain: 1.1,
   };
 }

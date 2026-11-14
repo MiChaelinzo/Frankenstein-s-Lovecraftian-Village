@@ -54,7 +54,8 @@ namespace Frankenstein.Core.Tests
                     Assert.False(string.IsNullOrWhiteSpace(night.Rumor));
                     Assert.False(string.IsNullOrWhiteSpace(night.Lore));
                     Assert.DoesNotContain('\u2014', night.Rumor + night.Lore + night.Title);
-                    Assert.Contains(night.Weather, new[] { "clear", "rain", "fog" });
+                    Assert.Contains(night.Weather, GameClock.WeatherNames);
+                    Assert.Equal(GameClock.WeatherForDay(c.Seed, i), night.Weather);
                     Assert.Contains(night.Sky, new[] { "dusk", "night", "witching" });
                 }
             });

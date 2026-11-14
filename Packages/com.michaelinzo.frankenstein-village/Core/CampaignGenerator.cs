@@ -52,8 +52,6 @@ namespace Frankenstein.Core
             new[] { "The sea is not retreating. It is waiting for the village to finish its sentence.", "The thing under the tower has been patient since before names, and the patience is wearing thin.", "By the final night the houses face the water, and the water faces back." },
         };
 
-        private static readonly string[] Weathers = { "clear", "rain", "fog" };
-
         /// <summary>Clamps the night count into [MinNights, MaxNights].</summary>
         public static int ClampNights(int nights)
         {
@@ -95,9 +93,9 @@ namespace Frankenstein.Core
                 }
                 usedTitles[stage][idx] = true;
 
-                // The sky darkens with the arc; weather is rolled per night.
+                // The sky darkens with the arc; weather follows the village day (GameClock.WeatherForDay).
                 string sky = stage == 0 ? "dusk" : stage == 1 ? "night" : "witching";
-                string weather = Weathers[rng.Next(Weathers.Length)];
+                string weather = GameClock.WeatherForDay(seed, i);
                 string rumor = RumorWho[rng.Next(RumorWho.Length)] + " " + RumorWhat[rng.Next(RumorWhat.Length)] + " " + RumorWhen[rng.Next(RumorWhen.Length)];
                 string lore = Lore[stage][rng.Next(Lore[stage].Length)];
 

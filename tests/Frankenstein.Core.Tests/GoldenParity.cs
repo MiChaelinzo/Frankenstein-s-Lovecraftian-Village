@@ -636,7 +636,16 @@ namespace Frankenstein.Core.Tests
                 sb.Append(i > 0 ? ", " : "").Append('[').Append(t).Append(", ").Append(GameClock.Wrap(t)).Append(", ").Append(GameClock.DayNumber(t)).Append(", ")
                   .Append((int)GameClock.PhaseAt(t)).Append(", ").Append(GameClock.DaylightPercent(t)).Append(", ").Append(GameClock.LanternsLit(t) ? 1 : 0).Append(']');
             }
-            sb.Append("],\n    \"clueRule\": [");
+            sb.Append("],\n    \"weather\": {\"names\": ").Append(J(GameClock.WeatherNames)).Append(", \"days\": [");
+            bool firstWeather = true;
+            foreach (var wSeed in new[] { 1818, 7, -42 })
+            {
+                sb.Append(firstWeather ? "" : ", ").Append("[").Append(wSeed);
+                firstWeather = false;
+                for (int day = -3; day <= 40; day++) sb.Append(", ").Append(GameClock.WeatherIndexForDay(wSeed, day));
+                sb.Append(']');
+            }
+            sb.Append("]},\n    \"clueRule\": [");
             bool firstRule = true;
             for (int d = 0; d < 4; d++)
                 for (int b = 0; b < 5; b++)

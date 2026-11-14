@@ -73,5 +73,56 @@ namespace Frankenstein.Core
 
         /// <summary>Lanterns burn from dusk until dawn.</summary>
         public static bool LanternsLit(int tick) { return !IsDaylight(PhaseAt(tick)); }
+
+        // ---- Weather: one deterministic condition per village day. The 3D view, the 2D view, the story and the campaign all read these. ----
+
+        /// <summary>Weather conditions, calmest to wildest sky. "fog" is the heavy fog, "mist" the thin sea mist.</summary>
+        public static readonly string[] WeatherNames = { "clear", "overcast", "drizzle", "rain", "storm", "fog", "mist" };
+        /// <summary>Percent chance of each weather on a fresh roll, in WeatherNames order. Sums to 100.</summary>
+        private static readonly int[] WeatherWeights = { 20, 20, 14, 16, 8, 12, 10 };
+        /// <summary>Percent chance that a day repeats the weather rolled for the day before, so spells of weather last more than one day.</summary>
+        public const int WeatherPersistPercent = 40;
+        private const int WeatherDaySalt = unchecked((int)0x9E3779B1);
+
+        private static int RollWeather(int seed, int day, out int keepPercent)
+        {
+            var rng = new SeededRandom(seed ^ unchecked(day * WeatherDaySalt) ^ 0x3c6ef372);
+            keepPercent = rng.Next(100);
+            int pick = rng.Next(100);
+            for (int i = 0; i < WeatherWeights.Length; i++)
+            {
+                if (pick < WeatherWeights[i]) return i;
+                pick -= WeatherWeights[i];
+            }
+            return 0;
+        }
+
+        /// <summary>Weather index (into WeatherNames) for a village day. Pure in (seed, day); negative days work.</summary>
+        public static int WeatherIndexForDay(int seed, int day)
+        {
+            int keep;
+            int today = RollWeather(seed, day, out keep);
+            if (keep >= WeatherPersistPercent) return today;
+            int unused;
+            return RollWeather(seed, day - 1, out unused);
+        }
+
+        /// <summary>Weather name for a village day.</summary>
+        public static string WeatherForDay(int seed, int day) { return WeatherNames[WeatherIndexForDay(seed, day)]; }
+
+        /// <summary>Only a storm throws lightning.</summary>
+        public static bool HasLightning(string weather) { return weather == "storm"; }
+
+        /// <summary>Precipitation strength 0..100: none, a drizzle, steady rain, a downpour. Unknown names count as dry.</summary>
+        public static int PrecipitationPercent(string weather)
+        {
+            switch (weather)
+            {
+                case "drizzle": return 30;
+                case "rain": return 65;
+                case "storm": return 100;
+                default: return 0;
+            }
+        }
     }
 }

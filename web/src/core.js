@@ -1,7 +1,7 @@
 // Dependency-free JS port of Packages/com.michaelinzo.frankenstein-village/Core. Keep behavior identical to the C# source;
 // test/parity.test.js checks it against test/golden.json emitted by the C# tests.
 
-import { phaseAt as clockPhaseAt, phaseStart as clockPhaseStart, wrapTick, MINUTES_PER_DAY } from './clock.js';
+import { phaseAt as clockPhaseAt, phaseStart as clockPhaseStart, wrapTick, MINUTES_PER_DAY, weatherForDay } from './clock.js';
 import { isStreetCell, streetsEnabled, isBuilding, facingFor } from './streets.js';
 import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';
 
@@ -457,8 +457,6 @@ const CAMPAIGN_LORE = [
   ['The altar predates the church. The church was built so that something would have a roof.', 'The well is deeper than the hill is tall, and the water rises when the bells are silent.', 'Those who walk the lantern route at night never agree on how many of them there were.'],
   ['The sea is not retreating. It is waiting for the village to finish its sentence.', 'The thing under the tower has been patient since before names, and the patience is wearing thin.', 'By the final night the houses face the water, and the water faces back.'],
 ];
-const WEATHERS = ['clear', 'rain', 'fog'];
-
 export function clampNights(nights) {
   const n = Number.isFinite(nights) ? Math.trunc(nights) : CAMPAIGN_DEFAULT_NIGHTS;
   return Math.max(CAMPAIGN_MIN_NIGHTS, Math.min(CAMPAIGN_MAX_NIGHTS, n));
@@ -493,7 +491,7 @@ export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
     used[stage][idx] = true;
 
     const sky = stage === 0 ? 'dusk' : stage === 1 ? 'night' : 'witching';
-    const weather = WEATHERS[rng.next(WEATHERS.length)];
+    const weather = weatherForDay(seed, i);
     const rumor = `${RUMOR_WHO[rng.next(RUMOR_WHO.length)]} ${RUMOR_WHAT[rng.next(RUMOR_WHAT.length)]} ${RUMOR_WHEN[rng.next(RUMOR_WHEN.length)]}`;
     const lore = CAMPAIGN_LORE[stage][rng.next(CAMPAIGN_LORE[stage].length)];
     out.push({ number: i + 1, title: CAMPAIGN_TITLES[stage][idx], dreadTargetPercent: target, sanityStart: 100 - target, sky, weather, rumor, lore });

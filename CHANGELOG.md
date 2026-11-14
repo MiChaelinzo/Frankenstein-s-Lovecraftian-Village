@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 20 (FEAT-004)
+- Weather: `GameClock.WeatherForDay(seed, day)` (mirror `clock.js weatherForDay`, golden-checked) gives one of clear, overcast, drizzle, rain, storm, fog (heavy fog), mist (sea mist) per village day, with 40% chance to repeat the day before. `CampaignGenerator` and the story take their weather from it (campaign goldens changed: the weather roll no longer consumes the campaign RNG). Core API for Unity: `WeatherNames`, `HasLightning`, `PrecipitationPercent`.
+- 3D weather: `WEATHER_LOOK` table in `view3d-math.js` drives fog, sky, moon veil, sea ripple, particles, lantern and window gain. Wind (`windState`) bends trees, bushes, reeds and dead trees in the scene vertex shader and slants rain. Storm lightning uses `stormFlash` through the existing capped, rate-limited `applyFlash` gate and is off under reduced motion; thunder and a rain hiss bed are in `music.js`. `?weather=NAME` overrides the night's weather for QA. en/fr names.
+- Birds (`web/src/birds.js`): seeded boids (fixed 1/20 s steps), gulls over the sea, crows on roofs (circling the church from 60% dread), 1 to 3 huge silhouettes in the fog from 70% dread. Drawn through the villager triangle buffer (no new draw call). Reduced motion keeps only perched crows.
+- Lighting: weather raises lantern pool radius and window glow in wet air; window flicker and brightness vary by storey.
+- Status: Verified by tests (dotnet 172, node 431, validator, Unity compile check 0 warnings 0 errors). Partially Verified: look of the weather and birds (SwiftShader stills `docs/media/r20-weather-*.png`, `r20-birds-sea.png`); GPU timing, audio by ear and crow/silhouette stills are Unverified.
+
 ### Round 20 (FEAT-003)
 - Street network in Core (`VillageStreets.cs`, mirror `web/src/streets.js`): 4 m lanes every 6 cells centred on the grid, a 3 by 3 cell cobbled square, buildings (2 by 2 cells or more) must touch a street and get a `Facing` (door side, quarter turns, golden checked). Grids under 16 cells have no streets. Lantern lights and villager stand points follow the facing.
 - Walkable coast road (spec task 85): `VillageDressing.WalkBounds` opens the collision bounds to the shore on the coast side; harbour props moved inland; tests walk the road and every lane centre line in C# and with the real `stepCamera` in JS.
