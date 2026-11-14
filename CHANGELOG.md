@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 20 (FEAT-003)
+- Street network in Core (`VillageStreets.cs`, mirror `web/src/streets.js`): 4 m lanes every 6 cells centred on the grid, a 3 by 3 cell cobbled square, buildings (2 by 2 cells or more) must touch a street and get a `Facing` (door side, quarter turns, golden checked). Grids under 16 cells have no streets. Lantern lights and villager stand points follow the facing.
+- Walkable coast road (spec task 85): `VillageDressing.WalkBounds` opens the collision bounds to the shore on the coast side; harbour props moved inland; tests walk the road and every lane centre line in C# and with the real `stepCamera` in JS.
+- Dressing grew by wells, benches, signs, wall lanterns, carts, sacks, fences, low walls, laundry lines, nets, rowboats, trees, bushes, reeds and rocks (12 new original meshes in `village_shapes.json`, same roll order in C# and JS). Display-only street walkers (`VillageStreets.Walkers`) thin out with dread.
+- Materials: timber framed plaster, stone blocks, slate or shingle roofs, cobbles and wet mud generated in `proc-textures.js`; the 3D shader picks the surface by normal and colour. The church rise is a smooth heightmap with a path (spec task 89). Service worker cache v21.
+- Triangle count about 23k of 60k in the worst case (counts only; GPU timing Unverified, SwiftShader screenshots only).
+
 ### Round 19
 - Scale standard: `WorldScale` (Core, `web/src/world-scale.js`, `scale` block of `village_shapes.json`): person 1.7 m, eye 1.6 m, door 2.0 m, eaves 2.4 to 3.2 m, lamp 3.0 to 3.6 m, trees at least 3.5 m, meshes at scale 1 (`fitScale` never enlarges). The Unity player is an unscaled root with a 1.7 m CharacterController. Root cause of "too big": first-person eye next to doors authored 1.5 to 1.9 m and meshes stretched to 4 m cells, plus a 1.85 m villager.
 - Gallery: `r19-dawn`, `r19-day-villagers`, `r19-dusk-village`, `r19-night-vigil` and `r19-scale-reference` (original content only). `web/data/stitch.json` refreshed. Counts: dotnet 159, node 408, browser check 93 of 93.

@@ -70,6 +70,13 @@ namespace Frankenstein.Core
 
         public static double FacingYaw(int facing) { return facing * Math.PI / 2; }
 
+        private static readonly int[] FacingDxTable = { 0, 1, 0, -1 };
+        private static readonly int[] FacingDzTable = { 1, 0, -1, 0 };
+        /// <summary>Unit direction of a facing in x, exact (no trigonometry), so golden JSON round-trips.</summary>
+        public static int FacingDx(int facing) { return FacingDxTable[((facing % 4) + 4) % 4]; }
+        /// <summary>Unit direction of a facing in z.</summary>
+        public static int FacingDz(int facing) { return FacingDzTable[((facing % 4) + 4) % 4]; }
+
         /// <summary>Axis aligned rectangles (x0, z0, x1, z1 in metres) that make up the street surface: every lane across the whole grid, and the square.</summary>
         public static List<double[]> Surfaces(int gridW, int gridD, double cell)
         {
@@ -79,6 +86,68 @@ namespace Frankenstein.Core
             foreach (int r in LaneLines(gridD)) rects.Add(new[] { 0.0, r * cell, gridW * cell, (r + 1) * cell });
             rects.Add(new[] { (gridW / 2 - SquareRadius) * cell, (gridD / 2 - SquareRadius) * cell, (gridW / 2 + SquareRadius + 1) * cell, (gridD / 2 + SquareRadius + 1) * cell });
             return rects;
+        }
+
+        // ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect) ----------
+        /// <summary>Metres a walker covers per clock tick (one tick is one village minute, a real second in the session): a calm walking pace.</summary>
+        public const double WalkerSpeedMin = 0.8;
+        /// <summary>Metres from the grid edge where a walker turns round.</summary>
+        public const double WalkerEndPad = 3.0;
+        /// <summary>Metres off the lane centre line, clear of the well and of the door step clutter.</summary>
+        public const double WalkerLateral = 1.2;
+        /// <summary>Walkers per lane: the main lanes (through the square) carry more.</summary>
+        public const int MainLaneWalkers = 3;
+        public const int SideLaneWalkers = 2;
+        /// <summary>Fraction of walkers that leave the street per unit of dread (the village empties as it darkens).</summary>
+        public const double DreadThinning = 0.9;
+
+        public struct StreetWalker
+        {
+            public int Id;
+            public double X;
+            public double Z;
+            public double Yaw;
+            public bool Lantern;
+        }
+
+        /// <summary>
+        /// Walkers on the lanes at a clock tick (fractional ticks allowed) and a dread of 0..1. Every walker rolls its seed values first and
+        /// then may be hidden by dread, so the roster never shifts. Walkers carry a lantern when the village lanterns are lit.
+        /// </summary>
+        public static List<StreetWalker> Walkers(int seed, int gridW, int gridD, double tick, double dread)
+        {
+            var walkers = new List<StreetWalker>();
+            if (!Enabled(gridW, gridD)) return walkers;
+            var rng = new SeededRandom(seed ^ 0x5742);
+            double visible = Math.Floor((1.0 - DreadThinning * Math.Max(0.0, Math.Min(1.0, dread))) * 100.0);
+            bool lantern = GameClock.LanternsLit((int)Math.Floor(tick));
+            int id = 0;
+            for (int axis = 0; axis < 2; axis++)
+            {
+                int extent = axis == 0 ? gridW : gridD, across = axis == 0 ? gridD : gridW;
+                double length = across * VillageDressing.Cell - 2 * WalkerEndPad;
+                foreach (int line in LaneLines(extent))
+                {
+                    int count = line == extent / 2 ? MainLaneWalkers : SideLaneWalkers;
+                    for (int k = 0; k < count; k++, id++)
+                    {
+                        double phase = rng.Next(1000) / 1000.0, speed = WalkerSpeedMin + rng.Next(50) / 100.0;
+                        double lateral = rng.Next(2) == 0 ? -WalkerLateral : WalkerLateral;
+                        int keep = rng.Next(100);
+                        if (keep >= visible) continue;
+                        double d = phase * 2 * length + speed * tick;
+                        d -= 2 * length * Math.Floor(d / (2 * length));
+                        bool forward = d < length;
+                        double along = WalkerEndPad + (forward ? d : 2 * length - d), centre = (line + 0.5) * VillageDressing.Cell + lateral;
+                        walkers.Add(new StreetWalker
+                        {
+                            Id = id, X = axis == 0 ? centre : along, Z = axis == 0 ? along : centre, Lantern = lantern,
+                            Yaw = axis == 0 ? (forward ? 0.0 : Math.PI) : (forward ? Math.PI / 2 : -Math.PI / 2),
+                        });
+                    }
+                }
+            }
+            return walkers;
         }
     }
 }

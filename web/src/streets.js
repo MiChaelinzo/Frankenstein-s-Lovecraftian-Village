@@ -1,6 +1,8 @@
 // JS port of Core/VillageStreets.cs: the street network (lanes, square, building frontage) derived from the grid size alone. Golden-checked through the layout.
 // Core is the source of truth; keep the numbers identical to the C# file. Facing is quarter turns: 0 faces +z, 1 +x, 2 -z, 3 -x.
 import { HOUSE_FOOTPRINT_MIN_CELLS } from './world-scale.js';
+import { SeededRandom } from './core.js'; // a cycle with core.js, which is fine: both only use the other inside functions
+import { lanternsLit } from './clock.js';
 
 export const STREET_MIN_GRID = 16, LANE_SPACING = 6, LANE_EDGE_MARGIN = 3, SQUARE_RADIUS = 1;
 
@@ -53,4 +55,36 @@ export function streetSurfaces(gridW, gridD, cell) {
   const mx = Math.floor(gridW / 2), mz = Math.floor(gridD / 2);
   rects.push([(mx - SQUARE_RADIUS) * cell, (mz - SQUARE_RADIUS) * cell, (mx + SQUARE_RADIUS + 1) * cell, (mz + SQUARE_RADIUS + 1) * cell]);
   return rects;
+}
+
+export const FACING_DX = [0, 1, 0, -1], FACING_DZ = [1, 0, -1, 0];
+/** Unit direction of a facing, exact (no trigonometry), as in Core. */
+export const facingDx = (facing) => FACING_DX[((facing % 4) + 4) % 4];
+export const facingDz = (facing) => FACING_DZ[((facing % 4) + 4) % 4];
+
+// ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect). Mirrors VillageStreets.Walkers ----------
+export const WALKER_SPEED_MIN = 0.8, WALKER_END_PAD = 3, WALKER_LATERAL = 1.2, MAIN_LANE_WALKERS = 3, SIDE_LANE_WALKERS = 2, DREAD_THINNING = 0.9;
+const CELL_M = 4;
+
+/** [{ id, x, z, yaw, lantern }] in metres at a clock tick (fractional allowed) and dread 0..1. Every walker rolls first and is then hidden by dread, so the roster never shifts. */
+export function streetWalkers(seed, gridW, gridD, tick, dread) {
+  const walkers = [];
+  if (!streetsEnabled(gridW, gridD)) return walkers;
+  const rng = new SeededRandom(seed ^ 0x5742), visible = Math.floor((1 - DREAD_THINNING * Math.max(0, Math.min(1, dread))) * 100), lantern = lanternsLit(Math.floor(tick));
+  let id = 0;
+  for (let axis = 0; axis < 2; axis++) {
+    const extent = axis === 0 ? gridW : gridD, across = axis === 0 ? gridD : gridW, length = across * CELL_M - 2 * WALKER_END_PAD;
+    for (const line of laneLines(extent)) {
+      const count = line === Math.floor(extent / 2) ? MAIN_LANE_WALKERS : SIDE_LANE_WALKERS;
+      for (let k = 0; k < count; k++, id++) {
+        const phase = rng.next(1000) / 1000, speed = WALKER_SPEED_MIN + rng.next(50) / 100, lateral = rng.next(2) === 0 ? -WALKER_LATERAL : WALKER_LATERAL, keep = rng.next(100);
+        if (keep >= visible) continue;
+        let d = phase * 2 * length + speed * tick;
+        d -= 2 * length * Math.floor(d / (2 * length));
+        const forward = d < length, along = WALKER_END_PAD + (forward ? d : 2 * length - d), centre = (line + 0.5) * CELL_M + lateral;
+        walkers.push({ id, x: axis === 0 ? centre : along, z: axis === 0 ? along : centre, lantern, yaw: axis === 0 ? (forward ? 0 : Math.PI) : (forward ? Math.PI / 2 : -Math.PI / 2) });
+      }
+    }
+  }
+  return walkers;
 }

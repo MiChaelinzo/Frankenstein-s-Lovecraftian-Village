@@ -6,7 +6,7 @@ import { streetsEnabled, isStreetCell, isBuilding, facingYaw } from './streets.j
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
 export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
 export const DOOR_KINDS = ['', 'barrel', 'crate_stack', 'sack', 'bench', 'cart', 'barrel', 'sack'];
-export const COTTAGE_V = -3.9, LAMP_V = -0.9, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.65, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.8, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+export const COAST_ROAD_V = -1, COTTAGE_V = -3.9, LAMP_V = -0.9, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.65, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.8, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
 export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
 
 const FOOTPRINTS = {
@@ -25,7 +25,7 @@ export function footprintOf(kind) {
 export const DRESSING_KINDS = Object.keys(FOOTPRINTS);
 
 const coastSideOf = (seed) => new SeededRandom(seed ^ 0x2f6b).next(3);
-const hiOf = (seed, gridW, gridD) => (coastSideOf(seed) === 2 ? gridW * CELL_M : gridD * CELL_M);
+export const hiOf = (seed, gridW, gridD) => (coastSideOf(seed) === 2 ? gridW * CELL_M : gridD * CELL_M);
 export function dockU(seed, gridW, gridD) { return 0 + (hiOf(seed, gridW, gridD) - 0) * (0.3 + new SeededRandom(seed ^ 0x51ed).next(40) / 100); }
 
 export function churchRise(seed, gridW, gridD) {
@@ -39,7 +39,7 @@ export function walkBounds(seed, gridW, gridD) {
   if (side === 0) b.minX = -shore; else if (side === 1) b.maxX = gridW * CELL_M + shore; else b.minZ = -shore;
   return b;
 }
-function coastToWorldAt(seed, gridW, u, v) {
+export function coastToWorldAt(seed, gridW, u, v) {
   const side = coastSideOf(seed);
   if (side === 0) return { x: -SHORE_INSET - v, z: u };
   if (side === 1) return { x: gridW * CELL_M + SHORE_INSET + v, z: u };

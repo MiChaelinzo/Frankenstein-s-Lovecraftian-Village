@@ -4,10 +4,12 @@ import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, cau
 import { phaseAt, dayNumber, lanternsLit, wrapTick, PHASE_NAMES, SESSION_START_TICK } from './clock.js';
 import { coastSide } from './view3d-math.js';
 
+import { streetsEnabled, facingDx, facingDz } from './streets.js';
 export const SECONDS_PER_TICK = 1;        // session clock: one real second is one village minute
 export const START_TICK = SESSION_START_TICK; // a session starts at the heart of dusk (Core GameClock.SessionStartTick)
 export const FRONT_OFFSET = 0.45;         // cells in front of a building's south wall
-export const SQUARE_RADIUS = 1.6;         // cells; villagers in the square stand on a ring around the grid centre
+export const SQUARE_RADIUS = 1.6;
+export const STREET_SQUARE_RADIUS = 1.4;  // cells; the ring in the cobbled square of a village with streets         // cells; villagers in the square stand on a ring around the grid centre
 export const SHORE_INSET = 0.6;           // cells from the grid edge on the coast side
 export const TALK_PICK_HEIGHT = 1.0;      // metres; chest height for 3D picking
 export const TALK_PICK_RADIUS = 0.7;      // metres
@@ -47,7 +49,10 @@ export function standingPoint(v, kind, layout, gridW, gridD, seed) {
   const spread = ((v.index % 3) - 1) * 0.6;
   if (kind === HOME || kind === WORKPLACE) {
     const p = layout[kind === HOME ? v.homeIndex : v.workIndex];
-    if (p) return { x: clampCell(p.x + p.sizeX / 2 + spread, gridW), z: clampCell(p.z + p.sizeZ + FRONT_OFFSET, gridD), faceDx: 0, faceDz: -1 };
+    if (p) {
+      const dx = facingDx(p.facing | 0), dz = facingDz(p.facing | 0), halfAlong = (dx !== 0 ? p.sizeX : p.sizeZ) / 2;
+      return { x: clampCell(p.x + p.sizeX / 2 + dx * (halfAlong + FRONT_OFFSET) + dz * spread, gridW), z: clampCell(p.z + p.sizeZ / 2 + dz * (halfAlong + FRONT_OFFSET) - dx * spread, gridD), faceDx: 0 - dx, faceDz: 0 - dz };
+    }
   }
   if (kind === SHORE) {
     const [dx, dz] = seaDirection(seed), along = 0.2 + 0.6 * (v.index / 6);
@@ -56,7 +61,8 @@ export function standingPoint(v, kind, layout, gridW, gridD, seed) {
     return { x, z, faceDx: dx, faceDz: dz };
   }
   const angle = (v.index / 7) * Math.PI * 2; // the square, and the fallback when a piece is missing
-  return { x: gridW / 2 + Math.cos(angle) * SQUARE_RADIUS, z: gridD / 2 + Math.sin(angle) * SQUARE_RADIUS, faceDx: 0 - Math.cos(angle), faceDz: 0 - Math.sin(angle) }; // as in Core: never -0
+  const ring = streetsEnabled(gridW, gridD) ? STREET_SQUARE_RADIUS : SQUARE_RADIUS, shift = streetsEnabled(gridW, gridD) ? 0.5 : 0;
+  return { x: gridW / 2 + shift + Math.cos(angle) * ring, z: gridD / 2 + shift + Math.sin(angle) * ring, faceDx: 0 - Math.cos(angle), faceDz: 0 - Math.sin(angle) }; // as in Core: never -0
 }
 
 /**

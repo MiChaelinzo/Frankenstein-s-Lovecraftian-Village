@@ -7,12 +7,12 @@
       "count": 32
     },
     "golden": {
-      "count": 24,
-      "vectors": 408
+      "count": 25,
+      "vectors": 516
     },
     "js": {
       "count": 54,
-      "tests": 49
+      "tests": 50
     },
     "kiro": {
       "count": 3,

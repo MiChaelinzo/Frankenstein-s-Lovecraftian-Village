@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, InteractionRules } from '../src/core.js';
 import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../src/glb.js';
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
+import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
 import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
@@ -162,7 +163,7 @@ test('buildWorld is deterministic, uses every kind, and falls back to boxes with
   assert.equal(w1.heights.length, l.length); assert.ok(w1.heights.every((v) => v > 0));
   const boxes = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24 });
   assert.ok(boxes.building.length > 0 && boxes.heights.every((v) => v === 3));
-  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
+  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length + 6 * (streetSurfaces(24, 24, 4).length + 1)) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
   assert.ok(buildWorld({ layout: l, meshes, seed: 1818, gridW: 24, gridD: 24, groundTint: [100, 100, 100] }).ground[6] > 0);
 });
 test('smoke: the GL renderer runs a frame against a recording stub context', () => {

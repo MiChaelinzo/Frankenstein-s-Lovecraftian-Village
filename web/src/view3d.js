@@ -2,7 +2,8 @@
 // core.js, meshes from glb.js and the interaction rules from InteractionRules in core.js. This file only owns GL objects, shaders,
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
-import { composeDressing, dressingBoxes, DRESSING_KINDS } from './dressing.js';
+import { composeDressing, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { streetSurfaces, facingYaw } from './streets.js';
 import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
@@ -53,6 +54,7 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
   pushFrustum(out, Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z), y0, y1, taper, color);
 }
 
+const STREET_Y = 0.06, STREET_COLOR = [0.3, 0.29, 0.28], STREET_PHASE = -5; // phase below -3 marks cobbled street quads for the ground shader
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
 /** Width of a model along its long (X) axis in metres. */
@@ -102,12 +104,38 @@ export function buildCoast({ gridW, gridD, seed, cell = CELL, meshes = null }) {
   return new Float32Array(out);
 }
 
+const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_STEPS = 26, HILL_FOOT = -0.5;
+const GRASS = [0.13, 0.17, 0.11], GRASS_DRY = [0.2, 0.2, 0.13], HILL_ROCK = [0.24, 0.24, 0.25], HILL_PATH = [0.36, 0.33, 0.27];
+const hillStep = (t) => t * t * (3 - 2 * t);
+/** Height of the church rise at an offset (metres) from its centre: a flat summit, a smooth shoulder and gentle lumps, never below the foot. Deterministic, no randomness. */
+export function hillHeight(c, dx, dz) {
+  const rho = Math.hypot(dx / HILL_RX, dz / HILL_RZ), t = Math.max(0, Math.min(1, (rho - HILL_PLATEAU) / (1 - HILL_PLATEAU)));
+  const lumps = 0.9 * Math.sin(dx * 0.55 + dz * 0.2) * Math.cos(dz * 0.43) * t * (1 - t) * 4;
+  return Math.max(HILL_FOOT, c.hill * (1 - hillStep(t)) + lumps + HILL_FOOT * hillStep(t));
+}
+/** A winding path climbs the village side of the rise: its lateral offset from the centre line at a given x offset. */
+const pathZ = (c, dx) => Math.sin(dx * 0.22) * 2.6;
+/** The rise as a smooth heightmap: grass and dry turf by height, rock on steep slopes, and a pale path from the foot to the summit on the side that faces the village. */
+function pushHillSurface(out, c) {
+  const n = HILL_STEPS, xs = [], at = (i, j) => {
+    const dx = (i / n - 0.5) * 2 * HILL_RX, dz = (j / n - 0.5) * 2 * HILL_RZ, h = hillHeight(c, dx, dz);
+    const sx = (hillHeight(c, dx + 0.5, dz) - hillHeight(c, dx - 0.5, dz)), sz = (hillHeight(c, dx, dz + 0.5) - hillHeight(c, dx, dz - 0.5)), nl = Math.hypot(sx, 1, sz);
+    const slope = Math.min(1, Math.hypot(sx, sz) / 1.1), high = Math.max(0, Math.min(1, h / c.hill)), grain = 0.9 + 0.1 * Math.sin(dx * 1.7) * Math.sin(dz * 1.3);
+    let col = GRASS.map((g, k) => (g + (GRASS_DRY[k] - g) * high) * grain);
+    col = col.map((v, k) => v + (HILL_ROCK[k] - v) * slope * 0.8);
+    const toward = dx * c.faceX, lateral = Math.abs(dz - pathZ(c, dx));
+    if (toward > 5 && toward < HILL_RX * 0.98 && lateral < 1.15 && h > HILL_FOOT + 0.2) { const k = 1 - lateral / 1.15; col = col.map((v, m) => v + (HILL_PATH[m] - v) * Math.min(1, k * 2)); }
+    return [c.x + dx, h, c.z + dz, -sx / nl, 1 / nl, -sz / nl, col[0], col[1], col[2]];
+  };
+  for (let i = 0; i <= n; i++) { xs.push([]); for (let j = 0; j <= n; j++) xs[i].push(at(i, j)); }
+  const push = (v) => out.push(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], 0, 0);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) for (const v of [xs[i][j], xs[i][j + 1], xs[i + 1][j + 1], xs[i][j], xs[i + 1][j + 1], xs[i + 1][j]]) push(v);
+}
+
 /** A hill and a church standing on it, drawn as a near black silhouette against the haze, with two dim lit windows. Original geometry. */
 export function buildChurchHill({ gridW, gridD, seed, cell = CELL }) {
   const out = [], c = churchSite(gridW, gridD, seed, cell), x = c.x, z = c.z;
-  pushFrustum(out, x - 22, z - 20, x + 22, z + 20, -0.5, 3.5, 0.72, EARTH);
-  pushFrustum(out, x - 16, z - 14, x + 16, z + 14, 3.5, 6.5, 0.66, EARTH);
-  pushFrustum(out, x - 10, z - 9, x + 10, z + 9, 6.5, c.hill, 0.7, EARTH);
+  pushHillSurface(out, c);
   const y0 = c.hill;
   pushFrustum(out, x - 2.6, z - 5.5, x + 2.6, z + 5.5, y0, y0 + 4.6, 1, SILHOUETTE);
   pushFrustum(out, x - 3, z - 5.9, x + 3, z + 5.9, y0 + 4.6, y0 + 7.4, 0.12, SILHOUETTE);
@@ -168,7 +196,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const model = meshes && meshes.get(MESH_FOR[p.id]);
     const lit = p.id === 'house_a' || p.id === 'house_b' ? (windowLit(p) ? 1 : 0) : 1;
     const phase = p.vis ? p.vis.phase : 0;
-    if (model) heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase, tint: tintFor(p.id) }));
+    if (model) heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase, tint: tintFor(p.id), rot: facingYaw(p.facing | 0) }));
     else { heights.push(3); pushBox(out, p, cell, 3, BOX_COLORS[p.id] || [0.3, 0.3, 0.3]); }
   }
   const lights = lanternLights(layout, cell);
@@ -185,6 +213,11 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
   for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
+  for (const r of streetSurfaces(gridW, gridD, cell)) pushQuad(ground, r[0], r[1], r[2], r[3], STREET_Y, STREET_COLOR, STREET_PHASE);
+  { // the coast road: a cobbled strip along the shore between the cottage fronts and the foam
+    const a = coastToWorldAt(seed, gridW, 0, -2.0), b = coastToWorldAt(seed, gridW, hiOf(seed, gridW, gridD), -0.3);
+    pushQuad(ground, Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z), STREET_Y, STREET_COLOR, STREET_PHASE);
+  }
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
   return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
@@ -199,7 +232,7 @@ void main(){ vPos=aPos; vNormal=aNormal; vColor=aColor; vGlow=aGlow; vPhase=aPha
 const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase;
 uniform vec3 uCam; uniform vec3 uFogColor; uniform float uFog; uniform vec3 uAmbient; uniform vec3 uMoonDir; uniform vec3 uMoonColor;
 uniform vec4 uLight[${MAX_LIGHTS}]; uniform vec3 uLightCol[${MAX_LIGHTS}]; uniform vec3 uGlowColor; uniform float uTime; uniform float uFlicker; uniform float uMode;
-uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform float uHasWall; uniform float uHasGround;
+uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -207,9 +240,20 @@ void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
   vec3 base = vColor;
-  if (uMode > 0.5 && uMode < 1.5) { vec2 c = floor(vPos.xz * 1.5); base *= 0.88 + 0.16 * hash(c) + 0.12 * hash(floor(vPos.xz * 6.0)) + 0.08 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17); }
-  if (uMode < 0.5 && uHasWall > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
-  if (uMode > 0.5 && uMode < 1.5 && uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.25).rgb * 1.6, 0.85);
+  if (uMode > 0.5 && uMode < 1.5) {
+    if (vPhase < -3.0) base *= mix(vec3(1.0), texture2D(uCobbleTex, vPos.xz * 0.5).rgb * 1.6, 0.9); // cobbled lanes and square
+    else {
+      base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
+      if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.3).rgb * 1.6, 0.9);
+    }
+  }
+  if (uMode < 0.5 && uHasWall > 0.5) {
+    float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
+    if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
+    else if (vNormal.y > 0.35 && vPos.y > 2.2) base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * 0.42).rgb * 1.6, 0.9);   // slate and shingle on roof slopes
+    else if (sat < 0.06) base *= mix(vec3(1.0), texture2D(uStoneTex, vec2(vPos.x + vPos.z, vPos.y) * 0.35).rgb * 1.6, 0.9); // stone blocks on grey masonry
+    else base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) / 3.0).rgb * 1.6, 0.9);                   // timber framed plaster, one bay and storey per tile
+  }
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
   if (uMode < 0.5 || uMode > 2.5) base *= mix(0.5, 1.0, smoothstep(0.0, 1.8, vPos.y));
@@ -385,7 +429,7 @@ export function createGlRenderer(gl) {
   const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
-    const t = gl.createTexture(), px = proceduralTexture(kind, { size: 64 });
+    const t = gl.createTexture(), px = proceduralTexture(kind, { size: 128 });
     gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, px.size, px.size, 0, gl.RGBA, gl.UNSIGNED_BYTE, px.data);
     gl.generateMipmap(gl.TEXTURE_2D);
@@ -393,7 +437,8 @@ export function createGlRenderer(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     return t;
   };
-  const texs = [makeTex(0, 'stone'), makeTex(1, 'ground')], hasTex = [1, 1];
+  const texs = [makeTex(0, 'timber'), makeTex(1, 'ground'), makeTex(2, 'stone'), makeTex(3, 'roof'), makeTex(4, 'cobble')], hasTex = [1, 1];
+  let packed = 0;
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
   let size = [1, 1];
   const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
@@ -426,7 +471,7 @@ export function createGlRenderer(gl) {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-        hasTex[unit] = 1;
+        hasTex[unit] = 1; packed = 1;
       });
     },
     setParticles(rainSeeds, mistSeeds) { upload('rain', rainSeeds); upload('mist', mistSeeds); },
@@ -472,8 +517,8 @@ export function createGlRenderer(gl) {
       gl.uniform2fv(scene.u('uFogOff'), f.fogOffset); gl.uniform1f(scene.u('uWaterT'), f.waterTime); gl.uniform1f(scene.u('uRipple'), f.sea.ripple); gl.uniform1f(scene.u('uFresnel'), f.sea.fresnel);
       gl.uniform3fv(scene.u('uSeaTint'), f.sea.tint); gl.uniform1f(scene.u('uMoonGain'), f.sea.moonGain); gl.uniform1f(scene.u('uLampGain'), f.sea.lanternGain);
       gl.uniform3fv(scene.u('uZenith'), f.sky.zenith); gl.uniform3fv(scene.u('uHorizon'), f.sky.horizon);
-      gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
-      for (const unit of [0, 1]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
+      gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1i(scene.u('uStoneTex'), 2); gl.uniform1i(scene.u('uRoofTex'), 3); gl.uniform1i(scene.u('uCobbleTex'), 4); gl.uniform1f(scene.u('uPacked'), packed); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
+      for (const unit of [0, 1, 2, 3, 4]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
       gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
       gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
       for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3], ['villager', 3]]) {
@@ -554,7 +599,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
-    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = worldBounds(s.gridW, s.gridD);
+    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = '';
     if (!cam) {
       const sp = spawnPoint(s.layout, s.gridW, s.gridD), override = parseCamParam(camParam);
@@ -689,7 +734,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
       lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
     }
-    const vsc = s.villagers || [], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}`;
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}`;
     if (vkey !== lastVillagers) { lastVillagers = vkey; renderer.setVillagers(buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced })); }
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {

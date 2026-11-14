@@ -325,6 +325,9 @@ namespace Frankenstein.Core.Tests
             AppendDressing(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendWalkers(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -569,6 +572,34 @@ namespace Frankenstein.Core.Tests
         private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
 
         /// <summary>Top level key "dressing": the seeded harbour, square and churchyard dressing on the real layout, per seed and grid.</summary>
+        /// <summary>Top level key "walkers": the street walkers per seed, grid, tick and dread, and the walk bounds per seed.</summary>
+        private static void AppendWalkers(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"walkers\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1818, 7, -42 })
+                foreach (var grid in new[] { 24, 16, 12 })
+                    foreach (var tick in new[] { 0.0, 1100.0, 1337.5, 2000.25 })
+                        foreach (var dread in new[] { 0.0, 0.5, 1.0 })
+                        {
+                            var list = VillageStreets.Walkers(seed, grid, grid, tick, dread);
+                            VillageDressing.WalkBounds(seed, grid, grid, out double minX, out double maxX, out double minZ, out double maxZ);
+                            sb.Append(first ? "\n    " : ",\n    ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"tick\": ").Append(tick.ToString("R", inv))
+                              .Append(", \"dread\": ").Append(dread.ToString("R", inv)).Append(", \"bounds\": [").Append(minX.ToString("R", inv)).Append(", ").Append(maxX.ToString("R", inv)).Append(", ")
+                              .Append(minZ.ToString("R", inv)).Append(", ").Append(maxZ.ToString("R", inv)).Append("], \"walkers\": [");
+                            first = false;
+                            for (int i = 0; i < list.Count; i++)
+                            {
+                                var w = list[i];
+                                sb.Append(i > 0 ? ", " : "").Append('[').Append(w.Id).Append(", ").Append(w.X.ToString("R", inv)).Append(", ").Append(w.Z.ToString("R", inv)).Append(", ")
+                                  .Append(w.Yaw.ToString("R", inv)).Append(", ").Append(w.Lantern ? "true" : "false").Append(']');
+                            }
+                            sb.Append("] }");
+                        }
+            sb.Append("\n  ]\n");
+        }
+
         private static void AppendDressing(StringBuilder sb, PrefabCatalog cat)
         {
             var inv = CultureInfo.InvariantCulture;

@@ -3,6 +3,7 @@
 // Gameplay rules (reach, cooldown, sanity cost) are NOT here: the view asks InteractionRules in core.js.
 import { SeededRandom, tierFor } from './core.js';
 import { queryParam } from './util.js';
+import { facingDx, facingDz } from './streets.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
@@ -258,9 +259,11 @@ export function lanternLights(layout, cell = CELL) {
   for (const p of layout) {
     if (p.id !== 'house_a' && p.id !== 'house_b') continue;
     if (!windowLit(p)) continue;
-    const x = (p.x + p.sizeX / 2) * cell, z = (p.z + p.sizeZ) * cell;
-    out.push({ pos: [x, 2.2, z + 0.5], radius: 9, phase: p.vis.phase || 0, post: false });
-    if (p.vis.lit2 > 0.45) out.push({ pos: [(p.x + p.sizeX) * cell + 0.7, 3.1, z + 0.7], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
+    // The door side is the facing of the piece (see streets.js): the porch light hangs in front of it, the post lamp stands at its right hand corner.
+    const dx = facingDx(p.facing | 0), dz = facingDz(p.facing | 0), sx = dz, sz = 0 - dx;
+    const cx = (p.x + p.sizeX / 2) * cell, cz = (p.z + p.sizeZ / 2) * cell, front = (dx !== 0 ? p.sizeX : p.sizeZ) * cell / 2, side = (dx !== 0 ? p.sizeZ : p.sizeX) * cell / 2;
+    out.push({ pos: [cx + dx * (front + 0.5), 2.2, cz + dz * (front + 0.5)], radius: 9, phase: p.vis.phase || 0, post: false });
+    if (p.vis.lit2 > 0.45) out.push({ pos: [cx + dx * (front + 0.7) + sx * (side + 0.7), 3.1, cz + dz * (front + 0.7) + sz * (side + 0.7)], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
   }
   return out;
 }
