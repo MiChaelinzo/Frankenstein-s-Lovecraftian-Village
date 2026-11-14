@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 21 (FEAT-002): scale perception
+- Fly-through is street level (1.6 to 2.2 m, Core `FlythroughPath.BaseHeight` and `HeightSway`, JS `cinematic.js`, golden updated); the 3D view pushes it out of walls.
+- Texture repeats are real sizes (`TILE_M` in `view3d-math.js`), timber beams drawn thinner, `propHeights` ranges for all 37 meshes with C# and JS tests, eye height (1.5 to 1.8 m) and field of view (55 to 75 degrees) settings in the Help dialog (en and fr, `localStorage`).
+- `tools/browser_check.mjs`: door top above screen centre assertion. Service worker cache `flv-shell-v23`. Unity consumes the change through `FlythroughPath` only (compile checked, runtime Unverified).
+
 ### Round 20 (FEAT-006)
 - Unity: thin `VillageDressingPlacer` (Runtime) places the Core `VillageDressing` items and the Core street slabs from `PlayableVillageSceneBuilder`, using the generated original prefabs (`ShapeLibrary` already builds every mesh in `village_shapes.json`, the 12 street meshes included). Compile checked only (UnityCompileCheck 0 errors, 0 warnings, stubs gained `Mathf.Rad2Deg`, `Vector3.one`, `Renderer.sharedMaterial`, `Material.color`). Unity runtime and the yaw sign convention are Unverified; piece facing is not applied in Unity yet.
 - `tools/browser_check.mjs` gained density (scale constants and frame budget, live triangle HUD), weather (storm, fog, rain against clear) and birds checks, and now follows the two-storey layout (door and lantern probes moved to house_b at cell 7,16 and 20,16; sky probes use `weather=clear`; meshes page expects 37). Result: 99 of 99.

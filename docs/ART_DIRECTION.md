@@ -34,3 +34,20 @@ Every number is our own choice, in `Core/VillageDressing.cs` (mirrored in `web/s
 - Materials: procedural timber, slate and mud, plus a few CC0 photo textures (stone, roof, cobble, ground) and two CC0 props (barrel, bench), all lazy loaded and credited in `THIRD_PARTY_ASSETS.md`. No normal maps yet.
 - Weather per day (clear, overcast, drizzle, rain, storm, fog, mist) changes fog, sky, particles, wind and window glow; birds (gulls, crows, huge silhouettes at high dread) make the sky feel watched. Lightning goes only through the capped flash gate.
 - Honest bar: a flat shaded WebGL1 look, not AAA. Status: Partially Verified (SwiftShader stills), real GPU Unverified.
+
+## Round 21: scale perception audit
+Does the citizen still read as a giant? **No, not in the stills we can render** (`docs/media/r21-before-street.png`, `r21-after-street.png`, SwiftShader, Partially Verified: the author has not confirmed on a real GPU). The eye height was already 1.6 m and the villagers 1.7 m before this round, so the numbers were never the cause. The feeling came from perception cues, fixed here:
+
+| Cue | Before | After |
+| --- | --- | --- |
+| Title and cinematic fly-through height | 4.8 to 7.6 m, above the eaves, so the first view of the village was from a rooftop | 1.6 to 2.2 m (`FlythroughPath.BaseHeight` 1.9, sway 0.3), pushed out of walls by the 3D view |
+| Cobble repeat | 2 m tile, about 0.29 m stones | `TILE_M.cobble` 1.4 m, about 0.2 m stones |
+| Stone block repeat | 2.9 m tile, 1.2 m blocks | `TILE_M.stone` 1.2 m, about 0.5 m blocks |
+| Slate repeat | 2.4 m tile, 0.6 m rows | `TILE_M.roof` 1.2 m, 0.3 m rows |
+| Timber frame | beams 0.42 m thick on a 3 m tile | beams 0.23 m (texture drawn thinner, tile still one storey) |
+| Field of view and eye | fixed 64.2 degrees, 1.6 m | default 64 degrees, 1.6 m, user range 55 to 75 degrees and 1.5 to 1.8 m (Help dialog, saved in `localStorage`, clamped on every read) |
+
+Prop heights: `propHeights` in `village_shapes.json` gives a believable range for every mesh; C# (`WorldScaleTests`) and JS (`world-scale.test.js`) check all 37. Third party barrel and bench are fitted into the original mesh box, so they keep the original real size. Lanes stay 4 m wide against 6 to 10 m houses (3 to 5 m target, upper floors overhang).
+
+Not done, on purpose: a first-person body or hands (no original mesh exists yet, and a placeholder would add noise), and terrain following (the walkable ground is flat; the church hill lies outside the walkable bounds, so the offset would always be 0). Photo texture tile sizes are estimates, so the CC0 stone, slate and cobble photos may show slightly different feature sizes than the procedural ones.
+
