@@ -78,8 +78,10 @@ function baseColorImage(json, bin, mat) {
   if (!ti) return null;
   const tex = json.textures && json.textures[ti.index], img = tex && json.images && json.images[tex.source];
   if (!img || img.bufferView === undefined) throw new Error('glb: base colour texture must be embedded');
-  const view = json.bufferViews[img.bufferView], start = view.byteOffset || 0;
-  if (!view || start + view.byteLength > bin.byteLength) throw new Error('glb: image out of range');
+  const view = json.bufferViews[img.bufferView];
+  if (!view) throw new Error('glb: missing image bufferView');
+  const start = view.byteOffset || 0;
+  if (start + view.byteLength > bin.byteLength) throw new Error('glb: image out of range');
   if (!/^image\/(jpeg|png)$/.test(img.mimeType || '')) throw new Error('glb: image must be JPEG or PNG');
   return { mimeType: img.mimeType, bytes: new Uint8Array(bin, start, view.byteLength) };
 }

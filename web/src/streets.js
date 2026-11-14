@@ -3,6 +3,7 @@
 import { HOUSE_FOOTPRINT_MIN_CELLS } from './world-scale.js';
 import { SeededRandom } from './core.js'; // a cycle with core.js, which is fine: both only use the other inside functions
 import { lanternsLit } from './clock.js';
+import { CELL_M } from './dressing.js'; // cell size, as VillageDressing.Cell in Core; a cycle with dressing.js, used only inside functions
 
 export const STREET_MIN_GRID = 16, LANE_SPACING = 6, LANE_EDGE_MARGIN = 3, SQUARE_RADIUS = 1;
 
@@ -64,7 +65,6 @@ export const facingDz = (facing) => FACING_DZ[((facing % 4) + 4) % 4];
 
 // ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect). Mirrors VillageStreets.Walkers ----------
 export const WALKER_SPEED_MIN = 0.8, WALKER_END_PAD = 3, WALKER_LATERAL = 1.2, MAIN_LANE_WALKERS = 3, SIDE_LANE_WALKERS = 2, DREAD_THINNING = 0.9;
-const CELL_M = 4;
 
 /** [{ id, x, z, yaw, lantern }] in metres at a clock tick (fractional allowed) and dread 0..1. Every walker rolls first and is then hidden by dread, so the roster never shifts. */
 export function streetWalkers(seed, gridW, gridD, tick, dread) {
