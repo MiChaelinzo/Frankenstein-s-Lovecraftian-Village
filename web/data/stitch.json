@@ -17,15 +17,15 @@
     "kiro": {
       "count": 3,
       "steering": 6,
-      "tasksDone": 72,
-      "tasksTotal": 92
+      "tasksDone": 79,
+      "tasksTotal": 101
     },
     "pwa": {
       "count": 102
     },
     "unity": {
       "bridges": 4,
-      "count": 23
+      "count": 24
     }
   },
   "version": 1

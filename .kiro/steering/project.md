@@ -136,6 +136,8 @@ Third-party assets must not be committed, must remain gitignored, and must follo
 
 Never add Unity packages, downloaded marketplace content or large generated artifacts unless explicitly approved.
 
+Approval record (round 20): the user explicitly approved external assets for the web demo, but only CC0 or otherwise freely redistributable licences. Each file is listed with author, source and licence in `THIRD_PARTY_ASSETS.md` and checked by `tools/validate_repo.py`. DLNK content and any paid pack data are still never committed.
+
 ## Commit Style
 
 Format: `type: message`

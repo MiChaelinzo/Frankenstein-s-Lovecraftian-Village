@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 20 (FEAT-006)
+- Unity: thin `VillageDressingPlacer` (Runtime) places the Core `VillageDressing` items and the Core street slabs from `PlayableVillageSceneBuilder`, using the generated original prefabs (`ShapeLibrary` already builds every mesh in `village_shapes.json`, the 12 street meshes included). Compile checked only (UnityCompileCheck 0 errors, 0 warnings, stubs gained `Mathf.Rad2Deg`, `Vector3.one`, `Renderer.sharedMaterial`, `Material.color`). Unity runtime and the yaw sign convention are Unverified; piece facing is not applied in Unity yet.
+- `tools/browser_check.mjs` gained density (scale constants and frame budget, live triangle HUD), weather (storm, fog, rain against clear) and birds checks, and now follows the two-storey layout (door and lantern probes moved to house_b at cell 7,16 and 20,16; sky probes use `weather=clear`; meshes page expects 37). Result: 99 of 99.
+- README hero and gallery refreshed, honest quality bar added; docs, roadmap (rounds 21 to 27) and steering updated.
+
 ### Round 20 (FEAT-005)
 - CC0 assets from Poly Haven under `web/assets/third_party/` (686 KB in total, listed with author, source and licence in `THIRD_PARTY_ASSETS.md`, reproducible with `tools/fetch_third_party.py`): stone, slate roof, cobble and mud photo textures at 512 px, and a barrel and a painted bench as GLBs with an embedded 512 px base colour texture. Timber walls stay procedural.
 - `glb.js` reads node transforms (translation, rotation, scale, matrix, children), `TEXCOORD_0` and one embedded JPEG or PNG base colour image. `fitModelInto` puts a prop inside the original mesh's box; `atlasModel` and `loadThirdPartyModels` place the props in a 2 by 2 atlas.

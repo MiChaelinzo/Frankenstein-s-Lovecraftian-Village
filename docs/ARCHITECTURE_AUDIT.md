@@ -188,3 +188,10 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Harbour quarter: Core `VillageDressing` (golden key `dressing`) places the new meshes on the coast strip and church rise outside the layout grid, so `generateLayout` output is unchanged. Pack inspiration was qualitative only (see `docs/ART_DIRECTION.md`); no pack data is committed.
 - Leftovers (tracked in `.kiro/specs/tasks.md`): the coast road is not walkable yet (collision bounds stop at the grid edge), Unity does not place the dressing items yet, and the optional AI villager line is web-only. Observed in the screenshots: the church rise reads as a flat dark mound from the village side; a texture or slope would help.
 - Status: Core and JS Verified by dotnet 159 and node 408 tests; Unity parts compile checked only (UnityCompileCheck 0 errors, 0 warnings), runtime Unverified.
+
+## Round 20: world foundation audit
+- Rules in Core with JS mirrors and golden parity: `WorldScale` storey and ridge constants, `VillageStreets` (lanes, square, frontage, facing, walkers), `GameClock.WeatherForDay`, dressing additions. Presentation only (web): birds (`birds.js`, boids, display only), `WEATHER_LOOK`, wind, third-party material loading, proc textures.
+- No duplicate rules: Unity `VillageDressingPlacer` is a thin MonoBehaviour that calls Core `VillageDressing.Compose` and `VillageStreets.Surfaces`; it contains no placement rules. It scales the metre positions by `cellSize / Cell` because the builder default cell is 6 m and Core dressing assumes 4 m (a known mismatch to fix by aligning the builder default in a later round).
+- External assets: CC0 only, validated by `tools/third_party_assets.py`, lazy loaded, same origin, never in the precache.
+- Debt noted: the layout facing is not applied to Unity pieces; `WeatherForDay` is not consumed by Unity yet; browser check probes depend on seed 1818 layout (documented in the script).
+- Status: Core and JS Verified; Unity Partially Verified (compile check) or Unverified (runtime).
