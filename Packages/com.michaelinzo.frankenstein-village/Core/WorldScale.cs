@@ -15,6 +15,14 @@ namespace Frankenstein.Core
         public const float LampMin = 3.0f;
         public const float LampMax = 3.6f;
         public const float TreeMin = 3.5f;
+        /// <summary>One storey of a house, floor to floor. Village houses are <see cref="HouseStoreys"/> storeys with the upper floor overhanging.</summary>
+        public const float StoreyHeight = 3.0f;
+        public const int HouseStoreys = 2;
+        /// <summary>A village house ridge stands between these heights (about 3.5 to 6 times a person).</summary>
+        public const float RidgeMin = 6.0f;
+        public const float RidgeMax = 10.0f;
+        /// <summary>A village house covers at least this many layout cells along both axes (catalog footprints), so its mass fills a block, not a cell.</summary>
+        public const int HouseFootprintMinCells = 2;
         /// <summary>CharacterController radius for the explorer, a shoulder-width body.</summary>
         public const float BodyRadius = 0.3f;
     }

@@ -30,6 +30,11 @@ namespace Frankenstein.Core.Tests
             Assert.Equal(WorldScale.LampMin, s.GetProperty("lampMin").GetSingle());
             Assert.Equal(WorldScale.LampMax, s.GetProperty("lampMax").GetSingle());
             Assert.Equal(WorldScale.TreeMin, s.GetProperty("treeMin").GetSingle());
+            Assert.Equal(WorldScale.StoreyHeight, s.GetProperty("storeyHeight").GetSingle());
+            Assert.Equal(WorldScale.HouseStoreys, s.GetProperty("houseStoreys").GetInt32());
+            Assert.Equal(WorldScale.RidgeMin, s.GetProperty("ridgeMin").GetSingle());
+            Assert.Equal(WorldScale.RidgeMax, s.GetProperty("ridgeMax").GetSingle());
+            Assert.Equal(WorldScale.HouseFootprintMinCells, s.GetProperty("houseFootprintMinCells").GetInt32());
         }
 
         [Fact]
@@ -47,6 +52,33 @@ namespace Frankenstein.Core.Tests
             var lib = ShapeLibrary.Parse(ShapesJson());
             foreach (var id in new[] { "lamp", "lamp_double" })
                 Assert.InRange(Height(lib, id), WorldScale.LampMin, WorldScale.LampMax);
+        }
+
+        [Theory]
+        [InlineData("house_a")]
+        [InlineData("house_b")]
+        public void Village_houses_are_tall_multi_cell_buildings(string id)
+        {
+            var lib = ShapeLibrary.Parse(ShapesJson());
+            float ridge = Height(lib, id);
+            Assert.InRange(ridge, WorldScale.RidgeMin, WorldScale.RidgeMax);
+            Assert.True(ridge >= 3f * WorldScale.PersonHeight);
+            var catalog = JsonSerializer.Deserialize<JsonElement>(CatalogJson()).GetProperty("entries");
+            foreach (var e in catalog.EnumerateArray())
+            {
+                if (e.GetProperty("id").GetString() != id) continue;
+                Assert.True(e.GetProperty("footprintX").GetInt32() >= WorldScale.HouseFootprintMinCells);
+                Assert.True(e.GetProperty("footprintZ").GetInt32() >= WorldScale.HouseFootprintMinCells);
+            }
+        }
+
+        private static string CatalogJson() => File.ReadAllText(Path.Combine(Path.GetDirectoryName(ShapesPath()), "village_catalog.json"));
+
+        private static string ShapesPath()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "tools", "validate_repo.py"))) dir = dir.Parent;
+            return Path.Combine(dir.FullName, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_shapes.json");
         }
 
         [Fact]
