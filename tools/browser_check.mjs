@@ -158,8 +158,8 @@ async function main() {
     rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
     await special('Escape', 27, undefined); await sleep(400);
 
-    // 3D: stand 2.5 m south of the house at layout cell (18, 21) of seed 1818 facing it, then interact with the door (E; a click would first take the pointer lock)
-    await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=74,90.5,0,0');
+    // 3D: stand 2.5 m south of the house_b at layout cell (7, 16) of seed 1818 (two storey, door faces south) facing it, then interact with the door (E; a click would first take the pointer lock)
+    await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=34,75,0,0');
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
     const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
     const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
@@ -168,7 +168,7 @@ async function main() {
     const j1 = await ev(`document.getElementById('whispers').children.length`);
     // 3D vigil: the same spot looking up at the door lantern; E lights it once, restoring sanity and counting the lamp
     await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
-    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=74,90.5,0,16');
+    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=86,75,0,14');
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
     const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
     const ls0 = Number(await text('sanityOut'));
@@ -187,7 +187,7 @@ async function main() {
     await nav('meshes.html');
     let mp = await text('summary');
     for (let i = 0; i < 20 && !/loaded/.test(mp); i++) { await sleep(500); mp = await text('summary'); }
-    rec('meshes: meshes.html loads every mesh', /^25 of 25 meshes loaded/.test(mp), { summary: mp });
+    rec('meshes: meshes.html loads every mesh', /^37 of 37 meshes loaded/.test(mp), { summary: mp });
 
     // independence: with no pack and no query, 2D and 3D use only original assets (no local-pack or DLNK request)
     const packRequests = () => ev(`performance.getEntriesByType('resource').map((r)=>r.name).filter((n)=>/local-pack|_dlnk|[/]dlnk[/]/i.test(n))`);
@@ -490,7 +490,7 @@ async function main() {
     // ---- the clock: phases change the 3D sky, the HUD chip, lanterns and the vigil (Core VigilRules watch and dawn) ----
     const skyAt = async (tick) => {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-      await nav(`?intro=0&view=3d&capture=1&grain=0&tick=${tick}#seed=1818&sanity=100&cam3d=54.4,56,200,4`); await sleep(1500);
+      await nav(`?intro=0&view=3d&capture=1&grain=0&weather=clear&tick=${tick}#seed=1818&sanity=100&cam3d=34,75,180,25`); await sleep(1500);
       return ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,Math.max(1,Math.floor(c.height*0.3))).data;let r=0,gg=0,b=0,n=0;for(let i=0;i<d.length;i+=4*13){r+=d[i];gg+=d[i+1];b+=d[i+2];n++}n=Math.max(1,n);return {r:Math.round(r/n),g:Math.round(gg/n),b:Math.round(b/n),chip:document.getElementById('clockChipText').textContent,phase:document.getElementById('clockChip').getAttribute('data-phase'),lanterns:!document.getElementById('clockLanterns').hidden,hint:!document.getElementById('clockHint').hidden}})()`);
     };
     const skyDay = await skyAt(540), skyDusk = await skyAt(960), skyNight = await skyAt(1200);
@@ -522,6 +522,32 @@ async function main() {
     await ev(`document.getElementById('endure').click()`); await sleep(1300);
     const dAfter = await ev(`[document.getElementById('clockChip').getAttribute('data-phase'), document.getElementById('endure').textContent, document.getElementById('objectiveText').textContent]`);
     rec('clock vigil: by day clues count and Endure first waits for dusk, then offers Endure the night', dWait === 'Wait for dusk (E)' && dAfter[0] === 'dusk' && dAfter[1] === 'Endure the night (E)' && /^Night 1 of 5/.test(dAfter[2]), { dWait, dAfter });
+    // ---- round 20: density (two-storey houses, streets), weather looks and birds ----
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&capture=1&grain=0&tick=540&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(1500);
+    const dens = await ev(`(async()=>{const w=await import('./src/world-scale.js'),m=await import('./src/view3d-math.js');return {person:w.PERSON_HEIGHT,storey:w.STOREY_HEIGHT,ridgeMin:w.RIDGE_MIN,budget:m.FRAME_BUDGET}})()`).catch((e) => ({ error: e.message }));
+    rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 12 calls and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 12 && dens.budget.triangles === 60000, dens);
+    await ev(`document.getElementById('perfToggle').click()`); await sleep(2500);
+    const perfTxt = await until(() => ev(`document.getElementById('perfHud').textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
+    const trisNow = Number((/(\d+) tris/.exec(perfTxt || '') || [])[1]);
+    rec('density: the dense village renders inside the triangle budget in the live perf HUD (SwiftShader, indicative)', trisNow > 1000 && trisNow <= 60000, { perfTxt });
+    // Weather looks: the same camera and clock, only ?weather= changes; storm must be measurably darker than clear and every name must render without errors.
+    const meanLum = () => ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let s=0,n=0;for(let i=0;i<d.length;i+=4*11){s+=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];n++}return Math.round(s/Math.max(1,n))})()`);
+    const lum = {}, hashes = {};
+    for (const w of ['clear', 'storm', 'fog', 'rain']) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&view=3d&capture=1&grain=0&tick=700&weather=${w}&cam3d=54.4,56,200,4#seed=1818&sanity=100`); await sleep(2000);
+      lum[w] = await meanLum(); hashes[w] = await shotHash();
+    }
+    rec('weather: storm (a fixed lightning moment in captures) and fog change the mean brightness and rain changes the frame against clear at the same camera and clock', ['storm', 'fog'].every((w) => Math.abs(lum[w] - lum.clear) >= 2) && hashes.rain !== hashes.clear, { lum, hashes });
+    const wnames = await ev(`(async()=>{const c=await import('./src/clock.js');return {a:c.weatherForDay?c.weatherForDay(1818,3):null,b:c.weatherForDay?c.weatherForDay(1818,3):null,names:c.WEATHER_NAMES}})()`).catch((e) => ({ error: e.message }));
+    rec('weather: the per-day weather is deterministic and every name is known', !wnames.error && wnames.a === wnames.b && Array.isArray(wnames.names) && wnames.names.length === 7, wnames);
+    // Birds: counts follow weather and reduced motion, and the seeded flock is identical for the same seed and moves when stepped.
+    const birds = await ev(`(async()=>{const b=await import('./src/birds.js');const plan={sea:[0,0],seaRadius:12,seaHeight:11,church:[5,5],churchRadius:9,churchHeight:17,village:[3,3],fogRadius:30,fogHeight:26};const c=b.birdCounts({weather:'clear'});const f1=b.createFlocks({seed:1818,plan,counts:c}),f2=b.createFlocks({seed:1818,plan,counts:c});const x0=f1.gulls.birds[0].x;b.stepFlock(f1.gulls);const buf=b.buildBirds({flocks:f2,perches:[],counts:c,timeSec:1});return {clear:c.gulls,storm:b.birdCounts({weather:'storm'}).gulls,reduced:b.birdCounts({weather:'clear',reduced:true}).gulls,same:JSON.stringify(f2.gulls.birds[0])===JSON.stringify(b.createFlocks({seed:1818,plan,counts:c}).gulls.birds[0]),moved:f1.gulls.birds[0].x!==x0,verts:buf.length}})()`).catch((e) => ({ error: e.message }));
+    rec('birds: gulls fly in clear weather, shelter in a storm, stay away under reduced motion, are seeded and move', !birds.error && birds.clear > 0 && birds.storm === 0 && birds.reduced === 0 && birds.same && birds.moved && birds.verts > 0, birds);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+    await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
+    rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()) > 5, { lum: await meanLum() });
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;

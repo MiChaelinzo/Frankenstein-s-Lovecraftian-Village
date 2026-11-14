@@ -82,8 +82,14 @@ export function postcardCaptionL({ villageName, seed, night, title }, lang) {
   return t('postcard.caption', lang, { village: villageName, n: night, title, seed: seed | 0 });
 }
 
+/** Display name of a weather ('storm', 'heavy fog' for fog, 'sea mist' for mist). Unknown names are shown as given. */
+export function weatherNameL(weather, lang) {
+  const key = `weather.${weather}`;
+  return key in STRINGS.en ? t(key, lang) : String(weather);
+}
+
 export function storyMetaL({ n, total, b, c, kind, sky, weather, pct }, lang) {
-  return t('story.meta', lang, { n, total, b, c, kind, sky, weather, pct });
+  return t('story.meta', lang, { n, total, b, c, kind, sky, weather: weatherNameL(weather, lang), pct });
 }
 
 const kindName = (id, lang) => (`kind.${id}` in STRINGS.en ? t(`kind.${id}`, lang) : String(id).replace(/_/g, ' '));

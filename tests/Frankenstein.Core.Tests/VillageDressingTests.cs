@@ -27,8 +27,8 @@ namespace Frankenstein.Core.Tests
         [Fact]
         public void Market_stall_avoids_layout_pieces()
         {
-            var blocker = new List<PlacedPiece> { new PlacedPiece { Id = "house_a", X = 10, Z = 10, SizeX = 4, SizeZ = 4 } };
-            var items = VillageDressing.Compose(1818, 24, 24, blocker);
+            var blocker = new List<PlacedPiece> { new PlacedPiece { Id = "house_a", X = 5, Z = 5, SizeX = 2, SizeZ = 2 } };
+            var items = VillageDressing.Compose(1818, 12, 12, blocker);
             foreach (var it in items.Where(i => i.Kind == "market_stall")) Assert.False(VillageDressing.OverlapsLayout(it, blocker, 0));
         }
     }

@@ -15,8 +15,12 @@ export const OMENS = [
 ];
 const SKY_NAMES = ['dusk', 'night', 'witching'];
 const SKY_PHRASES = ['The last light bleeds out over the roofs.', 'A starless night settles on the harbor.', 'The witching hour hangs low and wrong.'];
-const WEATHER_NAMES = ['clear', 'rain', 'fog'];
-const WEATHER_PHRASES = ['The air is clear and far too still.', 'Cold rain drums on the slate.', 'Fog crawls up from the marsh and swallows the lanes.'];
+const WEATHER_NAMES = ['clear', 'overcast', 'drizzle', 'rain', 'storm', 'fog', 'mist'];
+const WEATHER_PHRASES = [
+  'The air is clear and far too still.', 'A lid of low cloud sits on the roofs and does not move.', 'A thin drizzle beads on every sill and every upturned face.',
+  'Cold rain drums on the slate.', 'A storm leans on the village, and the sky flinches white.', 'Fog crawls up from the marsh and swallows the lanes.',
+  'A sea mist comes in, soft and salt, and takes the far houses first.',
+];
 
 export function tierForPercent(percent) {
   let tier = 0;

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml/badge.svg)](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml)
 
-![A pale moon over the sea and warm lantern light in the village at dusk](docs/media/r17-dusk-coast.png)
+![A cobbled lane at dusk between two-storey half-timbered houses, lanterns lit, a villager walking toward the square](docs/media/r20-street-lane.png)
 
 ## [Play now: frankensteinlovecraftianvillage.vercel.app](https://frankensteinlovecraftianvillage.vercel.app/)
 
@@ -15,6 +15,18 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 4. **Endure the night:** once enough is found, `Endure the night` appears. Surviving carries your sanity into the next of five nights, and the masked name of the thing under the village fills in as you learn.
 5. **Endings:** six endings (Hollowed, Name Spoken, Dawn, Fever, Witness, Vessel). The result card is a PNG you can share; the result code replays the same seed.
 6. **The vigil binds you:** once a vigil has begun (your first clue or lantern) the sandbox is locked until it ends: the sanity slider and `[` `]`, the night controls, `D`, new village (`N`), seed, daily, load, story playback and the cinematic are refused with a quiet note, since they change sanity or the night. Free exploration before the first action and the tour are never locked. The rule lives in Core (`VigilRules.AllowsSandboxAction` with `VigilState.IsLocked`, begun and not finished) and refuses rather than marking a run tampered.
+
+| | |
+|---|---|
+| ![Before round 20: low sheds on a wide plain, the viewer towers over them](docs/media/before-scale.png) | ![After round 20: two-storey houses loom over the viewer, a villager stands small beside them](docs/media/after-scale.png) |
+| ![Cobble photo texture, stone well and benches (CC0 Poly Haven)](docs/media/materials-after.png) | ![The square and the church rise](docs/media/r20-square-and-church-rise.png) |
+| ![Rain](docs/media/r20-weather-rain.png) | ![Storm, a fixed lightning moment](docs/media/r20-weather-storm.png) |
+| ![Fog](docs/media/r20-weather-fog.png) | ![Gulls over the sea](docs/media/r20-birds-sea.png) |
+
+Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
+
+### Honest quality bar
+This is a dependency-free WebGL1 renderer with flat shaded, procedurally built meshes, a handful of CC0 textures and no normal maps, no shadows from real lights, no skinned animation and no baked lighting. It cannot reach the look of an $80 AAA environment pack, and it does not try to. What it offers is a readable, correctly scaled village (two-storey houses, lanes, a square, a harbour), a living sky (clock, weather, birds), and rules that are deterministic and tested. Real GPU frame times and real-browser behavior are Unverified; every look claim above is Partially Verified from software-GL stills.
 
 | | |
 |---|---|
@@ -150,6 +162,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Web game loop (title screen, Vigil objective, lanterns, six endings, result card) | Verified | Core rules by dotnet tests and golden parity; the web mirror by node tests; the scripted full run to "The Name Spoken" by `tools/browser_check.mjs` (93 of 93 on local headless Chromium at the end of round 19, including the sandbox lock, touch controls, the epilogue link and accessibility checks) |
 | Real-world scale standard (person 1.7 m, eye 1.6 m, door 2.0 m, meshes at scale 1) | Verified | Core `WorldScale.cs` and `web/src/world-scale.js` by dotnet and node tests (`WorldScaleTests`, `world-scale.test.js`) and golden shape bounds; the Unity player capsule (1.7 m CharacterController) is compile checked only, runtime Unverified |
 | Web 3D look (lantern pools, post pass, moon, sea, fog) | Partially Verified | Seen only in SwiftShader (software GL) screenshots under `docs/media`; the post pass and its `?post=0` fallback render non-blank in the browser check. Real GPU look and frame times are Unverified |
+| Web 3D CC0 materials and props (`web/assets/third_party`, [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)) | Partially Verified | glb texture and node reading, prop fitting, atlas uv, budgets, fallbacks with `[third-party]` warnings and the service worker exclusion by node tests (`web/test/third-party.test.js`); the manifest and size rules by `tools/test_third_party_assets.py`. The look is seen only in SwiftShader screenshots (`docs/media/materials-before.png`, `docs/media/materials-after.png`); real GPUs Unverified |
 | Real-GPU performance, audio by ear, phones and tablets | Unverified | No real GPU, speakers or mobile device were available; only schedules and a 390 by 844 emulated layout were checked |
 | Web demo interaction (keys, journal tabs, story mode, judge tour, door button and O) | Partially Verified | Exercised once in local headless Chromium over DevTools (`tools/browser_check.mjs`, 93 of 93 checks passed, DOM state asserted); one Chromium build, not other browsers, not re-run per change |
 | Web demo visuals | Partially Verified | Headless Chromium screenshots (`docs/media`) inspected; not tested across browsers |
@@ -309,5 +322,7 @@ This submission combines:
 ## Credits
 
 Environment assets courtesy of DLNK Artworks' Lovecraftian Village environment pack.
+
+The browser 3D view also uses CC0 assets from [Poly Haven](https://polyhaven.com): the Old Stone Wall texture by Charlotte Baglioni, the Roof Slates 02, Cobblestone Floor 04 and Brown Mud Leaves 01 textures by Rob Tuytel, the Barrel 03 model by Serhii Khromov and the Painted Wooden Bench model by Kirill Sannikov. Files, sources and licences are listed in [`THIRD_PARTY_ASSETS.md`](THIRD_PARTY_ASSETS.md); `python3 tools/validate_repo.py` fails when a file under `web/assets/third_party/` has no CC0 entry there.
 
 Created by Michael G. Inso for Kiroween 2026.

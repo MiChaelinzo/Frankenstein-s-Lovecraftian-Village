@@ -13,7 +13,7 @@ python3 tools/validate_repo.py
 node --test "web/test/*.test.js"
 dotnet test tests/Frankenstein.Core.Tests
 ```
-Round 19 baseline: dotnet 159, node 408, 10 `tools/test_*.py` files, `dotnet build tests/UnityCompileCheck` with 0 errors and 0 warnings, and `tools/browser_check.mjs` 93 of 93. Run it in the foreground in one command (background processes die between shell calls): `python3 -m http.server 8123 -d web & S=$!; BASE=http://127.0.0.1:8123/ node tools/browser_check.mjs > check.log 2>&1; kill $S` (about 10 minutes on SwiftShader; keep the log outside the repo).
+Round 20 baseline: dotnet 172, node 441, `tools/browser_check.mjs` 99 of 99, UnityCompileCheck 0 errors and 0 warnings. Round 19 baseline: dotnet 159, node 408, 10 `tools/test_*.py` files, `dotnet build tests/UnityCompileCheck` with 0 errors and 0 warnings, and `tools/browser_check.mjs` 93 of 93. Run it in the foreground in one command (background processes die between shell calls): `python3 -m http.server 8123 -d web & S=$!; BASE=http://127.0.0.1:8123/ node tools/browser_check.mjs > check.log 2>&1; kill $S` (about 10 minutes on SwiftShader; keep the log outside the repo).
 
 **Scale standard.** Person 1.7 m, eye 1.6 m, door 2.0 m, eaves 2.4 to 3.2 m, lamp 3.0 to 3.6 m, trees at least 3.5 m, meshes placed at scale 1. Constants live in Core `WorldScale.cs`, `web/src/world-scale.js` and the `scale` block of `village_shapes.json`; change all three together and the tests (`WorldScaleTests`, `world-scale.test.js`) tell you if they drift.
 CI runs the same commands (`.github/workflows/ci.yml`).
@@ -34,6 +34,7 @@ See also [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) for which lo
   ```
   CI fails if `web/test/golden.json` would change. `web/data/village_catalog.json` must stay byte-identical to `Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json`.
 - **No paid assets, no Git LFS.** Never commit the Lovecraftian Village pack (DLNK Artworks) or anything under `Assets/ThirdParty` except its README. The pack comes only from the OneDrive links in the README. `tools/validate_repo.py` enforces this.
+- **External assets: CC0 or freely redistributable only.** Files under `web/assets/third_party/` must be listed with author, source and licence in `THIRD_PARTY_ASSETS.md`; `tools/validate_repo.py` fails on unlisted, non-CC0, stale, over 5 MB or over 40 MB total. Regenerate with `tools/fetch_third_party.py`. Never DLNK content.
 - **No em dashes** (U+2014) in any written content; the validator checks text files.
 - **Be honest in docs.** Label status claims Verified, Partially Verified or Unverified (see the README verification table). Anything not run in the Unity editor is Unverified. Do not invent usage numbers.
 - **Tone.** Dread over gore.

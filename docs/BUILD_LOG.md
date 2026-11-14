@@ -257,3 +257,19 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `963a48d` docs: round 19 scale standard, Unity setup, MCP note, pitch, checklist, steering and spec tasks
 - Counts: dotnet 159, node 408, 10 `tools/test_*.py` files, `tools/validate_repo.py` OK, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 93 of 93 (local headless SwiftShader, run in the foreground). `web/data/stitch.json` was stale after the dressing commits and was regenerated (the validator and `test_gen_stitch.py` caught it).
 - Unverified: Unity runtime, real GPU look and frame times, audio by ear, real devices.
+
+## Round 20 commits (world foundation, branch feat/round20)
+- `29c4e52` docs: add before-scale screenshot
+- `fe64145` feat: two-storey multi-cell houses with WorldScale storey and ridge constants
+- `20b90c9` docs: add after-scale screenshot
+- `3cc107b` feat: street network in Core (lanes, square, building frontage, walkable coast road) with dressing props and 12 new meshes
+- `bcc9aa0` feat: streets in the 3D view, procedural timber, stone, slate, cobble and mud materials, street walkers, church rise heightmap
+- `973b414` chore: refresh stitch data
+- `5168b62` feat: deterministic per-day weather, storm lightning through the flash gate, wind-bent foliage, seeded boid birds, weather lighting
+- `a2f9867` feat: CC0 Poly Haven textures and props under web/assets/third_party with manifest and validator budget checks
+- `38991f8` feat: glb node transforms and embedded base colour textures, lazy CC0 materials and prop atlas in the 3D view
+- `9fda6c7` docs: credit CC0 assets in README and About (en, fr), materials before and after stills
+- `daa6354` feat: Unity VillageDressingPlacer places Core dressing and street slabs from the scene builder (compile checked only)
+- `959780d` test: browser check covers density, weather and birds, and follows the two storey layout (99 of 99)
+- Counts: dotnet 172, node 441, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 99 of 99 (SwiftShader, run in the foreground; the first run was 92 of 99, the failures were stale layout assumptions: the door and lantern probes used the old house cell, the sky probe stood against a wall, the mesh page expects 37 meshes, and day 1 weather of seed 1818 is fog or storm in captures).
+- Unverified: Unity runtime, real GPU look and timings, audio by ear.

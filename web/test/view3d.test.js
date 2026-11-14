@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, InteractionRules } from '../src/core.js';
 import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../src/glb.js';
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
+import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
 import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
@@ -162,7 +163,7 @@ test('buildWorld is deterministic, uses every kind, and falls back to boxes with
   assert.equal(w1.heights.length, l.length); assert.ok(w1.heights.every((v) => v > 0));
   const boxes = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24 });
   assert.ok(boxes.building.length > 0 && boxes.heights.every((v) => v === 3));
-  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
+  assert.ok(w1.ground.length === (6 + 6 * M.contactRings(layout(1818), w1.lights).length + 6 * (streetSurfaces(24, 24, 4).length + 1)) * VERTEX_FLOATS && w1.sea.length === 6 * VERTEX_FLOATS);
   assert.ok(buildWorld({ layout: l, meshes, seed: 1818, gridW: 24, gridD: 24, groundTint: [100, 100, 100] }).ground[6] > 0);
 });
 test('smoke: the GL renderer runs a frame against a recording stub context', () => {
@@ -174,7 +175,7 @@ test('smoke: the GL renderer runs a frame against a recording stub context', () 
   const cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'rain', 0.4, 2);
   r.setTentacles(buildTentacles({ bases: M.tentacleBases(24, 24, 7), grow: 1, dread: 0.9, timeSec: 1 }));
   r.draw({ vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'rain'),
-    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90,
+    lights: [{ pos: [1, 2, 3], radius: 9, color: [1, 0.7, 0.4] }], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 1 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], windU: [1, 0, 0.5, 0.5], rain: M.precipitationStyle('rain', M.windState({ weather: 'rain', seed: 7 })), pointScale: 90,
     moonLight: M.moonBoost(M.moonParams(7, 1, 'night', 'rain').color), sea: M.seaParams({ dread: 0.4 }), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0.4, false), post: M.postParams({ dread: 0.4 }) });
   assert.ok(calls.includes('drawArrays') && calls.filter((c) => c === 'drawArrays').length >= 8, 'sky, sea, ground, buildings, coast, tentacles, halos, rain/mist');
 });
@@ -187,7 +188,7 @@ test('smoke: post pass runs through the offscreen target when complete, and warn
       const r = createGlRenderer(gl), cam = { x: 48, y: 1.6, z: 90, yaw: 0, pitch: 0 }, sk = M.hazedSky('night', 'clear', 0.4, 2);
       r.resize(320, 180);
       const frame = { vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [48, 1.6, 90], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'clear'), moonLight: [0.5, 0.5, 0.5],
-        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
+        lights: [], fog: 0.02, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], windU: [1, 0, 0.5, 0.5], rain: M.precipitationStyle('rain', M.windState({ weather: 'rain', seed: 7 })), pointScale: 90, sea: M.seaParams({}), waterTime: 1, fogOffset: [0, 0], flies: M.fireflyStyle(0, false), post: M.postParams({ dread: 0.2 }) };
       r.draw(frame); r.draw(frame);
     } finally { console.warn = orig; }
     return { calls, warns };
@@ -300,7 +301,12 @@ test('frame budget (pure counts, not timings): worst case weather, dread and lig
 test('view3d wiring for round 15: fly camera replaces walking, pack textures only via the plan, no network', () => {
   const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), app = readFileSync(join(web, 'src', 'app.js'), 'utf8');
   assert.match(v, /s\.fly \? \{ \.\.\.s\.fly \}/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
-  assert.ok(!/fetch\(/.test(v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '')), 'pack textures load through Image, not fetch');
+  // the only fetches are the original meshes and the same-origin CC0 upgrade under THIRD_PARTY_BASE; pack textures load through Image
+  const rest = v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '').replace(/loadThirdPartyModels\(fetch\.bind\(globalThis\), THIRD_PARTY_BASE/, '').replace(/async function fetchImage\(url\) \{\s*try \{\s*const res = await fetch\(url\);/, '');
+  assert.ok(!/fetch\(/.test(rest), 'no other fetch in view3d.js');
+  assert.match(v, /fetchImage\(THIRD_PARTY_BASE \+ THIRD_PARTY_TEXTURES\[n\]\)/); assert.equal((v.match(/fetchImage\(/g) || []).length, 2, 'fetchImage is defined once and called only for the CC0 textures');
+  assert.match(v, /export const THIRD_PARTY_BASE = 'assets\/third_party\/';/);
+  assert.match(v, /function loadPackImage[\s\S]*?new Image\(\)/);
 });
 
 test('round 16 omen framing: eye and tentacles fit the frame at Dire and Abyss for many seeds, deterministically', () => {

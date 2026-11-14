@@ -20,8 +20,10 @@ const placedDoor = (k, piece) => {
 
 test('web constants equal the scale block of the shapes data (and so Core WorldScale.cs, which a dotnet test checks)', () => {
   const s = shapes.scale;
-  assert.deepEqual([scale.EYE_HEIGHT, scale.PERSON_HEIGHT, scale.DOOR_HEIGHT, scale.EAVES_MIN, scale.EAVES_MAX, scale.LAMP_MIN, scale.LAMP_MAX, scale.TREE_MIN],
-    [s.eyeHeight, s.personHeight, s.doorHeight, s.eavesMin, s.eavesMax, s.lampMin, s.lampMax, s.treeMin]);
+  assert.deepEqual([scale.EYE_HEIGHT, scale.PERSON_HEIGHT, scale.DOOR_HEIGHT, scale.EAVES_MIN, scale.EAVES_MAX, scale.LAMP_MIN, scale.LAMP_MAX, scale.TREE_MIN,
+    scale.STOREY_HEIGHT, scale.HOUSE_STOREYS, scale.RIDGE_MIN, scale.RIDGE_MAX, scale.HOUSE_FOOTPRINT_MIN_CELLS],
+    [s.eyeHeight, s.personHeight, s.doorHeight, s.eavesMin, s.eavesMax, s.lampMin, s.lampMax, s.treeMin,
+      s.storeyHeight, s.houseStoreys, s.ridgeMin, s.ridgeMax, s.houseFootprintMinCells]);
   assert.equal(EYE_HEIGHT, scale.EYE_HEIGHT);
 });
 
@@ -36,27 +38,46 @@ test('door height over eye height stays in a believable ratio', () => {
   assert.ok(r > 1.15 && r < 1.4, `ratio ${r}`);
 });
 
-test('fitScale never enlarges a mesh and one-cell houses keep their authored size', () => {
+test('fitScale never enlarges a mesh and houses keep their authored size on their catalog footprint', () => {
   const one = { x: 0, z: 0, sizeX: 1, sizeZ: 1 };
   for (const k of ['house_a', 'house_b', 'cottage_thatch', 'cottage_tall', 'well', 'dead_tree', 'altar']) {
     const s = fitScale(model(k), one, CELL);
     assert.ok(s <= scale.MAX_PLACE_SCALE + 1e-9, `${k} ${s}`);
   }
-  assert.equal(fitScale(model('house_a'), one, CELL), 1);
-  assert.equal(fitScale(model('house_b'), one, CELL), 1);
+  const cat = JSON.parse(readFileSync(join(web, 'data', 'village_catalog.json'), 'utf8')).entries;
+  for (const k of ['house_a', 'house_b']) {
+    const e = cat.find((c) => c.id === k);
+    assert.equal(fitScale(model(k), { x: 0, z: 0, sizeX: e.footprintX, sizeZ: e.footprintZ }, CELL), 1, k);
+  }
   assert.equal(fitScale(model('lamp'), { x: 0, z: 0, sizeX: 9, sizeZ: 9 }, CELL), 1);
 });
 
-test('placed doors are about 2 m and homes sit at single storey eaves', () => {
+test('placed doors are about 2 m', () => {
   const one = { x: 0, z: 0, sizeX: 1, sizeZ: 1 };
+  const foot = { house_a: { x: 0, z: 0, sizeX: 2, sizeZ: 2 }, house_b: { x: 0, z: 0, sizeX: 3, sizeZ: 2 } };
   for (const k of ['house_a', 'house_b', 'cottage_thatch', 'cottage_tall']) {
-    const d = placedDoor(k, one);
+    const d = placedDoor(k, foot[k] || one);
     assert.ok(Math.abs(d - scale.DOOR_HEIGHT) <= 0.1, `${k} door ${d}`);
   }
   for (const k of ['inn', 'chapel', 'lighthouse']) assert.ok(Math.abs(placedDoor(k, { x: 0, z: 0, sizeX: 2, sizeZ: 2 }) - scale.DOOR_HEIGHT) <= 0.1, k);
-  const walls = shapes.meshes.find((e) => e.id === 'house_a').parts.find((e) => e.name === 'walls');
-  const eaves = walls.at[2] + walls.size[2];
-  assert.ok(eaves >= scale.EAVES_MIN && eaves <= scale.EAVES_MAX, `eaves ${eaves}`);
+});
+
+test('village houses are real buildings: multi-storey, ridge 6 to 10 m, at least 3x a person, on a multi-cell footprint', () => {
+  const cat = JSON.parse(readFileSync(join(web, 'data', 'village_catalog.json'), 'utf8')).entries;
+  for (const k of ['house_a', 'house_b']) {
+    const m = model(k), e = cat.find((c) => c.id === k), parts = shapes.meshes.find((x) => x.id === k).parts;
+    const ridge = top(k);
+    assert.ok(ridge >= scale.RIDGE_MIN && ridge <= scale.RIDGE_MAX, `${k} ridge ${ridge}`);
+    assert.ok(ridge >= 3 * scale.PERSON_HEIGHT, `${k} is ${ridge / scale.PERSON_HEIGHT} persons tall`);
+    assert.ok(e.footprintX >= scale.HOUSE_FOOTPRINT_MIN_CELLS && e.footprintZ >= scale.HOUSE_FOOTPRINT_MIN_CELLS, `${k} footprint`);
+    const ground = parts.find((p) => p.name === 'ground'), upper = parts.find((p) => p.name === 'upper');
+    assert.ok(Math.abs(upper.at[2] + upper.size[2] - scale.HOUSE_STOREYS * scale.STOREY_HEIGHT) <= 0.5, `${k} eaves`);
+    assert.ok(upper.size[1] > ground.size[1], `${k} upper floor overhangs`);
+    assert.ok(parts.filter((p) => p.material === 'glow').length >= 6, `${k} windows`);
+    assert.ok(parts.some((p) => p.material === 'glow' && p.at[2] >= upper.at[2]), `${k} lit upper windows`);
+    assert.ok(parts.some((p) => p.name.startsWith('chimney')), `${k} chimney`);
+    assert.ok(m.bounds.max[0] - m.bounds.min[0] <= e.footprintX * CELL * 0.9 + 1e-6);
+  }
 });
 
 test('lamp posts stand 3 to 3.6 m, trees are taller than people, wells are low', () => {

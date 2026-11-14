@@ -28,3 +28,9 @@ Every number is our own choice, in `Core/VillageDressing.cs` (mirrored in `web/s
 - Render in the default 3D view: Partially Verified (headless screenshots and the browser check; no GPU review).
 - Unity placement of the same dressing: Unverified (not implemented in this round, tracked in `.kiro/specs/tasks.md`).
 - `?pack=1` with the new props: see docs/BUILD_LOG.md for the browser check result.
+
+## Round 20: scale, streets, materials, weather
+- Houses are two storeys (storey 3 m, ridge 6 to 10 m, at least 2 by 2 cells) so a 1.7 m person reads small beside them. Streets (4 m lanes every 6 cells, a cobbled square) give the eye a path; houses face the nearest lane.
+- Materials: procedural timber, slate and mud, plus a few CC0 photo textures (stone, roof, cobble, ground) and two CC0 props (barrel, bench), all lazy loaded and credited in `THIRD_PARTY_ASSETS.md`. No normal maps yet.
+- Weather per day (clear, overcast, drizzle, rain, storm, fog, mist) changes fog, sky, particles, wind and window glow; birds (gulls, crows, huge silhouettes at high dread) make the sky feel watched. Lightning goes only through the capped flash gate.
+- Honest bar: a flat shaded WebGL1 look, not AAA. Status: Partially Verified (SwiftShader stills), real GPU Unverified.

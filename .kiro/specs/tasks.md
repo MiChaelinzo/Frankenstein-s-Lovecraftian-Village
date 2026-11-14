@@ -90,9 +90,36 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 
 - [ ] Round 19 follow-up: place the same `VillageDressing` items in the Unity scene builder (compile-check only), and open the walkable bounds so players can walk the coast road (today the strip is only seen from the grid edge).
 - [x] 84. Round 19: original shape source (`village_shapes.json`, Core `ShapeLibrary`, Unity asset generator), procedural textures, seeded villagers and talk (optional display-only `?narrator=`), GameClock with the vigil kept at dusk and night, day and night look, harbour quarter (`VillageDressing`), scale standard (`WorldScale`, person 1.7 m, eye 1.6 m, door 2.0 m); dotnet 159, node 408, browser check 93 of 93, UnityCompileCheck 0 errors and 0 warnings
-- [ ] 85. Round 19 leftover: walkable coast road (open the collision bounds past the grid edge, with tests)
-- [ ] 86. Round 19 leftover: place `VillageDressing` items in the Unity scene builder (compile check only; Unity runtime Unverified)
+- [x] 85. Round 19 leftover: walkable coast road (open the collision bounds past the grid edge, with tests)
+- [x] 86. Round 19 leftover: place `VillageDressing` items in the Unity scene builder: done in round 20 as `VillageDressingPlacer` (compile checked, 0 errors 0 warnings; Unity runtime Unverified, piece facing not applied in Unity)
 - [ ] 87. Round 19 leftover: optional AI villager line in Unity, extending `HttpNarrationProvider` with the deterministic Core line as fallback (display only)
 - [ ] 88. Author: confirm the "too big character" was the first-person explorer next to small doors plus the 1.85 m villager (now 1.7 m), and whether "Nivalis nights" meant something else
-- [ ] 89. Round 19 polish idea: give the church rise a slope or texture (it reads as a flat dark mound from the village side)
+- [x] 89. Round 19 polish idea: give the church rise a slope or texture (it reads as a flat dark mound from the village side)
 - [ ] 90. Take a first-person screenshot beside a 2.0 m door as scale evidence for task 88 (Partially Verified until the author confirms)
+
+## Round 20: world foundation
+- [x] 91. Two-storey multi-cell houses, `WorldScale` storey and ridge constants (Verified by dotnet and node tests; look Partially Verified: `docs/media/before-scale.png`, `after-scale.png`; the person no longer reads as a giant: house ridge 9.0 to 9.7 m against a 1.7 m person)
+- [x] 92. Street network in Core with JS mirror, frontage and facing, walkable coast road (spec task 85), church rise heightmap (task 89) (Verified by tests; look Partially Verified)
+- [x] 93. Per-day weather in Core and JS (golden), 3D weather looks, wind, storm lightning through the flash gate, seeded boid birds (Verified by tests; look Partially Verified in SwiftShader; audio and real GPU Unverified)
+- [x] 94. CC0 Poly Haven textures and props, `THIRD_PARTY_ASSETS.md`, validator budget checks (Verified by validator and tests; look Partially Verified)
+- [x] 95. Unity `VillageDressingPlacer` and thin scene builder hook (compile checked only; Unity runtime Unverified)
+- [x] 96. Browser check extended for density, weather and birds: 99 of 99 (SwiftShader, indicative)
+- [ ] 97. Author: view `?view=3d` on a real GPU (frame time, weather, birds, materials) and in a real browser
+- [ ] 98. Author: run Tools > Frankenstein > Create Playable Village Scene in Unity 6 and report dressing placement, street slabs and yaw
+- [ ] 99. Author: confirm the person no longer reads as a giant (task 88) and shoot a first-person shot beside a door (task 90)
+
+### Remaining leftovers from round 20
+- Cottages, inn and chapel on the coast are still small (single-storey scale).
+- Window lighting has no per-floor on/off states, only per-storey flicker.
+- No normal maps (would need tangents); photo materials are diffuse only.
+- No GPU timing, only SwiftShader indications (triangles about 23k to 26k of the 60k budget, 12 draw calls ceiling).
+- Real browser checks (author only); Unity ignores the layout `Facing` and `WeatherForDay`; builder cell 6 m versus Core dressing 4 m.
+
+## Roadmap
+- Round 21: inventory, items, finding and storing, sleep and food sanity recovery.
+- Round 22: economy, shops, buy/sell, the horror restaurant.
+- Round 23: monsters on the ground and in the sky, sanity exposure over time.
+- Round 24: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 25: lore, stories and adventures.
+- Round 26: procedural regions beyond the village.
+- Round 27: Unity parity, performance and polish.

@@ -11,6 +11,7 @@ import {
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
 import { audioMix } from './daylight.js';
+import { WEATHER_NAMES } from './clock.js';
 import { shouldShowTitle, BACKDROP_BEATS } from './title.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
@@ -20,6 +21,7 @@ import { loadMeshSet } from './glb.js';
 import { createView3d } from './view3d.js';
 import { view3dWanted, CELL } from './view3d-math.js';
 import { createVillagerController } from './villager-ui.js';
+import { streetWalkers } from './streets.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
@@ -47,7 +49,7 @@ import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showC
 import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
 import {
   LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
-  describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL,
+  describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL, weatherNameL,
 } from './i18n-text.js';
 
 const GRID_W = 24, GRID_D = 24, PIECES = 80;
@@ -109,20 +111,23 @@ function skipClock(minutes, done) {
   };
   step();
 }
+/** QA override: ?weather=storm (any clock.js weather name) replaces the night's weather in the 3D view and the soundtrack. Unknown names are ignored. */
+const weatherParam = optParam('weather');
+const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 const view3d = createView3d({
-  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0',
+  canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0', thirdParty: optParam('thirdparty') !== '0',
   getScene: () => ({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
-    night: currentNight() || { number: 1, sky: 'night', weather: 'clear' },
+    night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL),
+    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
-  onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
+  onThunder: (delayMs) => ambient?.thunder(delayMs), onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen(), close: () => villagers.close() },
@@ -158,7 +163,7 @@ function startAudio() {
     ambientSeed = state.seed;
     if (muted) ambient.mute();
   }
-  ambient.setMix(audioMix(clockTick()));
+  ambient.setMix(audioMix(clockTick())); ambient.setWeather(withWeather(currentNight() || {}).weather);
   return ambient.start();
 }
 function updateAudio(dread) { if (ambient) ambient.setDread(dread); }
@@ -228,7 +233,7 @@ function renderCampaign() {
   $('night').innerHTML = c.nights.map((n, i) => `<option value="${i}">${esc(tr('opt.nightitem', { n: n.number, title: n.title }))}</option>`).join('');
   $('night').value = String(state.night);
   const n = currentNight();
-  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> ${esc(tr('night.target', { pct: n.dreadTargetPercent, sky: n.sky, weather: n.weather }))}.<br>${esc(tr('label.rumor'))}: ${esc(n.rumor)}<br>${esc(tr('label.lore'))}: ${esc(n.lore)}<br>${esc(tr('label.ritual'))}: <span id="ritualInfo"></span>`;
+  $('nightInfo').innerHTML = `<em>${esc(n.title)}</em> ${esc(tr('night.target', { pct: n.dreadTargetPercent, sky: n.sky, weather: weatherNameL(n.weather, lang) }))}.<br>${esc(tr('label.rumor'))}: ${esc(n.rumor)}<br>${esc(tr('label.lore'))}: ${esc(n.lore)}<br>${esc(tr('label.ritual'))}: <span id="ritualInfo"></span>`;
   renderRitual();
   updateDesc();
 }
@@ -316,7 +321,7 @@ function updateDesc() {
   $('viewDesc').textContent = describeSceneL({
     seed: state.seed, pieces: state.layout.length, tier: tierFor(d), dreadPercent: Math.round(d * 100),
     focus: f ? tr('desc.focus', { name: locName(lang, f.id), x: f.x, z: f.z }) : '',
-  }, lang) + describeVillageL(state.layout, lang) + describeInvestigatorL(state.investigator, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${currentNight().weather}.` : '');
+  }, lang) + describeVillageL(state.layout, lang) + describeInvestigatorL(state.investigator, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${weatherNameL(currentNight().weather, 'en')}.` : '');
 }
 
 let running = false;
@@ -573,7 +578,7 @@ function renderClockChip() {
   if ($('clockChipText').textContent !== text) $('clockChipText').textContent = text;
   if (chip.getAttribute?.('data-phase') !== m.phase) chip.setAttribute?.('data-phase', m.phase);
   $('clockLanterns').hidden = !m.lanterns;
-  ambient?.setMix(audioMix(clockTick()));
+  ambient?.setMix(audioMix(clockTick())); ambient?.setWeather(withWeather(currentNight() || {}).weather);
 }
 const HINT_KEY = 'flv.clockhint';
 const hintStore = (() => { try { return window.sessionStorage; } catch { return null; } })();

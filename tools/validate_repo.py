@@ -16,7 +16,7 @@ for p in [".kiro/specs/requirements.md", ".kiro/specs/design.md", ".kiro/specs/t
           "netlify.toml", "vercel.json", "web/_headers", "docs/HOSTING.md", "tools/stage_web.py", "tools/test_stage_web.py", "tools/gen_stitch.py", "web/data/stitch.json",
           "tests/UnityCompileCheck/UnityCompileCheck.csproj", "tests/UnityCompileCheck/README.md",
           "tests/UnityCompileCheck/Stubs/UnityEngine.cs", "tests/UnityCompileCheck/Stubs/UnityEditor.cs",
-          "docs/MCP.md", ".kiro/steering/mcp.md", "docs/UNITY_SETUP.md", "tools/gen_package_meta.py"]:
+          "docs/MCP.md", ".kiro/steering/mcp.md", "docs/UNITY_SETUP.md", "tools/gen_package_meta.py", "tools/third_party_assets.py", "tools/test_third_party_assets.py", "tools/fetch_third_party.py"]:
     if not os.path.isfile(p):
         errors.append(f"missing {p}")
 
@@ -41,8 +41,10 @@ for f in tracked:
 
 for f in tracked:
     if f.lower().endswith(".glb"):
-        if not f.startswith("web/assets/meshes/"):
-            errors.append(f"glb only allowed under web/assets/meshes/: {f}")
+        if f.startswith("web/assets/third_party/models/"):
+            pass  # CC0 props: listed and size checked by third_party_assets below
+        elif not f.startswith("web/assets/meshes/"):
+            errors.append(f"glb only allowed under web/assets/meshes/ or web/assets/third_party/models/: {f}")
         elif os.path.getsize(f) >= 200 * 1024:
             errors.append(f"glb must be under 200 KB: {f}")
 
@@ -107,6 +109,14 @@ if not os.path.isfile(gen_stitch.OUT) or open(gen_stitch.OUT, encoding="utf-8").
     errors.append("web/data/stitch.json is stale: run python3 tools/gen_stitch.py")
 
 import verification_labels
+import third_party_assets
+third_party = [f for f in tracked if f.startswith(third_party_assets.PREFIX) and os.path.isfile(f)]
+if not os.path.isfile("THIRD_PARTY_ASSETS.md"):
+    errors.append("missing THIRD_PARTY_ASSETS.md")
+else:
+    errors.extend(third_party_assets.check(third_party, os.path.getsize, open("THIRD_PARTY_ASSETS.md", encoding="utf-8").read()))
+if "third_party" in open("web/sw.js", encoding="utf-8").read():
+    errors.append("web/sw.js must not precache or mention web/assets/third_party (lazy loaded, network only)")
 errors.extend(verification_labels.check(open("README.md", encoding="utf-8").read()))
 
 EM_DASH = "\u2014"

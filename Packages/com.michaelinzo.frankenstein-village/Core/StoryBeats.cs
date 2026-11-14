@@ -40,8 +40,17 @@ namespace Frankenstein.Core
 
         public static readonly string[] SkyPhrases = { "The last light bleeds out over the roofs.", "A starless night settles on the harbor.", "The witching hour hangs low and wrong." };
         public static readonly string[] SkyNames = { "dusk", "night", "witching" };
-        public static readonly string[] WeatherNames = { "clear", "rain", "fog" };
-        public static readonly string[] WeatherPhrases = { "The air is clear and far too still.", "Cold rain drums on the slate.", "Fog crawls up from the marsh and swallows the lanes." };
+        public static readonly string[] WeatherNames = GameClock.WeatherNames;
+        public static readonly string[] WeatherPhrases =
+        {
+            "The air is clear and far too still.",
+            "A lid of low cloud sits on the roofs and does not move.",
+            "A thin drizzle beads on every sill and every upturned face.",
+            "Cold rain drums on the slate.",
+            "A storm leans on the village, and the sky flinches white.",
+            "Fog crawls up from the marsh and swallows the lanes.",
+            "A sea mist comes in, soft and salt, and takes the far houses first.",
+        };
 
         /// <summary>Omen tier (0 Calm .. 3 Abyss) for an integer dread percent.</summary>
         public static int TierForPercent(int percent)

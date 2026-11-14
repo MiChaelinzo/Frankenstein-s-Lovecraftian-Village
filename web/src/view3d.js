@@ -2,19 +2,21 @@
 // core.js, meshes from glb.js and the interaction rules from InteractionRules in core.js. This file only owns GL objects, shaders,
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
-import { composeDressing, dressingBoxes, DRESSING_KINDS } from './dressing.js';
-import { appendMeshVertices, loadMeshSet, VERTEX_FLOATS } from './glb.js';
+import { composeDressing, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { streetSurfaces, facingYaw } from './streets.js';
+import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
   CELL, EYE_HEIGHT, FAR, FOV_Y, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
-  particleCounts, particleSeeds, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
+  particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
-import { omenTargets } from './scene.js';
+import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
+import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
 import { lookAt } from './daylight.js';
 import { tierFor } from './core.js';
 
@@ -53,6 +55,10 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
   pushFrustum(out, Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z), y0, y1, taper, color);
 }
 
+/** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
+export const FOLIAGE_PHASE = 1000;
+const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds']);
+const STREET_Y = 0.06, STREET_COLOR = [0.3, 0.29, 0.28], STREET_PHASE = -5; // phase below -3 marks cobbled street quads for the ground shader
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
 /** Width of a model along its long (X) axis in metres. */
@@ -102,12 +108,38 @@ export function buildCoast({ gridW, gridD, seed, cell = CELL, meshes = null }) {
   return new Float32Array(out);
 }
 
+const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_STEPS = 26, HILL_FOOT = -0.5;
+const GRASS = [0.13, 0.17, 0.11], GRASS_DRY = [0.2, 0.2, 0.13], HILL_ROCK = [0.24, 0.24, 0.25], HILL_PATH = [0.36, 0.33, 0.27];
+const hillStep = (t) => t * t * (3 - 2 * t);
+/** Height of the church rise at an offset (metres) from its centre: a flat summit, a smooth shoulder and gentle lumps, never below the foot. Deterministic, no randomness. */
+export function hillHeight(c, dx, dz) {
+  const rho = Math.hypot(dx / HILL_RX, dz / HILL_RZ), t = Math.max(0, Math.min(1, (rho - HILL_PLATEAU) / (1 - HILL_PLATEAU)));
+  const lumps = 0.9 * Math.sin(dx * 0.55 + dz * 0.2) * Math.cos(dz * 0.43) * t * (1 - t) * 4;
+  return Math.max(HILL_FOOT, c.hill * (1 - hillStep(t)) + lumps + HILL_FOOT * hillStep(t));
+}
+/** A winding path climbs the village side of the rise: its lateral offset from the centre line at a given x offset. */
+const pathZ = (c, dx) => Math.sin(dx * 0.22) * 2.6;
+/** The rise as a smooth heightmap: grass and dry turf by height, rock on steep slopes, and a pale path from the foot to the summit on the side that faces the village. */
+function pushHillSurface(out, c) {
+  const n = HILL_STEPS, xs = [], at = (i, j) => {
+    const dx = (i / n - 0.5) * 2 * HILL_RX, dz = (j / n - 0.5) * 2 * HILL_RZ, h = hillHeight(c, dx, dz);
+    const sx = (hillHeight(c, dx + 0.5, dz) - hillHeight(c, dx - 0.5, dz)), sz = (hillHeight(c, dx, dz + 0.5) - hillHeight(c, dx, dz - 0.5)), nl = Math.hypot(sx, 1, sz);
+    const slope = Math.min(1, Math.hypot(sx, sz) / 1.1), high = Math.max(0, Math.min(1, h / c.hill)), grain = 0.9 + 0.1 * Math.sin(dx * 1.7) * Math.sin(dz * 1.3);
+    let col = GRASS.map((g, k) => (g + (GRASS_DRY[k] - g) * high) * grain);
+    col = col.map((v, k) => v + (HILL_ROCK[k] - v) * slope * 0.8);
+    const toward = dx * c.faceX, lateral = Math.abs(dz - pathZ(c, dx));
+    if (toward > 5 && toward < HILL_RX * 0.98 && lateral < 1.15 && h > HILL_FOOT + 0.2) { const k = 1 - lateral / 1.15; col = col.map((v, m) => v + (HILL_PATH[m] - v) * Math.min(1, k * 2)); }
+    return [c.x + dx, h, c.z + dz, -sx / nl, 1 / nl, -sz / nl, col[0], col[1], col[2]];
+  };
+  for (let i = 0; i <= n; i++) { xs.push([]); for (let j = 0; j <= n; j++) xs[i].push(at(i, j)); }
+  const push = (v) => out.push(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], 0, 0);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) for (const v of [xs[i][j], xs[i][j + 1], xs[i + 1][j + 1], xs[i][j], xs[i + 1][j + 1], xs[i + 1][j]]) push(v);
+}
+
 /** A hill and a church standing on it, drawn as a near black silhouette against the haze, with two dim lit windows. Original geometry. */
 export function buildChurchHill({ gridW, gridD, seed, cell = CELL }) {
   const out = [], c = churchSite(gridW, gridD, seed, cell), x = c.x, z = c.z;
-  pushFrustum(out, x - 22, z - 20, x + 22, z + 20, -0.5, 3.5, 0.72, EARTH);
-  pushFrustum(out, x - 16, z - 14, x + 16, z + 14, 3.5, 6.5, 0.66, EARTH);
-  pushFrustum(out, x - 10, z - 9, x + 10, z + 9, 6.5, c.hill, 0.7, EARTH);
+  pushHillSurface(out, c);
   const y0 = c.hill;
   pushFrustum(out, x - 2.6, z - 5.5, x + 2.6, z + 5.5, y0, y0 + 4.6, 1, SILHOUETTE);
   pushFrustum(out, x - 3, z - 5.9, x + 3, z + 5.9, y0 + 4.6, y0 + 7.4, 0.12, SILHOUETTE);
@@ -168,7 +200,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const model = meshes && meshes.get(MESH_FOR[p.id]);
     const lit = p.id === 'house_a' || p.id === 'house_b' ? (windowLit(p) ? 1 : 0) : 1;
     const phase = p.vis ? p.vis.phase : 0;
-    if (model) heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase, tint: tintFor(p.id) }));
+    if (model) heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase: p.id === 'dead_tree' ? phase + FOLIAGE_PHASE : phase, tint: tintFor(p.id), rot: facingYaw(p.facing | 0) }));
     else { heights.push(3); pushBox(out, p, cell, 3, BOX_COLORS[p.id] || [0.3, 0.3, 0.3]); }
   }
   const lights = lanternLights(layout, cell);
@@ -176,30 +208,44 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const lamp = l.post && (meshes.get(lampKind(l)) || meshes.get('lamp'));
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
-  const dressing = composeDressing(seed, gridW, gridD, layout);
+  const dressing = composeDressing(seed, gridW, gridD, layout), uv = [];
+  const padUv = () => { while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); }; // -1 marks an untextured vertex
   if (meshes) for (const it of dressing) {
     const model = meshes.get(it.kind);
-    if (model) appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11, scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y });
+    if (!model) continue;
+    if (model.texture) padUv();
+    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture ? uv : null });
   }
+  padUv();
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
   for (const r of contactRings(layout, lights, cell)) pushQuad(ground, r.x0, r.z0, r.x1, r.z1, r.y, gc.map((v) => v * r.shade), -1);
+  for (const r of streetSurfaces(gridW, gridD, cell)) pushQuad(ground, r[0], r[1], r[2], r[3], STREET_Y, STREET_COLOR, STREET_PHASE);
+  { // the coast road: a cobbled strip along the shore between the cottage fronts and the foam
+    const a = coastToWorldAt(seed, gridW, 0, -2.0), b = coastToWorldAt(seed, gridW, hiOf(seed, gridW, gridD), -0.3);
+    pushQuad(ground, Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z), STREET_Y, STREET_COLOR, STREET_PHASE);
+  }
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
-  return { building: new Float32Array(out), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
+  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
 }
 
 // ---------- shaders ----------
 
 const FRAG_HEAD = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
-const SCENE_VS = `attribute vec3 aPos; attribute vec3 aNormal; attribute vec3 aColor; attribute float aGlow; attribute float aPhase;
-uniform mat4 uVP; varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase;
-void main(){ vPos=aPos; vNormal=aNormal; vColor=aColor; vGlow=aGlow; vPhase=aPhase; gl_Position=uVP*vec4(aPos,1.0); }`;
-const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase;
+const SCENE_VS = `attribute vec3 aPos; attribute vec3 aNormal; attribute vec3 aColor; attribute float aGlow; attribute float aPhase; attribute vec2 aUv;
+uniform mat4 uVP; uniform vec4 uWind; uniform float uWindT; varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase; varying vec2 vUv;
+void main(){
+  float fol = step(500.0, aPhase); vec3 p = aPos;
+  // wind: foliage leans along uWind.xy by strength (uWind.z, gust included) and sways a little; bend grows with height, roots stay put
+  float bend = fol * uWind.z * 0.08 * p.y; float sw = fol * uWind.w * 0.03 * p.y * sin(uWindT * 1.9 + aPhase * 0.7);
+  p.xz += uWind.xy * bend + vec2(sw, -sw);
+  vPos=p; vNormal=aNormal; vColor=aColor; vGlow=aGlow; vPhase=aPhase - fol * 1000.0; vUv=aUv; gl_Position=uVP*vec4(p,1.0); }`;
+const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase; varying vec2 vUv;
 uniform vec3 uCam; uniform vec3 uFogColor; uniform float uFog; uniform vec3 uAmbient; uniform vec3 uMoonDir; uniform vec3 uMoonColor;
 uniform vec4 uLight[${MAX_LIGHTS}]; uniform vec3 uLightCol[${MAX_LIGHTS}]; uniform vec3 uGlowColor; uniform float uTime; uniform float uFlicker; uniform float uMode;
-uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform float uHasWall; uniform float uHasGround;
+uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform sampler2D uPropTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -207,9 +253,21 @@ void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
   vec3 base = vColor;
-  if (uMode > 0.5 && uMode < 1.5) { vec2 c = floor(vPos.xz * 1.5); base *= 0.88 + 0.16 * hash(c) + 0.12 * hash(floor(vPos.xz * 6.0)) + 0.08 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17); }
-  if (uMode < 0.5 && uHasWall > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
-  if (uMode > 0.5 && uMode < 1.5 && uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.25).rgb * 1.6, 0.85);
+  if (uMode > 0.5 && uMode < 1.5) {
+    if (vPhase < -3.0) base *= mix(vec3(1.0), texture2D(uCobbleTex, vPos.xz * 0.5).rgb * 1.6, 0.9); // cobbled lanes and square
+    else {
+      base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
+      if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * 0.3).rgb * 1.6, 0.9);
+    }
+  }
+  if (vUv.x > -0.5) base *= texture2D(uPropTex, vUv).rgb; // CC0 prop: its own base colour from the atlas (vColor is its white factor)
+  else if (uMode < 0.5 && uHasWall > 0.5) {
+    float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
+    if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * 0.3).rgb * 1.6, 0.85);
+    else if (vNormal.y > 0.35 && vPos.y > 2.2) base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * 0.42).rgb * 1.6, 0.9);   // slate and shingle on roof slopes
+    else if (sat < 0.06) base *= mix(vec3(1.0), texture2D(uStoneTex, vec2(vPos.x + vPos.z, vPos.y) * 0.35).rgb * 1.6, 0.9); // stone blocks on grey masonry
+    else base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) / 3.0).rgb * 1.6, 0.9);                   // timber framed plaster, one bay and storey per tile
+  }
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
   if (uMode < 0.5 || uMode > 2.5) base *= mix(0.5, 1.0, smoothstep(0.0, 1.8, vPos.y));
@@ -238,7 +296,7 @@ void main(){
   }
   float peak = max(col.r, max(col.g, col.b)); // hue-preserving soft shoulder: lit walls keep their colour under a lantern instead of clipping to white
   if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
-  if (vGlow > 0.0) { float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3)); col = mix(col, uGlowColor * 1.4, clamp(vGlow, 0.0, 1.0) * fl); }
+  if (vGlow > 0.0) { float storey = floor(max(vPos.y - 0.5, 0.0) / 2.9); float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3 + storey * 1.9)); col = mix(col, uGlowColor * 1.4 * (1.0 - 0.05 * storey), clamp(vGlow, 0.0, 1.0) * fl); }
   float f = 1.0 - exp(-pow(dist * uFog, 2.0));
   float sheet = 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7));
   float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
@@ -346,13 +404,21 @@ function program(gl, vs, fs) {
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s));
     return s;
   };
-  const p = gl.createProgram(); gl.attachShader(p, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  const p = gl.createProgram(); gl.attachShader(p, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'aPos'); // attribute 0 must always be an enabled array in WebGL 1; aUv is sometimes a constant
+  gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('program: ' + gl.getProgramInfoLog(p));
   const uniforms = {};
   return { p, u: (name) => (name in uniforms ? uniforms[name] : (uniforms[name] = gl.getUniformLocation(p, name))) };
 }
 
 // ---------- GL renderer ----------
+
+/** Texture units of the material photos that may replace a procedural texture (unit 0 timber walls and unit 5 the prop atlas are not in it). */
+const MATERIAL_UNITS = Object.freeze({ ground: 1, stone: 2, roof: 3, cobble: 4 });
+/** CC0 photo textures (512 px, see THIRD_PARTY_ASSETS.md). Timber walls stay procedural: the photo plaster has no oak frame. */
+export const THIRD_PARTY_TEXTURES = Object.freeze({ ground: 'textures/ground.jpg', stone: 'textures/stone.jpg', roof: 'textures/roof.jpg', cobble: 'textures/cobble.jpg' });
+export const THIRD_PARTY_BASE = 'assets/third_party/';
 
 /** Owns the GL programs and buffers. frame = the per-frame values computed by the controller; nothing here decides gameplay. */
 export function createGlRenderer(gl) {
@@ -381,11 +447,12 @@ export function createGlRenderer(gl) {
     }
   }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const uvBuf = gl.createBuffer(); let uvCount = 0;
   const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
   const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
-    const t = gl.createTexture(), px = proceduralTexture(kind, { size: 64 });
+    const t = gl.createTexture(), px = proceduralTexture(kind, { size: 128 });
     gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, px.size, px.size, 0, gl.RGBA, gl.UNSIGNED_BYTE, px.data);
     gl.generateMipmap(gl.TEXTURE_2D);
@@ -393,7 +460,16 @@ export function createGlRenderer(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     return t;
   };
-  const texs = [makeTex(0, 'stone'), makeTex(1, 'ground')], hasTex = [1, 1];
+  const texs = [makeTex(0, 'timber'), makeTex(1, 'ground'), makeTex(2, 'stone'), makeTex(3, 'roof'), makeTex(4, 'cobble'), makeTex(5, 'wood')], hasTex = [1, 1];
+  const packedUnits = new Set();
+  /** Uploads a power of two image (canvas or ImageBitmap) to a texture unit, repeating and mipmapped. */
+  const setImage = (unit, img) => {
+    gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  };
+  let packed = 0;
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
   let size = [1, 1];
   const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
@@ -412,7 +488,7 @@ export function createGlRenderer(gl) {
     gl.drawArrays(gl.POINTS, 0, counts[name]);
   }
   return {
-    setWorld(w) { upload('building', w.building); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos); },
+    setWorld(w) { gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, w.buildingUv || new Float32Array(0), gl.STATIC_DRAW); uvCount = w.buildingUv ? w.buildingUv.length / 2 : 0; upload('building', w.building); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos); },
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
     setFireflies(data) { upload('fly', data); },
     setHalos(data) { upload('halo', data); },
@@ -422,13 +498,19 @@ export function createGlRenderer(gl) {
     setPackTextures(wall, ground) {
       [wall, ground].forEach((img, unit) => {
         if (!img) return;
-        gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-        hasTex[unit] = 1;
+        setImage(unit, img); packedUnits.add(unit);
+        hasTex[unit] = 1; packed = 1;
       });
     },
+    /** CC0 material photos (THIRD_PARTY_TEXTURES) replacing the procedural ground, stone, roof and cobble; null keeps the procedural one. A pack texture already set wins. */
+    setMaterialTextures(images) {
+      for (const [name, img] of Object.entries(images)) {
+        const unit = MATERIAL_UNITS[name];
+        if (img && unit !== undefined && !packedUnits.has(unit)) setImage(unit, img);
+      }
+    },
+    /** The CC0 props' base colour atlas (unit 5); building vertices with uv >= 0 sample it. */
+    setPropAtlas(img) { setImage(5, img); },
     setParticles(rainSeeds, mistSeeds) { upload('rain', rainSeeds); upload('mist', mistSeeds); },
     resize(w, h) { size = [w, h]; gl.viewport(0, 0, w, h); },
     /** True when the post pass is available (shader compiled and the framebuffer is complete). */
@@ -472,14 +554,20 @@ export function createGlRenderer(gl) {
       gl.uniform2fv(scene.u('uFogOff'), f.fogOffset); gl.uniform1f(scene.u('uWaterT'), f.waterTime); gl.uniform1f(scene.u('uRipple'), f.sea.ripple); gl.uniform1f(scene.u('uFresnel'), f.sea.fresnel);
       gl.uniform3fv(scene.u('uSeaTint'), f.sea.tint); gl.uniform1f(scene.u('uMoonGain'), f.sea.moonGain); gl.uniform1f(scene.u('uLampGain'), f.sea.lanternGain);
       gl.uniform3fv(scene.u('uZenith'), f.sky.zenith); gl.uniform3fv(scene.u('uHorizon'), f.sky.horizon);
-      gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
-      for (const unit of [0, 1]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
+      gl.uniform1i(scene.u('uWallTex'), 0); gl.uniform1i(scene.u('uGroundTex'), 1); gl.uniform1i(scene.u('uStoneTex'), 2); gl.uniform1i(scene.u('uRoofTex'), 3); gl.uniform1i(scene.u('uCobbleTex'), 4); gl.uniform1i(scene.u('uPropTex'), 5); gl.uniform1f(scene.u('uPacked'), packed); gl.uniform1f(scene.u('uHasWall'), hasTex[0]); gl.uniform1f(scene.u('uHasGround'), hasTex[1]);
+      for (const unit of [0, 1, 2, 3, 4, 5]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
       gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
-      gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
+      gl.uniform4fv(scene.u('uWind'), f.windU); gl.uniform1f(scene.u('uWindT'), f.time); gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
       for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3], ['villager', 3]]) {
         if (!counts[name]) continue;
-        gl.uniform1f(scene.u('uMode'), mode); bindScene(bufs[name]); gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
+        gl.uniform1f(scene.u('uMode'), mode); bindScene(bufs[name]);
+        // only the building buffer has per vertex uv (CC0 props); every other buffer reads the constant -1, untextured
+        const uvLoc = gl.getAttribLocation(scene.p, 'aUv');
+        if (name === 'building' && uvCount === counts.building) { gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.enableVertexAttribArray(uvLoc); gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 8, 0); }
+        else { gl.disableVertexAttribArray(uvLoc); gl.vertexAttrib2f(uvLoc, -1, -1); }
+        gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
       }
+      gl.disableVertexAttribArray(gl.getAttribLocation(scene.p, 'aUv'));
       // lantern halos: additive soft sprites, depth tested so walls hide them
       if (counts.halo) {
         gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.useProgram(halo.p);
@@ -505,7 +593,7 @@ export function createGlRenderer(gl) {
       if (counts.rain || counts.mist) {
         gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(part.p);
         gl.uniformMatrix4fv(part.u('uVP'), false, f.vp); gl.uniform3fv(part.u('uCam'), f.camPos); gl.uniform1f(part.u('uTime'), f.time); gl.uniform1f(part.u('uScale'), f.pointScale);
-        drawParticles('rain', f, { box: [40, 16, 40], vel: [0, -16, 0], size: 0.08, color: [0.6, 0.68, 0.8], alpha: 0.5 });
+        drawParticles('rain', f, { box: [40, 16, 40], vel: f.rain.vel, size: f.rain.size, color: [0.6, 0.68, 0.8], alpha: f.rain.alpha });
         drawParticles('mist', f, { box: [70, 5, 70], vel: [0.5, 0, 0.3], size: 5, color: f.fogColor.map((v) => Math.min(1, v * 1.3)), alpha: 0.12 });
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
@@ -527,6 +615,37 @@ function loadPackImage(url) {
   });
 }
 
+/** Decodes image bytes off the DOM (no object URL, so CSP img-src is not involved). Resolves null and warns when it cannot. */
+async function decodeImage(bytes, mimeType, label) {
+  try { return await createImageBitmap(new Blob([bytes], { type: mimeType })); } catch (err) { console.warn(`[third-party] ${label} not decoded (${err.message}); keeping the original`); return null; }
+}
+async function fetchImage(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await decodeImage(await res.arrayBuffer(), 'image/jpeg', url);
+  } catch (err) { console.warn(`[third-party] ${url} failed (${err.message}); keeping the procedural texture`); return null; }
+}
+/**
+ * Lazy CC0 upgrade, fetched only once the 3D view has its original meshes (never precached by sw.js): material photos replace the procedural
+ * ground, stone, roof and cobble, and the props in THIRD_PARTY_MODELS replace their original meshes in `meshes`. Every failure is a
+ * console.warn and leaves the original in place. Resolves the number of props upgraded.
+ */
+async function loadThirdParty(renderer, meshes) {
+  const names = Object.keys(THIRD_PARTY_TEXTURES), imgs = await Promise.all(names.map((n) => fetchImage(THIRD_PARTY_BASE + THIRD_PARTY_TEXTURES[n])));
+  renderer.setMaterialTextures(Object.fromEntries(names.map((n, i) => [n, imgs[i]])));
+  const props = await loadThirdPartyModels(fetch.bind(globalThis), THIRD_PARTY_BASE + 'models/', meshes);
+  const bitmaps = await Promise.all(props.map((p) => decodeImage(p.texture.bytes, p.texture.mimeType, p.kind)));
+  const ok = props.filter((_, i) => bitmaps[i]);
+  if (!ok.length) return 0;
+  const slotPx = 512, atlas = document.createElement('canvas'); atlas.width = atlas.height = slotPx * ATLAS_GRID;
+  const ctx = atlas.getContext('2d');
+  props.forEach((p, i) => { if (bitmaps[i]) ctx.drawImage(bitmaps[i], (p.slot % ATLAS_GRID) * slotPx, Math.floor(p.slot / ATLAS_GRID) * slotPx, slotPx, slotPx); });
+  renderer.setPropAtlas(atlas);
+  for (const p of ok) meshes.set(p.kind, p.model);
+  return ok.length;
+}
+
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
@@ -536,12 +655,14 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
  *   fly: camera {x,y,z,yaw,pitch} while the ?cinematic=1 fly-through runs (it replaces walking), else null }
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
+ * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, onPerf = null, onStep = null, onCoast = null, modal = null, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, onStep = null, onCoast = null, onThunder = null, modal = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
-  let lastVillagers = '', perfAt = 0, packLoaded = false, omen = { eye: 0, tentacle: 0 }, lastTent = '';
+  let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
+  let lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
   let drive = { forward: 0, strafe: 0 }, stick = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
@@ -550,12 +671,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, s.layout.map((p) => p.detail).join('')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join('')].join('|');
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
-    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = worldBounds(s.gridW, s.gridD);
-    lights = world.lights; renderer.setWorld(world); lastTent = '';
+    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
+    lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
+    perches = roofPerches(s.layout, world.heights, s.seed, 6);
     if (!cam) {
       const sp = spawnPoint(s.layout, s.gridW, s.gridD), override = parseCamParam(camParam);
       cam = override ? { x: override.x, y: EYE_HEIGHT, z: override.z, yaw: override.yaw, pitch: override.pitch } : { x: sp.x, y: EYE_HEIGHT, z: sp.z, yaw: 0, pitch: -0.04 };
@@ -677,7 +799,16 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
     const eye = { ...view, y: view.y + headBob(bobPhase, Math.min(1, Math.hypot(smooth.forward, smooth.strafe)), reduced) };
     const night = { sky: hazedSky(s.night.sky, s.night.weather, s.dread, s.night.number), moon: moonParams(s.seed, s.night.number, s.night.sky, s.night.weather) };
-    const day = lookAt(Number.isFinite(s.tick) ? s.tick : 0, night.sky, night.moon, s.dread), sk = day.sky, moon = day.moon; // the clock blends the night look toward day; full night is unchanged
+    const day = lookAt(Number.isFinite(s.tick) ? s.tick : 0, night.sky, night.moon, s.dread), moon = day.moon;
+    // Weather: wind bends foliage and slants rain; a storm's lightning goes through the shared capped, rate-limited flash gate (never with reduced motion).
+    const weather = s.night.weather, wlook = weatherLook(weather), wind = windState({ weather, seed: s.seed, timeSec: time, reduced });
+    if (capture) flashState.flash = weather === 'storm' ? 0.18 : 0; // a still shows one fixed moment of the storm
+    else {
+      flashState.flash = decayFlash(flashState.flash, lastFlashAt ? (ts - lastFlashAt) / 1000 : 0); lastFlashAt = ts;
+      const level = stormFlash(s.seed, ts, weather, reduced), slot = Math.floor(ts / 400);
+      if (level > 0 && slot !== lastLightningSlot) { lastLightningSlot = slot; if (applyFlash(flashState, level, ts) && onThunder) onThunder(thunderDelayMs(s.seed, ts)); }
+    }
+    const sk = flashSky(day.sky, flashState.flash); // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
     const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
     const fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}`;
@@ -689,13 +820,18 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
       lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
     }
-    const vsc = s.villagers || [], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; renderer.setVillagers(buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced })); }
+    const counts = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
+    const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
+    if (nextFlockKey !== flockKey) { flockKey = nextFlockKey; flocks = createFlocks({ seed: s.seed, plan, counts }); }
+    if (!reduced) for (const k of ['gulls', 'crows', 'silhouettes']) if (flocks[k]) advanceFlockTo(flocks[k], time);
+    const birdSlot = reduced ? 0 : Math.floor(time * 15), birds = world ? buildBirds({ flocks, perches, counts, timeSec: birdSlot / 15, reduced }) : new Float32Array(0);
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); } }
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
-      return { pos: l.pos, radius: l.radius, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
+      return { pos: l.pos, radius: l.radius * wlook.pool, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
     lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
@@ -708,7 +844,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     renderer.draw({
       vp: viewProjection(eye, aspect), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
     });
   }
 
@@ -780,7 +916,12 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       } catch (err) { console.warn('[view3d] ' + err.message); notice('view3d.nogl'); return false; }
       active = true; worldKey = ''; t0 = now(); lastUse = -Infinity;
       for (const [target_, type, fn] of listeners) target_.addEventListener(type, fn);
-      loadMeshesOnce().then((set) => { meshes = set; worldKey = ''; wake(); });
+      loadMeshesOnce().then((set) => {
+        meshes = set; worldKey = ''; wake();
+        if (!thirdParty || thirdPartyStarted) return;
+        thirdPartyStarted = true;
+        loadThirdParty(renderer, set).then((n) => { upgraded = n; worldKey = ''; wake(); }, (err) => console.warn('[third-party] upgrade failed: ' + err.message));
+      });
       const plan = packLoaded ? null : packTextures();
       if (plan) {
         packLoaded = true;

@@ -1,5 +1,6 @@
 // Pure helpers for the browser scene. No DOM access here so node can test them.
 import { SeededRandom, ritualProgress } from './core.js';
+import { hasLightning } from './clock.js';
 
 /** Fit a gw x gd isometric board into a cw x ch canvas. Returns tile size and the screen origin of cell (0,0). */
 export function computeView(cw, ch, gw, gd, margin = { x: 8, top: 110, bottom: 8 }) {
@@ -147,8 +148,9 @@ export function skyTint(name) {
   return SKY_TINTS[name] || SKY_TINTS.night;
 }
 
+/** What the 2D canvas draws for a weather name: rain streaks (drizzle, rain, storm) and a fog veil (fog, sea mist). */
 export function weatherFor(name) {
-  return { rain: name === 'rain', fog: name === 'fog' };
+  return { rain: name === 'drizzle' || name === 'rain' || name === 'storm', fog: name === 'fog' || name === 'mist' };
 }
 
 export function postcardFilename(seed, night) {
@@ -251,6 +253,20 @@ export function ambientFlash(seed, nowMs, dread) {
   if (!(dread > 0.4)) return 0;
   return unitHash(seed, Math.floor(nowMs / AMBIENT_SLOT_MS), 1) < AMBIENT_FLASH_ODDS * dread ? AMBIENT_FLASH_LEVEL : 0;
 }
+
+/** A storm's lightning slot and chance: one 400 ms slot rolls, about one bolt per eight seconds before the gate. Calm weather never flashes. */
+export const STORM_SLOT_MS = 400;
+export const STORM_FLASH_ODDS = 0.05;
+/**
+ * Lightning of a storm at time `nowMs`, chosen by seed and slot. Returns a flash level (FLASH_MAX) or 0. It still has to go through
+ * applyFlash, so the cap and the minimum gap hold; reduced motion never flashes at all.
+ */
+export function stormFlash(seed, nowMs, weather, reduced = false) {
+  if (reduced || !hasLightning(weather)) return 0;
+  return unitHash(seed, Math.floor(nowMs / STORM_SLOT_MS), 4) < STORM_FLASH_ODDS ? FLASH_MAX : 0;
+}
+/** Seconds the thunder trails the flash: 0.4 to 2.2, seeded per slot (nearer storms are rarer, so most thunder is distant). */
+export const thunderDelayMs = (seed, nowMs) => Math.round(400 + unitHash(seed, Math.floor(nowMs / STORM_SLOT_MS), 5) * 1800);
 
 /** Camera tremor at high dread, deterministic per seed and time slot. */
 export function dreadJitter(seed, nowMs, dread) {

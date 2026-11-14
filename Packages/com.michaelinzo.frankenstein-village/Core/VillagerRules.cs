@@ -254,6 +254,8 @@ namespace Frankenstein.Core
         public const double FrontOffset = 0.45;
         /// <summary>Cells; villagers in the square stand on a ring around the grid centre.</summary>
         public const double SquareRadius = 1.6;
+        /// <summary>Cells; the ring in the cobbled square of a village with streets.</summary>
+        public const double StreetSquareRadius = 1.4;
         /// <summary>Cells from the grid edge on the coast side.</summary>
         public const double ShoreInset = 0.6;
         /// <summary>Cells kept between a villager and the grid edge.</summary>
@@ -264,7 +266,7 @@ namespace Frankenstein.Core
 
         /// <summary>
         /// The point a villager stands at for a place kind. Home and workplace: in front of the building, spread by index, facing it.
-        /// Shore: along the coast edge, facing the sea. Square (and a missing piece): a ring around the grid centre, facing inward. Gone has no point (the square is returned).
+        /// With streets, in front of the street side of the building (see VillageStreets facing). Shore: along the coast edge, facing the sea. Square (and a missing piece): a ring around the grid centre, facing inward. Gone has no point (the square is returned).
         /// </summary>
         public static VillagerStandPoint StandPoint(Villager v, VillagerPlaceKind kind, IList<PlacedPiece> layout, int gridW, int gridD, int seed)
         {
@@ -275,7 +277,15 @@ namespace Frankenstein.Core
                 if (layout != null && i >= 0 && i < layout.Count)
                 {
                     var p = layout[i];
-                    return new VillagerStandPoint { X = ClampCell(p.X + p.SizeX / 2.0 + spread, gridW), Z = ClampCell(p.Z + p.SizeZ + FrontOffset, gridD), FaceDx = 0, FaceDz = -1 };
+                    // In front of the street side of the building (its facing), spread along that wall, looking at the door.
+                    int dx = VillageStreets.FacingDx(p.Facing), dz = VillageStreets.FacingDz(p.Facing);
+                    double halfAlong = (dx != 0 ? p.SizeX : p.SizeZ) / 2.0;
+                    return new VillagerStandPoint
+                    {
+                        X = ClampCell(p.X + p.SizeX / 2.0 + dx * (halfAlong + FrontOffset) + dz * spread, gridW),
+                        Z = ClampCell(p.Z + p.SizeZ / 2.0 + dz * (halfAlong + FrontOffset) - dx * spread, gridD),
+                        FaceDx = 0 - dx, FaceDz = 0 - dz,
+                    };
                 }
             }
             if (kind == VillagerPlaceKind.Shore)
@@ -287,7 +297,9 @@ namespace Frankenstein.Core
                 return new VillagerStandPoint { X = x, Z = z, FaceDx = dx, FaceDz = dz };
             }
             double angle = (v.Index / 7.0) * Math.PI * 2;
-            return new VillagerStandPoint { X = gridW / 2.0 + Math.Cos(angle) * SquareRadius, Z = gridD / 2.0 + Math.Sin(angle) * SquareRadius, FaceDx = 0.0 - Math.Cos(angle), FaceDz = 0.0 - Math.Sin(angle) }; // 0.0 - x never yields -0, so golden JSON round-trips
+            // With streets the square is the cobbled crossing, centred half a cell past the grid centre and 3 cells wide, so the ring is tighter.
+            double ring = VillageStreets.Enabled(gridW, gridD) ? StreetSquareRadius : SquareRadius, centreShift = VillageStreets.Enabled(gridW, gridD) ? 0.5 : 0.0;
+            return new VillagerStandPoint { X = gridW / 2.0 + centreShift + Math.Cos(angle) * ring, Z = gridD / 2.0 + centreShift + Math.Sin(angle) * ring, FaceDx = 0.0 - Math.Cos(angle), FaceDz = 0.0 - Math.Sin(angle) }; // 0.0 - x never yields -0, so golden JSON round-trips
         }
 
         private static double ClampCell(double v, int max) { return Math.Max(EdgeMargin, Math.Min(max - EdgeMargin, v)); }

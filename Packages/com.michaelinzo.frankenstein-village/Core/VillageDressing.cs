@@ -31,6 +31,8 @@ namespace Frankenstein.Core
         public const double RoadV = -1.7;
         public const double CottageV = -3.9;
         public const double LampV = -0.9;
+        /// <summary>Centre line of the walkable coast road: between the cottage fronts (about -2) and the shore stand off (-0.6).</summary>
+        public const double CoastRoadV = -1.0;
         public const double LampSpacing = 9.0;
         public const double MinSlotSpacing = 6.0;
         public const double DockClearance = 7.0;
@@ -40,6 +42,20 @@ namespace Frankenstein.Core
         public const double ChapelOffset = 8.0;
         public const double ChapelScale = 0.8;
         public const int HillGraveRows = 4;
+        /// <summary>Metres between the edge of a building's cell rectangle and its wall (the house mesh is smaller than its cells).</summary>
+        public const double HouseSetback = 0.7;
+        public const double WallLanternLift = 2.2;
+        /// <summary>Metres from the square centre to the well's benches and the market stall.</summary>
+        public const double SquareBench = 3.8;
+        public const double SquareStall = 3.4;
+        /// <summary>One scatter candidate (tree, bush or rock) per this many grid cells.</summary>
+        public const int ScatterPerCells = 16;
+        /// <summary>Door step clutter by roll 0..7; an empty entry is a bare door.</summary>
+        public static readonly string[] DoorKinds = { "", "barrel", "crate_stack", "sack", "bench", "cart", "barrel", "sack" };
+        /// <summary>Metres left between the player and the foam on the coast side, so the coast road is walkable up to the shore but not into the sea.</summary>
+        public const double ShoreStandOff = 0.6;
+        /// <summary>Metres of walkable margin past the grid edge on every side that is not the coast.</summary>
+        public const double EdgeWalkMargin = 2.0;
 
         /// <summary>Footprint half extents (x, z at yaw 0) and height in metres per kind, measured from the committed meshes at scale 1. Kinds that do not block walking have Solid false.</summary>
         public struct Footprint
@@ -65,6 +81,21 @@ namespace Frankenstein.Core
                 case "gravestone": return new Footprint { HalfX = 0.45, HalfZ = 0.71, Height = 1.38, Solid = false };
                 case "gravestone_cross": return new Footprint { HalfX = 0.45, HalfZ = 0.9, Height = 1.6, Solid = false };
                 case "fence_iron": return new Footprint { HalfX = 1.5, HalfZ = 0.1, Height = 1.52, Solid = false };
+                case "well": return new Footprint { HalfX = 1.05, HalfZ = 0.95, Height = 2.9, Solid = true };
+                case "fence": return new Footprint { HalfX = 1.5, HalfZ = 0.24, Height = 1.1, Solid = true };
+                case "boat": return new Footprint { HalfX = 1.8, HalfZ = 0.78, Height = 2.9, Solid = true };
+                case "cart": return new Footprint { HalfX = 1.39, HalfZ = 0.66, Height = 1.04, Solid = true };
+                case "sack": return new Footprint { HalfX = 0.57, HalfZ = 0.52, Height = 0.9, Solid = false };
+                case "wall_low": return new Footprint { HalfX = 1.55, HalfZ = 0.25, Height = 0.92, Solid = true };
+                case "net": return new Footprint { HalfX = 1.35, HalfZ = 0.05, Height = 1.9, Solid = false };
+                case "bench": return new Footprint { HalfX = 0.75, HalfZ = 0.21, Height = 1.05, Solid = false };
+                case "sign": return new Footprint { HalfX = 0.52, HalfZ = 0.1, Height = 2.46, Solid = false };
+                case "wall_lantern": return new Footprint { HalfX = 0.13, HalfZ = 0.22, Height = 0.5, Solid = false };
+                case "tree": return new Footprint { HalfX = 0.95, HalfZ = 0.97, Height = 6.0, Solid = true };
+                case "bush": return new Footprint { HalfX = 1.07, HalfZ = 0.68, Height = 0.8, Solid = false };
+                case "reeds": return new Footprint { HalfX = 0.26, HalfZ = 0.31, Height = 1.78, Solid = false };
+                case "rock": return new Footprint { HalfX = 0.97, HalfZ = 0.73, Height = 0.7, Solid = true };
+                case "laundry_line": return new Footprint { HalfX = 2.05, HalfZ = 0.05, Height = 2.3, Solid = false };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
         }
@@ -103,6 +134,20 @@ namespace Frankenstein.Core
             else { x = u; z = -ShoreInset - v; }
         }
 
+        /// <summary>
+        /// Where the player may stand (metres): the grid plus <see cref="EdgeWalkMargin"/> on every side, and on the coast side out to the shore
+        /// (ShoreInset from the grid edge, less <see cref="ShoreStandOff"/>), so the coast road along the harbour quarter is walkable.
+        /// </summary>
+        public static void WalkBounds(int seed, int gridW, int gridD, out double minX, out double maxX, out double minZ, out double maxZ)
+        {
+            minX = -EdgeWalkMargin; minZ = -EdgeWalkMargin; maxX = gridW * Cell + EdgeWalkMargin; maxZ = gridD * Cell + EdgeWalkMargin;
+            double shore = ShoreInset - ShoreStandOff;
+            int side = VillagerRules.CoastSide(seed);
+            if (side == 0) minX = -shore;
+            else if (side == 1) maxX = gridW * Cell + shore;
+            else minZ = -shore;
+        }
+
         /// <summary>Yaw that turns a mesh front (+z) toward the sea.</summary>
         public static double SeawardYaw(int seed)
         {
@@ -128,10 +173,10 @@ namespace Frankenstein.Core
 
             // The lighthouse stands at the end of the shore farther from the dock.
             double lightU = dockU - lo > hi - dockU ? lo + 6 : hi - 6;
-            AddShore(items, seed, gridW, gridD, "lighthouse", lightU, -3.2, seaward, 1.0);
+            AddShore(items, seed, gridW, gridD, "lighthouse", lightU, -4.2, seaward, 1.0);
             // A small seamen's chapel stands a little inland of the light, toward the middle of the shore.
             double chapelU = lightU < (lo + hi) / 2 ? lightU + ChapelOffset : lightU - ChapelOffset;
-            AddShore(items, seed, gridW, gridD, "chapel", chapelU, -3.5, seaward, ChapelScale);
+            AddShore(items, seed, gridW, gridD, "chapel", chapelU, -4.2, seaward, ChapelScale);
 
             // Cottages on the road side of the strip. Every slot draws its rolls first, so the stream never depends on what is skipped.
             var slots = new List<double[]>();
@@ -151,16 +196,16 @@ namespace Frankenstein.Core
                 double u = slots[i][0];
                 if (Math.Abs(u - dockU) < DockClearance || Math.Abs(u - lightU) < LighthouseClearance || Math.Abs(u - chapelU) < ChapelClearance) continue;
                 string kind = i == innSlot ? "inn" : slots[i][1] == 0 ? "cottage_tall" : "cottage_thatch";
-                double v = i == innSlot ? -3.7 : CottageV + slots[i][2];
+                double v = i == innSlot ? -4.0 : CottageV + slots[i][2];
                 AddShore(items, seed, gridW, gridD, kind, u, v, seaward + slots[i][3], i == innSlot ? InnScale : 1.0);
                 if (i == innSlot) AddShore(items, seed, gridW, gridD, "barrel", u - 3.1, -3.4, along + 0.2, 1.0);
             }
 
             // Harbour yard at the dock root, inside the fence runs that flank the dock.
-            AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 2.7, -1.6 + Cm(rng, 30) - 0.15, along, 1.0);
-            AddShore(items, seed, gridW, gridD, "barrel", dockU + 2.6, -1.4, along + 0.4, 1.0);
-            AddShore(items, seed, gridW, gridD, "barrel", dockU + 3.3, -2.5, along - 0.3, 1.0);
-            AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 3.4, -2.7, along + 0.15, 1.0);
+            AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 2.7, -3.0 + Cm(rng, 30) - 0.15, along, 1.0);
+            AddShore(items, seed, gridW, gridD, "barrel", dockU + 2.6, -2.8, along + 0.4, 1.0);
+            AddShore(items, seed, gridW, gridD, "barrel", dockU + 3.3, -4.0, along - 0.3, 1.0);
+            AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 3.9, -4.4, along + 0.15, 1.0);
 
             // Lamps at an even spacing along the road, none on the dock.
             int lampIndex = 0;
@@ -183,30 +228,85 @@ namespace Frankenstein.Core
             foreach (double dz in new[] { -1.5, 1.5 })
                 items.Add(new DressingItem { Kind = "fence_iron", X = cx + faceX * 6.3, Y = hill, Z = cz + dz, Yaw = Math.PI / 2, Scale = 1.0 });
 
-            // The square and the churchyard live among the layout, so each candidate is checked against the pieces.
-            double midX = gridW * Cell / 2, midZ = gridD * Cell / 2;
-            double[][] squareSpots = { new[] { 0.0, 0.0 }, new[] { 2.5, 0.0 }, new[] { -2.5, 0.0 }, new[] { 0.0, 2.5 }, new[] { 0.0, -2.5 }, new[] { 4.0, 4.0 }, new[] { -4.0, 4.0 } };
+            // The square: with streets it is the cobbled crossing (a well, a stall and two benches); without streets a stall stands in the first free spot of the grid centre.
+            bool streets = VillageStreets.Enabled(gridW, gridD);
+            double midX = streets ? (gridW / 2 + 0.5) * Cell : gridW * Cell / 2, midZ = streets ? (gridD / 2 + 0.5) * Cell : gridD * Cell / 2;
             double stallYaw = Cm(rng, 60) - 0.3;
-            foreach (var s in squareSpots)
+            if (streets)
             {
-                var stall = new DressingItem { Kind = "market_stall", X = midX + s[0], Z = midZ + s[1], Yaw = stallYaw, Scale = 1.0 };
-                if (!OverlapsLayout(stall, layout, 0.8)) { items.Add(stall); break; }
+                items.Add(new DressingItem { Kind = "well", X = midX, Z = midZ, Yaw = 0, Scale = 1.0 });
+                items.Add(new DressingItem { Kind = "market_stall", X = midX + SquareStall, Z = midZ + SquareStall, Yaw = stallYaw, Scale = 1.0 });
+                items.Add(new DressingItem { Kind = "bench", X = midX - SquareBench, Z = midZ, Yaw = Math.PI / 2, Scale = 1.0 });
+                items.Add(new DressingItem { Kind = "bench", X = midX, Z = midZ - SquareBench, Yaw = 0, Scale = 1.0 });
+                items.Add(new DressingItem { Kind = "sign", X = midX - SquareStall - 1.0, Z = midZ + SquareStall + 1.0, Yaw = Math.PI * 0.75, Scale = 1.0 });
+            }
+            else
+            {
+                double[][] squareSpots = { new[] { 0.0, 0.0 }, new[] { 2.5, 0.0 }, new[] { -2.5, 0.0 }, new[] { 0.0, 2.5 }, new[] { 0.0, -2.5 }, new[] { 4.0, 4.0 }, new[] { -4.0, 4.0 } };
+                foreach (var spot in squareSpots)
+                {
+                    var stall = new DressingItem { Kind = "market_stall", X = midX + spot[0], Z = midZ + spot[1], Yaw = stallYaw, Scale = 1.0 };
+                    if (!OverlapsLayout(stall, layout, 0.8)) { items.Add(stall); break; }
+                }
             }
 
+            // The churchyard lies behind the church (opposite its door), where the village keeps its dead out of the lane.
             int church = -1;
             if (layout != null) for (int i = 0; i < layout.Count; i++) if (layout[i].Id == "church") { church = i; break; }
             if (church >= 0)
             {
                 var p = layout[church];
-                double gx = (p.X + p.SizeX / 2.0) * Cell, gz = (p.Z + p.SizeZ) * Cell + 2.6;
+                double facingYaw = VillageStreets.FacingYaw(p.Facing), dirX = Math.Sin(facingYaw), dirZ = Math.Cos(facingYaw);
+                double half = (p.Facing % 2 == 0 ? p.SizeZ : p.SizeX) * Cell / 2.0;
+                double bx = (p.X + p.SizeX / 2.0) * Cell - dirX * (half + 2.6), bz = (p.Z + p.SizeZ / 2.0) * Cell - dirZ * (half + 2.6);
+                double sideX = Math.Cos(facingYaw), sideZ = -Math.Sin(facingYaw);
                 foreach (double dx in new[] { -1.6, 1.6 })
-                    TryAdd(items, new DressingItem { Kind = "fence_iron", X = gx + dx, Z = gz, Yaw = 0, Scale = 1.0 }, layout, gridW, gridD);
+                    TryAdd(items, new DressingItem { Kind = "fence_iron", X = bx + sideX * dx, Z = bz + sideZ * dx, Yaw = facingYaw, Scale = 1.0 }, layout, gridW, gridD, false);
                 double[] stones = { -2.2, -0.5, 1.2, 2.9 };
                 for (int i = 0; i < stones.Length; i++)
                 {
                     bool cross = rng.Next(4) == 0;
-                    TryAdd(items, new DressingItem { Kind = cross ? "gravestone_cross" : "gravestone", X = gx + stones[i], Z = gz - 1.4, Yaw = Math.PI + (rng.Next(20) - 10) / 100.0, Scale = 1.0 }, layout, gridW, gridD);
+                    double tilt = (rng.Next(20) - 10) / 100.0;
+                    TryAdd(items, new DressingItem { Kind = cross ? "gravestone_cross" : "gravestone", X = bx + dirX * 1.4 + sideX * stones[i], Z = bz + dirZ * 1.4 + sideZ * stones[i], Yaw = facingYaw + tilt, Scale = 1.0 }, layout, gridW, gridD, false);
                 }
+            }
+
+            // Streets: every building gets its rolls first (lantern, door step, back yard, offset) so the stream never depends on what is skipped.
+            if (layout != null)
+                foreach (var p in layout)
+                {
+                    if (!VillageStreets.IsBuilding(p.SizeX, p.SizeZ)) continue;
+                    int lantern = rng.Next(100), doorRoll = rng.Next(8), sideRoll = rng.Next(100), yardRoll = rng.Next(100);
+                    if (!streets) continue;
+                    ComposeFrontage(items, p, layout, gridW, gridD, lantern, doorRoll, sideRoll, yardRoll);
+                }
+
+            // Scatter of trees, bushes and rocks in the yards between the lanes; never on a street, a building or another prop.
+            for (int i = 0; i < gridW * gridD / ScatterPerCells; i++)
+            {
+                int kindRoll = rng.Next(100);
+                double sx = rng.Next((int)(gridW * Cell * 10)) / 10.0, sz = rng.Next((int)(gridD * Cell * 10)) / 10.0, yaw = rng.Next(628) / 100.0;
+                string kind = kindRoll < 30 ? "tree" : kindRoll < 70 ? "bush" : kindRoll < 85 ? "rock" : "";
+                if (kind.Length == 0) continue;
+                TryAdd(items, new DressingItem { Kind = kind, X = sx, Z = sz, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+            }
+
+            // The shore: a drying net or two on the inland side of the road, rowboats pulled up in the shallows, reeds and rocks at the water's edge.
+            for (int i = 0; i < 2; i++)
+            {
+                double nu = lo + 6 + rng.Next((int)Math.Max(1, hi - lo - 12)), roll = rng.Next(100) / 100.0;
+                if (Math.Abs(nu - dockU) > DockClearance && Math.Abs(nu - lightU) > LighthouseClearance && Math.Abs(nu - chapelU) > ChapelClearance && !NearCottage(items, seed, gridW, gridD, nu))
+                    AddShore(items, seed, gridW, gridD, "net", nu, -0.8, along + roll * 0.1, 1.0);
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                double bu = lo + 8 + rng.Next((int)Math.Max(1, hi - lo - 16)), tilt = (rng.Next(40) - 20) / 100.0;
+                if (Math.Abs(bu - dockU) > DockClearance) AddShore(items, seed, gridW, gridD, "boat", bu, 1.6, along + tilt, 0.8);
+            }
+            for (int i = 0; i < 6; i++)
+            {
+                double ru = lo + rng.Next((int)Math.Max(1, hi - lo)), rv = 0.6 + rng.Next(80) / 100.0, rr = rng.Next(100);
+                if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rv, rr / 10.0, 1.0);
             }
             return items;
         }
@@ -217,10 +317,85 @@ namespace Frankenstein.Core
             items.Add(new DressingItem { Kind = kind, X = x, Z = z, Yaw = yaw, Scale = scale });
         }
 
-        private static void TryAdd(List<DressingItem> items, DressingItem item, IList<PlacedPiece> layout, int gridW, int gridD)
+        /// <summary>Adds the item when it is inside the grid and clear of the layout, of other props on the ground and (unless allowStreet) of every street cell.</summary>
+        private static bool TryAdd(List<DressingItem> items, DressingItem item, IList<PlacedPiece> layout, int gridW, int gridD, bool allowStreet)
         {
-            if (item.X < 0.5 || item.Z < 0.5 || item.X > gridW * Cell - 0.5 || item.Z > gridD * Cell - 0.5) return;
-            if (!OverlapsLayout(item, layout, 0.3)) items.Add(item);
+            if (item.X < 0.5 || item.Z < 0.5 || item.X > gridW * Cell - 0.5 || item.Z > gridD * Cell - 0.5) return false;
+            if (OverlapsLayout(item, layout, 0.3)) return false;
+            if (!allowStreet && TouchesStreet(item, gridW, gridD)) return false;
+            if (OverlapsItems(item, items, 0.15)) return false;
+            items.Add(item);
+            return true;
+        }
+
+        private static void SweptHalf(DressingItem item, out double hx, out double hz)
+        {
+            var f = FootprintOf(item.Kind);
+            double c = Math.Abs(Math.Cos(item.Yaw)), s = Math.Abs(Math.Sin(item.Yaw));
+            hx = (c * f.HalfX + s * f.HalfZ) * item.Scale;
+            hz = (s * f.HalfX + c * f.HalfZ) * item.Scale;
+        }
+
+        /// <summary>True when the item's swept footprint touches a street cell.</summary>
+        public static bool TouchesStreet(DressingItem item, int gridW, int gridD)
+        {
+            SweptHalf(item, out double hx, out double hz);
+            int x0 = (int)Math.Floor((item.X - hx) / Cell), x1 = (int)Math.Floor((item.X + hx) / Cell), z0 = (int)Math.Floor((item.Z - hz) / Cell), z1 = (int)Math.Floor((item.Z + hz) / Cell);
+            for (int cx = x0; cx <= x1; cx++)
+                for (int cz = z0; cz <= z1; cz++)
+                    if (VillageStreets.IsStreetCell(gridW, gridD, cx, cz)) return true;
+            return false;
+        }
+
+        /// <summary>True when the item overlaps any ground level prop already placed (wall lanterns and the church rise are not on the ground plane).</summary>
+        public static bool OverlapsItems(DressingItem item, IList<DressingItem> items, double clearance)
+        {
+            if (item.Y > 0.01) return false;
+            SweptHalf(item, out double hx, out double hz);
+            foreach (var o in items)
+            {
+                if (o.Y > 0.01) continue;
+                SweptHalf(o, out double ox, out double oz);
+                if (Math.Abs(item.X - o.X) < hx + ox + clearance && Math.Abs(item.Z - o.Z) < hz + oz + clearance) return true;
+            }
+            return false;
+        }
+
+        private static bool NearCottage(List<DressingItem> items, int seed, int gridW, int gridD, double u)
+        {
+            CoastToWorld(seed, gridW, gridD, u, CottageV, out double x, out double z);
+            foreach (var o in items)
+                if ((o.Kind == "cottage_thatch" || o.Kind == "cottage_tall" || o.Kind == "inn") && Math.Abs(o.X - x) < 3.5 && Math.Abs(o.Z - z) < 3.5) return true;
+            return false;
+        }
+
+        /// <summary>The street face of one building: a wall lantern beside the door, door step clutter and a back yard item.</summary>
+        private static void ComposeFrontage(List<DressingItem> items, PlacedPiece p, IList<PlacedPiece> layout, int gridW, int gridD, int lantern, int doorRoll, int sideRoll, int yardRoll)
+        {
+            double yaw = VillageStreets.FacingYaw(p.Facing), dirX = Math.Sin(yaw), dirZ = Math.Cos(yaw), sideX = Math.Cos(yaw), sideZ = -Math.Sin(yaw);
+            double half = (p.Facing % 2 == 0 ? p.SizeZ : p.SizeX) * Cell / 2.0;
+            double cx = (p.X + p.SizeX / 2.0) * Cell, cz = (p.Z + p.SizeZ / 2.0) * Cell;
+            double wall = half - HouseSetback;
+            double side = sideRoll < 50 ? -2.2 : 2.2;
+            if (lantern < 70)
+            {
+                var lf = FootprintOf("wall_lantern");
+                items.Add(new DressingItem { Kind = "wall_lantern", X = cx + dirX * (wall + lf.HalfZ) - sideX * side * 0.75, Y = WallLanternLift, Z = cz + dirZ * (wall + lf.HalfZ) - sideZ * side * 0.75, Yaw = yaw, Scale = 1.0 });
+            }
+            string door = DoorKinds[doorRoll];
+            if (door.Length > 0)
+            {
+                var df = FootprintOf(door);
+                double depth = wall + 0.1 + df.HalfZ;
+                TryAdd(items, new DressingItem { Kind = door, X = cx + dirX * depth + sideX * side, Z = cz + dirZ * depth + sideZ * side, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, true);
+            }
+            string yard = yardRoll < 25 ? "fence" : yardRoll < 45 ? "wall_low" : yardRoll < 60 ? "laundry_line" : yardRoll < 75 ? "bush" : yardRoll < 90 ? "tree" : "";
+            if (yard.Length > 0)
+            {
+                var yf = FootprintOf(yard);
+                double back = half + 0.4 + yf.HalfZ + (yard == "tree" ? 0.6 : 0.0);
+                TryAdd(items, new DressingItem { Kind = yard, X = cx - dirX * back, Z = cz - dirZ * back, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+            }
         }
 
         /// <summary>True when the item's footprint (swept by its yaw) comes within clearance metres of any layout piece.</summary>

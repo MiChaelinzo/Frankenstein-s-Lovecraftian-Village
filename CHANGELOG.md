@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 20 (FEAT-006)
+- Unity: thin `VillageDressingPlacer` (Runtime) places the Core `VillageDressing` items and the Core street slabs from `PlayableVillageSceneBuilder`, using the generated original prefabs (`ShapeLibrary` already builds every mesh in `village_shapes.json`, the 12 street meshes included). Compile checked only (UnityCompileCheck 0 errors, 0 warnings, stubs gained `Mathf.Rad2Deg`, `Vector3.one`, `Renderer.sharedMaterial`, `Material.color`). Unity runtime and the yaw sign convention are Unverified; piece facing is not applied in Unity yet.
+- `tools/browser_check.mjs` gained density (scale constants and frame budget, live triangle HUD), weather (storm, fog, rain against clear) and birds checks, and now follows the two-storey layout (door and lantern probes moved to house_b at cell 7,16 and 20,16; sky probes use `weather=clear`; meshes page expects 37). Result: 99 of 99.
+- README hero and gallery refreshed, honest quality bar added; docs, roadmap (rounds 21 to 27) and steering updated.
+
+### Round 20 (FEAT-005)
+- CC0 assets from Poly Haven under `web/assets/third_party/` (686 KB in total, listed with author, source and licence in `THIRD_PARTY_ASSETS.md`, reproducible with `tools/fetch_third_party.py`): stone, slate roof, cobble and mud photo textures at 512 px, and a barrel and a painted bench as GLBs with an embedded 512 px base colour texture. Timber walls stay procedural.
+- `glb.js` reads node transforms (translation, rotation, scale, matrix, children), `TEXCOORD_0` and one embedded JPEG or PNG base colour image. `fitModelInto` puts a prop inside the original mesh's box; `atlasModel` and `loadThirdPartyModels` place the props in a 2 by 2 atlas.
+- 3D view: the props are drawn in the building buffer with a parallel uv buffer, so there is no new draw call. Material photos replace the procedural ground, stone, roof and cobble (a `?pack=1` texture still wins). Everything loads lazily after the original meshes, is never precached by `sw.js`, warns `[third-party]` on failure and keeps the original. `#thirdparty=0` turns it off.
+- `tools/validate_repo.py` (through `tools/third_party_assets.py`) fails on an unlisted or non-CC0 file under `web/assets/third_party/`, a stale row, a file over 5 MB or a total over 40 MB. README credits and the About dialog (en and fr) name the authors.
+- A crate (wooden_crate_02, 5176 triangles) was left out: two crates broke the 60% triangle budget test.
+- Status: Verified by tests (node, `tools/test_third_party_assets.py`, validator). Partially Verified: the look, seen only in SwiftShader stills `docs/media/materials-before.png` and `materials-after.png`. Real GPU look is Unverified.
+
+### Round 20 (FEAT-004)
+- Weather: `GameClock.WeatherForDay(seed, day)` (mirror `clock.js weatherForDay`, golden-checked) gives one of clear, overcast, drizzle, rain, storm, fog (heavy fog), mist (sea mist) per village day, with 40% chance to repeat the day before. `CampaignGenerator` and the story take their weather from it (campaign goldens changed: the weather roll no longer consumes the campaign RNG). Core API for Unity: `WeatherNames`, `HasLightning`, `PrecipitationPercent`.
+- 3D weather: `WEATHER_LOOK` table in `view3d-math.js` drives fog, sky, moon veil, sea ripple, particles, lantern and window gain. Wind (`windState`) bends trees, bushes, reeds and dead trees in the scene vertex shader and slants rain. Storm lightning uses `stormFlash` through the existing capped, rate-limited `applyFlash` gate and is off under reduced motion; thunder and a rain hiss bed are in `music.js`. `?weather=NAME` overrides the night's weather for QA. en/fr names.
+- Birds (`web/src/birds.js`, a web-only display system with no Core counterpart and no Unity port; not covered by the Core parity rule, no gameplay effect): seeded boids (fixed 1/20 s steps), gulls over the sea, crows on roofs (circling the church from 60% dread), 1 to 3 huge silhouettes in the fog from 70% dread. Drawn through the villager triangle buffer (no new draw call). Reduced motion keeps only perched crows.
+- Lighting: weather raises lantern pool radius and window glow in wet air; window flicker and brightness vary by storey.
+- Status: Verified by tests (dotnet 172, node 441, validator, Unity compile check 0 warnings 0 errors). Partially Verified: look of the weather and birds (SwiftShader stills `docs/media/r20-weather-*.png`, `r20-birds-sea.png`); GPU timing, audio by ear and crow/silhouette stills are Unverified.
+
+### Round 20 (FEAT-003)
+- Street network in Core (`VillageStreets.cs`, mirror `web/src/streets.js`): 4 m lanes every 6 cells centred on the grid, a 3 by 3 cell cobbled square, buildings (2 by 2 cells or more) must touch a street and get a `Facing` (door side, quarter turns, golden checked). Grids under 16 cells have no streets. Lantern lights and villager stand points follow the facing.
+- Walkable coast road (spec task 85): `VillageDressing.WalkBounds` opens the collision bounds to the shore on the coast side; harbour props moved inland; tests walk the road and every lane centre line in C# and with the real `stepCamera` in JS.
+- Dressing grew by wells, benches, signs, wall lanterns, carts, sacks, fences, low walls, laundry lines, nets, rowboats, trees, bushes, reeds and rocks (12 new original meshes in `village_shapes.json`, same roll order in C# and JS). Display-only street walkers (`VillageStreets.Walkers`) thin out with dread.
+- Materials: timber framed plaster, stone blocks, slate or shingle roofs, cobbles and wet mud generated in `proc-textures.js`; the 3D shader picks the surface by normal and colour. The church rise is a smooth heightmap with a path (spec task 89). Service worker cache v21.
+- Triangle count about 23k of 60k in the worst case (counts only; GPU timing Unverified, SwiftShader screenshots only).
+
 ### Round 19
 - Scale standard: `WorldScale` (Core, `web/src/world-scale.js`, `scale` block of `village_shapes.json`): person 1.7 m, eye 1.6 m, door 2.0 m, eaves 2.4 to 3.2 m, lamp 3.0 to 3.6 m, trees at least 3.5 m, meshes at scale 1 (`fitScale` never enlarges). The Unity player is an unscaled root with a 1.7 m CharacterController. Root cause of "too big": first-person eye next to doors authored 1.5 to 1.9 m and meshes stretched to 4 m cells, plus a 1.85 m villager.
 - Gallery: `r19-dawn`, `r19-day-villagers`, `r19-dusk-village`, `r19-night-vigil` and `r19-scale-reference` (original content only). `web/data/stitch.json` refreshed. Counts: dotnet 159, node 408, browser check 93 of 93.

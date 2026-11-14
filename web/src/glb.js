@@ -1,14 +1,15 @@
 // Minimal dependency-free GLB (glTF 2.0 binary) reader and software projector. Pure logic, no DOM.
-// Reads POSITION, indices and baseColorFactor only; that is all the original Blender meshes use.
+// Reads POSITION, indices and baseColorFactor (all the original Blender meshes use), node translation, rotation, scale and matrix,
+// and TEXCOORD_0 plus one embedded base colour image (the CC0 props under assets/third_party). Normal maps are not read.
 import { buildShapeModel } from './shapes.js';
 import { MAX_PLACE_SCALE } from './world-scale.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
-export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager'];
+export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager', 'cart', 'sack', 'wall_low', 'net', 'bench', 'sign', 'wall_lantern', 'tree', 'bush', 'reeds', 'rock', 'laundry_line'];
 export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS, ...VILLAGE_KINDS]; // a test keeps this list equal to data/village_shapes.json
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
-const NCOMP = { SCALAR: 1, VEC3: 3 };
+const NCOMP = { SCALAR: 1, VEC2: 2, VEC3: 3 };
 
 export function parseGlb(buf) {
   const bytes = buf instanceof ArrayBuffer ? buf : buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -45,11 +46,55 @@ function readAccessor(json, bin, index) {
   return new Ctor(bin, start, count);
 }
 
-// Returns { triangles: [{p:[[x,y,z]*3], color:[r,g,b]}], bounds:{min,max}, stats }.
+/** Column-major 4x4 from a node: its matrix, or translation * rotation (unit quaternion) * scale. */
+function nodeMatrix(n) {
+  if (n.matrix) return n.matrix.slice();
+  const [tx, ty, tz] = n.translation || [0, 0, 0], [x, y, z, w] = n.rotation || [0, 0, 0, 1], [sx, sy, sz] = n.scale || [1, 1, 1];
+  return [(1 - 2 * (y * y + z * z)) * sx, 2 * (x * y + z * w) * sx, 2 * (x * z - y * w) * sx, 0,
+    2 * (x * y - z * w) * sy, (1 - 2 * (x * x + z * z)) * sy, 2 * (y * z + x * w) * sy, 0,
+    2 * (x * z + y * w) * sz, 2 * (y * z - x * w) * sz, (1 - 2 * (x * x + y * y)) * sz, 0, tx, ty, tz, 1];
+}
+const mul4 = (a, b) => Array.from({ length: 16 }, (_, i) => { const c = i >> 2, r = i & 3; return a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3]; });
+const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+/** [meshIndex, matrix] pairs: the default scene's node tree when there is one, else every mesh once untransformed. */
+function meshInstances(json) {
+  const scene = json.scenes && json.scenes[json.scene || 0];
+  if (!scene || !json.nodes) return (json.meshes || []).map((_, i) => [i, IDENTITY]);
+  const out = [], visit = (ni, parent, depth) => {
+    const n = json.nodes[ni];
+    if (!n || depth > 32) throw new Error('glb: bad node tree');
+    const m = mul4(parent, nodeMatrix(n));
+    if (n.mesh !== undefined) out.push([n.mesh, m]);
+    for (const c of n.children || []) visit(c, m, depth + 1);
+  };
+  for (const ni of scene.nodes || []) visit(ni, IDENTITY, 0);
+  return out;
+}
+
+/** The embedded image of a material's base colour texture: { mimeType, bytes: Uint8Array } or null. */
+function baseColorImage(json, bin, mat) {
+  const ti = mat && mat.pbrMetallicRoughness && mat.pbrMetallicRoughness.baseColorTexture;
+  if (!ti) return null;
+  const tex = json.textures && json.textures[ti.index], img = tex && json.images && json.images[tex.source];
+  if (!img || img.bufferView === undefined) throw new Error('glb: base colour texture must be embedded');
+  const view = json.bufferViews[img.bufferView];
+  if (!view) throw new Error('glb: missing image bufferView');
+  const start = view.byteOffset || 0;
+  if (start + view.byteLength > bin.byteLength) throw new Error('glb: image out of range');
+  if (!/^image\/(jpeg|png)$/.test(img.mimeType || '')) throw new Error('glb: image must be JPEG or PNG');
+  return { mimeType: img.mimeType, bytes: new Uint8Array(bin, start, view.byteLength) };
+}
+
+// Returns { triangles: [{p:[[x,y,z]*3], color:[r,g,b], emissive, uv?:[[u,v]*3]}], bounds:{min,max}, stats, texture: {mimeType, bytes} | null }.
+// A textured model carries one base colour image; triangles of a textured material have uv, others keep their flat colour.
 export function extractTriangles(glb) {
   const { json, bin } = glb;
   const triangles = [];
-  for (const mesh of json.meshes || []) {
+  let texture = null, textureMat = -1;
+  for (const [mi, m] of meshInstances(json)) {
+    const mesh = json.meshes && json.meshes[mi];
+    if (!mesh) throw new Error('glb: missing mesh ' + mi);
     for (const prim of mesh.primitives || []) {
       if (prim.mode !== undefined && prim.mode !== 4) throw new Error('glb: only triangle lists supported');
       const pos = readAccessor(json, bin, prim.attributes.POSITION);
@@ -59,23 +104,78 @@ export function extractTriangles(glb) {
       const c = (mat && mat.pbrMetallicRoughness && mat.pbrMetallicRoughness.baseColorFactor) || [0.6, 0.6, 0.6, 1];
       const color = [c[0], c[1], c[2]];
       const emissive = !!(mat && mat.emissiveFactor && mat.emissiveFactor.some((v) => v > 0));
+      const img = baseColorImage(json, bin, mat);
+      if (img && !texture) { texture = img; textureMat = prim.material; }
+      const uvs = img && prim.material === textureMat && prim.attributes.TEXCOORD_0 !== undefined ? readAccessor(json, bin, prim.attributes.TEXCOORD_0) : null;
+      const xf = m === IDENTITY ? (x, y, z) => [x, y, z] : (x, y, z) => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
       for (let i = 0; i < idx.length; i += 3) {
         const p = [0, 1, 2].map((k) => {
           const v = idx[i + k];
           if (v * 3 + 2 >= pos.length) throw new Error('glb: index out of range');
-          return [pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]];
+          return xf(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
         });
-        triangles.push({ p, color, emissive });
+        const tri = { p, color, emissive };
+        if (uvs) tri.uv = [0, 1, 2].map((k) => { const v = idx[i + k]; if (v * 2 + 1 >= uvs.length) throw new Error('glb: uv index out of range'); return [uvs[v * 2], uvs[v * 2 + 1]]; });
+        triangles.push(tri);
       }
     }
   }
   if (!triangles.length) throw new Error('glb: no triangles');
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const t of triangles) for (const q of t.p) for (let k = 0; k < 3; k++) { min[k] = Math.min(min[k], q[k]); max[k] = Math.max(max[k], q[k]); }
-  return { triangles, bounds: { min, max }, stats: { triangles: triangles.length, materials: (json.materials || []).length } };
+  return { triangles, bounds: { min, max }, stats: { triangles: triangles.length, materials: (json.materials || []).length }, texture };
+}
+
+/**
+ * Scales a model uniformly and moves it so it fits inside the reference model's bounding box, centred and standing on its floor.
+ * Used to put a third party prop exactly where the original Blender mesh of the same kind stood, so footprints and collision stay the same.
+ */
+export function fitModelInto(model, reference) {
+  const a = model.bounds, b = reference.bounds;
+  const s = Math.min(...[0, 1, 2].map((k) => (b.max[k] - b.min[k]) / (a.max[k] - a.min[k] || 1)));
+  const off = [0, 1, 2].map((k) => (k === 1 ? b.min[1] - a.min[1] * s : (b.min[k] + b.max[k]) / 2 - ((a.min[k] + a.max[k]) / 2) * s));
+  const move = (q) => [q[0] * s + off[0], q[1] * s + off[1], q[2] * s + off[2]];
+  return { ...model, triangles: model.triangles.map((t) => ({ ...t, p: t.p.map(move) })), bounds: { min: move(a.min), max: move(a.max) } };
 }
 
 export const loadGlbBuffer = (buf) => extractTriangles(parseGlb(buf));
+
+// ---- CC0 third party props (assets/third_party/models, see THIRD_PARTY_ASSETS.md) ----
+
+/** Kind -> GLB file of the CC0 prop that replaces the original Blender mesh in the 3D view. Order fixes each prop's atlas slot. */
+export const THIRD_PARTY_MODELS = Object.freeze({ barrel: 'barrel.glb', bench: 'bench.glb' });
+/** The props' base colour images share one texture: a ATLAS_GRID x ATLAS_GRID atlas of equal square slots. */
+export const ATLAS_GRID = 2;
+
+/** Moves a textured model's uv (0..1, clamped) into its atlas slot; untextured triangles stay untextured. */
+export function atlasModel(model, slot, grid = ATLAS_GRID) {
+  if (slot < 0 || slot >= grid * grid) throw new Error('glb: atlas slot out of range');
+  const ox = slot % grid, oy = Math.floor(slot / grid), c = (v) => Math.max(0, Math.min(1, v));
+  return { ...model, triangles: model.triangles.map((t) => (t.uv ? { ...t, uv: t.uv.map(([u, v]) => [(ox + c(u)) / grid, (oy + c(v)) / grid]) } : t)) };
+}
+
+/**
+ * Loads the CC0 props through the injected fetch. Each must carry an embedded base colour texture and replaces a kind that has an original mesh
+ * in `originals`: it is fitted into that mesh's bounding box (same footprint and collision) and its uv moved to its atlas slot.
+ * Returns [{ kind, slot, model, texture: {mimeType, bytes} }]. A prop that fails is logged once and left out, so the original mesh stays.
+ */
+export async function loadThirdPartyModels(fetchFn, base, originals, warn = console.warn) {
+  const out = [];
+  for (const [slot, [kind, file]] of Object.entries(THIRD_PARTY_MODELS).entries()) {
+    const reference = originals && originals.get(kind);
+    if (!reference) continue;
+    try {
+      const res = await fetchFn(base + file);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const model = loadGlbBuffer(await res.arrayBuffer());
+      if (!model.texture) throw new Error('no base colour texture');
+      out.push({ kind, slot, model: atlasModel(fitModelInto(model, reference), slot), texture: model.texture });
+    } catch (e) {
+      warn(`[third-party] ${file} failed (${e.message}); keeping the original ${kind} mesh`);
+    }
+  }
+  return out;
+}
 
 const lin2srgb = (v) => Math.round(255 * Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2));
 
@@ -192,8 +292,9 @@ export function fitScale(model, piece, cell) {
  * Appends one placed mesh to the flat array `out` and returns the placed height in metres.
  * Emissive triangles get glow = opts.glow (window light on or off) and phase for flicker. tint [r,g,b] 0..255 blends 30%.
  * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians); opts.lift raises it (a church rise).
+ * opts.uvOut: an array that receives two texture coordinates per vertex (0, 0 for untextured triangles), for a textured model's own buffer.
  */
-export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0 } = {}) {
+export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0, uvOut = null } = {}) {
   const { min, max } = model.bounds;
   const s = scale ?? fitScale(model, piece, cell);
   const cx = at ? at[0] : (piece.x + piece.sizeX / 2) * cell, cz = at ? at[1] : (piece.z + piece.sizeZ / 2) * cell;
@@ -209,6 +310,7 @@ export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 
       return (tint ? base * 0.7 + tint[i] * 0.3 : base) / 255;
     });
     for (const p of q) out.push(p[0], p[1], p[2], n[0], n[1], n[2], rgb[0], rgb[1], rgb[2], t.emissive ? glow : 0, phase);
+    if (uvOut) for (let k = 0; k < 3; k++) uvOut.push(t.uv ? t.uv[k][0] : 0, t.uv ? t.uv[k][1] : 0);
   }
   return lift + max[1] * s;
 }

@@ -50,6 +50,9 @@ Narration:
 
 Facts behind each line: [KIRO_USAGE.md](KIRO_USAGE.md) and [KIRO_PITCH.md](KIRO_PITCH.md). Re-check the test counts with the commands in CONTRIBUTING.md before you record; they change every round.
 
+## Round 20 shots to add
+- A walk down a lane at dusk (two-storey houses, cobbles, villagers), then the same seed in rain, storm and fog (`?weather=rain`, `storm`, `fog`), then gulls over the sea (`docs/media/r20-*.png` show the looks). The before and after scale stills (`docs/media/before-scale.png`, `after-scale.png`) make a quick comparison. Say plainly that the renderer is dependency-free WebGL1 and not AAA.
+
 ## Before you record
 Run the pre-flight checklist in [RECORDING.md](RECORDING.md). Rehearse the web take once: the same seed and night give identical fly-through takes.
 
