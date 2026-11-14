@@ -46,6 +46,7 @@ namespace Frankenstein.Editor
             builder.catalog = catalog;
             builder.buildOnStart = false;
             builder.Build();
+            AddDressing(builder);
 
             var director = AddDirectors();
             var player = AddPlayer(builder, director);
@@ -87,6 +88,19 @@ namespace Frankenstein.Editor
             asset.LoadFromJson(json.text);
             AssetDatabase.CreateAsset(asset, path);
             return asset;
+        }
+
+        /// <summary>
+        /// Places the Core VillageDressing items (harbour quarter, square, churchyard) and the Core street slabs through the thin
+        /// VillageDressingPlacer, using the generated original prefabs (the 12 street and dressing meshes from village_shapes.json included).
+        /// </summary>
+        private static void AddDressing(VillageBuilder builder)
+        {
+            var go = new GameObject("Village Dressing");
+            var placer = go.AddComponent<VillageDressingPlacer>();
+            placer.village = builder;
+            placer.Place(kind => AssetDatabase.LoadAssetAtPath<GameObject>(OriginalVillageAssetGenerator.PrefabPathFor(kind)));
+            Debug.Log("[Frankenstein] Placed " + placer.PlacedCount + " dressing items (" + placer.MissingKinds.Count + " kinds without a mesh).");
         }
 
         private static Light AddSun()

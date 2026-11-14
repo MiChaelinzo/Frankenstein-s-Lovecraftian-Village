@@ -51,7 +51,7 @@ namespace UnityEngine
         public void SetParent(Transform parent, bool worldPositionStays) { }
         public void SetPositionAndRotation(Vector3 position, Quaternion rotation) { }
     }
-    public class Renderer : Component { public bool enabled { get; set; } public Material[] sharedMaterials { get; set; } }
+    public class Renderer : Component { public bool enabled { get; set; } public Material[] sharedMaterials { get; set; } public Material sharedMaterial { get; set; } }
     public class Mesh : Object
     {
         public Vector3[] vertices { get; set; }
@@ -64,6 +64,7 @@ namespace UnityEngine
     public class Material : Object
     {
         public Material(Shader shader) { }
+        public Color color { get; set; }
         public bool HasProperty(string name) { return false; }
         public void SetColor(string name, Color value) { }
         public void SetFloat(string name, float value) { }
@@ -159,6 +160,7 @@ namespace UnityEngine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public static Vector3 forward { get { return default; } }
         public static Vector3 zero { get { return default; } }
+        public static Vector3 one { get { return new Vector3(1f, 1f, 1f); } }
         public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z); }
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
         public static Vector3 operator *(Vector3 a, float f) { return new Vector3(a.x * f, a.y * f, a.z * f); }
@@ -175,6 +177,7 @@ namespace UnityEngine
 
     public static class Mathf
     {
+        public const float Rad2Deg = 57.29578f;
         public static int Clamp(int v, int min, int max) { return v < min ? min : (v > max ? max : v); }
         public static float Clamp(float v, float min, float max) { return v < min ? min : (v > max ? max : v); }
         public static int RoundToInt(float f) { return (int)Math.Round(f); }
