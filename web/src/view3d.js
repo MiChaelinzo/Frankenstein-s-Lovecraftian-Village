@@ -58,7 +58,7 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 
 /** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
 export const FOLIAGE_PHASE = 1000;
-const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds']);
+const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row']);
 const STREET_Y = 0.06, STREET_COLOR = [0.3, 0.29, 0.28], STREET_PHASE = -5; // phase below -3 marks cobbled street quads for the ground shader
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
@@ -224,6 +224,26 @@ export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }
 }
 
 /**
+ * Shared prop batching: appends every placed item { kind, x, y, z, yaw, scale } as its mesh into one static vertex array `out` (and one
+ * uv pair per vertex into `uv`, -1 for untextured vertices), so any number of props of any kinds costs no extra draw call. One rule for
+ * every kind, no per-kind code; foliage gets the sway phase offset. Run once per world build; the result is chunked and culled like the houses.
+ * Items whose mesh is missing are skipped. Returns the number of items placed.
+ */
+export function batchProps(out, uv, items, meshes, cell = CELL) {
+  const padUv = () => { while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); }; // -1 marks an untextured vertex
+  let placed = 0;
+  if (meshes) for (const it of items) {
+    const model = meshes.get(it.kind);
+    if (!model) continue;
+    if (model.texture) padUv();
+    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture ? uv : null });
+    placed++;
+  }
+  padUv();
+  return placed;
+}
+
+/**
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
@@ -242,14 +262,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
   const dressing = composeDressing(seed, gridW, gridD, layout), uv = [];
-  const padUv = () => { while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); }; // -1 marks an untextured vertex
-  if (meshes) for (const it of dressing) {
-    const model = meshes.get(it.kind);
-    if (!model) continue;
-    if (model.texture) padUv();
-    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture ? uv : null });
-  }
-  padUv();
+  batchProps(out, uv, dressing, meshes, cell);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);

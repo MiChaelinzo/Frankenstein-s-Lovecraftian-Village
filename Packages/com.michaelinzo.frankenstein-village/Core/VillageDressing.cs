@@ -38,9 +38,9 @@ namespace Frankenstein.Core
         public const double DockClearance = 7.0;
         public const double LighthouseClearance = 6.5;
         public const double ChapelClearance = 5.5;
-        public const double InnScale = 0.65;
+        public const double InnScale = 0.75;
         public const double ChapelOffset = 8.0;
-        public const double ChapelScale = 0.8;
+        public const double ChapelScale = 0.9;
         public const int HillGraveRows = 4;
         /// <summary>Metres between the edge of a building's cell rectangle and its wall (the house mesh is smaller than its cells).</summary>
         public const double HouseSetback = 0.7;
@@ -70,10 +70,10 @@ namespace Frankenstein.Core
         {
             switch (kind)
             {
-                case "cottage_thatch": return new Footprint { HalfX = 1.8, HalfZ = 1.82, Height = 4.1, Solid = true };
-                case "cottage_tall": return new Footprint { HalfX = 1.4, HalfZ = 1.4, Height = 6.1, Solid = true };
-                case "inn": return new Footprint { HalfX = 3.48, HalfZ = 3.58, Height = 4.9, Solid = true };
-                case "chapel": return new Footprint { HalfX = 2.0, HalfZ = 2.88, Height = 6.1, Solid = true };
+                case "cottage_thatch": return new Footprint { HalfX = 2.25, HalfZ = 1.98, Height = 4.1, Solid = true };
+                case "cottage_tall": return new Footprint { HalfX = 1.82, HalfZ = 1.54, Height = 6.1, Solid = true };
+                case "inn": return new Footprint { HalfX = 4.31, HalfZ = 2.88, Height = 4.9, Solid = true };
+                case "chapel": return new Footprint { HalfX = 2.4, HalfZ = 2.76, Height = 6.1, Solid = true };
                 case "lighthouse": return new Footprint { HalfX = 2.2, HalfZ = 2.2, Height = 10.2, Solid = true };
                 case "market_stall": return new Footprint { HalfX = 1.3, HalfZ = 1.0, Height = 2.5, Solid = true };
                 case "crate_stack": return new Footprint { HalfX = 1.02, HalfZ = 0.57, Height = 1.4, Solid = true };
@@ -96,6 +96,16 @@ namespace Frankenstein.Core
                 case "reeds": return new Footprint { HalfX = 0.26, HalfZ = 0.31, Height = 1.78, Solid = false };
                 case "rock": return new Footprint { HalfX = 0.97, HalfZ = 0.73, Height = 0.7, Solid = true };
                 case "laundry_line": return new Footprint { HalfX = 2.05, HalfZ = 0.05, Height = 2.3, Solid = false };
+                case "grass_tuft": return new Footprint { HalfX = 0.18, HalfZ = 0.08, Height = 0.55, Solid = false };
+                case "stump": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.48, Solid = true };
+                case "log": return new Footprint { HalfX = 1.0, HalfZ = 0.27, Height = 0.34, Solid = false };
+                case "woodpile": return new Footprint { HalfX = 0.95, HalfZ = 0.6, Height = 0.9, Solid = true };
+                case "hedge": return new Footprint { HalfX = 1.4, HalfZ = 0.35, Height = 1.45, Solid = true };
+                case "picket_fence": return new Footprint { HalfX = 1.5, HalfZ = 0.06, Height = 1.0, Solid = true };
+                case "bollard": return new Footprint { HalfX = 0.15, HalfZ = 0.16, Height = 0.78, Solid = true };
+                case "rope_coil": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.13, Solid = false };
+                case "crop_row": return new Footprint { HalfX = 1.2, HalfZ = 0.78, Height = 0.58, Solid = false };
+                case "wheel_ruts": return new Footprint { HalfX = 1.6, HalfZ = 0.63, Height = 0.02, Solid = false };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
         }
@@ -308,7 +318,134 @@ namespace Frankenstein.Core
                 double ru = lo + rng.Next((int)Math.Max(1, hi - lo)), rv = 0.6 + rng.Next(80) / 100.0, rr = rng.Next(100);
                 if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rv, rr / 10.0, 1.0);
             }
+            ComposeForeground(items, seed, gridW, gridD, layout, streets, dockU, lightU, chapelU);
             return items;
+        }
+
+        /// <summary>Metres above the ground at which wheel ruts lie: just over the cobbled street surface so they never fight with it.</summary>
+        public const double RutLift = 0.07;
+        /// <summary>Metres between the lamp posts along a lane, in cells, and the spacing of the harbour bollards in metres.</summary>
+        public const int LanePostCells = 7;
+        public const double BollardSpacing = 8.0;
+        public const double BollardV = -0.3;
+        /// <summary>Seed salt of the foreground fill's own roll stream.</summary>
+        public const int ForegroundRollStream = 0x6f1c;
+
+        /// <summary>
+        /// Foreground fill: everything a walker sees within a few metres. Grass tufts, rocks, stumps, logs and bushes in every yard cell, weeds along the lane edges,
+        /// wheel ruts and lamp posts on the lanes, wood piles, crates and gardens (crop rows, hedges, picket fences) against the buildings, and the harbour edge
+        /// (bollards, rope coils, nets, moored rowboats, reeds). It has its own roll stream and runs last, so the items above never change.
+        /// Every cell, lane segment and building rolls first, so the stream never depends on what is skipped.
+        /// </summary>
+        private static void ComposeForeground(List<DressingItem> items, int seed, int gridW, int gridD, IList<PlacedPiece> layout, bool streets, double dockU, double lightU, double chapelU)
+        {
+            var rng = new SeededRandom(seed ^ ForegroundRollStream);
+            double along = AlongShoreYaw(seed), hi = HiOf(seed, gridW, gridD);
+            var cols = streets ? VillageStreets.LaneLines(gridW) : new List<int>();
+            var rows = streets ? VillageStreets.LaneLines(gridD) : new List<int>();
+
+            // Yard cells, and a weed tuft at one edge of every lane cell, so no stretch of lane is bare.
+            for (int cx = 0; cx < gridW; cx++)
+                for (int cz = 0; cz < gridD; cz++)
+                {
+                    int roll = rng.Next(100), roll2 = rng.Next(100);
+                    double ox = 0.5 + rng.Next(300) / 100.0, oz = 0.5 + rng.Next(300) / 100.0, yaw = rng.Next(628) / 100.0;
+                    if (streets && VillageStreets.IsStreetCell(gridW, gridD, cx, cz))
+                    {
+                        if (VillageStreets.IsSquareCell(gridW, gridD, cx, cz)) continue;
+                        double edge = roll2 < 50 ? 0.55 : 3.45;
+                        bool column = cols.Contains(cx);
+                        TryAdd(items, new DressingItem { Kind = "grass_tuft", X = column ? cx * Cell + edge : cx * Cell + ox, Z = column ? cz * Cell + oz : cz * Cell + edge, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, true);
+                        continue;
+                    }
+                    string kind = roll < 24 ? "grass_tuft" : roll < 30 ? "rock" : roll < 37 ? "stump" : roll < 43 ? "log" : roll < 50 ? "bush" : "";
+                    if (kind.Length > 0) TryAdd(items, new DressingItem { Kind = kind, X = cx * Cell + ox, Z = cz * Cell + oz, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+                }
+
+            // Lanes: wheel ruts on every second cell and a lamp post every few cells, alternating sides.
+            if (streets)
+            {
+                int post = 0;
+                for (int axis = 0; axis < 2; axis++)
+                {
+                    int extent = axis == 0 ? gridD : gridW;
+                    foreach (int line in axis == 0 ? cols : rows)
+                        for (int c = 0; c < extent; c++)
+                        {
+                            int cx = axis == 0 ? line : c, cz = axis == 0 ? c : line;
+                            double jitter = rng.Next(40) / 100.0 - 0.2;
+                            if (VillageStreets.IsSquareCell(gridW, gridD, cx, cz) || (axis == 0 ? rows.Contains(cz) : cols.Contains(cx))) continue;
+                            double mx = (cx + 0.5) * Cell, mz = (cz + 0.5) * Cell;
+                            if (c % 6 == 0)
+                                items.Add(new DressingItem { Kind = "wheel_ruts", X = axis == 0 ? mx + jitter : mx, Y = RutLift, Z = axis == 0 ? mz : mz + jitter, Yaw = axis == 0 ? Math.PI / 2 : 0.0, Scale = 1.0 });
+                            if (c % LanePostCells == 3)
+                            {
+                                double side = (post % 2 == 0 ? -1 : 1) * (Cell / 2 - 0.4);
+                                TryAdd(items, new DressingItem { Kind = LampKinds[post % 2], X = axis == 0 ? mx + side : mx, Z = axis == 0 ? mz : mz + side, Yaw = axis == 0 ? 0.0 : Math.PI / 2, Scale = 1.0 }, layout, gridW, gridD, true);
+                                post++;
+                            }
+                        }
+                }
+            }
+
+            // Buildings: a stack against one side wall, and a garden behind.
+            if (layout != null)
+                foreach (var p in layout)
+                {
+                    if (!VillageStreets.IsBuilding(p.SizeX, p.SizeZ)) continue;
+                    int gardenRoll = rng.Next(100), wallRoll = rng.Next(100), wallKind = rng.Next(100), flip = rng.Next(2);
+                    if (!streets) continue;
+                    double yaw = VillageStreets.FacingYaw(p.Facing), dirX = Math.Sin(yaw), dirZ = Math.Cos(yaw), sideX = Math.Cos(yaw), sideZ = -Math.Sin(yaw);
+                    double half = (p.Facing % 2 == 0 ? p.SizeZ : p.SizeX) * Cell / 2.0, halfWide = (p.Facing % 2 == 0 ? p.SizeX : p.SizeZ) * Cell / 2.0;
+                    double cx = (p.X + p.SizeX / 2.0) * Cell, cz = (p.Z + p.SizeZ / 2.0) * Cell, sgn = flip == 0 ? -1.0 : 1.0;
+                    if (wallRoll < 70)
+                    {
+                        string kind = wallKind < 30 ? "woodpile" : wallKind < 55 ? "crate_stack" : wallKind < 75 ? "sack" : wallKind < 90 ? "cart" : "log";
+                        var f = FootprintOf(kind);
+                        double lateral = halfWide + 0.35 + f.HalfZ, slide = (wallKind % 7 - 3) * 0.3;
+                        TryAdd(items, new DressingItem { Kind = kind, X = cx + sideX * sgn * lateral + dirX * slide, Z = cz + sideZ * sgn * lateral + dirZ * slide, Yaw = yaw + Math.PI / 2, Scale = 1.0 }, layout, gridW, gridD, false);
+                    }
+                    if (gardenRoll < 60)
+                    {
+                        double slideG = sgn * 0.8;
+                        string first = gardenRoll < 20 ? "crop_row" : gardenRoll < 40 ? "hedge" : "picket_fence";
+                        double back1 = half + 0.4 + FootprintOf(first).HalfZ + 1.2;
+                        TryAdd(items, new DressingItem { Kind = first, X = cx - dirX * back1 + sideX * slideG, Z = cz - dirZ * back1 + sideZ * slideG, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+                        string second = gardenRoll < 20 ? "picket_fence" : gardenRoll < 40 ? "grass_tuft" : "bush";
+                        double back2 = back1 + 1.8;
+                        TryAdd(items, new DressingItem { Kind = second, X = cx - dirX * back2 + sideX * slideG, Z = cz - dirZ * back2 + sideZ * slideG, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+                    }
+                }
+
+            // Coast cottages: a wood pile, barrel or crates at one gable end.
+            int cottageCount = items.Count;
+            for (int i = 0; i < cottageCount; i++)
+            {
+                var c = items[i];
+                if (c.Kind != "cottage_thatch" && c.Kind != "cottage_tall") continue;
+                int sideRoll = rng.Next(2), kindRoll = rng.Next(100);
+                string kind = kindRoll < 40 ? "woodpile" : kindRoll < 70 ? "sack" : "crate_stack";
+                var cf = FootprintOf(c.Kind); var kf = FootprintOf(kind);
+                double dx = along == 0.0 ? 1.0 : 0.0, dz = along == 0.0 ? 0.0 : 1.0, off = (sideRoll == 0 ? -1.0 : 1.0) * (cf.HalfX * c.Scale + 0.15 + kf.HalfX);
+                var item = new DressingItem { Kind = kind, X = c.X + dx * off, Z = c.Z + dz * off, Yaw = along, Scale = 1.0 };
+                if (!OverlapsItems(item, items, 0.1)) items.Add(item);
+            }
+
+            // Harbour edge: bollards along the shore, rope coils and nets by the dock, moored rowboats, more reeds in the shallows.
+            for (double u = 3.0; u < hi - 2.0; u += BollardSpacing)
+                if (Math.Abs(u - dockU) > 2.6) AddShore(items, seed, gridW, gridD, "bollard", u, BollardV, along, 1.0);
+            AddShore(items, seed, gridW, gridD, "rope_coil", dockU - 1.6, -1.5, along + 0.5, 1.0);
+            AddShore(items, seed, gridW, gridD, "rope_coil", dockU + 1.7, -1.4, along - 0.3, 1.0);
+            foreach (double du in new[] { -6.0, 6.0 })
+                if (dockU + du > 4 && dockU + du < hi - 4 && Math.Abs(dockU + du - lightU) > LighthouseClearance && Math.Abs(dockU + du - chapelU) > ChapelClearance)
+                    AddShore(items, seed, gridW, gridD, "net", dockU + du, -0.8, along + 0.05, 1.0);
+            AddShore(items, seed, gridW, gridD, "boat", dockU + 5.5, 2.6, along + 0.15, 0.7);
+            AddShore(items, seed, gridW, gridD, "boat", dockU - 6.0, 3.2, along - 0.2, 0.7);
+            for (int i = 0; i < 5; i++)
+            {
+                double ru = rng.Next((int)Math.Max(1, hi)), rv = 0.4 + rng.Next(100) / 100.0, ry = rng.Next(628) / 100.0;
+                if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, "reeds", ru, rv, ry, 1.0);
+            }
         }
 
         private static void AddShore(List<DressingItem> items, int seed, int gridW, int gridD, string kind, double u, double v, double yaw, double scale)

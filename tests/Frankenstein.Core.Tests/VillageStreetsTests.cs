@@ -161,7 +161,7 @@ namespace Frankenstein.Core.Tests
         public void Props_stay_off_the_lanes_except_door_step_clutter()
         {
             var cat = Catalog();
-            var doorStep = new HashSet<string>(VillageDressing.DoorKinds.Where(k => k.Length > 0)) { "well", "market_stall", "bench", "sign", "wall_lantern" };
+            var doorStep = new HashSet<string>(VillageDressing.DoorKinds.Where(k => k.Length > 0)) { "well", "market_stall", "bench", "sign", "wall_lantern", "grass_tuft" };
             foreach (var g in Grids)
                 foreach (int seed in Seeds)
                 {
@@ -173,6 +173,72 @@ namespace Frankenstein.Core.Tests
                         Assert.False(VillageDressing.TouchesStreet(it, g.w, g.d), $"{it.Kind} blocks a street at {it.X:F1},{it.Z:F1} seed {seed}");
                     }
                 }
+        }
+
+        [Fact]
+        public void Main_lane_walkers_swing_round_the_well_and_square_props()
+        {
+            Assert.Equal(VillageStreets.WalkerLateral, VillageStreets.WellDeflected(VillageStreets.WalkerLateral, 10));
+            Assert.Equal(-VillageStreets.WellDeflectLateral, VillageStreets.WellDeflected(-VillageStreets.WalkerLateral, 0));
+            var cat = Catalog();
+            var square = new HashSet<string> { "well", "market_stall", "bench", "sign" };
+            foreach (var g in Grids)
+                foreach (int seed in new[] { 1818, 7, 42 })
+                {
+                    var solids = VillageDressing.Compose(seed, g.w, g.d, VillageLayoutGenerator.Generate(cat, g.w, g.d, g.n, seed)).Where(it => square.Contains(it.Kind)).ToList();
+                    Assert.Contains(solids, it => it.Kind == "well");
+                    for (double tick = 0; tick < 400; tick += 0.5)
+                        foreach (var w in VillageStreets.Walkers(seed, g.w, g.d, tick, 0))
+                            foreach (var it in solids)
+                            {
+                                var f = VillageDressing.FootprintOf(it.Kind);
+                                double c = Math.Abs(Math.Cos(it.Yaw)), s = Math.Abs(Math.Sin(it.Yaw));
+                                double dx = Math.Max(Math.Abs(w.X - it.X) - (c * f.HalfX + s * f.HalfZ) * it.Scale, 0), dz = Math.Max(Math.Abs(w.Z - it.Z) - (s * f.HalfX + c * f.HalfZ) * it.Scale, 0);
+                                Assert.True(Math.Sqrt(dx * dx + dz * dz) >= BodyRadius, $"walker {w.Id} inside the {it.Kind} at tick {tick} seed {seed}");
+                            }
+                }
+        }
+
+        [Fact]
+        public void Near_field_every_walk_position_has_ground_props_two_to_eight_metres_away()
+        {
+            var cat = Catalog();
+            foreach (var g in new[] { (24, 24, 80), (20, 20, 60), (32, 32, 100) })
+                foreach (int seed in new[] { 1818, 7, 42, 1, 99999 })
+                {
+                    var items = VillageDressing.Compose(seed, g.Item1, g.Item2, VillageLayoutGenerator.Generate(cat, g.Item1, g.Item2, g.Item3, seed)).Where(it => it.Y < 0.5).ToList();
+                    var pts = new List<(double x, double z)>();
+                    foreach (int c in VillageStreets.LaneLines(g.Item1)) for (double z = 3; z < g.Item2 * VillageDressing.Cell - 3; z += 2) pts.Add(((c + 0.5) * VillageDressing.Cell, z));
+                    foreach (int r in VillageStreets.LaneLines(g.Item2)) for (double x = 3; x < g.Item1 * VillageDressing.Cell - 3; x += 2) pts.Add((x, (r + 0.5) * VillageDressing.Cell));
+                    double hi = VillagerRules.CoastSide(seed) == 2 ? g.Item1 * VillageDressing.Cell : g.Item2 * VillageDressing.Cell;
+                    for (double u = 1; u < hi - 1; u += 2) { VillageDressing.CoastToWorld(seed, g.Item1, g.Item2, u, VillageDressing.CoastRoadV, out double x, out double z); pts.Add((x, z)); }
+                    var counts = pts.Select(p => items.Count(it => { double d = Math.Sqrt((it.X - p.x) * (it.X - p.x) + (it.Z - p.z) * (it.Z - p.z)); return d >= 2 && d <= 8; })).ToList();
+                    Assert.True(counts.Min() >= 1, $"seed {seed} grid {g.Item1}: an empty spot");
+                    Assert.True(counts.Count(k => k >= 3) >= counts.Count * 0.9, $"seed {seed} grid {g.Item1}: fewer than 90% of spots have three props");
+                }
+        }
+
+        [Fact]
+        public void Foreground_fill_places_every_new_kind_off_the_layout()
+        {
+            var cat = Catalog();
+            var kinds = new[] { "grass_tuft", "stump", "log", "woodpile", "hedge", "picket_fence", "bollard", "rope_coil", "crop_row", "wheel_ruts" };
+            var seen = new HashSet<string>();
+            foreach (int seed in new[] { 1, 42, 1818, 7 })
+            {
+                var layout = VillageLayoutGenerator.Generate(cat, 24, 24, 40, seed);
+                foreach (var it in VillageDressing.Compose(seed, 24, 24, layout))
+                {
+                    seen.Add(it.Kind);
+                    if (it.Kind == "wheel_ruts")
+                    {
+                        Assert.Equal(VillageDressing.RutLift, it.Y);
+                        Assert.True(VillageStreets.IsStreetCell(24, 24, (int)Math.Floor(it.X / VillageDressing.Cell), (int)Math.Floor(it.Z / VillageDressing.Cell)));
+                    }
+                    else if (kinds.Contains(it.Kind) && it.X > 0 && it.X < 96 && it.Z > 0 && it.Z < 96) Assert.False(VillageDressing.OverlapsLayout(it, layout, 0), $"{it.Kind} on a piece");
+                }
+            }
+            foreach (var k in kinds) Assert.Contains(k, seen);
         }
     }
 }

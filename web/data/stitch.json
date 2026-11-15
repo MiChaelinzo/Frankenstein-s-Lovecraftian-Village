@@ -8,7 +8,7 @@
     },
     "golden": {
       "count": 25,
-      "vectors": 516
+      "vectors": 526
     },
     "js": {
       "count": 56,
@@ -21,7 +21,7 @@
       "tasksTotal": 115
     },
     "pwa": {
-      "count": 103
+      "count": 113
     },
     "unity": {
       "bridges": 4,

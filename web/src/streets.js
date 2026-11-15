@@ -64,6 +64,13 @@ export const facingDx = (facing) => FACING_DX[((facing % 4) + 4) % 4];
 export const facingDz = (facing) => FACING_DZ[((facing % 4) + 4) % 4];
 
 // ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect). Mirrors VillageStreets.Walkers ----------
+export const WELL_DEFLECT_LATERAL = 2, WELL_DEFLECT_RADIUS = 2.6;
+/** Lateral offset of a main lane walker distanceToWell metres from the well: normal far away, WELL_DEFLECT_LATERAL at the well, cos squared between. Mirrors VillageStreets.WellDeflected. */
+export function wellDeflected(lateral, distanceToWell) {
+  if (distanceToWell >= WELL_DEFLECT_RADIUS) return lateral;
+  const b = Math.cos(Math.PI / 2 * distanceToWell / WELL_DEFLECT_RADIUS);
+  return (lateral < 0 ? -1 : 1) * (WALKER_LATERAL + (WELL_DEFLECT_LATERAL - WALKER_LATERAL) * b * b);
+}
 export const WALKER_SPEED_MIN = 0.8, WALKER_END_PAD = 3, WALKER_LATERAL = 1.2, MAIN_LANE_WALKERS = 3, SIDE_LANE_WALKERS = 2, DREAD_THINNING = 0.9;
 
 /** [{ id, x, z, yaw, lantern }] in metres at a clock tick (fractional allowed) and dread 0..1. Every walker rolls first and is then hidden by dread, so the roster never shifts. */
@@ -77,11 +84,12 @@ export function streetWalkers(seed, gridW, gridD, tick, dread) {
     for (const line of laneLines(extent)) {
       const count = line === Math.floor(extent / 2) ? MAIN_LANE_WALKERS : SIDE_LANE_WALKERS;
       for (let k = 0; k < count; k++, id++) {
-        const phase = rng.next(1000) / 1000, speed = WALKER_SPEED_MIN + rng.next(50) / 100, lateral = rng.next(2) === 0 ? -WALKER_LATERAL : WALKER_LATERAL, keep = rng.next(100);
+        const phase = rng.next(1000) / 1000, speed = WALKER_SPEED_MIN + rng.next(50) / 100, baseLateral = rng.next(2) === 0 ? -WALKER_LATERAL : WALKER_LATERAL, keep = rng.next(100);
         if (keep >= visible) continue;
         let d = phase * 2 * length + speed * tick;
         d -= 2 * length * Math.floor(d / (2 * length));
-        const forward = d < length, along = WALKER_END_PAD + (forward ? d : 2 * length - d), centre = (line + 0.5) * CELL_M + lateral;
+        const forward = d < length, along = WALKER_END_PAD + (forward ? d : 2 * length - d);
+        const lateral = line === Math.floor(extent / 2) ? wellDeflected(baseLateral, Math.abs(along - (Math.floor(across / 2) + 0.5) * CELL_M)) : baseLateral, centre = (line + 0.5) * CELL_M + lateral;
         walkers.push({ id, x: axis === 0 ? centre : along, z: axis === 0 ? along : centre, lantern, yaw: axis === 0 ? (forward ? 0 : Math.PI) : (forward ? Math.PI / 2 : -Math.PI / 2) });
       }
     }

@@ -54,12 +54,12 @@ test('fitScale never enlarges a mesh and houses keep their authored size on thei
 
 test('placed doors are about 2 m', () => {
   const one = { x: 0, z: 0, sizeX: 1, sizeZ: 1 };
-  const foot = { house_a: { x: 0, z: 0, sizeX: 2, sizeZ: 2 }, house_b: { x: 0, z: 0, sizeX: 3, sizeZ: 2 } };
+  const foot = { house_a: { x: 0, z: 0, sizeX: 2, sizeZ: 2 }, house_b: { x: 0, z: 0, sizeX: 3, sizeZ: 2 }, cottage_thatch: { x: 0, z: 0, sizeX: 2, sizeZ: 2 }, cottage_tall: { x: 0, z: 0, sizeX: 2, sizeZ: 2 } }; // round 22: the coast cottages are 4.5 m wide, wider than one cell
   for (const k of ['house_a', 'house_b', 'cottage_thatch', 'cottage_tall']) {
     const d = placedDoor(k, foot[k] || one);
     assert.ok(Math.abs(d - scale.DOOR_HEIGHT) <= 0.1, `${k} door ${d}`);
   }
-  for (const k of ['inn', 'chapel', 'lighthouse']) assert.ok(Math.abs(placedDoor(k, { x: 0, z: 0, sizeX: 2, sizeZ: 2 }) - scale.DOOR_HEIGHT) <= 0.1, k);
+  for (const k of ['inn', 'chapel', 'lighthouse']) assert.ok(Math.abs(placedDoor(k, { x: 0, z: 0, sizeX: k === 'inn' ? 3 : 2, sizeZ: k === 'inn' ? 3 : 2 }) - scale.DOOR_HEIGHT) <= 0.1, k);
 });
 
 test('village houses are real buildings: multi-storey, ridge 6 to 10 m, at least 3x a person, on a multi-cell footprint', () => {
