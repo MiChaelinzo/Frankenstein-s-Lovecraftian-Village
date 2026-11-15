@@ -26,6 +26,10 @@ namespace UnityEngine
     {
         public static T CreateInstance<T>() where T : ScriptableObject, new() { return new T(); }
     }
+    public static class StaticBatchingUtility
+    {
+        public static void Combine(GameObject staticBatchRoot) { }
+    }
     public enum PrimitiveType { Sphere, Capsule, Cylinder, Cube, Plane, Quad }
     public sealed class GameObject : Object
     {
@@ -33,6 +37,7 @@ namespace UnityEngine
         public GameObject(string name) { }
         public Transform transform { get { return null; } }
         public string tag { get; set; }
+        public bool isStatic { get; set; }
         public T AddComponent<T>() where T : Component, new() { return new T(); }
         public void SetActive(bool value) { }
         public T GetComponent<T>() { return default; }
