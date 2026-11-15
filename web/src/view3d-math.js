@@ -621,14 +621,81 @@ export function tentacleBases(gridW, gridD, seed, cell = CELL) {
 
 // Round 17: drawCalls 14 -> 12 is a tighter ceiling, not a loosening: the worst frame is now sky + 5 triangle buffers + rain or mist + halos
 // + fireflies + the one post pass = 11. points grew 1300 -> 1400 for the (at most 100) fireflies; rain and fireflies share the budget.
-export const FRAME_BUDGET = Object.freeze({ drawCalls: 12, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
+// Round 21: drawCalls 12 -> 16, measured: the building buffer is now drawn as the visible chunk ranges (at most 4 over 5400 sampled walking
+// views of seeds 1818, 7 and 42, all from one buffer with no state change) and the held lantern adds 1; worst 1 + 5 + 4 + 1 + 2 + 2 + 1 = 16.
+export const FRAME_BUDGET = Object.freeze({ drawCalls: 16, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
 
 /** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
-export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false }) {
-  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle', 'villager'];
-  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
+export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false, buildingRanges = 1 }) {
+  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle', 'villager', 'held'];
+  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (vertices.building > 0 ? Math.max(1, buildingRanges) - 1 : 0) + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
   return { drawCalls, triangles, points: rain + mist + halos + fireflies, lights: Math.min(lights, MAX_LIGHTS), halos };
+}
+
+// ---------- culling: the static building buffer is cut into square chunks that are drawn only when they can be seen ----------
+
+export const CHUNK_METRES = 24;       // chunk edge: a 96 m village is about 16 chunks, so a view draws a handful of ranges
+export const CHUNK_PAD = 1.5;         // metres added to every chunk box: foliage and flags sway in the vertex shader
+export const FOG_CULL_FACTOR = 3;     // exp(-(d * density)^2) < 0.0002 at 3 / density metres: fully fogged, so nothing is lost by not drawing it
+
+/** Metres beyond which geometry is lost in the fog (the same exponential squared law as the scene shader). Infinity without fog. */
+export const fogCullDistance = (density) => (density > 0 ? FOG_CULL_FACTOR / density : Infinity);
+
+/**
+ * Reorders triangle vertices (floats per vertex, position first) into chunks of cellM metres on the ground, walked in a serpentine so
+ * neighbouring chunks are neighbours in the buffer and visible ones merge into few draw ranges. uv (2 floats per vertex, optional) follows.
+ * Pure and deterministic. Returns the reordered arrays and { first, count, min, max } per chunk (first and count in vertices).
+ */
+export function partitionChunks(vertices, uv, floats, cellM = CHUNK_METRES) {
+  const tris = Math.floor(vertices.length / floats / 3), cells = new Map();
+  for (let t = 0; t < tris; t++) {
+    let cx = 0, cz = 0;
+    for (let k = 0; k < 3; k++) { cx += vertices[(t * 3 + k) * floats]; cz += vertices[(t * 3 + k) * floats + 2]; }
+    const ix = Math.floor(cx / 3 / cellM), iz = Math.floor(cz / 3 / cellM), key = `${ix},${iz}`;
+    if (!cells.has(key)) cells.set(key, { ix, iz, tris: [] });
+    cells.get(key).tris.push(t);
+  }
+  const ordered = [...cells.values()].sort((a, b) => a.iz - b.iz || (a.iz & 1 ? b.ix - a.ix : a.ix - b.ix));
+  const outV = new Float32Array(tris * 3 * floats), outUv = uv && uv.length === tris * 6 ? new Float32Array(tris * 6) : null, chunks = [];
+  let at = 0;
+  for (const cell of ordered) {
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity], first = at * 3;
+    for (const t of cell.tris) {
+      for (let k = 0; k < 3; k++) {
+        const src = (t * 3 + k) * floats;
+        for (let c = 0; c < 3; c++) { min[c] = Math.min(min[c], vertices[src + c]); max[c] = Math.max(max[c], vertices[src + c]); }
+      }
+      outV.set(vertices.subarray(t * 3 * floats, (t + 1) * 3 * floats), at * 3 * floats);
+      if (outUv) outUv.set(uv.subarray(t * 6, t * 6 + 6), at * 6);
+      at++;
+    }
+    chunks.push({ first, count: cell.tris.length * 3, min: min.map((v) => v - CHUNK_PAD), max: max.map((v) => v + CHUNK_PAD) });
+  }
+  return { vertices: outV, uv: outUv || uv, chunks };
+}
+
+/** The six clip planes [a, b, c, d] (inside when a*x + b*y + c*z + d >= 0) of a column major view projection matrix. */
+export function frustumPlanes(vp) {
+  const row = (i) => [vp[i], vp[4 + i], vp[8 + i], vp[12 + i]], r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
+  return [[1, r0], [-1, r0], [1, r1], [-1, r1], [1, r2], [-1, r2]].map(([sign, r]) => r3.map((v, i) => v + sign * r[i]));
+}
+
+/** True when the box lies at least partly inside every plane (the corner furthest along each plane normal decides). */
+export function boxInFrustum(planes, min, max) {
+  return planes.every(([a, b, c, d]) => a * (a >= 0 ? max[0] : min[0]) + b * (b >= 0 ? max[1] : min[1]) + c * (c >= 0 ? max[2] : min[2]) + d >= 0);
+}
+
+/** Draw ranges { first, count } for the chunks inside the frustum and within maxDist of the camera; consecutive visible chunks merge into one range. */
+export function visibleRanges(chunks, planes, camPos, maxDist = Infinity) {
+  const out = [];
+  for (const c of chunks) {
+    const dx = Math.max(c.min[0] - camPos[0], 0, camPos[0] - c.max[0]), dy = Math.max(c.min[1] - camPos[1], 0, camPos[1] - c.max[1]), dz = Math.max(c.min[2] - camPos[2], 0, camPos[2] - c.max[2]);
+    if (Math.hypot(dx, dy, dz) > maxDist || !boxInFrustum(planes, c.min, c.max)) continue;
+    const last = out[out.length - 1];
+    if (last && last.first + last.count === c.first) last.count += c.count; else out.push({ first: c.first, count: c.count });
+  }
+  return out;
 }
 
 // ---------- omen framing: a fly-through viewpoint that keeps the eye and the tentacles inside the frame ----------

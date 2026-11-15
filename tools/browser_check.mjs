@@ -80,8 +80,21 @@ async function main() {
   const text = (idv) => ev(`document.getElementById('${idv}').textContent`);
   const hidden = (idv) => ev(`document.getElementById('${idv}').hidden`);
 
+  /** Real-time frame timing while walking (TIMING_ONLY=1 runs only this). Software GL, so indicative only; the HUD line adds the JavaScript ms per frame and the culled triangle count. */
+  const timingRun = async () => {
+    await nav('?intro=0&view=3d&perf=1' + (process.env.TIMING_QUERY || '') + '#seed=1818&sanity=60');
+    await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
+    await hold('w', 'KeyW', 6000);
+    const stats = frameStats(await ev(`window.__ft`));
+    const hud = await ev(`document.getElementById('perfHud').textContent`);
+    const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
+    rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
+  suite: {
+    if (process.env.TIMING_ONLY) { await timingRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -226,13 +239,7 @@ async function main() {
     rec('cinematic 3D: night 5 fly-through runs at low sanity with the omen view moving', oa !== ob && !(await hidden('view3d')) && sanityNow <= 30, { before: oa, after: ob, sanity: sanityNow, caption: (await text('cinemaCaption')).slice(0, 60) });
     await special('Escape', 27, undefined); await sleep(400);
 
-    // real-time frame timing
-    await nav('?intro=0&view=3d#seed=1818&sanity=60');
-    await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
-    await hold('w', 'KeyW', 6000);
-    const stats = frameStats(await ev(`window.__ft`));
-    const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
-    rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer });
+    await timingRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });
@@ -532,7 +539,7 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=540&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(1500);
     const dens = await ev(`(async()=>{const w=await import('./src/world-scale.js'),m=await import('./src/view3d-math.js');return {person:w.PERSON_HEIGHT,storey:w.STOREY_HEIGHT,ridgeMin:w.RIDGE_MIN,budget:m.FRAME_BUDGET}})()`).catch((e) => ({ error: e.message }));
-    rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 12 calls and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 12 && dens.budget.triangles === 60000, dens);
+    rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 16 calls (round 21: chunked buildings and the held lantern) and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 16 && dens.budget.triangles === 60000, dens);
     await ev(`document.getElementById('perfToggle').click()`); await sleep(2500);
     const perfTxt = await until(() => ev(`document.getElementById('perfHud').textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
     const trisNow = Number((/(\d+) tris/.exec(perfTxt || '') || [])[1]);
@@ -554,6 +561,7 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
     rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()) > 5, { lum: await meanLum() });
+  }
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;

@@ -12,7 +12,7 @@ import {
   CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
-  viewProjection, windowLit, worldBounds, worldBoxes,
+  viewProjection, windowLit, worldBounds, worldBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
@@ -188,6 +188,38 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
     appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot: v.yaw + sway });
   }
   return new Float32Array(out);
+}
+
+
+// ---------- the explorer's own lantern, held low at the right of the view ----------
+
+/** Where the held lantern hangs in camera space (metres: right, up, forward of the eye). Low and to the right, so only its glass and cap sit in the corner. */
+export const HELD_LANTERN_OFFSET = Object.freeze([0.44, -0.5, 0.75]);
+export const HELD_LANTERN_SWING_RAD = 0.06; // walking swing amplitude in radians; zero with reduced motion
+const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.8, 0.55, 0.28];
+
+/**
+ * A small original hand lantern (about 0.24 m tall, 0.11 m wide: base, glowing glass, cap and ring) placed in front of the eye.
+ * basis is cameraBasis(eye); swingPhase is the walking phase (bobPhase), ignored when reduced. Pure and deterministic.
+ */
+export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }) {
+  const local = [];
+  pushFrustum(local, -0.055, -0.055, 0.055, 0.055, 0, 0.025, 1, HELD_METAL);                       // base plate
+  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 0.55, 0.7);        // glass chimney, glowing
+  pushFrustum(local, -0.06, -0.06, 0.06, 0.06, 0.17, 0.21, 0.3, HELD_METAL);                         // cap
+  pushFrustum(local, -0.012, -0.012, 0.012, 0.012, 0.21, 0.245, 1, HELD_METAL);                     // ring the hand holds
+  const swing = reduced ? 0 : Math.sin(swingPhase * 3.75) * HELD_LANTERN_SWING_RAD, cs = Math.cos(swing), sn = Math.sin(swing);
+  const [ox, oy, oz] = HELD_LANTERN_OFFSET, { r, u, f } = basis, out = new Float32Array(local.length);
+  const place = (x, y, z, dst, at) => { for (let c = 0; c < 3; c++) dst[at + c] = r[c] * x + u[c] * y + f[c] * z; };
+  for (let i = 0; i < local.length; i += VERTEX_FLOATS) {
+    // swing about the ring (local y 0.245) in the camera's right/up plane, then hang the ring at the offset
+    const x = local[i], y = local[i + 1] - 0.245, z = local[i + 2], nx = local[i + 3], ny = local[i + 4];
+    place(ox + x * cs - y * sn, oy + 0.245 + x * sn + y * cs, oz + z, out, i);
+    out[i] += eye.x; out[i + 1] += eye.y; out[i + 2] += eye.z;
+    place(nx * cs - ny * sn, nx * sn + ny * cs, local[i + 5], out, i + 3);
+    for (let k = 6; k < VERTEX_FLOATS; k++) out[i + k] = local[i + k];
+  }
+  return out;
 }
 
 /**
@@ -447,9 +479,9 @@ export function createGlRenderer(gl) {
     }
   }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const uvBuf = gl.createBuffer(); let uvCount = 0;
-  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
-  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
+  const uvBuf = gl.createBuffer(); let uvCount = 0, buildingChunks = [], buildingDrawn = 0, buildingRanges = 0;
+  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), held: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
+  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, held: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
     const t = gl.createTexture(), px = proceduralTexture(kind, { size: 128 });
@@ -488,12 +520,18 @@ export function createGlRenderer(gl) {
     gl.drawArrays(gl.POINTS, 0, counts[name]);
   }
   return {
-    setWorld(w) { gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, w.buildingUv || new Float32Array(0), gl.STATIC_DRAW); uvCount = w.buildingUv ? w.buildingUv.length / 2 : 0; upload('building', w.building); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos); },
+    setWorld(w) {
+      const chunked = partitionChunks(w.building, w.buildingUv, VERTEX_FLOATS); // static, so cut into chunks once here and culled per frame in drawScene
+      buildingChunks = chunked.chunks;
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, chunked.uv || new Float32Array(0), gl.STATIC_DRAW); uvCount = chunked.uv ? chunked.uv.length / 2 : 0; upload('building', chunked.vertices); upload('ground', w.ground); upload('sea', w.sea); upload('coast', w.coast); upload('halo', w.halos);
+    },
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
     setFireflies(data) { upload('fly', data); },
     setHalos(data) { upload('halo', data); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
     setVillagers(data) { upload('villager', data, gl.DYNAMIC_DRAW); },
+    /** The held lantern moves with the camera, so it is rebuilt every drawn frame (under 100 triangles). */
+    setHeld(data) { upload('held', data, gl.DYNAMIC_DRAW); },
     /** Images already cut to power of two canvases; null keeps the procedural default. Only ever called under ?pack=1. */
     setPackTextures(wall, ground) {
       [wall, ground].forEach((img, unit) => {
@@ -516,7 +554,7 @@ export function createGlRenderer(gl) {
     /** True when the post pass is available (shader compiled and the framebuffer is complete). */
     get postReady() { return !postBroken; },
     /** Vertex, point and draw-call counts of what was uploaded: feeds frameCost for the budget test and the perf label. */
-    counts: () => ({ ...counts }),
+    counts: () => ({ ...counts, buildingDrawn, buildingRanges, buildingChunks: buildingChunks.length }),
     /** Draws the frame; with f.post.enabled the scene goes through the offscreen target and the single post pass, else straight to the canvas. */
     draw(f) {
       const usePost = !!(f.post && f.post.enabled) && ensureTarget(size[0], size[1]);
@@ -534,17 +572,6 @@ export function createGlRenderer(gl) {
     },
     drawScene(f) {
       gl.clearColor(f.fogColor[0], f.fogColor[1], f.fogColor[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      // sky
-      gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.useProgram(sky.p);
-      const b = f.basis; gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
-      const sl = gl.getAttribLocation(sky.p, 'aPos'); gl.enableVertexAttribArray(sl); gl.vertexAttribPointer(sl, 2, gl.FLOAT, false, 8, 0);
-      gl.uniform3fv(sky.u('uF'), b.f); gl.uniform3fv(sky.u('uR'), b.r); gl.uniform3fv(sky.u('uU'), b.u);
-      gl.uniform1f(sky.u('uTy'), Math.tan(f.fovY / 2)); gl.uniform1f(sky.u('uAspect'), f.aspect);
-      gl.uniform3fv(sky.u('uZenith'), f.sky.zenith); gl.uniform3fv(sky.u('uHorizon'), f.sky.horizon);
-      gl.uniform3fv(sky.u('uMoonDir'), f.moon.dir); gl.uniform3fv(sky.u('uMoonColor'), f.moon.color); gl.uniform1f(sky.u('uMoonSize'), f.moon.size);
-      gl.uniform3fv(sky.u('uEyeDir'), f.eye.dir); gl.uniform4f(sky.u('uEye'), f.eye.width, f.eye.height, 0, 0); gl.uniform1f(sky.u('uEyeOpen'), f.eye.open); gl.uniform1f(sky.u('uPupil'), f.reduced ? 0 : Math.sin(f.time / 2.6) * 0.2);
-      gl.uniform1f(sky.u('uSun'), f.sunWeight); gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
       // world
       gl.enable(gl.DEPTH_TEST); gl.useProgram(scene.p);
       lightPos.fill(0); lightCol.fill(0);
@@ -558,6 +585,7 @@ export function createGlRenderer(gl) {
       for (const unit of [0, 1, 2, 3, 4, 5]) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, texs[unit]); } gl.uniform3fv(scene.u('uAmbient'), f.sky.ambient); gl.uniform3fv(scene.u('uMoonDir'), f.moon.dir);
       gl.uniform3fv(scene.u('uMoonColor'), f.moonLight); gl.uniform4fv(scene.u('uLight'), lightPos); gl.uniform3fv(scene.u('uLightCol'), lightCol);
       gl.uniform4fv(scene.u('uWind'), f.windU); gl.uniform1f(scene.u('uWindT'), f.time); gl.uniform3fv(scene.u('uGlowColor'), f.glowColor); gl.uniform1f(scene.u('uTime'), f.time); gl.uniform1f(scene.u('uFlicker'), f.reduced ? 0 : 1);
+      const planes = frustumPlanes(f.vp);
       for (const [name, mode] of [['sea', 2], ['ground', 1], ['building', 0], ['coast', 3], ['tentacle', 3], ['villager', 3]]) {
         if (!counts[name]) continue;
         gl.uniform1f(scene.u('uMode'), mode); bindScene(bufs[name]);
@@ -565,9 +593,25 @@ export function createGlRenderer(gl) {
         const uvLoc = gl.getAttribLocation(scene.p, 'aUv');
         if (name === 'building' && uvCount === counts.building) { gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.enableVertexAttribArray(uvLoc); gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 8, 0); }
         else { gl.disableVertexAttribArray(uvLoc); gl.vertexAttrib2f(uvLoc, -1, -1); }
-        gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
+        if (name === 'building') { // static props and houses: only the chunks in the frustum and not yet lost in the fog
+          const ranges = visibleRanges(buildingChunks, planes, f.camPos, fogCullDistance(f.fog));
+          buildingDrawn = 0; buildingRanges = ranges.length;
+          for (const r of ranges) { gl.drawArrays(gl.TRIANGLES, r.first, r.count); buildingDrawn += r.count; }
+        } else gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
       }
       gl.disableVertexAttribArray(gl.getAttribLocation(scene.p, 'aUv'));
+      // sky: drawn after the opaque world at depth 0.9999, so it only shades the pixels nothing covered (the fill-rate saving of an early depth reject)
+      gl.depthMask(false); gl.disable(gl.BLEND); gl.useProgram(sky.p);
+      const b = f.basis; gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf);
+      const sl = gl.getAttribLocation(sky.p, 'aPos'); gl.enableVertexAttribArray(sl); gl.vertexAttribPointer(sl, 2, gl.FLOAT, false, 8, 0);
+      gl.uniform3fv(sky.u('uF'), b.f); gl.uniform3fv(sky.u('uR'), b.r); gl.uniform3fv(sky.u('uU'), b.u);
+      gl.uniform1f(sky.u('uTy'), Math.tan(f.fovY / 2)); gl.uniform1f(sky.u('uAspect'), f.aspect);
+      gl.uniform3fv(sky.u('uZenith'), f.sky.zenith); gl.uniform3fv(sky.u('uHorizon'), f.sky.horizon);
+      gl.uniform3fv(sky.u('uMoonDir'), f.moon.dir); gl.uniform3fv(sky.u('uMoonColor'), f.moon.color); gl.uniform1f(sky.u('uMoonSize'), f.moon.size);
+      gl.uniform3fv(sky.u('uEyeDir'), f.eye.dir); gl.uniform4f(sky.u('uEye'), f.eye.width, f.eye.height, 0, 0); gl.uniform1f(sky.u('uEyeOpen'), f.eye.open); gl.uniform1f(sky.u('uPupil'), f.reduced ? 0 : Math.sin(f.time / 2.6) * 0.2);
+      gl.uniform1f(sky.u('uSun'), f.sunWeight); gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.depthMask(true);
       // lantern halos: additive soft sprites, depth tested so walls hide them
       if (counts.halo) {
         gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.useProgram(halo.p);
@@ -596,6 +640,12 @@ export function createGlRenderer(gl) {
         drawParticles('rain', f, { box: [40, 16, 40], vel: f.rain.vel, size: f.rain.size, color: [0.6, 0.68, 0.8], alpha: f.rain.alpha });
         drawParticles('mist', f, { box: [70, 5, 70], vel: [0.5, 0, 0.3], size: 5, color: f.fogColor.map((v) => Math.min(1, v * 1.3)), alpha: 0.12 });
         gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      // the held lantern last, over a cleared depth buffer, so a wall the explorer stands against never cuts through it
+      if (counts.held) {
+        gl.clear(gl.DEPTH_BUFFER_BIT); gl.useProgram(scene.p); gl.uniform1f(scene.u('uMode'), 3); bindScene(bufs.held);
+        const uvLoc = gl.getAttribLocation(scene.p, 'aUv'); gl.disableVertexAttribArray(uvLoc); gl.vertexAttrib2f(uvLoc, -1, -1);
+        gl.drawArrays(gl.TRIANGLES, 0, counts.held);
       }
     },
   };
@@ -769,7 +819,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const inp = { ...raw, forward: smooth.forward, strafe: smooth.strafe }, mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
     const before = cam;
     cam = s.fly ? streetFly(s.fly) : stepCamera(cam, inp, dt, boxes, bounds, mouse);
-    if (!s.fly) cam = { ...cam, y: settings.eye }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset look = { dx: 0, dy: 0 }; pendingMouse = null;
+    if (!s.fly) cam = { ...cam, y: settings.eye }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset
+    look = { dx: 0, dy: 0 }; pendingMouse = null;
     const moved = cam.x !== before.x || cam.z !== before.z || cam.yaw !== before.yaw || cam.pitch !== before.pitch;
     const speed = Math.min(1, Math.hypot(inp.forward, inp.strafe)), moving = speed > 0.01 || !!(raw.forward || raw.strafe);
     if (speed > 0.05) {
@@ -780,7 +831,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const padOn = navigator.getGamepads && Array.from(navigator.getGamepads() || []).some(Boolean);
     const animated = !reduced && !capture;
     if (s.fly) updatePromptOff();
-    if (animated || dirty || moved || moving) { draw(s, ts); dirty = false; if (moved) updatePrompt(s); }
+    if (animated || dirty || moved || moving) { const c0 = now(); draw(s, ts); perf.cpuSample(now() - c0); dirty = false; if (moved) updatePrompt(s); }
     const stay = animated || moving || moved || padOn || keys.size > 0 || touches.size > 0 || dirty;
     if (stay) rafId = requestAnimationFrame(loop); else running = false;
   }
@@ -832,7 +883,9 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (nextFlockKey !== flockKey) { flockKey = nextFlockKey; flocks = createFlocks({ seed: s.seed, plan, counts }); }
     if (!reduced) for (const k of ['gulls', 'crows', 'silhouettes']) if (flocks[k]) advanceFlockTo(flocks[k], time);
     const birdSlot = reduced ? 0 : Math.floor(time * 15), birds = world ? buildBirds({ flocks, perches, counts, timeSec: birdSlot / 15, reduced }) : new Float32Array(0);
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))], vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
+    const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
     if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); } }
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
@@ -841,16 +894,17 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       return { pos: l.pos, radius: l.radius * wlook.pool, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
     });
     const k0 = lanternFlicker(0.7, time, s.dread, reduced);
-    lit.push({ pos: [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4], radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
+    const basis = cameraBasis(eye), [hx, hy, hz] = HELD_LANTERN_OFFSET, heldAt = [0, 1, 2].map((c) => [eye.x, eye.y, eye.z][c] + basis.r[c] * hx + basis.u[c] * (hy + 0.1) + basis.f[c] * hz);
+    renderer.setHeld(s.fly ? new Float32Array(0) : buildHeldLantern({ eye, basis, swingPhase: bobPhase, reduced })); // no hand in the fly-through
+    lit.push({ pos: s.fly ? [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4] : heldAt, radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
     const tentKey = omen.tentacle > 0.01 ? `${omen.tentacle.toFixed(3)}|${reduced ? 0 : time.toFixed(2)}|${s.dread.toFixed(2)}` : '';
     if (tentKey !== lastTent) {
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
-    const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     renderer.draw({
-      vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis: cameraBasis(eye), camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
+      vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
       fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
     });
   }
