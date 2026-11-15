@@ -116,6 +116,8 @@ function skipClock(minutes, done) {
 const weatherParam = optParam('weather');
 const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
+// Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
+let gpuRenderer = '', quality = null;
 const view3d = createView3d({
   canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0', thirdParty: optParam('thirdparty') !== '0',
   getScene: () => ({
@@ -133,6 +135,7 @@ const view3d = createView3d({
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen(), close: () => villagers.close() },
   onExit: () => setView3d(false),
+  onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
 });
 function setView3d(on) {
@@ -359,21 +362,12 @@ try { savedView = storage ? storage.getItem(VIEW_SETTINGS_KEY) : null; } catch (
 applyViewSettings(parseViewSettings(savedView), false);
 for (const id of ['eyeRange', 'fovRange']) $(id).addEventListener('input', () => applyViewSettings({ eye: $('eyeRange').value, fovDeg: $('fovRange').value }, true));
 $('viewReset').addEventListener('click', () => applyViewSettings(null, true));
-/** GPU hints for the Auto tier. A throwaway WebGL context reads the unmasked renderer, then is released; any failure leaves the hint empty. */
-function gpuHints() {
-  let renderer = '';
-  try {
-    const g = document.createElement('canvas').getContext('webgl'), ext = g && g.getExtension && g.getExtension('WEBGL_debug_renderer_info');
-    if (ext) renderer = String(g.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
-    const lose = g && g.getExtension && g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
-  } catch (e) { console.warn('[quality] GPU hint not read', e); }
-  const nav = globalThis.navigator || {};
-  return { renderer, dpr: globalThis.devicePixelRatio || 1, cores: nav.hardwareConcurrency, saveData: !!(nav.connection && nav.connection.saveData) };
-}
-let hintsCache = null;
-const hints = () => (hintsCache ||= gpuHints());
+/**
+ * Hints for the Auto tier. The GPU renderer string comes from the 3D view's own context once it opens (onGpu below), so no extra
+ * WebGL context is created at startup; until then Auto decides from cores, Data Saver and the screen ratio.
+ */
+const hints = () => { const nav = globalThis.navigator || {}; return { renderer: gpuRenderer, dpr: globalThis.devicePixelRatio || 1, cores: nav.hardwareConcurrency, saveData: !!(nav.connection && nav.connection.saveData) }; };
 // Graphics quality (web-only presentation): ?quality= wins for this visit only, else the saved choice, else Auto from the GPU hints.
-let quality = null;
 const applyQuality = (choice, save) => {
   let stored = null;
   try { stored = storage ? storage.getItem(QUALITY_KEY) : null; } catch (e) { console.warn('[quality] choice not read', e); }

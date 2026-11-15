@@ -761,7 +761,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
@@ -1036,6 +1036,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
         if (!gl) { notice('view3d.nogl'); return false; }
         renderer ||= createGlRenderer(gl);
       } catch (err) { console.warn('[view3d] ' + err.message); notice('view3d.nogl'); return false; }
+      if (onGpu) { // the unmasked renderer name feeds the Auto quality tier; browsers that hide it report nothing
+        const ext = gl.getExtension && gl.getExtension('WEBGL_debug_renderer_info');
+        onGpu(ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '') : '');
+      }
       active = true; worldKey = ''; t0 = now(); lastUse = -Infinity;
       for (const [target_, type, fn] of listeners) target_.addEventListener(type, fn);
       loadMeshesOnce().then((set) => {

@@ -73,7 +73,17 @@ async function main() {
   };
   // A hash-only change would be a same-document navigation, so callers that need a fresh load go through about:blank first.
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
-  const shotHash = async () => { const s = (await send('Page.captureScreenshot', { format: 'png' })).result.data; let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+  /** Page.captureScreenshot, retried up to three times: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too. The CDP error is logged, never swallowed. */
+  const capture = async (params = { format: 'png' }) => {
+    for (let attempt = 0; ; attempt++) {
+      const r = await send('Page.captureScreenshot', params);
+      if (r.result && r.result.data) return r.result.data;
+      console.log(`capture failed (attempt ${attempt + 1}): ${JSON.stringify(r.error || r).slice(0, 200)}`);
+      if (attempt >= 3) throw new Error('Page.captureScreenshot failed four times: ' + JSON.stringify(r.error || r).slice(0, 200));
+      await sleep(1500);
+    }
+  };
+  const shotHash = async () => { const s = await capture(); let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
   const rec = (name, ok, evidence) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} :: ${JSON.stringify(evidence)}`); };
   /** Polls fn until it returns a truthy value or ms passes; software GL frames can be seconds apart, so fixed sleeps give false failures. */
   const until = async (fn, ms = 12000) => { for (let t0 = Date.now(); Date.now() - t0 < ms; await sleep(250)) { const v = await fn(); if (v) return v; } return fn(); };
@@ -158,7 +168,7 @@ async function main() {
     const h0 = await shotHash(); await hold('w', 'KeyW', 1200); await sleep(300);
     const h1 = await shotHash(); rec('3d: holding W changes the rendered frame', h0 !== h1, { before: h0, after: h1 });
     // Round 17 post pass: the default render and the ?post=0 direct render are both non-blank, and neither logs a 3D warning.
-    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await send('Page.captureScreenshot', { format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).result.data.length; };
+    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await capture({ format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).length; };
     const withPost = await canvasBytes();
     rec('3d post: default render is non-blank and logs no 3D warning', withPost > 20000 && warns.length === 0, { bytes: withPost, warns: warns.slice(0, 3) });
     await nav('?intro=0&view=3d&post=0#seed=1818&sanity=60'); await sleep(1500);
@@ -558,14 +568,14 @@ async function main() {
     const trisNow = Number((/(\d+) tris/.exec(perfTxt || '') || [])[1]);
     rec('density: the dense village renders inside the triangle budget in the live perf HUD (SwiftShader, indicative)', trisNow > 1000 && trisNow <= 60000, { perfTxt });
     // Weather looks: the same camera and clock, only ?weather= changes; storm must be measurably darker than clear and every name must render without errors.
-    const meanLum = () => ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let s=0,n=0;for(let i=0;i<d.length;i+=4*11){s+=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];n++}return Math.round(s/Math.max(1,n))})()`);
+    const meanLum = () => ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let s=0,s2=0,n=0;for(let i=0;i<d.length;i+=4*11){const l=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];s+=l;s2+=l*l;n++}const m=s/Math.max(1,n);return {m:Math.round(m),sd:Math.round(Math.sqrt(Math.max(0,s2/Math.max(1,n)-m*m)))}})()`); // fog mostly lowers contrast, so the check counts the mean shift plus the contrast change
     const lum = {}, hashes = {};
     for (const w of ['clear', 'storm', 'fog', 'rain']) {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
       await nav(`?intro=0&view=3d&capture=1&grain=0&tick=700&weather=${w}&cam3d=54.4,56,200,4#seed=1818&sanity=100`); await sleep(2000);
       lum[w] = await meanLum(); hashes[w] = await shotHash();
     }
-    rec('weather: storm (a fixed lightning moment in captures) and fog change the mean brightness and rain changes the frame against clear at the same camera and clock', ['storm', 'fog'].every((w) => Math.abs(lum[w] - lum.clear) >= 2) && hashes.rain !== hashes.clear, { lum, hashes });
+    rec('weather: storm (a fixed lightning moment in captures) and fog change the mean brightness or contrast and rain changes the frame against clear at the same camera and clock', Math.abs(lum.storm.m - lum.clear.m) >= 2 && Math.abs(lum.fog.m - lum.clear.m) + Math.abs(lum.fog.sd - lum.clear.sd) >= 2 && hashes.rain !== hashes.clear, { lum, hashes });
     const wnames = await ev(`(async()=>{const c=await import('./src/clock.js');return {a:c.weatherForDay?c.weatherForDay(1818,3):null,b:c.weatherForDay?c.weatherForDay(1818,3):null,names:c.WEATHER_NAMES}})()`).catch((e) => ({ error: e.message }));
     rec('weather: the per-day weather is deterministic and every name is known', !wnames.error && wnames.a === wnames.b && Array.isArray(wnames.names) && wnames.names.length === 7, wnames);
     // Birds: counts follow weather and reduced motion, and the seeded flock is identical for the same seed and moves when stepped.
@@ -573,7 +583,7 @@ async function main() {
     rec('birds: gulls fly in clear weather, shelter in a storm, stay away under reduced motion, are seeded and move', !birds.error && birds.clear > 0 && birds.storm === 0 && birds.reduced === 0 && birds.same && birds.moved && birds.verts > 0, birds);
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
-    rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()) > 5, { lum: await meanLum() });
+    rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()).m > 5, { lum: await meanLum() });
   }
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
