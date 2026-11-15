@@ -86,7 +86,7 @@ async function main() {
     await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
     await hold('w', 'KeyW', 6000);
     const stats = frameStats(await ev(`window.__ft`));
-    const hud = await ev(`document.getElementById('perfHud').textContent`);
+    const hud = await ev(`(document.getElementById('perfHud')||{}).textContent`);
     const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
     rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
   };
@@ -541,7 +541,7 @@ async function main() {
     const dens = await ev(`(async()=>{const w=await import('./src/world-scale.js'),m=await import('./src/view3d-math.js');return {person:w.PERSON_HEIGHT,storey:w.STOREY_HEIGHT,ridgeMin:w.RIDGE_MIN,budget:m.FRAME_BUDGET}})()`).catch((e) => ({ error: e.message }));
     rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 16 calls (round 21: chunked buildings and the held lantern) and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 16 && dens.budget.triangles === 60000, dens);
     await ev(`document.getElementById('perfToggle').click()`); await sleep(2500);
-    const perfTxt = await until(() => ev(`document.getElementById('perfHud').textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
+    const perfTxt = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
     const trisNow = Number((/(\d+) tris/.exec(perfTxt || '') || [])[1]);
     rec('density: the dense village renders inside the triangle budget in the live perf HUD (SwiftShader, indicative)', trisNow > 1000 && trisNow <= 60000, { perfTxt });
     // Weather looks: the same camera and clock, only ?weather= changes; storm must be measurably darker than clear and every name must render without errors.
