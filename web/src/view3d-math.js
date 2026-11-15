@@ -379,6 +379,36 @@ export function terrainRects(gridW, gridD, seed, cell = CELL) {
   return { ground: g, sea: { minX: -FAR, maxX: w + FAR, minZ: -FAR, maxZ: d + FAR, y: -0.4 }, side };
 }
 
+/**
+ * The shoreline for the sea shader's foam band: { axis: 1 when the shore runs along z (sea beyond an x line) else 0, line, sign }, so that
+ * (coordinate - line) * sign is the distance out to sea in metres. Matches the ground edge terrainRects cuts on the coast side.
+ */
+export function shoreLine(gridW, gridD, seed, cell = CELL) {
+  const t = terrainRects(gridW, gridD, seed, cell);
+  if (t.side === 0) return { axis: 1, line: t.ground.minX, sign: -1 };
+  if (t.side === 1) return { axis: 1, line: t.ground.maxX, sign: 1 };
+  return { axis: 0, line: t.ground.minZ, sign: -1 };
+}
+
+/** How wet the stone reads for a weather, 0..1: rain and storm soak it, drizzle half, fog and mist leave a damp film, clear and overcast dry. Drives the wet sheen and darker albedo. */
+export const WETNESS = Object.freeze({ clear: 0, overcast: 0.05, drizzle: 0.55, rain: 0.9, storm: 1, fog: 0.3, mist: 0.25 });
+export const wetness = (weather) => WETNESS[weather] ?? 0;
+
+/** Blob shadow slots the ground shader reads (uBlob[]). */
+export const MAX_BLOBS = 8;
+export const BLOB_RADIUS = 0.55, BLOB_FADE = 30;
+/**
+ * Soft contact shadows under people (villagers, street walkers): the MAX_BLOBS nearest to the eye within BLOB_FADE metres, flat
+ * [x, z, radius, strength] with strength fading to zero at BLOB_FADE. Unused slots are zero. Sorted by distance then id, so it is deterministic.
+ */
+export function blobShadows(people, eye, max = MAX_BLOBS) {
+  const out = new Float32Array(MAX_BLOBS * 4);
+  const near = (people || []).map((p) => ({ id: p.id, x: p.pos[0], z: p.pos[2], d: Math.hypot(p.pos[0] - eye.x, p.pos[2] - eye.z) }))
+    .filter((p) => p.d < BLOB_FADE).sort((a, b) => a.d - b.d || a.id - b.id).slice(0, Math.min(max, MAX_BLOBS));
+  near.forEach((p, i) => out.set([p.x, p.z, BLOB_RADIUS, 0.6 * (1 - p.d / BLOB_FADE)], i * 4));
+  return out;
+}
+
 /** Particle counts for the active weather. Reduced motion draws none: falling rain is motion. */
 export function particleCounts({ weather, dread, reduced }) {
   if (reduced) return { rain: 0, mist: 0 };

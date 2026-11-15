@@ -92,14 +92,14 @@ async function main() {
   };
   /** Quality tiers: ?quality= overrides the saved choice, the HUD names the tier and the 16:9 pixel ceiling holds. Auto on SwiftShader resolves to low. */
   const qualityRun = async () => {
-    const seen = {};
+    const seen = {}; warns.length = 0; // every tier must compile its shaders and keep the post pass: no [view3d] warning
     for (const q of ['low', 'high', 'auto']) {
       await nav(`?intro=0&view=3d&perf=1&quality=${q}#seed=1818&sanity=60`);
       const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => / (low|medium|high) x/.test(t) && t), 20000);
       seen[q] = { hud, select: await ev(`document.getElementById('qualitySelect').value`), canvas: await ev(`(()=>{const c=document.getElementById('view3d');return c.width*c.height})()`), out: (await text('qualityOut')).slice(0, 80) };
     }
     rec('quality: ?quality= picks the tier, the HUD shows it, low draws fewer pixels than high and Auto on software GL is low',
-      / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas, seen);
+      / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas && warns.length === 0, { ...seen, warns: warns.slice(0, 2) });
   };
 
   await send('Runtime.enable'); await send('Page.enable');

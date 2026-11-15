@@ -12,7 +12,7 @@ import {
   CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
-  viewProjection, windowLit, worldBounds, worldBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance,
+  viewProjection, windowLit, worldBounds, worldBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, shoreLine, wetness, blobShadows, MAX_BLOBS,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
@@ -266,6 +266,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
 
 // ---------- shaders ----------
 
+const NO_BLOBS = new Float32Array(MAX_BLOBS * 4);
 const FRAG_HEAD = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
 const SCENE_VS = `attribute vec3 aPos; attribute vec3 aNormal; attribute vec3 aColor; attribute float aGlow; attribute float aPhase; attribute vec2 aUv;
 uniform mat4 uVP; uniform vec4 uWind; uniform float uWindT; varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase; varying vec2 vUv;
@@ -278,49 +279,82 @@ void main(){
 const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase; varying vec2 vUv;
 uniform vec3 uCam; uniform vec3 uFogColor; uniform float uFog; uniform vec3 uAmbient; uniform vec3 uMoonDir; uniform vec3 uMoonColor;
 uniform vec4 uLight[${MAX_LIGHTS}]; uniform vec3 uLightCol[${MAX_LIGHTS}]; uniform vec3 uGlowColor; uniform float uTime; uniform float uFlicker; uniform float uMode;
-uniform float uGroundFog; uniform float uFogSheets; uniform float uDetail; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform sampler2D uPropTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
+uniform float uGroundFog; uniform float uFogSheets; uniform float uDetail; uniform float uWet; uniform vec4 uBlob[${MAX_BLOBS}]; uniform vec3 uShore; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform sampler2D uPropTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+float lumi(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+// Bump from the albedo: two extra taps give the height gradient along the texture axes tu and tv (no derivatives extension needed).
+vec3 bump(vec3 n, sampler2D tex, vec2 uv, float texel, vec3 tu, vec3 tv, float k){
+  float h0 = lumi(texture2D(tex, uv).rgb), hu = lumi(texture2D(tex, uv + vec2(texel, 0.0)).rgb), hv = lumi(texture2D(tex, uv + vec2(0.0, texel)).rgb);
+  return normalize(n - (tu * (hu - h0) + tv * (hv - h0)) * k);
+}
 void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
-  vec3 base = vColor;
+  vec3 base = vColor; float gloss = 0.0; // gloss: how much wet sheen this surface takes (stone, cobbles, slate)
   if (uMode > 0.5 && uMode < 1.5) {
-    if (vPhase < -3.0) base *= mix(vec3(1.0), texture2D(uCobbleTex, vPos.xz * ${INV_TILE.cobble}).rgb * 1.6, 0.9); // cobbled lanes and square
+    if (vPhase < -3.0) { // cobbled lanes and square
+      vec2 cuv = vPos.xz * ${INV_TILE.cobble};
+      base *= mix(vec3(1.0), texture2D(uCobbleTex, cuv).rgb * 1.6, 0.9); gloss = 1.0;
+      if (uDetail > 0.5 && dist < 40.0) n = bump(n, uCobbleTex, cuv, 1.0 / 128.0, vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), 3.0 * (1.0 - dist / 40.0));
+    }
     else {
       base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
       if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * ${INV_TILE.ground}).rgb * 1.6, 0.9);
+      gloss = 0.35; // packed earth only darkens and glints a little
     }
   }
   if (vUv.x > -0.5) base *= texture2D(uPropTex, vUv).rgb; // CC0 prop: its own base colour from the atlas (vColor is its white factor)
   else if (uMode < 0.5 && uHasWall > 0.5) {
     float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
     if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.wall}).rgb * 1.6, 0.85);
-    else if (vNormal.y > 0.35 && vPos.y > 2.2) base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * ${INV_TILE.roof}).rgb * 1.6, 0.9);   // slate and shingle on roof slopes
-    else if (sat < 0.06) base *= mix(vec3(1.0), texture2D(uStoneTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.stone}).rgb * 1.6, 0.9); // stone blocks on grey masonry
+    else if (vNormal.y > 0.35 && vPos.y > 2.2) { base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * ${INV_TILE.roof}).rgb * 1.6, 0.9); gloss = 0.8; } // slate and shingle on roof slopes
+    else if (sat < 0.06) { // stone blocks on grey masonry, with mortar joints pressed in by the bump
+      vec2 suv = vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.stone};
+      base *= mix(vec3(1.0), texture2D(uStoneTex, suv).rgb * 1.6, 0.9); gloss = 0.6;
+      if (uDetail > 0.5 && dist < 30.0 && abs(n.y) < 0.5) { vec3 tu = normalize(cross(vec3(0.0, 1.0, 0.0), n)); n = bump(n, uStoneTex, suv, 1.0 / 128.0, tu, vec3(0.0, 1.0, 0.0), 2.4 * (1.0 - dist / 30.0)); }
+    }
     else base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.timber}).rgb * 1.6, 0.9);                   // timber framed plaster, one bay and storey per tile
   }
+  float wet = uDetail > 0.5 ? uWet * gloss * (uDetail > 1.5 ? 0.65 + 0.35 * vnoise(vPos.xz * 0.45) : 1.0) : 0.0; // puddled patches at detail 2
+  base *= 1.0 - 0.3 * wet; // wet stone is darker
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
+  float shade = 1.0;
+  if (uMode > 0.5 && uMode < 1.5 && uDetail > 0.5) for (int i = 0; i < ${MAX_BLOBS}; i++) { // soft contact shadows under people
+    vec4 B = uBlob[i]; if (B.w <= 0.0) continue;
+    shade *= 1.0 - B.w * (1.0 - smoothstep(B.z * 0.35, B.z, length(vPos.xz - B.xy)));
+  }
+  vec3 spec = vec3(0.0);
+  if (wet > 0.0) spec += uMoonColor * pow(max(dot(reflect(-uMoonDir, n), V), 0.0), 60.0) * wet * 1.6;
   if (uMode < 0.5 || uMode > 2.5) base *= mix(0.5, 1.0, smoothstep(0.0, 1.8, vPos.y));
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
-    vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att;
-    float nl = max(dot(n, normalize(d)), 0.0) * 0.75 + 0.25; lightSum += uLightCol[i] * att * nl;
+    vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att / (1.0 + r2 * 0.08); // windowed inverse square
+    vec3 Ld = normalize(d); float nl = max(dot(n, Ld), 0.0) * 0.75 + 0.25; lightSum += uLightCol[i] * att * nl * 1.35;
+    if (wet > 0.0) spec += uLightCol[i] * att * pow(max(dot(reflect(-Ld, n), V), 0.0), 24.0) * wet * 1.2; // lantern streaks on wet cobbles
   }
-  vec3 col = (base + 0.045) * lightSum;
+  vec3 col = (base + 0.045) * lightSum * shade + spec * shade;
   if (uMode > 1.5 && uMode < 2.5) {
     // moving ripples: three crossed wave trains give the normal; zero speed (reduced motion) leaves them still
     vec2 p = vPos.xz; float t = uWaterT;
     vec2 g = vec2(sin(p.x * 0.9 + t * 1.1) * 0.5 + sin((p.x + p.y) * 1.7 - t * 1.6) * 0.35 + sin(p.y * 3.1 + t * 2.3) * 0.15,
                   cos(p.y * 0.8 + t * 0.9) * 0.5 + cos((p.x - p.y) * 1.5 + t * 1.3) * 0.35 + cos(p.x * 2.9 - t * 2.1) * 0.15) * uRipple;
+    if (uDetail > 1.5) g += vec2(sin(p.x * 6.3 - p.y * 2.1 + t * 3.1), cos(p.y * 5.7 + p.x * 1.3 - t * 2.7)) * 0.08 * uRipple; // fine chop
     vec3 sn = normalize(vec3(g.x, 1.0, g.y));
     float fres = pow(1.0 - max(dot(sn, V), 0.0), uFresnel);
     vec3 R = reflect(-V, sn);
     vec3 skyRefl = mix(uHorizon, uZenith, pow(clamp(R.y, 0.0, 1.0), 0.5));
     col = mix(uSeaTint * (1.0 + lightSum * 2.0), skyRefl, 0.1 + 0.85 * fres);
     col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 70.0) * uMoonGain;
+    if (uDetail > 1.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 900.0) * uMoonGain * 3.0; // sharp glints on the moon path
+    if (uDetail > 0.5) { // shore foam: a broken band that pulses with the swell along the ground edge
+      float off = ((uShore.x > 0.5 ? vPos.x : vPos.z) - uShore.y) * uShore.z;
+      float brk = vnoise(vPos.xz * 0.7 + vec2(t * 0.15, 0.0)) * 0.6 + vnoise(vPos.xz * 2.3 - t * 0.3) * 0.4;
+      float band = (1.0 - smoothstep(0.0, 3.5, off + brk * 1.6)) * smoothstep(-0.5, 0.2, off) * (0.6 + 0.4 * sin(off * 2.2 - t * 1.4));
+      col = mix(col, vec3(0.62, 0.68, 0.7) * (0.35 + lightSum * 1.5), clamp(band * smoothstep(0.35, 0.7, brk + 0.2), 0.0, 0.85));
+    }
     for (int i = 0; i < ${MAX_LIGHTS}; i++) {
       vec4 L = uLight[i]; if (L.w <= 0.0) continue;
       vec3 d = L.xyz - vPos; float att = clamp(1.0 - dot(d, d) / (L.w * L.w * 9.0), 0.0, 1.0);
@@ -334,12 +368,13 @@ void main(){
   float sheet = uFogSheets > 0.5 ? 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7)) : 1.0; // drifting sheets (tier fogSheets) or a flat layer
   float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
   f = 1.0 - (1.0 - f) * (1.0 - mist);
-  gl_FragColor = vec4(mix(col, uFogColor, clamp(f, 0.0, 1.0)), 1.0);
+  vec3 fogCol = uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)); // moonlight scattered in the haze toward the moon
+  gl_FragColor = vec4(mix(col, fogCol, clamp(f, 0.0, 1.0)), 1.0);
 }`;
 const SKY_VS = 'attribute vec2 aPos; varying vec2 vNdc; void main(){ vNdc = aPos; gl_Position = vec4(aPos, 0.9999, 1.0); }';
 const SKY_FS = `${FRAG_HEAD}varying vec2 vNdc; uniform vec3 uF; uniform vec3 uR; uniform vec3 uU; uniform float uTy; uniform float uAspect;
 uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uMoonDir; uniform vec3 uMoonColor; uniform float uMoonSize; uniform float uSun; uniform float uStars; uniform float uCloud; uniform float uTime;
-uniform vec3 uEyeDir; uniform vec4 uEye; uniform float uEyeOpen; uniform float uPupil;
+uniform vec3 uEyeDir; uniform vec4 uEye; uniform float uEyeOpen; uniform float uPupil; uniform float uDetail;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -349,8 +384,10 @@ void main(){
   if (h < 0.0) col = uHorizon * 0.8;
   vec2 uv = d.xz / (abs(h) + 0.2) * 0.8 + vec2(uTime * 0.009, uTime * 0.002);
   float cl = (vnoise(uv * 2.0) * 0.6 + vnoise(uv * 5.0) * 0.3 + vnoise(uv * 11.0) * 0.1);
+  if (uDetail > 1.5) cl = cl * 0.9 + vnoise(uv * 23.0 - uTime * 0.01) * 0.1; // wispy edges
   float c = smoothstep(0.42, 0.78, cl) * uCloud * clamp(h * 5.0, 0.0, 1.0);
-  col = mix(col, uHorizon * 0.55 + 0.03, c * 0.7);
+  float mlit = pow(max(dot(d, uMoonDir), 0.0), 5.0) * step(0.0001, uMoonColor.z); // clouds near the moon catch a silver edge
+  col = mix(col, uHorizon * 0.55 + 0.03 + uMoonColor * mlit * (1.0 - smoothstep(0.42, 0.9, cl)) * (uDetail > 0.5 ? 0.9 : 0.0), c * 0.7);
   vec3 g = floor(d * 160.0); float sh = hash(g.xy + g.z * 7.31); float s = step(0.9972, sh) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h) * (0.65 + 0.35 * sin(uTime * 2.1 + sh * 600.0));
   col += vec3(0.8, 0.85, 1.0) * s;
   float m = dot(d, uMoonDir); float disc = smoothstep(cos(uMoonSize), cos(uMoonSize * 0.9), m);
@@ -397,22 +434,36 @@ const PART_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uAlpha; varying 
 void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = clamp(1.0 - r, 0.0, 1.0) * uAlpha * vFade; gl_FragColor = vec4(uColor, a); }`;
 
 const POST_VS = 'attribute vec2 aPos; varying vec2 vUv; void main(){ vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }';
-// One pass: thresholded multi-tap bloom (two spiral rings), radial chromatic shift, teal shadow and warm highlight grade, vignette, film grain.
+// One pass: optional FXAA, thresholded multi-tap bloom (two spiral rings), radial chromatic shift, filmic (ACES fit) tone map,
+// cold shadow and warm highlight grade, vignette, film grain.
 const POST_FS = `${FRAG_HEAD}varying vec2 vUv; uniform sampler2D uScene; uniform float uAspect; uniform float uVignette; uniform float uGrain; uniform float uGrainT;
-uniform float uBloom; uniform float uThreshold; uniform float uChroma;
+uniform float uBloom; uniform float uThreshold; uniform float uChroma; uniform float uFxaa; uniform vec2 uTexel; uniform float uExposure;
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+// FXAA-style edge blend: find the local luma edge from four neighbours and average along it. Cheap (five taps), no extension.
+vec3 fxaa(vec2 uv){
+  vec3 m = texture2D(uScene, uv).rgb; float lm = luma(m);
+  float ln = luma(texture2D(uScene, uv + vec2(0.0, uTexel.y)).rgb), ls = luma(texture2D(uScene, uv - vec2(0.0, uTexel.y)).rgb);
+  float le = luma(texture2D(uScene, uv + vec2(uTexel.x, 0.0)).rgb), lw = luma(texture2D(uScene, uv - vec2(uTexel.x, 0.0)).rgb);
+  float range = max(max(ln, ls), max(max(le, lw), lm)) - min(min(ln, ls), min(min(le, lw), lm));
+  if (range < max(0.04, lm * 0.15)) return m;
+  vec2 dir = normalize(vec2(ls - ln, le - lw) + 1e-5) * uTexel; // along the edge: perpendicular to the luma gradient
+  return (texture2D(uScene, uv + dir * 0.5).rgb + texture2D(uScene, uv - dir * 0.5).rgb + m) / 3.0;
+}
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec3 bright(vec2 uv){ vec3 c = texture2D(uScene, uv).rgb; float l = max(c.r, max(c.g, c.b)); return c * max(l - uThreshold, 0.0) / max(1.0 - uThreshold, 0.1); }
 void main(){
   vec2 uv = vUv, dir = uv - 0.5;
-  vec3 col = vec3(texture2D(uScene, uv + dir * uChroma).r, texture2D(uScene, uv).g, texture2D(uScene, uv - dir * uChroma).b);
+  vec3 col = uFxaa > 0.5 ? fxaa(uv) : texture2D(uScene, uv).rgb;
+  col.r = mix(col.r, texture2D(uScene, uv + dir * uChroma).r, step(0.00001, uChroma)); col.b = mix(col.b, texture2D(uScene, uv - dir * uChroma).b, step(0.00001, uChroma));
   vec2 px = vec2(1.0 / uAspect, 1.0); vec3 glow = vec3(0.0);
   for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; float r = sqrt((float(i) + 0.5) / 10.0);
     glow += bright(uv + vec2(cos(a), sin(a)) * r * 0.022 * px) * 1.1 + bright(uv + vec2(cos(a + 1.0), sin(a + 1.0)) * r * 0.06 * px) * 0.55; }
   col += glow * (uBloom / 10.0) * vec3(1.0, 0.92, 0.8);
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(col * vec3(0.9, 1.0, 1.1), col * vec3(1.06, 1.0, 0.92), smoothstep(0.15, 0.7, lum));
-  col = col * 1.06;
-  col = (col - 0.5) * 1.1 + 0.5 + 0.0;
+  // filmic toe and shoulder in linear light: the scene writes display values, so decode, tone map, re-encode. Blacks sink, lantern cores roll off
+  col = pow(aces(pow(max(col, 0.0), vec3(2.2)) * uExposure * 0.95), vec3(1.0 / 2.2));
   float v = smoothstep(0.35, 0.95, length(dir * vec2(uAspect * 0.8, 1.0)) * 1.25);
   col *= 1.0 - uVignette * v;
   col += (hash(gl_FragCoord.xy + uGrainT) - 0.5) * uGrain;
@@ -568,6 +619,7 @@ export function createGlRenderer(gl) {
       const pl = gl.getAttribLocation(post.p, 'aPos'); gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl, 2, gl.FLOAT, false, 8, 0);
       gl.uniform1i(post.u('uScene'), 0); gl.uniform1f(post.u('uAspect'), f.aspect); gl.uniform1f(post.u('uVignette'), f.post.vignette); gl.uniform1f(post.u('uGrain'), f.post.grain);
       gl.uniform1f(post.u('uGrainT'), f.post.grainMotion ? (Math.floor(f.time * 24) % 97) * 13.7 : 0);
+      gl.uniform1f(post.u('uFxaa'), f.post.fxaa ? 1 : 0); gl.uniform2f(post.u('uTexel'), 1 / size[0], 1 / size[1]); gl.uniform1f(post.u('uExposure'), f.post.exposure ?? 1);
       gl.uniform1f(post.u('uBloom'), f.post.bloom); gl.uniform1f(post.u('uThreshold'), f.post.bloomThreshold); gl.uniform1f(post.u('uChroma'), f.post.chroma);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
@@ -578,7 +630,7 @@ export function createGlRenderer(gl) {
       lightPos.fill(0); lightCol.fill(0);
       f.lights.slice(0, MAX_LIGHTS).forEach((l, i) => { lightPos.set([l.pos[0], l.pos[1], l.pos[2], l.radius], i * 4); lightCol.set(l.color, i * 3); });
       gl.uniformMatrix4fv(scene.u('uVP'), false, f.vp); gl.uniform3fv(scene.u('uCam'), f.camPos); gl.uniform3fv(scene.u('uFogColor'), f.fogColor);
-      gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uFogSheets'), f.fogSheets ?? 1); gl.uniform1f(scene.u('uDetail'), f.detail ?? 1); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
+      gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uFogSheets'), f.fogSheets ?? 1); gl.uniform1f(scene.u('uDetail'), f.detail ?? 1); gl.uniform1f(scene.u('uWet'), f.wet || 0); gl.uniform4fv(scene.u('uBlob'), f.blobs || NO_BLOBS); gl.uniform3fv(scene.u('uShore'), f.shore || [1, -1e4, -1]); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
       gl.uniform2fv(scene.u('uFogOff'), f.fogOffset); gl.uniform1f(scene.u('uWaterT'), f.waterTime); gl.uniform1f(scene.u('uRipple'), f.sea.ripple); gl.uniform1f(scene.u('uFresnel'), f.sea.fresnel);
       gl.uniform3fv(scene.u('uSeaTint'), f.sea.tint); gl.uniform1f(scene.u('uMoonGain'), f.sea.moonGain); gl.uniform1f(scene.u('uLampGain'), f.sea.lanternGain);
       gl.uniform3fv(scene.u('uZenith'), f.sky.zenith); gl.uniform3fv(scene.u('uHorizon'), f.sky.horizon);
@@ -610,7 +662,7 @@ export function createGlRenderer(gl) {
       gl.uniform3fv(sky.u('uZenith'), f.sky.zenith); gl.uniform3fv(sky.u('uHorizon'), f.sky.horizon);
       gl.uniform3fv(sky.u('uMoonDir'), f.moon.dir); gl.uniform3fv(sky.u('uMoonColor'), f.moon.color); gl.uniform1f(sky.u('uMoonSize'), f.moon.size);
       gl.uniform3fv(sky.u('uEyeDir'), f.eye.dir); gl.uniform4f(sky.u('uEye'), f.eye.width, f.eye.height, 0, 0); gl.uniform1f(sky.u('uEyeOpen'), f.eye.open); gl.uniform1f(sky.u('uPupil'), f.reduced ? 0 : Math.sin(f.time / 2.6) * 0.2);
-      gl.uniform1f(sky.u('uSun'), f.sunWeight); gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
+      gl.uniform1f(sky.u('uDetail'), f.detail ?? 1); gl.uniform1f(sky.u('uSun'), f.sunWeight); gl.uniform1f(sky.u('uStars'), f.sky.stars); gl.uniform1f(sky.u('uCloud'), f.sky.cloud); gl.uniform1f(sky.u('uTime'), f.reduced ? 0 : f.time);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.depthMask(true);
       // lantern halos: additive soft sprites, depth tested so walls hide them
@@ -735,6 +787,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const sp = spawnPoint(s.layout, s.gridW, s.gridD), override = parseCamParam(camParam);
       cam = override ? { x: override.x, y: EYE_HEIGHT, z: override.z, yaw: override.yaw, pitch: override.pitch } : { x: sp.x, y: EYE_HEIGHT, z: sp.z, yaw: 0, pitch: -0.04 };
     }
+  }
+  let shoreKey = '', shoreVec = null;
+  /** The sea shader's shoreline, recomputed only when the village changes. */
+  function shore(s) {
+    const k = `${s.seed}|${s.gridW}|${s.gridD}`;
+    if (k !== shoreKey) { shoreKey = k; const l = shoreLine(s.gridW, s.gridD, s.seed); shoreVec = [l.axis, l.line, l.sign]; }
+    return shoreVec;
   }
   function ensureParticles(s) {
     const base = particleCounts({ weather: s.night.weather, dread: s.dread, reduced }), counts = { rain: Math.round(base.rain * tier.particles), mist: Math.round(base.mist * tier.particles) };
@@ -907,7 +966,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     renderer.draw({
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, fogSheets: tier.fogSheets ? 1 : 0,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
     });
   }
 

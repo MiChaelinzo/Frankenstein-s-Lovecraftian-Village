@@ -539,3 +539,35 @@ test('frame budget: the worst chunked building frame plus the held lantern stays
   assert.equal(worst.drawCalls, 16); assert.ok(worst.drawCalls <= M.FRAME_BUDGET.drawCalls);
   assert.equal(M.frameCost({ vertices: { building: 30 }, buildingRanges: 0 }).drawCalls, 2, 'an all culled building buffer still counts once (upper bound)');
 });
+
+test('shoreLine: the foam line sits on the ground edge of the coast side and points out to sea', () => {
+  for (const seed of [1, 2, 3, 7, 1818]) {
+    const t = M.terrainRects(24, 24, seed), l = M.shoreLine(24, 24, seed);
+    const edge = t.side === 0 ? t.ground.minX : t.side === 1 ? t.ground.maxX : t.ground.minZ;
+    assert.equal(l.line, edge); assert.equal(l.axis, t.side === 2 ? 0 : 1);
+    const inland = l.axis ? (t.ground.minX + t.ground.maxX) / 2 : (t.ground.minZ + t.ground.maxZ) / 2;
+    assert.ok((inland - l.line) * l.sign < 0, 'the village side has a negative distance out to sea');
+  }
+});
+
+test('wetness: rain and storm soak, drizzle half, clear dry, unknown dry', () => {
+  assert.ok(M.wetness('storm') >= M.wetness('rain') && M.wetness('rain') > M.wetness('drizzle') && M.wetness('drizzle') > M.wetness('fog'));
+  assert.equal(M.wetness('clear'), 0); assert.equal(M.wetness('nonsense'), 0);
+});
+
+test('blobShadows: nearest first, fades with distance, capped at MAX_BLOBS, deterministic', () => {
+  const people = Array.from({ length: 12 }, (_, i) => ({ id: i, pos: [i * 2, 0, 0] })), eye = { x: 0, z: 0 };
+  const b = M.blobShadows(people, eye);
+  assert.equal(b.length, M.MAX_BLOBS * 4); assert.deepEqual(b, M.blobShadows([...people].reverse(), eye));
+  assert.equal(b[0], 0); assert.ok(b[3] > b[7] && b[7] > 0, 'strength falls off with distance');
+  assert.ok(b[3] <= 0.6 + 1e-6);
+  const far = M.blobShadows([{ id: 1, pos: [M.BLOB_FADE + 1, 0, 0] }], eye);
+  assert.ok(far.every((v) => v === 0), 'beyond the fade distance nothing is drawn');
+  assert.ok(M.blobShadows(null, eye).every((v) => v === 0));
+});
+
+test('shader wiring: tier detail gates bump, wet sheen, blob shadows and foam; post has filmic tone map and FXAA', async () => {
+  const src = readFileSync(new URL('../src/view3d.js', import.meta.url), 'utf8');
+  for (const needle of ['uniform float uDetail', 'uniform float uWet', 'uBlob[', 'uniform vec3 uShore', 'vec3 aces(', 'vec3 fxaa(', 'uniform float uFogSheets', 'vec3 bump(']) assert.ok(src.includes(needle), needle);
+  assert.ok(!/OES_standard_derivatives|dFdx|dFdy/.test(src), 'no extension needed: bump uses extra taps');
+});
