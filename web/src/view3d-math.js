@@ -4,6 +4,7 @@
 import { SeededRandom, tierFor } from './core.js';
 import { queryParam } from './util.js';
 import { facingDx, facingDz } from './streets.js';
+import { keyLook } from './daylight.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
@@ -455,6 +456,8 @@ export function particleSeeds(seed, n, salt = 0) {
 
 /** Below this render scale (the dynamic resolution governor's nextScale) the scene is drawn directly: the post pass costs fill rate. */
 export const POST_MIN_QUALITY = 0.75;
+/** Chromatic aberration is a high dread effect only: exactly zero below this dread. */
+export const CHROMA_DREAD = 0.55;
 /**
  * Parameters of the single fullscreen post pass. quality is the governor's render scale 0.5..1.
  * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.8 luminance threshold, chroma 0..0.004 (uv offset).
@@ -464,9 +467,85 @@ export function postParams({ dread = 0, reduced = false, quality = 1, tier = nul
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
     enabled: q >= POST_MIN_QUALITY && (!tier || tier.post), vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
-    bloom: tier ? tier.bloom : 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
+    bloom: tier ? tier.bloom : 0.45, bloomThreshold: 0.8, chroma: reduced || d < CHROMA_DREAD ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
     exposure: 1.0 - 0.12 * d, // the filmic curve darkens slightly as dread rises
   };
+}
+
+// ---------- look: colour grade, close fog, window mood, rim light, god rays (presentation only: web-only, pure and tested) ----------
+
+const smooth01 = (t) => { const x = clamp(t, 0, 1); return x * x * (3 - 2 * x); };
+/** Bump 0..1 that peaks at the minute centre and is gone at +-half minutes (wraps over midnight). */
+const dayBump = (m, centre, half) => { let d = Math.abs(m - centre); d = Math.min(d, 1440 - d); return smooth01(1 - d / half); };
+const PAL = {
+  night: { shadow: [0.84, 0.96, 1.14], high: [0.95, 1.0, 1.1], sat: 0.9, contrast: 1.08 },       // cold blue shadows
+  day: { shadow: [0.94, 1.0, 1.05], high: [1.02, 1.0, 0.97], sat: 0.88, contrast: 1.02 },       // overcast, drained
+  dusk: { shadow: [0.8, 1.0, 1.06], high: [1.16, 0.97, 0.76], sat: 0.98, contrast: 1.08 },       // teal shadows, amber highlights
+  sick: { shadow: [0.86, 1.04, 0.84], high: [0.98, 1.06, 0.82], sat: 0.6, contrast: 1.14 },     // sickly green, desaturated
+};
+/**
+ * Curve grade of the single post pass, a pure function of the clock, dread, weather and tier (no LUT texture).
+ * shadow and highlight are per channel multipliers blended by luminance; sat scales saturation, contrast pivots on mid grey.
+ * godRays (0..1) is the moon shaft strength: High tier only, never with high contrast, fading when the moon is a sun by day.
+ * High contrast removes the tints, grain and vignette depth so text and edges stay plain.
+ * Returns { enabled, shadow, highlight, sat, contrast, godRays, vignetteBoost, grainScale }.
+ */
+export function gradeParams({ tick = 0, dread = 0, weather = 'clear', tier = null, highContrast = false } = {}) {
+  const k = keyLook(Number.isFinite(tick) ? tick : 0), d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), m = ((Math.floor(tick) % 1440) + 1440) % 1440 || 0;
+  const warm = Math.max(dayBump(m, 960, 110), 0.5 * dayBump(m, 80, 80));
+  const lay = (key) => mixc(mixc(PAL.night[key], PAL.day[key], k.w), PAL.dusk[key], warm), lays = (key) => mix1(mix1(PAL.night[key], PAL.day[key], k.w), PAL.dusk[key], warm);
+  const sick = smooth01(d * 1.25 - 0.05) * 0.85;
+  let shadow = mixc(lay('shadow'), PAL.sick.shadow, sick), highlight = mixc(lay('high'), PAL.sick.high, sick);
+  let sat = mix1(lays('sat'), PAL.sick.sat, sick), contrast = mix1(lays('contrast'), PAL.sick.contrast, sick);
+  const wl = weather === 'storm' ? 0.82 : weather === 'rain' ? 0.9 : weather === 'fog' ? 0.86 : 1; sat *= wl;
+  const tiered = !tier || tier.post !== false;
+  if (highContrast) { shadow = mixc(shadow, [1, 1, 1], 0.9); highlight = mixc(highlight, [1, 1, 1], 0.9); sat = 1; contrast = 1.04; }
+  return {
+    enabled: tiered, shadow, highlight, sat, contrast,
+    godRays: !highContrast && tier && tier.godRays ? tier.godRays * (1 - k.w) * (0.55 + 0.45 * (1 - d)) : 0,
+    vignetteBoost: highContrast ? -0.15 : 0.1 * sick, grainScale: highContrast ? 0 : 1,
+  };
+}
+const mix1 = (a, b, t) => a + (b - a) * t;
+
+/**
+ * Close fog by tier, time of day and dread. density scales the distance fog (a denser tier also culls sooner, which saves frames),
+ * ground scales the low mist, groundHeight stretches it, and color pulls the haze toward a sick green as dread climbs.
+ * The fog colour still tracks the sky: it starts from the sky's own fog colour, so dusk fog is amber and night fog is cold.
+ */
+export function closeFog({ fog, dread = 0, tier = null, w = 0 } = {}) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), t = tier || {}, base = Array.isArray(fog) ? fog : [0.3, 0.3, 0.35];
+  return {
+    density: (t.fogDense ?? 1) * (1 + 0.1 * d), ground: (t.groundDense ?? 1) * (1 + 0.25 * (1 - w)), groundHeight: 1 + 0.25 * d,
+    color: mixc(base, [base[0] * 0.55 + 0.1, base[1] * 0.9 + 0.1, base[2] * 0.55 + 0.06], 0.3 * d),
+  };
+}
+
+/**
+ * Which windows stay dark and which gutter, as fractions of the lit windows (the shader hashes per house, storey and bay against them).
+ * Dread empties windows and makes more of them flicker; by day nobody reads the difference.
+ */
+export function windowMood({ dread = 0, tier = null } = {}) {
+  const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1);
+  return { unlit: tier && tier.detail > 0 ? 0.2 + 0.3 * d : 0, flicker: tier && tier.detail > 0 ? 0.07 + 0.15 * d : 0 };
+}
+
+/** Rim light colour: the sky's horizon colour plus a touch of the moon, so edges facing the glow catch light. Zero on Low. */
+export function rimLight({ horizon = [0.3, 0.3, 0.4], moonColor = [0, 0, 0], dread = 0, tier = null } = {}) {
+  const k = tier && tier.detail > 0 ? 0.28 * (1 - 0.4 * clamp(dread, 0, 1)) : 0;
+  return horizon.map((v, i) => (v * 0.7 + (moonColor[i] || 0) * 0.15) * k);
+}
+
+/** Where a world point lands on screen: uv in 0..1 and whether it is in front of the camera. vp is the column major view projection. */
+export function projectToScreen(vp, p) {
+  const x = vp[0] * p[0] + vp[4] * p[1] + vp[8] * p[2] + vp[12], y = vp[1] * p[0] + vp[5] * p[1] + vp[9] * p[2] + vp[13], w = vp[3] * p[0] + vp[7] * p[1] + vp[11] * p[2] + vp[15];
+  return w > 1e-4 ? { u: (x / w) * 0.5 + 0.5, v: (y / w) * 0.5 + 0.5, visible: true } : { u: 0.5, v: 0.5, visible: false };
+}
+/** Moon shaft strength after the screen test: fades out as the moon leaves the frame and when it is behind the camera. */
+export function godRayAmount(strength, screen) {
+  if (!screen.visible || strength <= 0) return 0;
+  const edge = Math.max(Math.abs(screen.u - 0.5), Math.abs(screen.v - 0.5));
+  return strength * smooth01(1 - (edge - 0.5) / 0.4);
 }
 
 // ---------- performance ----------

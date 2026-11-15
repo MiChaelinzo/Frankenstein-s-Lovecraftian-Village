@@ -119,6 +119,7 @@ const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash l
 // Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
 let gpuRenderer = '', quality = null;
 const view3d = createView3d({
+  highContrast: () => document.documentElement.classList.contains('hc'),
   canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0', thirdParty: optParam('thirdparty') !== '0',
   getScene: () => ({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,

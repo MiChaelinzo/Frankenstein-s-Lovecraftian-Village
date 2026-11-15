@@ -9,12 +9,13 @@ export const QUALITY_CHOICES = Object.freeze(['auto', 'low', 'medium', 'high']);
  * maxPixels: backing store ceiling. minScale: lowest dynamic resolution scale. post: the fullscreen post pass (tone map, grade, bloom, grain).
  * bloom: post bloom gain. fxaa: edge smoothing in the post pass. detail: shader detail level (0 flat, 1 bump, wet sheen, foam and blob
  * shadows, 2 adds a third wave train, an extra cloud octave and moon glints on wet stone). particles, fireflies, birds: count multipliers.
+ * fogDense: distance fog multiplier (denser also culls sooner, saving frames). groundDense: low mist multiplier. godRays: moon shaft strength (High only).
  * fogSheets: drifting noise in the ground mist. sky2d: layered dusk sky and window glow on the 2D canvas.
  */
 export const QUALITY_TIERS = Object.freeze({
-  low: Object.freeze({ maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false }),
-  medium: Object.freeze({ maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true }),
-  high: Object.freeze({ maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true }),
+  low: Object.freeze({ maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false, fogDense: 1.3, groundDense: 1, godRays: 0 }),
+  medium: Object.freeze({ maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.2, groundDense: 1.35, godRays: 0 }),
+  high: Object.freeze({ maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.12, groundDense: 1.6, godRays: 1 }),
 });
 
 /** A tier or choice name from free text (URL, storage, select), lower-cased; null when it is not one of QUALITY_CHOICES. */
