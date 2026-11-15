@@ -8,7 +8,7 @@ import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../s
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
 import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
-import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer } from '../src/view3d.js';
+import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer, buildHeldLantern, HELD_LANTERN_OFFSET, HELD_LANTERN_SWING_RAD } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
 import { texturePlan } from '../src/pack.js';
 import { tierFor } from '../src/core.js';
@@ -300,7 +300,7 @@ test('frame budget (pure counts, not timings): worst case weather, dread and lig
 });
 test('view3d wiring for round 15: fly camera replaces walking, pack textures only via the plan, no network', () => {
   const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), app = readFileSync(join(web, 'src', 'app.js'), 'utf8');
-  assert.match(v, /s\.fly \? \{ \.\.\.s\.fly \}/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
+  assert.match(v, /s\.fly \? streetFly\(s\.fly\)/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
   // the only fetches are the original meshes and the same-origin CC0 upgrade under THIRD_PARTY_BASE; pack textures load through Image
   const rest = v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '').replace(/loadThirdPartyModels\(fetch\.bind\(globalThis\), THIRD_PARTY_BASE/, '').replace(/async function fetchImage\(url\) \{\s*try \{\s*const res = await fetch\(url\);/, '');
   assert.ok(!/fetch\(/.test(rest), 'no other fetch in view3d.js');
@@ -466,4 +466,108 @@ test('combineDrive sums the canvas gesture and the on-screen stick, clamped, ign
   assert.deepEqual(combineDrive({ forward: 1, strafe: 0 }, { forward: -1, strafe: 0 }), { forward: 0, strafe: 0 });
   assert.deepEqual(combineDrive(null, { forward: NaN, strafe: 0.25 }), { forward: 0, strafe: 0.25 });
   assert.deepEqual(combineDrive(), { forward: 0, strafe: 0 });
+});
+
+// ---------- round 21: chunk culling of the static building buffer ----------
+const tri = (x, z, uvSeed) => [[x, 0, z], [x + 1, 0, z], [x, 2, z]].flatMap((p, k) => [...p, 0, 1, 0, 0.5, 0.5, 0.5, 0, uvSeed + k]); // 11 floats per vertex, phase carries an id
+
+test('partitionChunks keeps every triangle and its uv, groups by 24 m cell, and is deterministic', () => {
+  const spots = [[2, 2], [90, 2], [3, 50], [50, 50], [4, 4], [91, 3]], v = new Float32Array(spots.flatMap(([x, z], i) => tri(x, z, i * 10)));
+  const uv = new Float32Array(spots.flatMap((_, i) => [i, 0, i, 1, i, 2]));
+  const a = M.partitionChunks(v, uv, VERTEX_FLOATS);
+  assert.equal(a.vertices.length, v.length); assert.equal(a.uv.length, uv.length);
+  assert.equal(a.chunks.reduce((n, c) => n + c.count, 0), spots.length * 3);
+  assert.ok(a.chunks.length >= 4 && a.chunks.length <= spots.length);
+  const ids = (arr, f) => Array.from({ length: arr.length / f / 3 }, (_, t) => arr[t * 3 * f + 10]).sort((x, y) => x - y);
+  assert.deepEqual(ids(a.vertices, VERTEX_FLOATS), ids(v, VERTEX_FLOATS), 'same triangles');
+  for (let t = 0; t < a.vertices.length / VERTEX_FLOATS / 3; t++) assert.equal(a.uv[t * 6], Math.round(a.vertices[t * 3 * VERTEX_FLOATS + 10] / 10), 'uv follows its triangle');
+  for (const c of a.chunks) for (let i = c.first; i < c.first + c.count; i++) for (let k = 0; k < 3; k += 2) {
+    const p = a.vertices[i * VERTEX_FLOATS + k]; assert.ok(p >= c.min[k] && p <= c.max[k], 'chunk box encloses its vertices');
+  }
+  assert.deepEqual(M.partitionChunks(v, uv, VERTEX_FLOATS), a);
+  assert.equal(M.partitionChunks(v, null, VERTEX_FLOATS).uv, null); assert.equal(M.partitionChunks(new Float32Array(0), null, VERTEX_FLOATS).chunks.length, 0);
+});
+
+test('visibleRanges drops chunks behind the camera, outside the view and beyond the fog distance, and merges neighbours', () => {
+  const box = (x, first) => ({ first, count: 3, min: [x - 5, 0, -20], max: [x + 5, 3, -10] });
+  const chunks = [box(0, 0), box(12, 3), box(500, 6), { first: 9, count: 3, min: [-5, 0, 30], max: [5, 3, 40] }];
+  const cam = { x: 0, y: 1.6, z: 0, yaw: 0, pitch: 0 }, planes = M.frustumPlanes(M.viewProjection(cam, 16 / 9));
+  assert.equal(M.forwardVector(0, 0)[2], -1, 'camera at yaw 0 looks along -z, so the chunks at z -20..-10 are ahead');
+  assert.deepEqual(M.visibleRanges(chunks, planes, [0, 1.6, 0]), [{ first: 0, count: 6 }], 'the two near chunks merge; far-off-axis and behind are culled');
+  assert.deepEqual(M.visibleRanges(chunks, planes, [0, 1.6, 0], 5), [], 'beyond the fog distance nothing is drawn');
+  assert.equal(M.visibleRanges(chunks, planes, [0, 1.6, 0], M.fogCullDistance(0.011)).length, 1);
+  assert.equal(M.fogCullDistance(0), Infinity); near(M.fogCullDistance(0.02), 150);
+  assert.ok(Math.exp(-((M.fogCullDistance(0.02) * 0.02) ** 2)) < 0.001, 'what is culled is already fully fogged');
+});
+
+test('renderer: setWorld chunks the building buffer once and a frame draws fewer building vertices when the camera faces away', () => {
+  const calls = [];
+  const gl = new Proxy({}, { get: (_, name) => (typeof name === 'string' && /^[A-Z_0-9]+$/.test(name) ? 1 : (...a) => { calls.push([name, ...a]); return name === 'getShaderParameter' || name === 'getProgramParameter' ? true : {}; }) });
+  const r = createGlRenderer(gl), l = layout(7), world = buildWorld({ layout: l, meshes: new Map([['house_a', mesh('house_a')], ['house_b', mesh('house_b')], ['church', mesh('church')]]), seed: 7, gridW: 24, gridD: 24 });
+  r.setWorld(world); r.resize(320, 180);
+  const frame = (cam) => { const sk = M.hazedSky('night', 'clear', 0.4, 2); return { vp: M.viewProjection(cam, 16 / 9), basis: M.cameraBasis(cam), camPos: [cam.x, cam.y, cam.z], aspect: 16 / 9, time: 1, reduced: false, sky: sk, moon: M.moonParams(7, 1, 'night', 'clear'), moonLight: [0.5, 0.5, 0.5],
+    lights: [], fog: 0.011, groundFog: 0.03, groundHeight: 2.5, eye: { ...M.eyeParams(7, 2), open: 0 }, fogColor: sk.fog, glowColor: [1, 0.7, 0.4], windU: [1, 0, 0.5, 0.5], rain: M.precipitationStyle('clear', M.windState({ weather: 'clear', seed: 7 })), pointScale: 90,
+    moonLightDir: null, waterTime: 1, sea: M.seaParams({ dread: 0.4 }), fogOffset: [0, 0], flies: M.fireflyStyle(0.4, false), post: M.postParams({ dread: 0.4 }) }; };
+  assert.equal(r.counts().building, world.building.length / VERTEX_FLOATS); assert.ok(r.counts().buildingChunks >= 2);
+  r.drawScene(frame({ x: 48, y: 1.6, z: 0, yaw: Math.PI, pitch: 0 })); const facing = r.counts().buildingDrawn;
+  r.drawScene(frame({ x: 48, y: 1.6, z: 0, yaw: 0, pitch: 0 })); const away = r.counts().buildingDrawn;
+  assert.ok(facing > 0 && away < facing, `facing ${facing} vs away ${away} of ${r.counts().building}`);
+  assert.ok(r.counts().buildingChunks <= 20, 'worst case building draw calls stay small');
+});
+
+test('held lantern: small, in the lower right of the view, past the near plane, still under reduced motion, swings when walking', () => {
+  const eye = { x: 40, y: 1.6, z: 40, yaw: 0.7, pitch: -0.1 }, basis = M.cameraBasis(eye), vp = M.viewProjection(eye, 16 / 9);
+  const a = buildHeldLantern({ eye, basis, swingPhase: 0.4 });
+  assert.equal(a.length % (3 * VERTEX_FLOATS), 0); assert.ok(a.length / VERTEX_FLOATS / 3 < 100, 'under 100 triangles');
+  const ys = []; let visible = 0;
+  for (let i = 0; i < a.length; i += VERTEX_FLOATS) {
+    const p = [a[i] - eye.x, a[i + 1] - eye.y, a[i + 2] - eye.z], depth = p[0] * basis.f[0] + p[1] * basis.f[1] + p[2] * basis.f[2];
+    assert.ok(depth > M.NEAR + 0.2, `vertex ${i} in front of the near plane (${depth})`);
+    const c = [0, 1, 2, 3].map((r) => vp[r] * a[i] + vp[4 + r] * a[i + 1] + vp[8 + r] * a[i + 2] + vp[12 + r]), nx = c[0] / c[3], ny = c[1] / c[3];
+    assert.ok(nx > 0.1, 'right half'); ys.push(ny); if (ny > -1) visible++;
+  }
+  assert.ok(Math.max(...ys) < -0.2 && visible > 0, `lower part of the screen and partly visible (top ${Math.max(...ys).toFixed(2)})`);
+  assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v > 0.5), 'the glass glows');
+  assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4, reduced: true }), buildHeldLantern({ eye, basis, swingPhase: 2.9, reduced: true }), 'still with reduced motion');
+  assert.notDeepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), buildHeldLantern({ eye, basis, swingPhase: 1.2 }));
+  assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), a, 'deterministic');
+  assert.ok(HELD_LANTERN_SWING_RAD < 0.1 && HELD_LANTERN_OFFSET[2] <= 0.8);
+});
+
+test('frame budget: the worst chunked building frame plus the held lantern stays inside FRAME_BUDGET.drawCalls', () => {
+  const worst = M.frameCost({ vertices: { building: 3000, ground: 600, sea: 6, coast: 3000, tentacle: 900, villager: 900, held: 300 }, buildingRanges: 4, rain: 900, mist: 100, halos: 100, fireflies: 100, post: true, lights: 8 });
+  assert.equal(worst.drawCalls, 16); assert.ok(worst.drawCalls <= M.FRAME_BUDGET.drawCalls);
+  assert.equal(M.frameCost({ vertices: { building: 30 }, buildingRanges: 0 }).drawCalls, 2, 'an all culled building buffer still counts once (upper bound)');
+});
+
+test('shoreLine: the foam line sits on the ground edge of the coast side and points out to sea', () => {
+  for (const seed of [1, 2, 3, 7, 1818]) {
+    const t = M.terrainRects(24, 24, seed), l = M.shoreLine(24, 24, seed);
+    const edge = t.side === 0 ? t.ground.minX : t.side === 1 ? t.ground.maxX : t.ground.minZ;
+    assert.equal(l.line, edge); assert.equal(l.axis, t.side === 2 ? 0 : 1);
+    const inland = l.axis ? (t.ground.minX + t.ground.maxX) / 2 : (t.ground.minZ + t.ground.maxZ) / 2;
+    assert.ok((inland - l.line) * l.sign < 0, 'the village side has a negative distance out to sea');
+  }
+});
+
+test('wetness: rain and storm soak, drizzle half, clear dry, unknown dry', () => {
+  assert.ok(M.wetness('storm') >= M.wetness('rain') && M.wetness('rain') > M.wetness('drizzle') && M.wetness('drizzle') > M.wetness('fog'));
+  assert.equal(M.wetness('clear'), 0); assert.equal(M.wetness('nonsense'), 0);
+});
+
+test('blobShadows: nearest first, fades with distance, capped at MAX_BLOBS, deterministic', () => {
+  const people = Array.from({ length: 12 }, (_, i) => ({ id: i, pos: [i * 2, 0, 0] })), eye = { x: 0, z: 0 };
+  const b = M.blobShadows(people, eye);
+  assert.equal(b.length, M.MAX_BLOBS * 4); assert.deepEqual(b, M.blobShadows([...people].reverse(), eye));
+  assert.equal(b[0], 0); assert.ok(b[3] > b[7] && b[7] > 0, 'strength falls off with distance');
+  assert.ok(b[3] <= 0.6 + 1e-6);
+  const far = M.blobShadows([{ id: 1, pos: [M.BLOB_FADE + 1, 0, 0] }], eye);
+  assert.ok(far.every((v) => v === 0), 'beyond the fade distance nothing is drawn');
+  assert.ok(M.blobShadows(null, eye).every((v) => v === 0));
+});
+
+test('shader wiring: tier detail gates bump, wet sheen, blob shadows and foam; post has filmic tone map and FXAA', async () => {
+  const src = readFileSync(new URL('../src/view3d.js', import.meta.url), 'utf8');
+  for (const needle of ['uniform float uDetail', 'uniform float uWet', 'uBlob[', 'uniform vec3 uShore', 'vec3 aces(', 'vec3 fxaa(', 'uniform float uFogSheets', 'vec3 bump(']) assert.ok(src.includes(needle), needle);
+  assert.ok(!/OES_standard_derivatives|dFdx|dFdy/.test(src), 'no extension needed: bump uses extra taps');
 });

@@ -273,3 +273,19 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `959780d` test: browser check covers density, weather and birds, and follows the two storey layout (99 of 99)
 - Counts: dotnet 172, node 441, UnityCompileCheck 0 errors and 0 warnings, `tools/browser_check.mjs` 99 of 99 (SwiftShader, run in the foreground; the first run was 92 of 99, the failures were stale layout assumptions: the door and lantern probes used the old house cell, the sky probe stood against a wall, the mesh page expects 37 meshes, and day 1 weather of seed 1818 is fog or storm in captures).
 - Unverified: Unity runtime, real GPU look and timings, audio by ear.
+
+## Round 21 commits (scale, performance and polish, branch feat/round21)
+- `fefde27` docs: add round 21 and shift roadmap by one round
+- `111f33b` fix: street-level fly-through, real-size texture tiles, prop height ranges, eye and FOV settings
+- `e2576b5` docs: round 21 scale audit, before and after stills, changelog
+- `1c4cb08` test: browser check help group count and settle wait for touch rest frames
+- `d8059f5` perf: chunked frustum and fog culling for the building buffer, held lantern, js cpu readout in perf HUD
+- `728443c` test: browser check timing tolerates a missing perf HUD
+- `17f89da` feat: graphics quality tiers (Auto, Low, Medium, High) with tier-bounded dynamic resolution and HUD readout
+- `54964e2` feat: filmic tone map, FXAA, masonry and cobble bump, wet sheen, blob shadows, shore foam, moonlit fog and clouds, gated by quality tier
+- `0e40de5` feat: 2D isometric dusk band, seeded ridge, moonlit clouds, cast shadows and window light spill, tier-gated
+- `2e36c61` fix: Auto quality reads the GPU name from the 3D view's own context, browser check retries captures and measures fog by contrast
+- Measured (SwiftShader, indicative only, 3 alternating runs per build): triangles 25,823 before culling, 18,376 after; warm walk mean about 107 to 112 ms in both builds, median 17 ms, p95 about 400 ms. Tiers: Low 94 ms, Medium 109 ms, High 110 ms mean (one run each; the governor drops every tier to scale 0.5 on software GL). The round 20 figure (97, 33, 267 ms) came from another session and is not comparable.
+- Gotchas: a background `http.server` is only reachable from the same shell call in the agent sandbox, so start it and the browser check in one command; Chrome sometimes fails to start (`browser did not expose a page target`), rerun. `tools/screenshot.sh` drops the held lantern when the Low tier downsizes the canvas; a live CDP capture shows it, so it is a headless capture artifact.
+- Browser check: 100 of 101 on the full run (the timing walk got 2 frames at load 8; `TIMING_ONLY=1` rerun passed with 44 frames). Earlier full runs stopped on `Not attached to an active page` captures; the same loop failed on the pre-change build d8059f5, so the script now retries the capture. A deferred Auto detection fixed slow first paints from a throwaway WebGL context.
+- A first ACES pass applied the curve to display values and washed the image out (seen in the first still); the post pass now decodes to linear before the curve.

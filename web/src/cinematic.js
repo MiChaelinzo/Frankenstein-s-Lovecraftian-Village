@@ -53,7 +53,8 @@ export const cinematicWanted = (search, hash) => /(^|[?#&])cinematic=1(?![0-9A-Z
 // The same beats drive a camera that circles the village. Everything is metres and radians in the 3D view's convention
 // (camera looks down -Z at yaw 0, so yaw = atan2(dx, -dz)). Pure and deterministic: no clocks, no randomness beyond the seed.
 export const FLY_ANGLE_STEP = 0.95; // radians travelled around the village per beat
-const FLY_MIN_HEIGHT = 4.6;         // above the 3 m houses so the camera never clips a roof
+export const FLY_BASE_HEIGHT = 1.9;  // street level: the camera drifts at the height of a walking person's eyes, never above the eaves
+export const FLY_HEIGHT_SWAY = 0.3;  // so heights stay between 1.6 and 2.2 m. The 3D view pushes it out of any wall it would pass through
 
 /** The camera stop for beat index i (any integer). Seed picks the starting bearing so different villages open differently. */
 export function flyStop(i, { gridW, gridD, seed = 0, cell = 4 }) {
@@ -61,7 +62,7 @@ export function flyStop(i, { gridW, gridD, seed = 0, cell = 4 }) {
   const start = ((Math.imul(seed | 0, 2654435761) >>> 0) % 6283) / 1000;
   const angle = start + i * FLY_ANGLE_STEP;
   const radius = half * (i % 2 === 0 ? 0.78 : 0.58);
-  const height = FLY_MIN_HEIGHT + 1.6 + Math.sin(i * 1.7) * 1.4;
+  const height = FLY_BASE_HEIGHT + Math.sin(i * 1.7) * FLY_HEIGHT_SWAY;
   return { pos: [cx + Math.sin(angle) * radius, height, cz - Math.cos(angle) * radius], look: [cx + Math.sin(i * 2.1) * 6, 1.6, cz + Math.cos(i * 2.3) * 6] };
 }
 

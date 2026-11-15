@@ -24,3 +24,9 @@ test('perfWanted is off by default', () => {
   assert.equal(perfWanted('', '#seed=1&perf=1'), true);
   assert.equal(perfWanted('?perf=0', ''), false);
 });
+test('perf stats report the JavaScript frame time only when it was sampled', () => {
+  const p = createPerf(); p.sample(0); p.sample(10); p.cpuSample(2); p.cpuSample(4);
+  assert.equal(p.stats().cpuMs, 3);
+  assert.match(perfText(p.stats()), / \| 3\.0 ms js$/);
+  p.reset(); assert.equal(p.stats().cpuMs, 0);
+});

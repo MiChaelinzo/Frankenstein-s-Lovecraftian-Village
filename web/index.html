@@ -307,6 +307,14 @@
         </ul>
       </section>
       <section class="help-group">
+        <h3 data-i18n="help.g.firstperson">First-person view</h3>
+        <label class="view-setting" for="eyeRange"><span data-i18n="view.eye">Eye height</span> <input id="eyeRange" type="range" min="1.5" max="1.8" step="0.05" value="1.6"> <output id="eyeOut">1.60 m</output></label>
+        <label class="view-setting" for="fovRange"><span data-i18n="view.fov">Field of view</span> <input id="fovRange" type="range" min="55" max="75" step="1" value="64"> <output id="fovOut">64&deg;</output></label>
+        <label class="view-setting" for="qualitySelect"><span data-i18n="quality.label">Graphics quality</span> <select id="qualitySelect"><option value="auto" data-i18n="quality.auto">Auto</option><option value="low" data-i18n="quality.low">Low</option><option value="medium" data-i18n="quality.medium">Medium</option><option value="high" data-i18n="quality.high">High</option></select></label>
+        <p id="qualityOut" class="quality-out" aria-live="polite"></p>
+        <button id="viewReset" type="button" data-i18n="view.reset">Reset view</button>
+      </section>
+      <section class="help-group">
         <h3 data-i18n="help.g.tools">Tools</h3>
         <ul>
           <li data-i18n-html="keys.codex"><kbd>K</kbd> codex and achievements (also ?codex=1)</li>

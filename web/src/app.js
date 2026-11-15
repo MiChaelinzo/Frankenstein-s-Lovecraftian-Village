@@ -19,7 +19,7 @@ import {
 } from './building.js';
 import { loadMeshSet } from './glb.js';
 import { createView3d } from './view3d.js';
-import { view3dWanted, CELL } from './view3d-math.js';
+import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTINGS_KEY } from './view3d-math.js';
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -28,6 +28,7 @@ import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
+import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
@@ -115,6 +116,8 @@ function skipClock(minutes, done) {
 const weatherParam = optParam('weather');
 const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
+// Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
+let gpuRenderer = '', quality = null;
 const view3d = createView3d({
   canvas: $('view3d'), prompt: $('view3dPrompt'), reduced: reduceMotion && params.get('capture') !== '1' || matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1', capture: params.get('capture') === '1', grain: optParam('grain') !== '0', camParam: cam3dParam, post: optParam('post') !== '0', thirdParty: optParam('thirdparty') !== '0',
   getScene: () => ({
@@ -128,10 +131,11 @@ const view3d = createView3d({
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
   onThunder: (delayMs) => ambient?.thunder(delayMs), onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
-  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round((c.building + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos`; },
+  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen(), close: () => villagers.close() },
   onExit: () => setView3d(false),
+  onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
 });
 function setView3d(on) {
@@ -345,6 +349,37 @@ function start() { if (view3d.active) view3d.refresh(); if (running) return; run
 
 // ---------- session, minimap, case file, perf HUD, i18n, offline ----------
 const storage = safeStorage();
+// Eye height and field of view for the 3D view (display only), kept in localStorage and clamped on every read.
+const applyViewSettings = (raw, save) => {
+  const v = sanitizeViewSettings(raw);
+  view3d.setSettings(v);
+  $('eyeRange').value = String(v.eye); $('fovRange').value = String(v.fovDeg);
+  $('eyeOut').textContent = `${v.eye.toFixed(2)} m`; $('fovOut').textContent = `${v.fovDeg}\u00b0`;
+  if (save && storage) { try { storage.setItem(VIEW_SETTINGS_KEY, JSON.stringify(v)); } catch (e) { console.warn('[view] settings not saved', e); } }
+};
+let savedView = null;
+try { savedView = storage ? storage.getItem(VIEW_SETTINGS_KEY) : null; } catch (e) { console.warn('[view] settings not read', e); }
+applyViewSettings(parseViewSettings(savedView), false);
+for (const id of ['eyeRange', 'fovRange']) $(id).addEventListener('input', () => applyViewSettings({ eye: $('eyeRange').value, fovDeg: $('fovRange').value }, true));
+$('viewReset').addEventListener('click', () => applyViewSettings(null, true));
+/**
+ * Hints for the Auto tier. The GPU renderer string comes from the 3D view's own context once it opens (onGpu below), so no extra
+ * WebGL context is created at startup; until then Auto decides from cores, Data Saver and the screen ratio.
+ */
+const hints = () => { const nav = globalThis.navigator || {}; return { renderer: gpuRenderer, dpr: globalThis.devicePixelRatio || 1, cores: nav.hardwareConcurrency, saveData: !!(nav.connection && nav.connection.saveData) }; };
+// Graphics quality (web-only presentation): ?quality= wins for this visit only, else the saved choice, else Auto from the GPU hints.
+const applyQuality = (choice, save) => {
+  let stored = null;
+  try { stored = storage ? storage.getItem(QUALITY_KEY) : null; } catch (e) { console.warn('[quality] choice not read', e); }
+  quality = resolveQuality({ query: save ? null : optParam('quality'), stored: save ? choice : stored, hints: hints() });
+  view3d.setQuality(quality.tier); renderer.setQuality(tierSettings(quality.tier));
+  $('qualitySelect').value = quality.choice;
+  $('qualityOut').textContent = `${tr(`quality.${quality.tier}`)}: ${[tr('quality.f.lines', { n: tierLines(quality.tier) }), ...tierFeatures(quality.tier).map((f) => tr(`quality.f.${f}`))].join(', ')}`;
+  if (save && storage) { try { storage.setItem(QUALITY_KEY, parseQuality(choice) || 'auto'); } catch (e) { console.warn('[quality] choice not saved', e); } }
+  mark();
+};
+applyQuality(null, false);
+$('qualitySelect').addEventListener('change', () => applyQuality($('qualitySelect').value, true));
 const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {

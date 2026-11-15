@@ -225,3 +225,7 @@ html.hc .villager-dialog { background: #000; border: 2px solid #ffffff; }
 .clock-chip[data-phase="night"] { border-color: #6c7fb0; background: rgba(12, 16, 32, .9); }
 .clock-lanterns { margin-left: 6px; color: #ffcf8a; }
 .clock-hint { margin: 0 0 6px; padding: 4px 8px; border-left: 3px solid #e0905a; background: rgba(20, 24, 34, .7); }
+.view-setting { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .88rem; }
+.view-setting input { flex: 1; min-width: 80px; }
+.view-setting output { min-width: 4.5em; text-align: right; color: var(--dim); }
+.quality-out { margin: 2px 0 6px; font-size: .8rem; color: var(--dim); }

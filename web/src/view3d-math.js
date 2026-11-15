@@ -7,13 +7,19 @@ import { facingDx, facingDz } from './streets.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
-export { EYE_HEIGHT } from './world-scale.js';
+import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG } from './world-scale.js';
+export { EYE_HEIGHT };
 export const BODY_RADIUS = 0.35;
 export const WALK_SPEED = 3.2;    // metres per second
 export const TURN_SPEED = 1.9;    // radians per second (stick and arrow keys)
 export const MOUSE_SENSITIVITY = 0.0022;
-export const FOV_Y = 1.12;        // about 64 degrees
+export const FOV_Y = (FOV_DEFAULT_DEG * Math.PI) / 180; // 64 degrees, the default of the field of view setting
 export const NEAR = 0.1;
+// Metres covered by one repeat of each texture in the 3D shader, chosen so one texel feature has a real size: a procedural cobble is 1/7 of
+// its tile (1.4 m gives 0.2 m stones), a stone block about 0.4 of the tile (1.2 m gives 0.5 m blocks), a slate row 1/4 (1.2 m gives 0.3 m),
+// a timber bay is one storey tall (3 m, beams drawn 0.23 m thick).
+export const TILE_M = Object.freeze({ cobble: 1.4, ground: 3.3, wall: 3.3, roof: 1.2, stone: 1.2, timber: 3 });
+export const INV_TILE = Object.freeze(Object.fromEntries(Object.entries(TILE_M).map(([k, m]) => [k, (1 / m).toFixed(4)])));
 export const FAR = 400;
 export const MAX_PITCH = 1.25;
 export const MAX_LIGHTS = 8;
@@ -70,7 +76,24 @@ export function multiply(a, b) {
   }
   return out;
 }
-export const viewProjection = (cam, aspect) => multiply(perspective(FOV_Y, aspect, NEAR, FAR), viewMatrix(cam));
+export const viewProjection = (cam, aspect, fovY = FOV_Y) => multiply(perspective(fovY, aspect, NEAR, FAR), viewMatrix(cam));
+
+// ---------- eye height and field of view settings (kept in localStorage by the app, display only; ranges in world-scale.js) ----------
+export const VIEW_SETTINGS_KEY = 'flv-view-settings';
+/** Always returns finite, clamped { eye, fovDeg } (defaults for anything missing or not a number). */
+export function sanitizeViewSettings(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const eye = Number(o.eye), fov = Number(o.fovDeg);
+  return {
+    eye: Number.isFinite(eye) && o.eye !== null && o.eye !== '' ? Math.round(clamp(eye, EYE_MIN, EYE_MAX) * 100) / 100 : EYE_HEIGHT,
+    fovDeg: Number.isFinite(fov) && o.fovDeg !== null && o.fovDeg !== '' ? Math.round(clamp(fov, FOV_MIN_DEG, FOV_MAX_DEG)) : FOV_DEFAULT_DEG,
+  };
+}
+export const fovRadians = (fovDeg) => (fovDeg * Math.PI) / 180;
+/** Settings from a storage text; the default settings when the text is missing or not JSON. */
+export function parseViewSettings(text) {
+  try { return sanitizeViewSettings(JSON.parse(text)); } catch { return sanitizeViewSettings(null); }
+}
 
 /** Projects a world point to normalised device coordinates, or null when it is behind the camera. */
 export function projectPoint(vp, p) {
@@ -197,8 +220,8 @@ export function pickLamp(origin, dir, lamps, maxDistance = FAR, radius = LAMP_PI
 }
 
 /** View ray for a point on screen (ndc -1..1, y up). Used for taps and clicks when the pointer is not locked. */
-export function screenRay(cam, ndcX, ndcY, aspect) {
-  const { f, r, u } = cameraBasis(cam), ty = Math.tan(FOV_Y / 2), tx = ty * aspect;
+export function screenRay(cam, ndcX, ndcY, aspect, fovY = FOV_Y) {
+  const { f, r, u } = cameraBasis(cam), ty = Math.tan(fovY / 2), tx = ty * aspect;
   const d = [0, 1, 2].map((k) => f[k] + r[k] * ndcX * tx + u[k] * ndcY * ty);
   const l = Math.hypot(d[0], d[1], d[2]);
   return d.map((v) => v / l);
@@ -356,6 +379,36 @@ export function terrainRects(gridW, gridD, seed, cell = CELL) {
   return { ground: g, sea: { minX: -FAR, maxX: w + FAR, minZ: -FAR, maxZ: d + FAR, y: -0.4 }, side };
 }
 
+/**
+ * The shoreline for the sea shader's foam band: { axis: 1 when the shore runs along z (sea beyond an x line) else 0, line, sign }, so that
+ * (coordinate - line) * sign is the distance out to sea in metres. Matches the ground edge terrainRects cuts on the coast side.
+ */
+export function shoreLine(gridW, gridD, seed, cell = CELL) {
+  const t = terrainRects(gridW, gridD, seed, cell);
+  if (t.side === 0) return { axis: 1, line: t.ground.minX, sign: -1 };
+  if (t.side === 1) return { axis: 1, line: t.ground.maxX, sign: 1 };
+  return { axis: 0, line: t.ground.minZ, sign: -1 };
+}
+
+/** How wet the stone reads for a weather, 0..1: rain and storm soak it, drizzle half, fog and mist leave a damp film, clear and overcast dry. Drives the wet sheen and darker albedo. */
+export const WETNESS = Object.freeze({ clear: 0, overcast: 0.05, drizzle: 0.55, rain: 0.9, storm: 1, fog: 0.3, mist: 0.25 });
+export const wetness = (weather) => WETNESS[weather] ?? 0;
+
+/** Blob shadow slots the ground shader reads (uBlob[]). */
+export const MAX_BLOBS = 8;
+export const BLOB_RADIUS = 0.55, BLOB_FADE = 30;
+/**
+ * Soft contact shadows under people (villagers, street walkers): the MAX_BLOBS nearest to the eye within BLOB_FADE metres, flat
+ * [x, z, radius, strength] with strength fading to zero at BLOB_FADE. Unused slots are zero. Sorted by distance then id, so it is deterministic.
+ */
+export function blobShadows(people, eye, max = MAX_BLOBS) {
+  const out = new Float32Array(MAX_BLOBS * 4);
+  const near = (people || []).map((p) => ({ id: p.id, x: p.pos[0], z: p.pos[2], d: Math.hypot(p.pos[0] - eye.x, p.pos[2] - eye.z) }))
+    .filter((p) => p.d < BLOB_FADE).sort((a, b) => a.d - b.d || a.id - b.id).slice(0, Math.min(max, MAX_BLOBS));
+  near.forEach((p, i) => out.set([p.x, p.z, BLOB_RADIUS, 0.6 * (1 - p.d / BLOB_FADE)], i * 4));
+  return out;
+}
+
 /** Particle counts for the active weather. Reduced motion draws none: falling rain is motion. */
 export function particleCounts({ weather, dread, reduced }) {
   if (reduced) return { rain: 0, mist: 0 };
@@ -407,11 +460,12 @@ export const POST_MIN_QUALITY = 0.75;
  * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.8 luminance threshold, chroma 0..0.004 (uv offset).
  * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
  */
-export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
+export function postParams({ dread = 0, reduced = false, quality = 1, tier = null } = {}) {
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
-    enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
-    bloom: 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
+    enabled: q >= POST_MIN_QUALITY && (!tier || tier.post), vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
+    bloom: tier ? tier.bloom : 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
+    exposure: 1.0 - 0.12 * d, // the filmic curve darkens slightly as dread rises
   };
 }
 
@@ -424,12 +478,18 @@ export function renderSize(cssW, cssH, dpr, scale, maxPixels = MAX_PIXELS) {
   if (over > 1) { w /= Math.sqrt(over); h /= Math.sqrt(over); }
   return { width: Math.max(1, Math.floor(w)), height: Math.max(1, Math.floor(h)) };
 }
-/** Adaptive resolution from the average frame time (perf.js stats). Steps down above 26 ms, back up below 15 ms. */
-export function nextScale(scale, avgMs, frames) {
-  if (!frames || frames < 30) return scale;
-  if (avgMs > 26) return Math.max(0.5, scale - 0.25);
-  if (avgMs < 15 && scale < 1) return Math.min(1, scale + 0.25);
-  return scale;
+/** Dynamic resolution thresholds: step down when the average frame is slower than DRS_DOWN_MS, up only when faster than DRS_UP_MS. The gap is the hysteresis. */
+export const DRS_DOWN_MS = 26, DRS_UP_MS = 15, DRS_STEP = 0.25;
+/**
+ * Adaptive resolution from the average frame time (perf.js stats) over at least 30 frames; the caller resets the stats after a change,
+ * so every step needs a fresh 30 frame window. min is the tier's minScale; the scale never goes above 1.
+ */
+export function nextScale(scale, avgMs, frames, min = 0.5) {
+  const lo = clamp(Number.isFinite(min) ? min : 0.5, 0.25, 1), s = clamp(scale, lo, 1);
+  if (!frames || frames < 30) return s;
+  if (avgMs > DRS_DOWN_MS) return Math.max(lo, s - DRS_STEP);
+  if (avgMs < DRS_UP_MS && s < 1) return Math.min(1, s + DRS_STEP);
+  return s;
 }
 
 // ---------- atmosphere layers: haze per night, ground mist, lantern halos ----------
@@ -598,14 +658,81 @@ export function tentacleBases(gridW, gridD, seed, cell = CELL) {
 
 // Round 17: drawCalls 14 -> 12 is a tighter ceiling, not a loosening: the worst frame is now sky + 5 triangle buffers + rain or mist + halos
 // + fireflies + the one post pass = 11. points grew 1300 -> 1400 for the (at most 100) fireflies; rain and fireflies share the budget.
-export const FRAME_BUDGET = Object.freeze({ drawCalls: 12, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
+// Round 21: drawCalls 12 -> 16, measured: the building buffer is now drawn as the visible chunk ranges (at most 4 over 5400 sampled walking
+// views of seeds 1818, 7 and 42, all from one buffer with no state change) and the held lantern adds 1; worst 1 + 5 + 4 + 1 + 2 + 2 + 1 = 16.
+export const FRAME_BUDGET = Object.freeze({ drawCalls: 16, triangles: 60000, points: 1400, lights: MAX_LIGHTS, halos: 120 });
 
 /** Per-frame work implied by the buffers: draw calls, triangles, points, lights and halos. Compared against FRAME_BUDGET in tests. */
-export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false }) {
-  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle', 'villager'];
-  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
+export function frameCost({ vertices = {}, rain = 0, mist = 0, halos = 0, lights = 0, fireflies = 0, post = false, buildingRanges = 1 }) {
+  const tri = ['building', 'ground', 'sea', 'coast', 'tentacle', 'villager', 'held'];
+  const drawCalls = 1 + tri.filter((k) => vertices[k] > 0).length + (vertices.building > 0 ? Math.max(1, buildingRanges) - 1 : 0) + (rain ? 1 : 0) + (mist ? 1 : 0) + (halos ? 1 : 0) + (fireflies ? 1 : 0) + (post ? 1 : 0);
   const triangles = tri.reduce((a, k) => a + Math.floor((vertices[k] || 0) / 3), 0);
   return { drawCalls, triangles, points: rain + mist + halos + fireflies, lights: Math.min(lights, MAX_LIGHTS), halos };
+}
+
+// ---------- culling: the static building buffer is cut into square chunks that are drawn only when they can be seen ----------
+
+export const CHUNK_METRES = 24;       // chunk edge: a 96 m village is about 16 chunks, so a view draws a handful of ranges
+export const CHUNK_PAD = 1.5;         // metres added to every chunk box: foliage and flags sway in the vertex shader
+export const FOG_CULL_FACTOR = 3;     // exp(-(d * density)^2) < 0.0002 at 3 / density metres: fully fogged, so nothing is lost by not drawing it
+
+/** Metres beyond which geometry is lost in the fog (the same exponential squared law as the scene shader). Infinity without fog. */
+export const fogCullDistance = (density) => (density > 0 ? FOG_CULL_FACTOR / density : Infinity);
+
+/**
+ * Reorders triangle vertices (floats per vertex, position first) into chunks of cellM metres on the ground, walked in a serpentine so
+ * neighbouring chunks are neighbours in the buffer and visible ones merge into few draw ranges. uv (2 floats per vertex, optional) follows.
+ * Pure and deterministic. Returns the reordered arrays and { first, count, min, max } per chunk (first and count in vertices).
+ */
+export function partitionChunks(vertices, uv, floats, cellM = CHUNK_METRES) {
+  const tris = Math.floor(vertices.length / floats / 3), cells = new Map();
+  for (let t = 0; t < tris; t++) {
+    let cx = 0, cz = 0;
+    for (let k = 0; k < 3; k++) { cx += vertices[(t * 3 + k) * floats]; cz += vertices[(t * 3 + k) * floats + 2]; }
+    const ix = Math.floor(cx / 3 / cellM), iz = Math.floor(cz / 3 / cellM), key = `${ix},${iz}`;
+    if (!cells.has(key)) cells.set(key, { ix, iz, tris: [] });
+    cells.get(key).tris.push(t);
+  }
+  const ordered = [...cells.values()].sort((a, b) => a.iz - b.iz || (a.iz & 1 ? b.ix - a.ix : a.ix - b.ix));
+  const outV = new Float32Array(tris * 3 * floats), outUv = uv && uv.length === tris * 6 ? new Float32Array(tris * 6) : null, chunks = [];
+  let at = 0;
+  for (const cell of ordered) {
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity], first = at * 3;
+    for (const t of cell.tris) {
+      for (let k = 0; k < 3; k++) {
+        const src = (t * 3 + k) * floats;
+        for (let c = 0; c < 3; c++) { min[c] = Math.min(min[c], vertices[src + c]); max[c] = Math.max(max[c], vertices[src + c]); }
+      }
+      outV.set(vertices.subarray(t * 3 * floats, (t + 1) * 3 * floats), at * 3 * floats);
+      if (outUv) outUv.set(uv.subarray(t * 6, t * 6 + 6), at * 6);
+      at++;
+    }
+    chunks.push({ first, count: cell.tris.length * 3, min: min.map((v) => v - CHUNK_PAD), max: max.map((v) => v + CHUNK_PAD) });
+  }
+  return { vertices: outV, uv: outUv || uv, chunks };
+}
+
+/** The six clip planes [a, b, c, d] (inside when a*x + b*y + c*z + d >= 0) of a column major view projection matrix. */
+export function frustumPlanes(vp) {
+  const row = (i) => [vp[i], vp[4 + i], vp[8 + i], vp[12 + i]], r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
+  return [[1, r0], [-1, r0], [1, r1], [-1, r1], [1, r2], [-1, r2]].map(([sign, r]) => r3.map((v, i) => v + sign * r[i]));
+}
+
+/** True when the box lies at least partly inside every plane (the corner furthest along each plane normal decides). */
+export function boxInFrustum(planes, min, max) {
+  return planes.every(([a, b, c, d]) => a * (a >= 0 ? max[0] : min[0]) + b * (b >= 0 ? max[1] : min[1]) + c * (c >= 0 ? max[2] : min[2]) + d >= 0);
+}
+
+/** Draw ranges { first, count } for the chunks inside the frustum and within maxDist of the camera; consecutive visible chunks merge into one range. */
+export function visibleRanges(chunks, planes, camPos, maxDist = Infinity) {
+  const out = [];
+  for (const c of chunks) {
+    const dx = Math.max(c.min[0] - camPos[0], 0, camPos[0] - c.max[0]), dy = Math.max(c.min[1] - camPos[1], 0, camPos[1] - c.max[1]), dz = Math.max(c.min[2] - camPos[2], 0, camPos[2] - c.max[2]);
+    if (Math.hypot(dx, dy, dz) > maxDist || !boxInFrustum(planes, c.min, c.max)) continue;
+    const last = out[out.length - 1];
+    if (last && last.first + last.count === c.first) last.count += c.count; else out.push({ first: c.first, count: c.count });
+  }
+  return out;
 }
 
 // ---------- omen framing: a fly-through viewpoint that keeps the eye and the tentacles inside the frame ----------

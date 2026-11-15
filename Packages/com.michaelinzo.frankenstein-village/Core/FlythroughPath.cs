@@ -28,7 +28,9 @@ namespace Frankenstein.Core
         public const double TailMs = 2000;
         public const double AngleStep = 0.95;
         public const double DefaultCell = 4;
-        private const double MinHeight = 4.6;
+        /// <summary>Street level: the camera drifts at walking eye height, so heights stay between 1.6 and 2.2 m. The 3D view pushes it out of walls.</summary>
+        public const double BaseHeight = 1.9;
+        public const double HeightSway = 0.3;
 
         private static readonly double[][] Waypoints =
         {
@@ -103,7 +105,7 @@ namespace Frankenstein.Core
             double start = (product % 6283) / 1000.0;
             double angle = start + i * AngleStep;
             double radius = half * (i % 2 == 0 ? 0.78 : 0.58);
-            double height = MinHeight + 1.6 + Math.Sin(i * 1.7) * 1.4;
+            double height = BaseHeight + Math.Sin(i * 1.7) * HeightSway;
             pos = new[] { cx + Math.Sin(angle) * radius, height, cz - Math.Cos(angle) * radius };
             look = new[] { cx + Math.Sin(i * 2.1) * 6, 1.6, cz + Math.Cos(i * 2.3) * 6 };
         }

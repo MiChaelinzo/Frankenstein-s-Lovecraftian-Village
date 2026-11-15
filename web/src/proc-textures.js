@@ -1,7 +1,7 @@
 // Original procedural textures as raw RGBA pixels: no assets, no DOM, no Math.random. Same kind, size and colours give identical bytes.
 // Every texture tiles seamlessly (all writes and all noise wrap). Used by the 2D canvas patterns (textures.js) and as the default 3D surfaces
 // (view3d.js): timber framed plaster walls, stone blocks, slate or shingle roofs, cobbles and wet mud. Mean brightness is about 0.6 so the
-// 3D shader's x1.6 keeps colours steady. The 3D material scale is one tile per storey (3 m) for walls and 2 m for cobbles.
+// 3D shader's x1.6 keeps colours steady. The 3D material scale is TILE_M in view3d-math.js: one tile per storey (3 m) for timber walls, 1.4 m for cobbles, 1.2 m for stone and slate.
 import { SeededRandom } from './core.js';
 
 export const TEXTURE_KINDS = ['brick', 'plaster', 'roof', 'wood', 'stone', 'water', 'ground', 'timber', 'cobble'];
@@ -64,7 +64,7 @@ export function proceduralTexture(kind, { size = 64, lit = null, shaded = null }
   } else if (kind === 'timber') {
     // One storey bay: plaster panels in a dark oak frame (sill and floor beams across the tile edge, a post at the edge and one in the middle, two braces).
     paintPlaster(L, [L[0] * 0.55, L[1] * 0.5, L[2] * 0.45]);
-    const grain = makeNoise(Math.max(4, 4 * u | 0), Math.max(16, 24 * u | 0)), beam = Math.round(9 * u), post = Math.round(8 * u), half = size / 2;
+    const grain = makeNoise(Math.max(4, 4 * u | 0), Math.max(16, 24 * u | 0)), beam = Math.round(5 * u), post = Math.round(5 * u), half = size / 2;
     const timberAt = (x, y, w, tone) => { const g = grain(x, y); put(x, y, mix(S, [S[0] * 1.5, S[1] * 1.45, S[2] * 1.4], g * 0.8), tone); return g; };
     // shadow cast on the plaster below each beam and right of each post first, so the oak lies over it
     for (let x = 0; x < size; x++) for (let k = 0; k < 4 * u; k++) { over(x, beam / 2 + k, [20, 16, 12], 0.34 * (1 - k / (4 * u))); over(x, half + beam / 2 + k, [20, 16, 12], 0.0); }
@@ -72,7 +72,7 @@ export function proceduralTexture(kind, { size = 64, lit = null, shaded = null }
     for (let y = -Math.floor(beam / 2); y < beam - Math.floor(beam / 2); y++) for (let x = 0; x < size; x++) timberAt(x, y, beam, y === -Math.floor(beam / 2) ? 18 : 0);
     for (const px of [0, half]) for (let x = -Math.floor(post / 2); x < post - Math.floor(post / 2); x++) for (let y = 0; y < size; y++) timberAt(px + x, y, post, x === -Math.floor(post / 2) ? 14 : 0);
     // braces: a diagonal from the lower left corner joint to the middle post head, and its mirror to the right
-    const bw = Math.round(5 * u);
+    const bw = Math.round(4 * u);
     for (let t = 0; t < half - beam; t++) for (let w = 0; w < bw; w++) {
       timberAt(Math.round(post / 2 + t * 0.92), Math.round(beam / 2 + (half - beam) - t + w * 0.7), bw, 0);
       timberAt(Math.round(size - post / 2 - t * 0.92), Math.round(beam / 2 + (half - beam) - t + w * 0.7), bw, 0);

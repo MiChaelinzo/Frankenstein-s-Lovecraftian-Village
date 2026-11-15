@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml/badge.svg)](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml)
 
-![A cobbled lane at dusk between two-storey half-timbered houses, lanterns lit, a villager walking toward the square](docs/media/r20-street-lane.png)
+![A rainy night in the village on the High tier: lit half-timbered houses, bare trees, the moon in a clouded sky, the explorer's lantern at the lower right](docs/media/r21-high-rain-night.png)
 
 ## [Play now: frankensteinlovecraftianvillage.vercel.app](https://frankensteinlovecraftianvillage.vercel.app/)
 
@@ -18,6 +18,24 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 
 | | |
 |---|---|
+| ![Round 21 before: the same rainy night without the filmic grade](docs/media/r21-before-rain-night.png) | ![Round 21 High tier: filmic tone map, bloom, FXAA, moonlit cloud edges](docs/media/r21-high-rain-night.png) |
+| ![Round 21 Low tier: no post pass, 540p ceiling, half the particles](docs/media/r21-low-rain-night.png) | ![Round 21 High tier: the wells on the square in rain fog](docs/media/r21-high-square-wells.png) |
+| ![Round 21 2D before](docs/media/r21-2d-before.png) | ![Round 21 2D after: dusk band, ridge, cast shadows](docs/media/r21-2d-after.png) |
+
+Round 21 stills (seed 1818, rain, `tick=1250`, SwiftShader, `?capture=1&caption=0&grain=0&quality=...`): the same camera before the round and on the High tier, the Low tier for a weak laptop, and the 2D map before and after (Medium tier).
+
+**Graphics quality (round 21):** Help (`?`) > First-person view > Graphics quality offers Auto, Low, Medium and High, saved in `localStorage` (`flv-quality`); `?quality=low|medium|high|auto` overrides it for one visit. Auto picks Low for software GL, Data Saver or two cores, High for a discrete GPU (or Apple silicon) with eight or more cores, and Medium otherwise, which covers most laptops with integrated Intel or AMD graphics at 1080p. Each tier lists what it turns on under the menu:
+
+| Tier | Pixel ceiling | Post pass (filmic tone map, grade, bloom, grain) | FXAA | Shader detail | Particles | 2D extras |
+|---|---|---|---|---|---|---|
+| Low | 960 by 540 | off | off | flat (no bump, sheen, blob shadows, foam) | half rain, fireflies, gulls | off |
+| Medium | 1280 by 720 | on | off | stone and cobble bump, wet sheen, blob shadows under people, shore foam, moonlit fog | full | dusk band, ridge, clouds, cast shadows, window spill |
+| High | 1920 by 1080 | on, stronger bloom | on | Medium plus a fine wave train, moon glints, puddle patches, extra cloud octave | full | as Medium |
+
+Dynamic resolution steps the render scale down by 0.25 when the average frame is over 26 ms and back up under 15 ms (30 frame windows, never below 0.5). The `?perf=1` HUD shows the tier, scale and backing size. Reduced motion and the `?post=0` fallback still apply on every tier.
+
+| | |
+|---|---|
 | ![Before round 20: low sheds on a wide plain, the viewer towers over them](docs/media/before-scale.png) | ![After round 20: two-storey houses loom over the viewer, a villager stands small beside them](docs/media/after-scale.png) |
 | ![Cobble photo texture, stone well and benches (CC0 Poly Haven)](docs/media/materials-after.png) | ![The square and the church rise](docs/media/r20-square-and-church-rise.png) |
 | ![Rain](docs/media/r20-weather-rain.png) | ![Storm, a fixed lightning moment](docs/media/r20-weather-storm.png) |
@@ -26,7 +44,7 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
 ### Honest quality bar
-This is a dependency-free WebGL1 renderer with flat shaded, procedurally built meshes, a handful of CC0 textures and no normal maps, no shadows from real lights, no skinned animation and no baked lighting. It cannot reach the look of an $80 AAA environment pack, and it does not try to. What it offers is a readable, correctly scaled village (two-storey houses, lanes, a square, a harbour), a living sky (clock, weather, birds), and rules that are deterministic and tested. Real GPU frame times and real-browser behavior are Unverified; every look claim above is Partially Verified from software-GL stills.
+This is a dependency-free WebGL1 renderer with flat shaded, procedurally built meshes, a handful of CC0 textures, a cheap bump from the albedo instead of normal maps, blob shadows instead of real shadow maps, no skinned animation and no baked lighting. It cannot reach the look of an $80 AAA environment pack, and it does not try to. What it offers is a readable, correctly scaled village (two-storey houses, lanes, a square, a harbour), a living sky (clock, weather, birds), and rules that are deterministic and tested. Round 21 added quality tiers, a filmic post pass and wet, foamy, moonlit surfaces, which makes it prettier but does not make it a AAA engine: there is no global illumination, no PBR, no skinned characters. Real GPU frame times and real-browser behavior are Unverified; every look claim above is Partially Verified from software-GL stills.
 
 | | |
 |---|---|

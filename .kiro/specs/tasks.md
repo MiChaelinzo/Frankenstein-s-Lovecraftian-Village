@@ -115,11 +115,28 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - No GPU timing, only SwiftShader indications (triangles about 23k to 26k of the 60k budget, 12 draw calls ceiling).
 - Real browser checks (author only); Unity ignores the layout `Facing` and `WeatherForDay`; builder cell 6 m versus Core dressing 4 m.
 
+## Round 21: scale, performance and polish
+- [x] 100. Street-level fly-through, real-size texture repeats, prop height ranges, eye height and FOV settings (Verified by tests; look Partially Verified)
+- [x] 101. Chunked frustum and fog culling of the building buffer, held lantern, JS ms in the perf HUD; measured triangles 25,823 to 18,376, SwiftShader frame time unchanged (Verified counts; GPU payoff Unverified)
+- [x] 102. Graphics quality tiers Auto, Low, Medium, High with storage, `?quality=`, Auto hints, tier-bounded dynamic resolution and HUD readout (Verified by node tests and the quality browser run)
+- [x] 103. Filmic tone map, FXAA, bump, wet sheen, blob shadows, shore foam, moonlit fog and clouds, gated by tier (Verified: shaders compile on every tier in SwiftShader; look Partially Verified)
+- [x] 104. 2D dusk band, ridge, clouds, cast shadows and window spill, off on Low (Verified by a stub test; look Partially Verified)
+- [ ] 105. Author: try each tier on your laptop with `?perf=1`, report the frame time and whether Auto picked the right tier
+- [ ] 106. Bigger coast cottages, inn and chapel (still single-storey scale)
+- [ ] 107. Per-floor window on and off states with light spill in 3D
+- [ ] 108. Walker and explorer collision with props near wells (dressing boxes exist; the well rim needs a tighter box and a test)
+- [ ] 109. Real normal maps for the CC0 photo materials (needs tangents in the GLB path)
+- [ ] 110. Wet sheen reads faintly in stills; tune on a real GPU before making it stronger
+- [ ] 112. Daytime fog (`tick=700`) barely changes the frame (mean 2 levels, contrast 1 to 2); make day fog read more clearly
+- [ ] 113. Recompress `docs/media/r21-held-lantern.png` (881 KB, over the 700 KB target)
+- [ ] 111. Headless `--screenshot` drops the held lantern when the Low tier downsizes the canvas (live frames are fine); find why the capture path differs
+
 ## Roadmap
-- Round 21: inventory, items, finding and storing, sleep and food sanity recovery.
-- Round 22: economy, shops, buy/sell, the horror restaurant.
-- Round 23: monsters on the ground and in the sky, sanity exposure over time.
-- Round 24: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
-- Round 25: lore, stories and adventures.
-- Round 26: procedural regions beyond the village.
-- Round 27: Unity parity, performance and polish.
+- Round 21: scale perception, performance and visual polish (street-level fly-through, real-metre texture repeats, prop scale audit, first-person anchor, eye height and FOV settings).
+- Round 22: inventory, items, finding and storing, sleep and food sanity recovery.
+- Round 23: economy, shops, buy/sell, the horror restaurant.
+- Round 24: monsters on the ground and in the sky, sanity exposure over time.
+- Round 25: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 26: lore, stories and adventures.
+- Round 27: procedural regions beyond the village.
+- Round 28: Unity parity, performance and polish.

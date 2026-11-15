@@ -73,15 +73,50 @@ async function main() {
   };
   // A hash-only change would be a same-document navigation, so callers that need a fresh load go through about:blank first.
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
-  const shotHash = async () => { const s = (await send('Page.captureScreenshot', { format: 'png' })).result.data; let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+  /** Page.captureScreenshot, retried up to three times: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too. The CDP error is logged, never swallowed. */
+  const capture = async (params = { format: 'png' }) => {
+    for (let attempt = 0; ; attempt++) {
+      const r = await send('Page.captureScreenshot', params);
+      if (r.result && r.result.data) return r.result.data;
+      console.log(`capture failed (attempt ${attempt + 1}): ${JSON.stringify(r.error || r).slice(0, 200)}`);
+      if (attempt >= 3) throw new Error('Page.captureScreenshot failed four times: ' + JSON.stringify(r.error || r).slice(0, 200));
+      await sleep(1500);
+    }
+  };
+  const shotHash = async () => { const s = await capture(); let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
   const rec = (name, ok, evidence) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} :: ${JSON.stringify(evidence)}`); };
   /** Polls fn until it returns a truthy value or ms passes; software GL frames can be seconds apart, so fixed sleeps give false failures. */
   const until = async (fn, ms = 12000) => { for (let t0 = Date.now(); Date.now() - t0 < ms; await sleep(250)) { const v = await fn(); if (v) return v; } return fn(); };
   const text = (idv) => ev(`document.getElementById('${idv}').textContent`);
   const hidden = (idv) => ev(`document.getElementById('${idv}').hidden`);
 
+  /** Real-time frame timing while walking (TIMING_ONLY=1 runs only this). Software GL, so indicative only; the HUD line adds the JavaScript ms per frame and the culled triangle count. */
+  const timingRun = async () => {
+    await nav('?intro=0&view=3d&perf=1' + (process.env.TIMING_QUERY || '') + '#seed=1818&sanity=60');
+    await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
+    await hold('w', 'KeyW', 6000);
+    const stats = frameStats(await ev(`window.__ft`));
+    const hud = await ev(`(document.getElementById('perfHud')||{}).textContent`);
+    const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
+    rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
+  };
+  /** Quality tiers: ?quality= overrides the saved choice, the HUD names the tier and the 16:9 pixel ceiling holds. Auto on SwiftShader resolves to low. */
+  const qualityRun = async () => {
+    const seen = {}; warns.length = 0; // every tier must compile its shaders and keep the post pass: no [view3d] warning
+    for (const q of ['low', 'high', 'auto']) {
+      await nav(`?intro=0&view=3d&perf=1&quality=${q}#seed=1818&sanity=60`);
+      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => / (low|medium|high) x/.test(t) && t), 20000);
+      seen[q] = { hud, select: await ev(`document.getElementById('qualitySelect').value`), canvas: await ev(`(()=>{const c=document.getElementById('view3d');return c.width*c.height})()`), out: (await text('qualityOut')).slice(0, 80) };
+    }
+    rec('quality: ?quality= picks the tier, the HUD shows it, low draws fewer pixels than high and Auto on software GL is low',
+      / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas && warns.length === 0, { ...seen, warns: warns.slice(0, 2) });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
+  suite: {
+    if (process.env.TIMING_ONLY) { await timingRun(); break suite; }
+    if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -133,7 +168,7 @@ async function main() {
     const h0 = await shotHash(); await hold('w', 'KeyW', 1200); await sleep(300);
     const h1 = await shotHash(); rec('3d: holding W changes the rendered frame', h0 !== h1, { before: h0, after: h1 });
     // Round 17 post pass: the default render and the ?post=0 direct render are both non-blank, and neither logs a 3D warning.
-    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await send('Page.captureScreenshot', { format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).result.data.length; };
+    const canvasBytes = async () => { const rr = await ev(`document.getElementById('view3d').getBoundingClientRect().toJSON()`); return (await capture({ format: 'png', clip: { x: rr.x, y: rr.y, width: rr.width, height: rr.height, scale: 1 } })).length; };
     const withPost = await canvasBytes();
     rec('3d post: default render is non-blank and logs no 3D warning', withPost > 20000 && warns.length === 0, { bytes: withPost, warns: warns.slice(0, 3) });
     await nav('?intro=0&view=3d&post=0#seed=1818&sanity=60'); await sleep(1500);
@@ -177,6 +212,10 @@ async function main() {
     await key('e'); await sleep(900);
     const ls2 = Number(await text('sanityOut'));
     rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
+    // Scale: standing at the door (eye 1.6 m, level gaze) the 2.0 m door top must project above the screen centre, and the 0 m threshold below it.
+    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:34,y:s.eye,z:75,yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[34,w.DOOR_HEIGHT,72.5]),foot=m.projectPoint(vp,[34,0,72.5]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
+    const dn = JSON.parse(doorNdc || '{}');
+    rec('scale: a 2.0 m door top projects above the screen centre when looking level, its foot below', dn.top > 0.05 && dn.foot < -0.05, dn);
     rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
     await special('Escape', 27, undefined); await sleep(300);
 
@@ -222,13 +261,8 @@ async function main() {
     rec('cinematic 3D: night 5 fly-through runs at low sanity with the omen view moving', oa !== ob && !(await hidden('view3d')) && sanityNow <= 30, { before: oa, after: ob, sanity: sanityNow, caption: (await text('cinemaCaption')).slice(0, 60) });
     await special('Escape', 27, undefined); await sleep(400);
 
-    // real-time frame timing
-    await nav('?intro=0&view=3d#seed=1818&sanity=60');
-    await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<600)requestAnimationFrame(t)})(performance.now())`);
-    await hold('w', 'KeyW', 6000);
-    const stats = frameStats(await ev(`window.__ft`));
-    const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
-    rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer });
+    await timingRun();
+    await qualityRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });
@@ -360,7 +394,9 @@ async function main() {
     const afterLook1 = await shotHash(); await sleep(600); const afterLook2 = await shotHash();
     const knobHeld = await ev(`document.getElementById('touchKnob').style.getPropertyValue('--ky')`);
     await touchN('touchEnd', [sPt(55)]); await sleep(500);
-    const rest1 = await shotHash(); await sleep(500); const rest2 = await shotHash();
+    // Software GL can take seconds per frame while the stick ease-out finishes, so wait until two frames in a row are identical.
+    let rest1 = await shotHash(), rest2 = rest1;
+    for (let i = 0; i < 12; i++) { await sleep(700); rest2 = await shotHash(); if (rest2 === rest1) break; rest1 = rest2; }
     rec('touch controls: stick and look pad work with two simultaneous pointers, releasing the look pad keeps the stick walking', both1 !== both2 && afterLook1 !== afterLook2 && parseFloat(knobHeld) < 0 && rest1 === rest2, { both1, both2, afterLook1, afterLook2, knobHeld, rest1, rest2 });
     await ev(`document.getElementById('touchLantern').click()`); await sleep(300);
     rec('touch controls: Lantern button runs the lantern action (sanity or lamp count changes)', /lit|lantern|lamp/i.test(await text('vigilNote') + await text('narration') + await text('objectiveText')) || Number(await text('sanityOut')) !== 100, { note: await text('vigilNote'), sanity: await text('sanityOut') });
@@ -422,7 +458,7 @@ async function main() {
     rec('title: ?intro=0 skips it', await hidden('title'), {});
     await key('?', 'Slash', 191, '?'); await sleep(300);
     const hp = await ev(`[document.getElementById('help').open, document.querySelectorAll('#help .help-group').length, !!document.getElementById('keys'), document.getElementById('helpDevice').textContent]`);
-    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 5 && hp[2] === false && /Last used/.test(hp[3]), { hp });
+    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 6 && hp[2] === false && /Last used/.test(hp[3]), { hp });
     await special('Escape', 27); await sleep(300);
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
 
@@ -526,20 +562,20 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=540&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(1500);
     const dens = await ev(`(async()=>{const w=await import('./src/world-scale.js'),m=await import('./src/view3d-math.js');return {person:w.PERSON_HEIGHT,storey:w.STOREY_HEIGHT,ridgeMin:w.RIDGE_MIN,budget:m.FRAME_BUDGET}})()`).catch((e) => ({ error: e.message }));
-    rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 12 calls and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 12 && dens.budget.triangles === 60000, dens);
+    rec('density: world-scale constants make a house ridge at least 3 times a person and the frame budget stays 16 calls (round 21: chunked buildings and the held lantern) and 60000 triangles', !dens.error && dens.ridgeMin >= 3 * dens.person && dens.storey >= 3 && dens.budget.drawCalls === 16 && dens.budget.triangles === 60000, dens);
     await ev(`document.getElementById('perfToggle').click()`); await sleep(2500);
-    const perfTxt = await until(() => ev(`document.getElementById('perfHud').textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
+    const perfTxt = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t) && t), 15000);
     const trisNow = Number((/(\d+) tris/.exec(perfTxt || '') || [])[1]);
     rec('density: the dense village renders inside the triangle budget in the live perf HUD (SwiftShader, indicative)', trisNow > 1000 && trisNow <= 60000, { perfTxt });
     // Weather looks: the same camera and clock, only ?weather= changes; storm must be measurably darker than clear and every name must render without errors.
-    const meanLum = () => ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let s=0,n=0;for(let i=0;i<d.length;i+=4*11){s+=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];n++}return Math.round(s/Math.max(1,n))})()`);
+    const meanLum = () => ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let s=0,s2=0,n=0;for(let i=0;i<d.length;i+=4*11){const l=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];s+=l;s2+=l*l;n++}const m=s/Math.max(1,n);return {m:Math.round(m),sd:Math.round(Math.sqrt(Math.max(0,s2/Math.max(1,n)-m*m)))}})()`); // fog mostly lowers contrast, so the check counts the mean shift plus the contrast change
     const lum = {}, hashes = {};
     for (const w of ['clear', 'storm', 'fog', 'rain']) {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
       await nav(`?intro=0&view=3d&capture=1&grain=0&tick=700&weather=${w}&cam3d=54.4,56,200,4#seed=1818&sanity=100`); await sleep(2000);
       lum[w] = await meanLum(); hashes[w] = await shotHash();
     }
-    rec('weather: storm (a fixed lightning moment in captures) and fog change the mean brightness and rain changes the frame against clear at the same camera and clock', ['storm', 'fog'].every((w) => Math.abs(lum[w] - lum.clear) >= 2) && hashes.rain !== hashes.clear, { lum, hashes });
+    rec('weather: storm (a fixed lightning moment in captures) and fog change the mean brightness or contrast and rain changes the frame against clear at the same camera and clock', Math.abs(lum.storm.m - lum.clear.m) >= 2 && Math.abs(lum.fog.m - lum.clear.m) + Math.abs(lum.fog.sd - lum.clear.sd) >= 2 && hashes.rain !== hashes.clear, { lum, hashes });
     const wnames = await ev(`(async()=>{const c=await import('./src/clock.js');return {a:c.weatherForDay?c.weatherForDay(1818,3):null,b:c.weatherForDay?c.weatherForDay(1818,3):null,names:c.WEATHER_NAMES}})()`).catch((e) => ({ error: e.message }));
     rec('weather: the per-day weather is deterministic and every name is known', !wnames.error && wnames.a === wnames.b && Array.isArray(wnames.names) && wnames.names.length === 7, wnames);
     // Birds: counts follow weather and reduced motion, and the seeded flock is identical for the same seed and moves when stepped.
@@ -547,7 +583,8 @@ async function main() {
     rec('birds: gulls fly in clear weather, shelter in a storm, stay away under reduced motion, are seeded and move', !birds.error && birds.clear > 0 && birds.storm === 0 && birds.reduced === 0 && birds.same && birds.moved && birds.verts > 0, birds);
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
-    rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()) > 5, { lum: await meanLum() });
+    rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()).m > 5, { lum: await meanLum() });
+  }
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }
   const passed = results.filter(Boolean).length;
