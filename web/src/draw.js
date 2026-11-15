@@ -14,6 +14,8 @@ export function createRenderer(env) {
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
   const TW = V.tw, TH = V.th;
   const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
+  // Quality tier (quality.js sky2d): layered dusk sky, ridge, clouds, cast shadows and window light spill. Off on Low, which keeps the flat look.
+  let fancy = true;
   // ---------- drawing helpers ----------
   function iso(x, z) { const y = V.oy + (x + z) * TH / 2; return { x: V.ox + (x - z) * TW / 2, y: BOARD_CY + (y - BOARD_CY) * cam.k }; }
   const lerpPt = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
@@ -129,6 +131,7 @@ export function createRenderer(env) {
           const st = (r) => (feat.lit ? windowState(r, dread) : 'off');
           windowAt(rise(lerpPt(bx.d, bx.c, 0.55), f * ph + ph * 0.8), 5, 6, st(r1), dread, flick);
           windowAt(rise(lerpPt(bx.b, bx.c, 0.5), f * ph + ph * 0.8), 5, 6, st(r2), dread, flick);
+          if (fancy && f === 0 && !topDown) for (const [r, at] of [[r1, lerpPt(bx.d, bx.c, 0.55)], [r2, lerpPt(bx.b, bx.c, 0.5)]]) if (st(r) === 'warm') glow(at.x, at.y + 4, 20, '255,180,100', 0.2 * flick, 0.4); // light spilling onto the street
         }
         const door = lerpPt(bx.d, bx.c, 0.2);
         if (feat.door) { ctx.fillStyle = 'rgba(8,8,10,.8)'; ctx.fillRect(door.x - 2, door.y - 7, 4, 7); }
@@ -214,12 +217,45 @@ export function createRenderer(env) {
       gr.addColorStop(0, mix([14, 24, 38], [38, 6, 12], dread)); gr.addColorStop(1, mix([8, 14, 18], [14, 3, 6], dread)); return gr;
     });
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (fancy) drawSkyLayers(dread, time);
     stars.forEach((s) => { ctx.fillStyle = `rgba(220,230,255,${((1 - dread * 0.7) * (0.35 + 0.35 * Math.sin(time / 700 + s.ph))).toFixed(2)})`; ctx.fillRect(s.x, s.y, s.s, s.s); });
     // moon swells and reddens with dread
     const mx = 800, my = 80 + dread * 18, mr = 28 + 22 * dread;
     glow(mx, my, mr * 4, `${200 + 40 * dread | 0},${220 - 150 * dread | 0},${230 - 180 * dread | 0}`, 0.35);
     ctx.fillStyle = mix([225, 232, 240], [190, 40, 44], dread); ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.fill();
     if (state.eye > 0.02) drawEye(time);
+  }
+
+  // Seeded, so the same village always has the same skyline. Ridge points span the canvas at 960 px design width.
+  const ridge = Array.from({ length: 25 }, (_, i) => { const r = new SeededRandom(i + 5150); return { x: i * 40, y: 228 + r.next(46) - (i % 6 === 2 ? 22 : 0) }; });
+  const clouds = Array.from({ length: 6 }, (_, i) => { const r = new SeededRandom(i + 6060); return { x: r.next(960), y: 40 + r.next(150), w: 110 + r.next(140), speed: 3 + r.next(5) }; });
+  /** Matches the 3D night: a cold zenith, a bruised violet band and a low warm haze at the horizon, a ridge behind the village and slow clouds that catch the moon. */
+  function drawSkyLayers(dread, time) {
+    const band = cachedGrad(`band${q(dread)}`, () => {
+      const gr = ctx.createLinearGradient(0, 120, 0, 320);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.55, `rgba(${mix([62, 44, 78], [90, 18, 30], dread).slice(4, -1)},0.55)`); gr.addColorStop(1, `rgba(${mix([96, 64, 60], [120, 30, 26], dread).slice(4, -1)},0.6)`); return gr;
+    });
+    ctx.fillStyle = band; ctx.fillRect(0, 120, canvas.width, 200);
+    const span = canvas.width + 300;
+    for (const c of clouds) {
+      const x = ((c.x + (time / 1000) * c.speed) % span + span) % span - 150, near = Math.max(0, 1 - Math.hypot(x - 800, c.y - 80) / 320);
+      glow(x, c.y, c.w, '16,18,30', 0.5, 0.22);
+      if (near > 0) glow(x + 10, c.y - 4, c.w * 0.7, '190,200,220', 0.16 * near * (1 - dread * 0.6), 0.18); // silver edge near the moon
+    }
+    ctx.beginPath(); ctx.moveTo(0, canvas.height); ridge.forEach((p) => ctx.lineTo(p.x * canvas.width / 960, p.y)); ctx.lineTo(canvas.width, canvas.height); ctx.closePath();
+    ctx.fillStyle = mix([12, 14, 24], [24, 6, 10], dread); ctx.fill();
+  }
+
+  /** Cast shadows on the ground, away from the moon (upper right, so toward +z, lower left on screen), longer for taller pieces. Drawn under every piece. */
+  const SHADOW_LEN = { house_a: 1.3, house_b: 1.5, church: 2.4, well: 0.35, altar: 0.4, dead_tree: 0.9 };
+  function drawShadows(dread) {
+    ctx.fillStyle = `rgba(0,0,0,${(0.3 + 0.15 * dread).toFixed(2)})`; ctx.beginPath();
+    for (const p of state.drawOrder) {
+      const L = SHADOW_LEN[p.id] ?? 0.5, x0 = p.x + 0.08, x1 = p.x + p.sizeX - 0.08, z0 = p.z + 0.08, z1 = p.z + p.sizeZ - 0.08;
+      const pts = [iso(x0, z0), iso(x1, z0), iso(x1, Math.min(GRID_D, z1 + L)), iso(x0, Math.min(GRID_D, z1 + L))];
+      ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath();
+    }
+    ctx.fill();
   }
 
   function drawEye(time) {
@@ -511,6 +547,7 @@ export function createRenderer(env) {
     if (!reduceMotion) { const j = dreadJitter(state.seed, real, dread); ctx.translate(j.dx, j.dy); }
     drawSea(dread, time);
     drawGround(dread);
+    if (fancy && !state.dlnk && !topDownNow()) drawShadows(dread);
     active.length = 0;
     const n = state.dlnk ? 0 : Math.min(cultistCount(tier), state.walkers.length);
     for (let i = 0; i < n; i++) {
@@ -540,5 +577,7 @@ export function createRenderer(env) {
     drawToast(performance.now());
     drawPackBadge();
   }
-  return { iso, doorPoint, updateCamera, drawScene };
+  /** t is a quality tier from quality.js; only sky2d is read here. */
+  const setQuality = (t) => { fancy = !!(t && t.sky2d); };
+  return { iso, doorPoint, updateCamera, drawScene, setQuality };
 }

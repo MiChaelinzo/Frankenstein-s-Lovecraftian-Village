@@ -28,7 +28,7 @@ import { minimapModel } from './minimap.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
-import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines } from './quality.js';
+import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
@@ -378,7 +378,7 @@ const applyQuality = (choice, save) => {
   let stored = null;
   try { stored = storage ? storage.getItem(QUALITY_KEY) : null; } catch (e) { console.warn('[quality] choice not read', e); }
   quality = resolveQuality({ query: save ? null : optParam('quality'), stored: save ? choice : stored, hints: hints() });
-  view3d.setQuality(quality.tier);
+  view3d.setQuality(quality.tier); renderer.setQuality(tierSettings(quality.tier));
   $('qualitySelect').value = quality.choice;
   $('qualityOut').textContent = `${tr(`quality.${quality.tier}`)}: ${[tr('quality.f.lines', { n: tierLines(quality.tier) }), ...tierFeatures(quality.tier).map((f) => tr(`quality.f.${f}`))].join(', ')}`;
   if (save && storage) { try { storage.setItem(QUALITY_KEY, parseQuality(choice) || 'auto'); } catch (e) { console.warn('[quality] choice not saved', e); } }

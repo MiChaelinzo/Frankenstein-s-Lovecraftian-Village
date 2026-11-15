@@ -84,3 +84,14 @@ test('wiring: settings select, saved key, URL override and HUD tier are present'
   for (const c of QUALITY_CHOICES) assert.match(html, new RegExp(`<option value="${c}"`));
   assert.match(app, /optParam\('quality'\)/); assert.match(app, /QUALITY_KEY/); assert.match(app, /view3d\.setQuality/); assert.match(app, /c\.tier/);
 });
+
+test('2D renderer: the tier switches the layered sky, cast shadows and window spill, and both paths draw without throwing', async () => {
+  const { createRenderer } = await import('../src/draw.js');
+  const calls = { fill: 0 };
+  const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : k === 'createLinearGradient' || k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'measureText' ? () => ({ width: 10 }) : (...a) => { if (k === 'fill') calls.fill++; }), set: (t, k, v) => ((t[k] = v), true) });
+  const state = { layout: [], drawOrder: [{ id: 'house_a', x: 2, z: 2, sizeX: 1, sizeZ: 1, depth: 4, key: 'a', floors: 1, detail: 0, vis: { h: 0.5, tilt: 0.2, lit: 0.1, lit2: 0.2, phase: 1 } }], walkers: [], villagers: [], landmarks: [], doors: [], shakes: new Map(), theme: 'auto', eye: 0, tentacle: 0, flash: 0, seed: 7, floor: 0 };
+  const r = createRenderer({ canvas: { width: 960, height: 560 }, ctx, state, cam: { k: 1, hs: 1, mode: 0 }, pack: { roles: {}, patterns: {} }, tex: { resolvePattern: () => null, surf: (r, c) => c, hintLabel: () => '', paintSurface() {} }, V: { tw: 40, th: 20, ox: 480, oy: 60 }, GRID_W: 24, GRID_D: 24, reduceMotion: true, currentNight: () => null, lang: 'en', $: () => ({}), meshes: null });
+  const run = (tier) => { r.setQuality(QUALITY_TIERS[tier]); calls.fill = 0; r.drawScene(0, 0, 0.3, 1); return calls.fill; };
+  const low = run('low'), med = run('medium');
+  assert.ok(med > low, `medium draws the extra layers (${med} fills vs ${low})`);
+});
