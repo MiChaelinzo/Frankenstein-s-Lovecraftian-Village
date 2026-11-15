@@ -51,3 +51,9 @@ Prop heights: `propHeights` in `village_shapes.json` gives a believable range fo
 
 Not done, on purpose: a first-person body or hands (no original mesh exists yet, and a placeholder would add noise), and terrain following (the walkable ground is flat; the church hill lies outside the walkable bounds, so the offset would always be 0). Photo texture tile sizes are estimates, so the CC0 stone, slate and cobble photos may show slightly different feature sizes than the procedural ones.
 
+## Round 21: tiers and the night grade
+- Tone: the post pass applies an ACES fit curve in linear light, so blacks sink and lantern cores roll off into amber instead of clipping. Exposure drops by up to 12% with dread, so a bad night is a darker night. The split tone stays: cold teal shadows, warm highlights.
+- Wet nights: rain and storm darken stone and cobbles by up to 30% and add moon and lantern streaks on them (`WETNESS` in `view3d-math.js`). Fog and mist leave a faint film.
+- The sea meets the land with a broken, slowly pulsing foam band; clouds near the moon get a silver edge; the haze brightens toward the moon.
+- Contact: people get soft blob shadows; the 2D map gets cast shadows away from the moon and window light on the street.
+- Low tier keeps the round 20 look without the post pass, which is the honest fallback for a weak laptop. Stills: `docs/media/r21-high-rain-night.png`, `r21-low-rain-night.png`, `r21-before-rain-night.png`, `r21-high-square-wells.png`, `r21-2d-before.png`, `r21-2d-after.png`.
