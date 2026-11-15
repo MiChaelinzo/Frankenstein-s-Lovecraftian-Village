@@ -29,3 +29,9 @@ test('round 19 browser_check covers the clock and the vigil watch', async () => 
   const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
   for (const needle of ['clock: the 3D sky is measurably brighter', 'clock: the dusk sky is warmer', 'clock vigil: at night Endure runs the clock to dawn', 'clock vigil: by day clues count']) assert.ok(src.includes(needle), needle);
 });
+
+test('round 21 browser_check covers the quality tiers', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
+  for (const needle of ['quality: ?quality= picks the tier', 'QUALITY_ONLY']) assert.ok(src.includes(needle), needle);
+});

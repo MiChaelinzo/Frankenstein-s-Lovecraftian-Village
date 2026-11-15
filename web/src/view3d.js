@@ -19,6 +19,7 @@ import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js'
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
 import { lookAt } from './daylight.js';
 import { tierFor } from './core.js';
+import { tierSettings } from './quality.js';
 
 const BOX_COLORS = { house_a: [0.42, 0.35, 0.3], house_b: [0.38, 0.33, 0.3], church: [0.4, 0.4, 0.42], well: [0.35, 0.36, 0.36], altar: [0.3, 0.3, 0.32], dead_tree: [0.2, 0.17, 0.14] };
 const MESH_FOR = { house_a: 'house_a', house_b: 'house_b', church: 'church', well: 'well', altar: 'altar', dead_tree: 'dead_tree' };
@@ -277,7 +278,7 @@ void main(){
 const SCENE_FS = `${FRAG_HEAD}varying vec3 vPos; varying vec3 vNormal; varying vec3 vColor; varying float vGlow; varying float vPhase; varying vec2 vUv;
 uniform vec3 uCam; uniform vec3 uFogColor; uniform float uFog; uniform vec3 uAmbient; uniform vec3 uMoonDir; uniform vec3 uMoonColor;
 uniform vec4 uLight[${MAX_LIGHTS}]; uniform vec3 uLightCol[${MAX_LIGHTS}]; uniform vec3 uGlowColor; uniform float uTime; uniform float uFlicker; uniform float uMode;
-uniform float uGroundFog; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform sampler2D uPropTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
+uniform float uGroundFog; uniform float uFogSheets; uniform float uDetail; uniform float uGroundH; uniform vec2 uFogOff; uniform float uWaterT; uniform float uRipple; uniform float uFresnel; uniform vec3 uSeaTint; uniform float uMoonGain; uniform float uLampGain; uniform vec3 uZenith; uniform vec3 uHorizon; uniform sampler2D uWallTex; uniform sampler2D uGroundTex; uniform sampler2D uStoneTex; uniform sampler2D uRoofTex; uniform sampler2D uCobbleTex; uniform sampler2D uPropTex; uniform float uPacked; uniform float uHasWall; uniform float uHasGround;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -330,7 +331,7 @@ void main(){
   if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
   if (vGlow > 0.0) { float storey = floor(max(vPos.y - 0.5, 0.0) / 2.9); float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3 + storey * 1.9)); col = mix(col, uGlowColor * 1.4 * (1.0 - 0.05 * storey), clamp(vGlow, 0.0, 1.0) * fl); }
   float f = 1.0 - exp(-pow(dist * uFog, 2.0));
-  float sheet = 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7));
+  float sheet = uFogSheets > 0.5 ? 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7)) : 1.0; // drifting sheets (tier fogSheets) or a flat layer
   float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
   f = 1.0 - (1.0 - f) * (1.0 - mist);
   gl_FragColor = vec4(mix(col, uFogColor, clamp(f, 0.0, 1.0)), 1.0);
@@ -577,7 +578,7 @@ export function createGlRenderer(gl) {
       lightPos.fill(0); lightCol.fill(0);
       f.lights.slice(0, MAX_LIGHTS).forEach((l, i) => { lightPos.set([l.pos[0], l.pos[1], l.pos[2], l.radius], i * 4); lightCol.set(l.color, i * 3); });
       gl.uniformMatrix4fv(scene.u('uVP'), false, f.vp); gl.uniform3fv(scene.u('uCam'), f.camPos); gl.uniform3fv(scene.u('uFogColor'), f.fogColor);
-      gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
+      gl.uniform1f(scene.u('uFog'), f.fog); gl.uniform1f(scene.u('uGroundFog'), f.groundFog); gl.uniform1f(scene.u('uFogSheets'), f.fogSheets ?? 1); gl.uniform1f(scene.u('uDetail'), f.detail ?? 1); gl.uniform1f(scene.u('uGroundH'), f.groundHeight);
       gl.uniform2fv(scene.u('uFogOff'), f.fogOffset); gl.uniform1f(scene.u('uWaterT'), f.waterTime); gl.uniform1f(scene.u('uRipple'), f.sea.ripple); gl.uniform1f(scene.u('uFresnel'), f.sea.fresnel);
       gl.uniform3fv(scene.u('uSeaTint'), f.sea.tint); gl.uniform1f(scene.u('uMoonGain'), f.sea.moonGain); gl.uniform1f(scene.u('uLampGain'), f.sea.lanternGain);
       gl.uniform3fv(scene.u('uZenith'), f.sky.zenith); gl.uniform3fv(scene.u('uHorizon'), f.sky.horizon);
@@ -708,10 +709,11 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, onStep = null, onCoast = null, onThunder = null, modal = null, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
+  let tierName = quality, tier = tierSettings(quality); // graphics quality tier (quality.js), set by the app
   let settings = sanitizeViewSettings(null); // eye height and field of view, set by the app from localStorage
   let lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
@@ -735,7 +737,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
   }
   function ensureParticles(s) {
-    const counts = particleCounts({ weather: s.night.weather, dread: s.dread, reduced });
+    const base = particleCounts({ weather: s.night.weather, dread: s.dread, reduced }), counts = { rain: Math.round(base.rain * tier.particles), mist: Math.round(base.mist * tier.particles) };
     const key = `${s.seed}|${counts.rain}|${counts.mist}`;
     if (key === rainKey) return;
     rainKey = key; renderer.setParticles(particleSeeds(s.seed, counts.rain, 1), particleSeeds(s.seed, counts.mist, 2));
@@ -838,11 +840,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
 
   function draw(s, ts) {
     const rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const size = renderSize(rect.width || canvas.width, rect.height || canvas.height, dpr, scale);
+    const size = renderSize(rect.width || canvas.width, rect.height || canvas.height, dpr, scale, tier.maxPixels);
     if (`${size.width}x${size.height}` !== lastSize) { lastSize = `${size.width}x${size.height}`; canvas.width = size.width; canvas.height = size.height; renderer.resize(size.width, size.height); }
     perf.sample(ts);
-    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), renderer.counts()); }
-    if (!reduced) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames); if (ns !== scale) { scale = ns; perf.reset(); } }
+    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), { ...renderer.counts(), scale, tier: tierName, size: lastSize }); }
+    if (!reduced) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames, tier.minScale); if (ns !== scale) { scale = ns; perf.reset(); } }
     const time = capture ? STILL_TIME : (ts - t0) / 1000, aspect = canvas.width / canvas.height;
     const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
     lastDraw = ts; omen = { eye: omen.eye + (targets.eye - omen.eye) * step, tentacle: omen.tentacle + (targets.tentacle - omen.tentacle) * step };
@@ -869,16 +871,16 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const sk = flashSky(day.sky, flashState.flash); // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
     const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
-    const fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}`;
+    const fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}|${tier.fireflies}`;
     if (fliesKey !== lastFlies) {
       lastFlies = fliesKey;
       const warm = lights.filter((l, i) => states[i] !== 'unlit');
-      renderer.setFireflies(fireflySeeds(warm, s.seed, fireflyCount({ lights: warm.length, reduced })));
+      renderer.setFireflies(fireflySeeds(warm, s.seed, Math.round(fireflyCount({ lights: warm.length, reduced }) * tier.fireflies)));
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
       lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
     }
-    const counts = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
+    const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
     if (nextFlockKey !== flockKey) { flockKey = nextFlockKey; flocks = createFlocks({ seed: s.seed, plan, counts }); }
     if (!reduced) for (const k of ['gulls', 'crows', 'silhouettes']) if (flocks[k]) advanceFlockTo(flocks[k], time);
@@ -902,10 +904,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       lastTent = tentKey;
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
-    const postP = { ...postParams({ dread: s.dread, reduced, quality: scale }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
+    const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     renderer.draw({
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5,
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: sk.fog, glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, fogSheets: tier.fogSheets ? 1 : 0,
     });
   }
 
@@ -1007,6 +1009,9 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     interactCenter() { if (active && cam) interact(centerRay()); },
     /** Eye height (m) and field of view (deg) from the saved settings; values are clamped. */
     setSettings(next) { settings = sanitizeViewSettings(next); wake(); },
+    /** Graphics quality tier name (low, medium, high); resets the resolution governor so the new tier starts from full scale. */
+    setQuality(name) { tierName = name; tier = tierSettings(name); scale = 1; perf.reset(); rainKey = ''; lastFlies = null; flockKey = ''; wake(); },
+    get quality() { return tierName; },
     get settings() { return settings; },
     get camera() { return cam; },
   };

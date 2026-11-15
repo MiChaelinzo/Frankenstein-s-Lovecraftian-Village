@@ -90,11 +90,23 @@ async function main() {
     const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
     rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
   };
+  /** Quality tiers: ?quality= overrides the saved choice, the HUD names the tier and the 16:9 pixel ceiling holds. Auto on SwiftShader resolves to low. */
+  const qualityRun = async () => {
+    const seen = {};
+    for (const q of ['low', 'high', 'auto']) {
+      await nav(`?intro=0&view=3d&perf=1&quality=${q}#seed=1818&sanity=60`);
+      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => / (low|medium|high) x/.test(t) && t), 20000);
+      seen[q] = { hud, select: await ev(`document.getElementById('qualitySelect').value`), canvas: await ev(`(()=>{const c=document.getElementById('view3d');return c.width*c.height})()`), out: (await text('qualityOut')).slice(0, 80) };
+    }
+    rec('quality: ?quality= picks the tier, the HUD shows it, low draws fewer pixels than high and Auto on software GL is low',
+      / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas, seen);
+  };
 
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
     if (process.env.TIMING_ONLY) { await timingRun(); break suite; }
+    if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -240,6 +252,7 @@ async function main() {
     await special('Escape', 27, undefined); await sleep(400);
 
     await timingRun();
+    await qualityRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });

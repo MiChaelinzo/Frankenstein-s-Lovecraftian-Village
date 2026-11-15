@@ -430,11 +430,12 @@ export const POST_MIN_QUALITY = 0.75;
  * Ranges: vignette 0.30..0.60, grain 0.035..0.06 (amplitude), bloom 0.45 gain above a 0.8 luminance threshold, chroma 0..0.004 (uv offset).
  * Reduced motion: grain stays as a still texture (grainMotion false) and the chromatic shift is exactly 0.
  */
-export function postParams({ dread = 0, reduced = false, quality = 1 } = {}) {
+export function postParams({ dread = 0, reduced = false, quality = 1, tier = null } = {}) {
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
-    enabled: q >= POST_MIN_QUALITY, vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
-    bloom: 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d,
+    enabled: q >= POST_MIN_QUALITY && (!tier || tier.post), vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
+    bloom: tier ? tier.bloom : 0.45, bloomThreshold: 0.8, chroma: reduced ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
+    exposure: 1.0 - 0.12 * d, // the filmic curve darkens slightly as dread rises
   };
 }
 
@@ -447,12 +448,18 @@ export function renderSize(cssW, cssH, dpr, scale, maxPixels = MAX_PIXELS) {
   if (over > 1) { w /= Math.sqrt(over); h /= Math.sqrt(over); }
   return { width: Math.max(1, Math.floor(w)), height: Math.max(1, Math.floor(h)) };
 }
-/** Adaptive resolution from the average frame time (perf.js stats). Steps down above 26 ms, back up below 15 ms. */
-export function nextScale(scale, avgMs, frames) {
-  if (!frames || frames < 30) return scale;
-  if (avgMs > 26) return Math.max(0.5, scale - 0.25);
-  if (avgMs < 15 && scale < 1) return Math.min(1, scale + 0.25);
-  return scale;
+/** Dynamic resolution thresholds: step down when the average frame is slower than DRS_DOWN_MS, up only when faster than DRS_UP_MS. The gap is the hysteresis. */
+export const DRS_DOWN_MS = 26, DRS_UP_MS = 15, DRS_STEP = 0.25;
+/**
+ * Adaptive resolution from the average frame time (perf.js stats) over at least 30 frames; the caller resets the stats after a change,
+ * so every step needs a fresh 30 frame window. min is the tier's minScale; the scale never goes above 1.
+ */
+export function nextScale(scale, avgMs, frames, min = 0.5) {
+  const lo = clamp(Number.isFinite(min) ? min : 0.5, 0.25, 1), s = clamp(scale, lo, 1);
+  if (!frames || frames < 30) return s;
+  if (avgMs > DRS_DOWN_MS) return Math.max(lo, s - DRS_STEP);
+  if (avgMs < DRS_UP_MS && s < 1) return Math.min(1, s + DRS_STEP);
+  return s;
 }
 
 // ---------- atmosphere layers: haze per night, ground mist, lantern halos ----------
