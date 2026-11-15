@@ -467,7 +467,7 @@ export function postParams({ dread = 0, reduced = false, quality = 1, tier = nul
   const d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1), q = clamp(Number.isFinite(quality) ? quality : 1, 0, 1);
   return {
     enabled: q >= POST_MIN_QUALITY && (!tier || tier.post), vignette: 0.3 + 0.3 * d, grain: 0.035 + 0.025 * d, grainMotion: !reduced,
-    bloom: tier ? tier.bloom : 0.45, bloomThreshold: 0.8, chroma: reduced || d < CHROMA_DREAD ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
+    bloom: tier ? tier.bloom : 0.45, bloomTaps: tier ? tier.bloomTaps : 10, bloomThreshold: 0.8, chroma: reduced || d < CHROMA_DREAD ? 0 : 0.0006 + 0.0034 * d * d, fxaa: !!(tier && tier.fxaa),
     exposure: 1.0 - 0.12 * d, // the filmic curve darkens slightly as dread rises
   };
 }
@@ -623,6 +623,78 @@ export function fireflySeeds(lights, seed, count) {
     const l = lights[i % lights.length], a = (r.next(1000) / 1000) * Math.PI * 2, rad = 1.2 + (r.next(380) / 100);
     out.set([l.pos[0] + Math.cos(a) * rad, 0.4 + (r.next(260) / 100), l.pos[2] + Math.sin(a) * rad, r.next(1000) / 1000], i * FIREFLY_FLOATS);
   }
+  return out;
+}
+
+// ---------- life: display-only motion (gentle sway, moths, falling leaves, chimney smoke, shore surge). Never read by gameplay. ----------
+
+export const MAX_LIFE = 96;                                                  // moths + leaves + smoke share the firefly point draw: at most this many extra points
+export const LIFE_KIND = Object.freeze({ firefly: 0, moth: 1, leaf: 2, smoke: 3 }); // the integer part of the fourth float of a point; the fraction is its phase
+/** Constants shared by lifePosition here and by the point vertex shader (injected into it), so the two stay in step. */
+export const LIFE = Object.freeze({ mothRadius: 0.9, smokeRise: 4, smokePeriod: 12.5, leafBox: 36, leafFall: 0.7, leafHeight: 9, leafDrift: 1.4 });
+const MOTHS_MAX = 24, SMOKE_MAX = 24, LEAVES_MAX = 32;
+
+/**
+ * What the life layer shows. sway and lap are 0..1 amplitudes (hanging signs, laundry and lanterns; the shore surge); the rest are point counts.
+ * tier.life scales the particles (0 on Low). Reduced motion turns everything off. Moths keep to dry nights and thin out with dread, leaves need wind.
+ * The total never exceeds MAX_LIFE. Pure.
+ */
+export function lifeParams({ tier = null, reduced = false, weather = 'clear', dread = 0 } = {}) {
+  if (reduced) return { sway: 0, lap: 0, leaves: 0, moths: 0, smoke: 0 };
+  const look = weatherLook(weather), life = tier ? clamp(tier.life ?? 0, 0, 1) : 1, d = clamp(Number.isFinite(dread) ? dread : 0, 0, 1);
+  const dry = look.rain === 0;
+  return {
+    sway: 1, lap: tier && !(tier.detail >= 1) ? 0 : 1,
+    leaves: Math.round(LEAVES_MAX * life * Math.min(1, look.wind * 2)),
+    moths: dry ? Math.round(MOTHS_MAX * life * (1 - 0.5 * d)) : 0,
+    smoke: Math.round(SMOKE_MAX * life),
+  };
+}
+
+const wrap = (v, m) => ((v % m) + m) % m;
+const frac = (v) => v - Math.floor(v);
+/**
+ * Where a life point is at timeSec: the CPU twin of the point vertex shader, used by tests. p is [x, y, z, kind + phase] as stored in the buffer,
+ * wind is [dx, dz] scaled by strength, cam is [x, z] (leaves live in a box around the camera). Returns [x, y, z, age 0..1] (age only moves for smoke).
+ */
+export function lifePosition(p, timeSec, wind = [0, 0], cam = [0, 0]) {
+  const kind = Math.floor(p[3]), ph = frac(p[3]), t = timeSec, L = LIFE;
+  if (kind === LIFE_KIND.moth) {
+    const r = L.mothRadius;
+    return [p[0] + Math.sin(t * 2.3 + ph * 40) * r * 0.6 + Math.sin(t * 5.1 + ph * 17) * r * 0.3, p[1] + Math.sin(t * 1.7 + ph * 23) * 0.35, p[2] + Math.cos(t * 2.9 + ph * 31) * r * 0.6 + Math.cos(t * 4.3 + ph * 11) * r * 0.3, 0];
+  }
+  if (kind === LIFE_KIND.smoke) {
+    const age = frac(t / L.smokePeriod + ph);
+    return [p[0] + wind[0] * age * age * 3 + Math.sin(age * 6 + ph * 9) * 0.15, p[1] + age * L.smokeRise, p[2] + wind[1] * age * age * 3 + Math.cos(age * 5 + ph * 7) * 0.15, age];
+  }
+  if (kind === LIFE_KIND.leaf) {
+    const B = L.leafBox, lx = wrap(p[0] * B + wind[0] * t * L.leafDrift + Math.sin(t * 0.9 + ph * 20) * 1.2, B), lz = wrap(p[2] * B + wind[1] * t * L.leafDrift + Math.cos(t * 0.8 + ph * 17) * 1.2, B);
+    return [cam[0] + lx - B / 2, wrap(p[1] * L.leafHeight - L.leafFall * t, L.leafHeight), cam[1] + lz - B / 2, 0];
+  }
+  return [p[0], p[1], p[2], 0];
+}
+
+/** Rooftop chimney sites [{x, y, z}] of the lit houses (metres), one per house at the quarter point of its footprint; heights follow layout order as buildWorld returns them. */
+export function chimneySites(layout, heights, cell = CELL) {
+  const out = [];
+  layout.forEach((p, i) => {
+    if ((p.id === 'house_a' || p.id === 'house_b') && windowLit(p)) out.push({ x: (p.x + p.sizeX * 0.7) * cell, y: heights[i] || 3, z: (p.z + p.sizeZ * 0.4) * cell });
+  });
+  return out;
+}
+
+/**
+ * Seeded [x, y, z, kind + phase, ...] for the life points: moths around warm lanterns, smoke over chimneys, leaves as unit box seeds.
+ * Same seed, sites and counts give the same bytes. Counts are clamped so the total stays inside MAX_LIFE.
+ */
+export function lifeSeeds({ seed = 0, lights = [], chimneys = [], counts = {} } = {}) {
+  const moths = lights.length ? Math.max(0, Math.floor(counts.moths || 0)) : 0, smoke = chimneys.length ? Math.max(0, Math.floor(counts.smoke || 0)) : 0, leaves = Math.max(0, Math.floor(counts.leaves || 0));
+  const total = Math.min(MAX_LIFE, moths + smoke + leaves), out = new Float32Array(total * FIREFLY_FLOATS), r = new SeededRandom(((seed | 0) ^ 0x1ea7) | 0);
+  let n = 0;
+  const put = (x, y, z, kind) => { if (n < total) out.set([x, y, z, kind + r.next(1000) / 1000 * 0.999], n++ * FIREFLY_FLOATS); };
+  for (let i = 0; i < moths; i++) { const l = lights[i % lights.length], a = r.next(628) / 100; put(l.pos[0] + Math.cos(a) * 0.5, l.pos[1] + (r.next(100) / 100 - 0.5), l.pos[2] + Math.sin(a) * 0.5, LIFE_KIND.moth); }
+  for (let i = 0; i < smoke; i++) { const c = chimneys[i % chimneys.length]; put(c.x, c.y, c.z, LIFE_KIND.smoke); }
+  for (let i = 0; i < leaves; i++) put(r.next(1000) / 1000, r.next(1000) / 1000, r.next(1000) / 1000, LIFE_KIND.leaf);
   return out;
 }
 

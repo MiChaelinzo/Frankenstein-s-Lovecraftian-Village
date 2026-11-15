@@ -100,6 +100,36 @@ async function main() {
     const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
     rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
   };
+  /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. */
+  const tierTimingRun = async () => {
+    const out = {};
+    for (const q of ['low', 'medium', 'high']) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=${q}&cam3d=84,96,40,14&tick=1250${process.env.TIER_QUERY || ""}#seed=1818&sanity=60`);
+      await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000);
+      await sleep(Number(process.env.TIER_WARMUP || 6000)); // shader compile, texture and chunk uploads settle before sampling
+      await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<${process.env.TIER_FRAMES || 80})requestAnimationFrame(t)})(performance.now())`);
+      await until(() => ev(`window.__ft.length`).then((n) => n >= Number(process.env.TIER_FRAMES || 80)), 120000);
+      const stats = frameStats(await ev(`window.__ft`)), hud = await ev(`(document.getElementById('perfHud')||{}).textContent`);
+      out[q] = { ...stats, js: (/([\d.]+) ms js/.exec(hud || '') || [])[1] || null, tris: (/(\d+) tris/.exec(hud || '') || [])[1] || null, hud };
+    }
+    rec('per-tier frame time at fixed scale: every tier renders frames (SwiftShader, indicative only, not a real GPU result)', ['low', 'medium', 'high'].every((q) => out[q].frames > 10 && out[q].meanMs > 0), out);
+  };
+  /** Foreground density and grading presets: the Core dressing fills yards and lanes, and the grade curve differs by time and dread. */
+  const lookRun = async () => {
+    await nav('?intro=0&view=3d&capture=1&tick=540#seed=1818&sanity=100'); await sleep(1500);
+    const look = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),q=await import('./src/quality.js');
+      const g=(tick,dread,weather,tier)=>m.gradeParams({tick,dread,weather,tier,highContrast:false});
+      const dusk=g(540,0.1,'clear','high'),night=g(900,0.1,'clear','high'),dread=g(900,0.9,'clear','high'),hc=m.gradeParams({tick:900,dread:0.9,weather:'clear',tier:q.tierSettings('high'),highContrast:true});
+      return {dusk:dusk.shadow,night:night.shadow,dread:dread.shadow,hc:hc.shadow,godHigh:q.QUALITY_TIERS.high.godRays,godMedium:q.QUALITY_TIERS.medium.godRays,life:m.lifeParams({tier:q.tierSettings('high'),reduced:false,weather:'clear',dread:0.2}),lifeReduced:m.lifeParams({tier:q.tierSettings('high'),reduced:true,weather:'clear',dread:0.2})}})()`).catch((e) => ({ error: e.message }));
+    rec('look: grading presets differ by time and dread, high contrast neutralises them, God rays are High only', !look.error && JSON.stringify(look.dusk) !== JSON.stringify(look.night) && JSON.stringify(look.night) !== JSON.stringify(look.dread) && JSON.stringify(look.hc) !== JSON.stringify(look.dread) && look.godHigh > 0 && look.godMedium === 0, look);
+    rec('life: motion effects exist on High and are all off with reduced motion', !look.error && look.life.leaves > 0 && look.life.moths > 0 && look.lifeReduced.leaves === 0 && look.lifeReduced.moths === 0 && look.lifeReduced.smoke === 0, { life: look.life, reduced: look.lifeReduced });
+    // Foreground density: the live scene at a street camera draws well over the bare-village triangle count and stays inside the budget.
+    await nav('?intro=0&view=3d&perf=1&fixscale=1&quality=medium&cam3d=54.4,56,200,4#seed=1818&sanity=60');
+    const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000);
+    const tris = Number((/(\d+) tris/.exec(hud || '') || [])[1]);
+    rec('foreground: the street view draws yard, lane and garden props (HUD triangle count between 6000 and the 60000 budget)', tris >= 6000 && tris <= 60000, { hud });
+  };
   /** Quality tiers: ?quality= overrides the saved choice, the HUD names the tier and the 16:9 pixel ceiling holds. Auto on SwiftShader resolves to low. */
   const qualityRun = async () => {
     const seen = {}; warns.length = 0; // every tier must compile its shaders and keep the post pass: no [view3d] warning
@@ -116,6 +146,8 @@ async function main() {
   try {
   suite: {
     if (process.env.TIMING_ONLY) { await timingRun(); break suite; }
+    if (process.env.TIER_ONLY) { await tierTimingRun(); break suite; }
+    if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
