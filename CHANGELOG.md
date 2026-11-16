@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 22 part C: 2D mood, regression fixes, docs
+- 2D (`draw.js`, tiers with `sky2d`): `dredgeMood(dread)` palette (mossy damp ground, plank quay with bollards and a pier lantern along the sea edge, seeded yard tufts and straw, a grey green fog pool on the board, a cold top and warm low grade). Low keeps the flat look. Tests in `quality.test.js`.
+- Fix (regression from the round 22 window mood): the unlit window state applied to every glowing vertex, so held, villager and coast lanterns (draw mode 3) could randomly go dark with the camera position. It now applies to the building buffer only. Foliage (`vFol`) skips the wall base shadow and gets a small colour lift, so the new grass tufts and reeds no longer render near black. Source guard test in `look.test.js`.
+- Gallery: `docs/media/r22-*.png`; `r21-held-lantern.png` recompressed from 881 KB to 242 KB. Service worker cache `flv-shell-v28`.
+- Measured per tier (SwiftShader, indicative only, fixed scale, 80 frames, 18,463 triangles, harbour camera): Low 219 ms mean, Medium 264 ms, High 303 ms; JS 3.3 to 3.7 ms per frame. Real GPU Unverified.
+- Counts: node 489, dotnet 178, UnityCompileCheck 0 errors and 0 warnings.
+
 ### Round 22 part B: life and motion, performance pass
 - Life layer (display-only, tier gated, all off with reduced motion): hanging signs, laundry lines, nets and wall lanterns swing in the vertex shader (`HANG_PHASE`, `uSway`, stronger in wind), the shore foam surges up and back (`uLap`, detail 1 and up), and moths around warm lanterns, falling leaves (need wind) and chimney smoke share the existing firefly point draw (kind in the integer part of the fourth float). Pure math in `view3d-math.js` (`lifeParams`, `lifeSeeds`, `lifePosition`, `chimneySites`, `LIFE`), tests in `web/test/life.test.js`. `tier.life` is 0 / 0.5 / 1. Drifting fog sheets, mist, gulls and rain already existed. No new draw call, at most 96 extra points (`MAX_LIFE`), `FRAME_BUDGET` unchanged.
 - Performance: early fog cutoff in the scene shader, lantern loop skips lights out of reach, ground palette noise only within 60 m, `bloomTaps` per tier (Medium 5, High 10 sample pairs), near occluders drawn before the ground and sea quads. `?fixscale=1` turns the dynamic resolution governor off for like for like timing.

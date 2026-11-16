@@ -289,3 +289,14 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - Gotchas: a background `http.server` is only reachable from the same shell call in the agent sandbox, so start it and the browser check in one command; Chrome sometimes fails to start (`browser did not expose a page target`), rerun. `tools/screenshot.sh` drops the held lantern when the Low tier downsizes the canvas; a live CDP capture shows it, so it is a headless capture artifact.
 - Browser check: 100 of 101 on the full run (the timing walk got 2 frames at load 8; `TIMING_ONLY=1` rerun passed with 44 frames). Earlier full runs stopped on `Not attached to an active page` captures; the same loop failed on the pre-change build d8059f5, so the script now retries the capture. A deferred Auto detection fixed slow first paints from a throwaway WebGL context.
 - A first ACES pass applied the curve to display values and washed the image out (seen in the first still); the post pass now decodes to linear before the curve.
+
+## Round 22 commits (foreground, Dredge and Silent Hill look, branch feat/round22)
+- `3c81de0` feat: foreground fill in Core (yard props, lane weeds, ruts, lamp posts, gardens, harbour edge), bigger coast buildings, walkers swing round the well, shared batchProps
+- `f9f79f2` feat: VillageDressingPlacer marks props static and merges them once with StaticBatchingUtility
+- `5661c22` feat: Dredge and Silent Hill look (close fog by tier, curve grade, moon shafts, window mood, rim light, ground palette, sea depth, layered sky)
+- `7ae6898` perf: early fog cutoff, per-tier bloom taps, light early-out, front-to-back draw order, fixscale probe and per-tier timing check
+- `f4cf0a1` feat: life and motion layer (swaying props, moths, leaves, chimney smoke, shore surge), sw cache v27
+- `5d41773` fix: window mood only on buildings (not held, villager or coast lanterns), lift foliage out of the wall base shadow
+- `892ee98` feat: 2D view Dredge and Silent Hill mood on tiers with sky2d
+- Triage of the four look bugs seen in first-person stills (a to d, below in `docs/ARCHITECTURE_AUDIT.md`). Per tier SwiftShader: Low 219 ms, Medium 264 ms, High 303 ms mean at fixed scale. Counts: node 489, dotnet 178, UnityCompileCheck 0/0.
+- Gotchas: `pip install --user` fails here (read-only `/root/.local`), `pip install --target <dir> pillow` and `PYTHONPATH` works; the image viewer caches by path, so copy a changed still to a new file name before viewing it again.

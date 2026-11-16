@@ -43,3 +43,4 @@ Packages/com.michaelinzo.frankenstein-village/Core/VillageVigil.cs   Vigil rules
 web/assets/og-preview.png   1200x630 share image (3D render; see CHANGELOG for the command)
 web/src/world-scale.js, clock.js, daylight.js, villagers*.js, villager-ui.js, villager-narrator.js, dressing.js, shapes.js   round 19 pure modules (tested) plus the villager DOM
 Packages/com.michaelinzo.frankenstein-village/Core/WorldScale.cs, GameClock.cs, VillagerRoster.cs, VillageDressing.cs, ShapeMeshBuilder.cs   round 19 Core rules; Runtime/DayNightDirector.cs and VillagerAgent.cs are thin wrappers
+web/src/draw.js (`dredgeMood`, `drawHarbour`, `drawYard`, `drawMoodGrade`)   round 22 2D mood on tiers with sky2d; Core `VillageDressing.cs` `ComposeForeground` is the round 22 foreground fill (JS mirror in `web/src/dressing.js`)

@@ -66,7 +66,9 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [x] Round 20 screenshots (`docs/media/r20-*.png`, before and after scale) are original content or CC0 materials credited in `THIRD_PARTY_ASSETS.md`, each under 700 KB; no pack data in the repo
 - [x] Asset disclosure updated: the repo contains CC0 Poly Haven textures and two props (484 KB), never DLNK content
 - [x] Round 21 tier stills (`docs/media/r21-high-*.png`, `r21-low-rain-night.png`, `r21-before-rain-night.png`, `r21-2d-*.png`) are original content or CC0 materials, each under 700 KB; no pack data in the repo
-- [ ] Recompress `docs/media/r21-held-lantern.png` (881 KB, over the 700 KB target)
+- [x] `docs/media/r21-held-lantern.png` recompressed (242 KB)
+- [x] Round 22 stills (`docs/media/r22-*.png`) are original content, each under 700 KB; no pack data in the repo
+- [ ] Say in the write-up that the 3D look is WebGL1 on software GL checks only, and that the held lantern, windows and wall clearance are known round 23 bugs
 - [ ] Show the Graphics quality menu (Help > First-person view) and the `?perf=1` HUD in the video, and say the look was checked on software GL only unless you recorded on a real GPU
 - [ ] Category selected: Frankenstein
 

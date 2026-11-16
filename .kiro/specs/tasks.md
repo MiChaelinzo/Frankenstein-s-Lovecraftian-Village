@@ -128,15 +128,34 @@ Open author-only items: 11 (needs Unity and the owned pack), 14 (record and publ
 - [ ] 109. Real normal maps for the CC0 photo materials (needs tangents in the GLB path)
 - [ ] 110. Wet sheen reads faintly in stills; tune on a real GPU before making it stronger
 - [ ] 112. Daytime fog (`tick=700`) barely changes the frame (mean 2 levels, contrast 1 to 2); make day fog read more clearly
-- [ ] 113. Recompress `docs/media/r21-held-lantern.png` (881 KB, over the 700 KB target)
+- [x] 113. Recompressed `docs/media/r21-held-lantern.png` (242 KB)
 - [ ] 111. Headless `--screenshot` drops the held lantern when the Low tier downsizes the canvas (live frames are fine); find why the capture path differs
 
+## Round 22: foreground, Dredge and Silent Hill mood, 2D parity
+- [x] 114. Foreground fill in Core with JS parity and golden data (yard props, lane weeds, ruts, lamp posts, gardens, harbour edge), bigger coast buildings, Unity placer static batching (Verified by dotnet 178 and node 489; Unity compile checked only)
+- [x] 115. Dredge and Silent Hill look in 3D (close fog by tier, curve grade, moon shafts, window mood, rim light, ground palette, layered sky), life layer, performance pass (Partially Verified: SwiftShader stills; per tier Low 219 ms, Medium 264 ms, High 303 ms at fixed scale, real GPU Unverified)
+- [x] 116. 2D map mood parity (`dredgeMood`, quay, pier lantern, yard tufts, fog pool, grade) and docs, gallery, recompressed `r21-held-lantern.png` (task 113 done)
+- [x] 117. Regressions fixed: window mood switched off held, villager and coast lanterns; foliage near black from the new base shadow
+- [ ] 118. Author: look at the round 22 build on a real GPU and report frame time per tier
+
+## Round 23: world depth (new asks, inventory first)
+Triage of look bugs seen in round 22 stills (none are regressions unless noted):
+- [ ] 119. Held lantern: glass dull and cut off at the bottom edge. Raise the offset, light the glass properly (setting glow to 1.0 darkened it in SwiftShader, find why), add a screenshot check. Not a regression
+- [ ] 120. Walking collision: `BODY_RADIUS` 0.35 m lets the camera sit almost in a wall face and house meshes overhang their footprint; raise the radius and add overhang clearance, with tests. Dressing benches at doors sit against walls: add wall clearance in Core (C# test, golden, JS). Not a regression
+- [ ] 121. Windows read as flat brown shutters: real glass, interior glow, curtains, per floor on and off (supersedes 107). Not a regression
+- [ ] 122. Grass tufts and reeds are thin cones with no ground contact: wider crossed blades, a dark contact blot, colour from the ground palette. Tufts were a round 22 regression (fixed for black, shape remains)
+- [ ] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
+- [ ] 124. `C` key chat with citizens: talk to the nearest villager to get clues about what to do next (Core line selection first, deterministic fallback, optional AI later in round 26)
+- [ ] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
+- [ ] 126. Huge world: regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
+- [ ] 127. Inventory and items (previously Round 22 roadmap): find, store, use; sleep and food sanity recovery
+
 ## Roadmap
-- Round 21: scale perception, performance and visual polish (street-level fly-through, real-metre texture repeats, prop scale audit, first-person anchor, eye height and FOV settings).
-- Round 22: inventory, items, finding and storing, sleep and food sanity recovery.
-- Round 23: economy, shops, buy/sell, the horror restaurant.
-- Round 24: monsters on the ground and in the sky, sanity exposure over time.
-- Round 25: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
-- Round 26: lore, stories and adventures.
-- Round 27: procedural regions beyond the village.
-- Round 28: Unity parity, performance and polish.
+- Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
+- Round 23: inventory and items (finding and storing, sleep and food sanity recovery) plus the look bug fixes, bigger city, `C` key citizen chat, lore books and a larger world (tasks 119 to 127).
+- Round 24: economy, shops, buy/sell, the horror restaurant.
+- Round 25: monsters on the ground and in the sky, sanity exposure over time.
+- Round 26: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 27: lore, stories and adventures.
+- Round 28: procedural regions beyond the village.
+- Round 29: Unity parity, performance and polish.
