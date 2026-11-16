@@ -199,9 +199,9 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
 // ---------- the explorer's own lantern, held low at the right of the view ----------
 
 /** Where the held lantern hangs in camera space (metres: right, up, forward of the eye). Low and to the right, so only its glass and cap sit in the corner. */
-export const HELD_LANTERN_OFFSET = Object.freeze([0.44, -0.5, 0.75]);
+export const HELD_LANTERN_OFFSET = Object.freeze([0.4, -0.42, 0.8]);
 export const HELD_LANTERN_SWING_RAD = 0.06; // walking swing amplitude in radians; zero with reduced motion
-const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.8, 0.55, 0.28];
+const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
 
 /**
  * A small original hand lantern (about 0.24 m tall, 0.11 m wide: base, glowing glass, cap and ring) placed in front of the eye.
@@ -210,7 +210,7 @@ const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.8, 0.55, 0.28];
 export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }) {
   const local = [];
   pushFrustum(local, -0.055, -0.055, 0.055, 0.055, 0, 0.025, 1, HELD_METAL);                       // base plate
-  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 0.55, 0.7);        // glass chimney, glowing
+  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 1, 0.7);        // glass chimney, glowing
   pushFrustum(local, -0.06, -0.06, 0.06, 0.06, 0.17, 0.21, 0.3, HELD_METAL);                         // cap
   pushFrustum(local, -0.012, -0.012, 0.012, 0.012, 0.21, 0.245, 1, HELD_METAL);                     // ring the hand holds
   const swing = reduced ? 0 : Math.sin(swingPhase * 3.75) * HELD_LANTERN_SWING_RAD, cs = Math.cos(swing), sn = Math.sin(swing);
@@ -402,6 +402,7 @@ void main(){
     float on = 1.0, hw = hash(vec2(vPhase * 1.7 + storey * 5.3, floor((vPos.x + vPos.z) * 0.8))); // one state per house, storey and bay
     if (uWin.x > 0.0 && uMode < 0.5) { on = step(uWin.x, hw); float gut = step(1.0 - uWin.y, fract(hw * 7.31)) * on; fl *= 1.0 - gut * uFlicker * (0.45 + 0.45 * sin(uTime * 17.0 + hw * 90.0) * sin(uTime * 7.3 + hw * 40.0)); }
     vec3 lit = uGlowColor * 1.4 * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
+    if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); lit = uGlowColor / max(gp, 0.001) * 1.25 * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
     col = mix(col, mix(col * 0.55, lit, on), clamp(vGlow, 0.0, 1.0) * mix(1.0, fl, on));
   }
   float f = 1.0 - exp(-pow(dist * uFog, 2.0));

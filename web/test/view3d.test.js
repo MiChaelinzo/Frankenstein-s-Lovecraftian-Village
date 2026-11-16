@@ -527,7 +527,8 @@ test('held lantern: small, in the lower right of the view, past the near plane, 
     assert.ok(nx > 0.1, 'right half'); ys.push(ny); if (ny > -1) visible++;
   }
   assert.ok(Math.max(...ys) < -0.2 && visible > 0, `lower part of the screen and partly visible (top ${Math.max(...ys).toFixed(2)})`);
-  assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v > 0.5), 'the glass glows');
+  assert.ok(Math.min(...ys) > -0.97, `the whole lantern stays inside the frame, the base is not cut off (bottom ${Math.min(...ys).toFixed(2)})`);
+  assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v >= 1), 'the glass glows at full strength');
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4, reduced: true }), buildHeldLantern({ eye, basis, swingPhase: 2.9, reduced: true }), 'still with reduced motion');
   assert.notDeepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), buildHeldLantern({ eye, basis, swingPhase: 1.2 }));
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), a, 'deterministic');
