@@ -294,7 +294,20 @@ export function fitScale(model, piece, cell) {
  * Fixed scale (e.g. 1 for lamp posts) via opts.scale; opts.at = [x, z] centres the mesh there instead of on the piece; opts.rot turns it about the vertical axis (radians); opts.lift raises it (a church rise).
  * opts.uvOut: an array that receives two texture coordinates per vertex (0, 0 for untextured triangles), for a textured model's own buffer.
  */
-export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0, uvOut = null } = {}) {
+/** Window panes carry their own coordinates in the uv slot, below WINDOW_UV (so -1, the untextured marker, and atlas uvs >= 0 stay distinct). Mirrors the scene shader. */
+export const WINDOW_UV = -2;
+/**
+ * Pane coordinates of one emissive triangle: s across the pane, t up it, both 0..1 over the triangle's extent in its own plane, encoded as
+ * WINDOW_UV - s and WINDOW_UV - t. A window is a thin box, so both triangles of a face span the whole face. Faces that look up or down get the pane centre.
+ */
+export function windowUvs(q, n) {
+  if (Math.abs(n[1]) > 0.7) return q.map(() => [WINDOW_UV - 0.5, WINDOW_UV - 0.5]);
+  const hx = n[2], hz = -n[0], a = q.map((p) => p[0] * hx + p[2] * hz), y = q.map((p) => p[1]);
+  const a0 = Math.min(...a), a1 = Math.max(...a), y0 = Math.min(...y), y1 = Math.max(...y);
+  return q.map((p, k) => [WINDOW_UV - (a1 - a0 > 1e-6 ? (a[k] - a0) / (a1 - a0) : 0.5), WINDOW_UV - (y1 - y0 > 1e-6 ? (y[k] - y0) / (y1 - y0) : 0.5)]);
+}
+
+export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 0, tint = null, scale = null, at = null, rot = 0, lift = 0, uvOut = null, windows = false } = {}) {
   const { min, max } = model.bounds;
   const s = scale ?? fitScale(model, piece, cell);
   const cx = at ? at[0] : (piece.x + piece.sizeX / 2) * cell, cz = at ? at[1] : (piece.z + piece.sizeZ / 2) * cell;
@@ -310,7 +323,15 @@ export function appendMeshVertices(out, model, piece, cell, { glow = 1, phase = 
       return (tint ? base * 0.7 + tint[i] * 0.3 : base) / 255;
     });
     for (const p of q) out.push(p[0], p[1], p[2], n[0], n[1], n[2], rgb[0], rgb[1], rgb[2], t.emissive ? glow : 0, phase);
-    if (uvOut) for (let k = 0; k < 3; k++) uvOut.push(t.uv ? t.uv[k][0] : 0, t.uv ? t.uv[k][1] : 0);
+    if (uvOut) {
+      const pane = windows && t.emissive && !t.uv ? windowUvs(q, n) : null; // glass, frame, mullions and curtains are drawn on the pane by the shader
+      for (let k = 0; k < 3; k++) {
+        if (t.uv) uvOut.push(t.uv[k][0], t.uv[k][1]);
+        else if (pane) uvOut.push(pane[k][0], pane[k][1]);
+        else if (model.texture) uvOut.push(0, 0);
+        else uvOut.push(-1, -1);
+      }
+    }
   }
   return lift + max[1] * s;
 }

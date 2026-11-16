@@ -86,12 +86,13 @@ async function upgradedSet() {
   return meshes;
 }
 
-test('buildWorld: buildingUv has one pair per building vertex, -1 everywhere except the CC0 props, and the originals give all -1', async () => {
+test('buildWorld: buildingUv has one pair per building vertex, -1 everywhere except the CC0 props and window panes, and the originals give only -1 or pane codes', async () => {
   const meshes = await upgradedSet(), plain = new Map(KINDS.map((k) => [k, original(k)]));
   for (const seed of [1818, 7]) {
     const l = layout(seed), w = buildWorld({ layout: l, meshes, seed, gridW: 24, gridD: 24 }), o = buildWorld({ layout: l, meshes: plain, seed, gridW: 24, gridD: 24 });
     assert.equal(w.buildingUv.length, (w.building.length / VERTEX_FLOATS) * 2);
-    assert.ok(o.buildingUv.every((v) => v === -1));
+    assert.ok(o.buildingUv.every((v) => v === -1 || (v <= -2 && v >= -3)), 'untextured -1, or a window pane coordinate in -3..-2');
+    assert.ok(o.buildingUv.some((v) => v <= -2), 'the houses have window panes');
     const props = composeDressing(seed, 24, 24, l).filter((it) => it.kind in THIRD_PARTY_MODELS).length;
     const textured = w.buildingUv.filter((v, i) => i % 2 === 0 && v >= 0).length;
     assert.ok(props > 0 && textured > 0, `seed ${seed}: ${props} props, ${textured} textured vertices`);
