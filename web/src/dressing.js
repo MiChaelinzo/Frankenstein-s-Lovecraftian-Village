@@ -19,8 +19,8 @@ const FOOTPRINTS = {
   gravestone: [0.45, 0.71, 1.38, false], gravestone_cross: [0.45, 0.9, 1.6, false], fence_iron: [1.5, 0.1, 1.52, false],
   well: [1.05, 0.95, 2.9, true], fence: [1.5, 0.24, 1.1, true], boat: [1.8, 0.78, 2.9, true], cart: [1.39, 0.66, 1.04, true], sack: [0.57, 0.52, 0.9, false],
   wall_low: [1.55, 0.25, 0.92, true], net: [1.35, 0.05, 1.9, false], bench: [0.75, 0.21, 1.05, false], sign: [0.52, 0.1, 2.46, false], wall_lantern: [0.13, 0.22, 0.5, false],
-  tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.26, 0.31, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
-  grass_tuft: [0.18, 0.08, 0.55, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
+  tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.33, 0.34, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
+  grass_tuft: [0.19, 0.17, 0.52, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
   picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */

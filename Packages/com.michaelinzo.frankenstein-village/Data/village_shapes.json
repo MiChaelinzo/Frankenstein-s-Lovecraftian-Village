@@ -19,7 +19,8 @@
     "skin": [0.52, 0.4, 0.33, 1.0],
     "cloth_dark": [0.11, 0.13, 0.17, 1.0],
     "cloth_red": [0.36, 0.1, 0.09, 1.0],
-    "moss": [0.1, 0.17, 0.12, 1.0]
+    "moss": [0.1, 0.17, 0.12, 1.0],
+    "soil": [0.035, 0.03, 0.025, 1.0]
   },
   "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5, "storeyHeight": 3.0, "houseStoreys": 2, "ridgeMin": 6.0, "ridgeMax": 10.0, "houseFootprintMinCells": 2},
   "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1]},
@@ -391,16 +392,13 @@
       {"name": "clump_c", "material": "moss", "shape": "cylinder", "at": [-0.5, -0.25, 0], "radii": [0.5, 0.25], "height": 0.6, "sides": 6}
     ]},
     {"id": "reeds", "group": "village", "parts": [
-      {"name": "reed_0", "material": "moss", "shape": "cone", "at": [0.12, 0.0, 0], "radius": 0.035, "height": 1.3, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
-      {"name": "reed_1", "material": "thatch", "shape": "cone", "at": [-0.14, 0.128, 0], "radius": 0.035, "height": 1.42, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
-      {"name": "reed_2", "material": "thatch", "shape": "cone", "at": [0.023, -0.259, 0], "radius": 0.035, "height": 1.54, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}},
-      {"name": "reed_3", "material": "moss", "shape": "cone", "at": [0.201, 0.262, 0], "radius": 0.035, "height": 1.66, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
-      {"name": "reed_4", "material": "thatch", "shape": "cone", "at": [-0.118, -0.021, 0], "radius": 0.035, "height": 1.78, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
-      {"name": "reed_5", "material": "thatch", "shape": "cone", "at": [0.16, -0.102, 0], "radius": 0.035, "height": 1.3, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}},
-      {"name": "reed_6", "material": "moss", "shape": "cone", "at": [-0.068, 0.251, 0], "radius": 0.035, "height": 1.42, "sides": 4, "shear": {"dx": -0.18, "from": 0.2, "height": 1.4}},
-      {"name": "reed_7", "material": "thatch", "shape": "cone", "at": [-0.152, -0.293, 0], "radius": 0.035, "height": 1.54, "sides": 4, "shear": {"dx": 0.0, "from": 0.2, "height": 1.4}},
-      {"name": "reed_8", "material": "thatch", "shape": "cone", "at": [0.113, 0.041, 0], "radius": 0.035, "height": 1.66, "sides": 4, "shear": {"dx": 0.18, "from": 0.2, "height": 1.4}}
-    ]},
+      {"name": "blot", "material": "soil", "shape": "cone", "at": [0, 0, 0], "radius": 0.36, "height": 0.03, "sides": 5},
+      {"name": "reed_0", "material": "moss", "shape": "blade", "at": [0.06, 0.0, 0], "width": 0.11, "height": 1.3, "tip": 0.12, "yaw": 0, "shear": {"dx": -0.16, "from": 0.2, "height": 1.3}},
+      {"name": "reed_1", "material": "thatch", "shape": "blade", "at": [-0.1, 0.08, 0], "width": 0.11, "height": 1.55, "tip": 0.12, "yaw": 45, "shear": {"dx": 0.0, "from": 0.2, "height": 1.55}},
+      {"name": "reed_2", "material": "thatch", "shape": "blade", "at": [0.02, -0.12, 0], "width": 0.11, "height": 1.78, "tip": 0.12, "yaw": 90, "shear": {"dx": 0.16, "from": 0.2, "height": 1.78}},
+      {"name": "reed_3", "material": "moss", "shape": "blade", "at": [0.12, 0.1, 0], "width": 0.11, "height": 1.42, "tip": 0.12, "yaw": 135, "shear": {"dx": -0.1, "from": 0.2, "height": 1.42}},
+      {"name": "reed_4", "material": "thatch", "shape": "blade", "at": [-0.08, -0.06, 0], "width": 0.11, "height": 1.66, "tip": 0.12, "yaw": 20, "shear": {"dx": 0.12, "from": 0.2, "height": 1.66}},
+      {"name": "reed_5", "material": "moss", "shape": "blade", "at": [0.0, 0.14, 0], "width": 0.11, "height": 1.2, "tip": 0.12, "yaw": 110, "shear": {"dx": -0.18, "from": 0.2, "height": 1.2}}]},
     {"id": "rock", "group": "village", "parts": [
       {"name": "boulder", "material": "rock", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.75, 0.4], "height": 0.7, "sides": 6},
       {"name": "boulder_b", "material": "stone", "shape": "cylinder", "at": [0.7, 0.35, 0], "radii": [0.45, 0.25], "height": 0.42, "sides": 5},
@@ -416,10 +414,9 @@
       {"name": "sheet_b", "material": "lime", "shape": "box", "at": [1.45, 0, 1.3], "size": [0.75, 0.03, 0.85]}
     ]},
     {"id": "grass_tuft", "group": "village", "parts": [
-      {"name": "blade_0", "material": "moss", "shape": "cone", "at": [0, 0, 0], "radius": 0.055, "height": 0.55, "sides": 3, "shear": {"dx": -0.1, "from": 0.1, "height": 0.55}},
-      {"name": "blade_1", "material": "thatch", "shape": "cone", "at": [0.13, 0.07, 0], "radius": 0.055, "height": 0.4, "sides": 3, "shear": {"dx": 0.12, "from": 0.1, "height": 0.4}},
-      {"name": "blade_2", "material": "moss", "shape": "cone", "at": [-0.12, 0.06, 0], "radius": 0.055, "height": 0.46, "sides": 3, "shear": {"dx": 0.1, "from": 0.1, "height": 0.46}}
-    ]},
+      {"name": "blot", "material": "soil", "shape": "cone", "at": [0, 0, 0], "radius": 0.24, "height": 0.03, "sides": 4, "yaw": 45},
+      {"name": "blade_0", "material": "moss", "shape": "blade", "at": [0, 0, 0], "width": 0.38, "height": 0.52, "tip": 0.2, "shear": {"dx": -0.08, "from": 0.05, "height": 0.52}},
+      {"name": "blade_1", "material": "thatch", "shape": "blade", "at": [0, 0, 0], "width": 0.34, "height": 0.44, "tip": 0.2, "yaw": 90, "shear": {"dx": 0.1, "from": 0.05, "height": 0.44}}]},
     {"id": "stump", "group": "village", "parts": [
       {"name": "trunk", "material": "bark", "shape": "cylinder", "at": [0, 0, 0], "radii": [0.42, 0.3], "height": 0.48, "sides": 6},
       {"name": "root", "material": "bark", "shape": "box", "at": [0.4, 0, 0], "size": [0.3, 0.14, 0.14]}

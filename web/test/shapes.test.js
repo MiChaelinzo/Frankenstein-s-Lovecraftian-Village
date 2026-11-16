@@ -107,3 +107,12 @@ test('JS shape models match the C# ShapeMeshBuilder golden (parts, triangles, ma
     js.forEach((v, k) => assert.ok(Math.abs(v - b[k]) < 0.002, `${id} bound ${k}: ${v} vs ${b[k]}`));
   }
 });
+
+test('blade is a two-sided tapered card (grass tufts and reeds), and the tuft carries a dark ground blot', () => {
+  const m = buildShapeModel({ palette: { moss: [1, 1, 1, 1] }, meshes: [{ id: 'g', group: 'village', parts: [{ name: 'b', material: 'moss', shape: 'blade', at: [0, 0, 0], width: 0.4, height: 0.5, tip: 0.25 }] }] }, 'g');
+  assert.equal(m.triangles.length, 4);
+  assert.ok(Math.abs(m.bounds.max[0] - 0.2) < 1e-9 && Math.abs(m.bounds.max[1] - 0.5) < 1e-9 && m.bounds.max[2] - m.bounds.min[2] < 1e-9);
+  const tuft = shapes.meshes.find((e) => e.id === 'grass_tuft');
+  assert.ok(tuft.parts.some((p) => p.material === 'soil'), 'contact blot');
+  assert.ok(tuft.parts.filter((p) => p.shape === 'blade').every((p) => p.width >= 0.3), 'wide blades');
+});

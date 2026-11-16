@@ -8,7 +8,7 @@ import math
 import os
 
 SHAPES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_shapes.json")
-SHAPE_KINDS = ("box", "wedge", "cylinder", "cone", "hull")
+SHAPE_KINDS = ("box", "wedge", "cylinder", "cone", "hull", "blade")
 
 
 def load_shapes(path=SHAPES_PATH):
@@ -82,6 +82,13 @@ def hull(length, width, depth, z0, bottom=0.55):
     return v, f
 
 
+def blade(cx, cy, z0, width, height, tip=0.15):
+    """A flat tapered card in the XZ plane (grass, reeds): base width, top width tip * width. Two faces on separate vertices, one per side, so it shows from both sides with back face culling."""
+    hw, tw = width / 2, width * tip / 2
+    quad = [(cx - hw, cy, z0), (cx + hw, cy, z0), (cx + tw, cy, z0 + height), (cx - tw, cy, z0 + height)]
+    return quad + quad, [(0, 1, 2, 3), (7, 6, 5, 4)]
+
+
 def yaw_part(vf, degrees, cx, cy):
     """Turn a part about the vertical axis through (cx, cy)."""
     c, s = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
@@ -102,6 +109,8 @@ def shape_geometry(spec):
         vf = cylinder(cx, cy, z0, spec["radius"], 0.0, spec["height"], spec.get("sides", 8))
     elif kind == "hull":
         vf = hull(*spec["size"], z0, spec.get("bottom", 0.55))
+    elif kind == "blade":
+        vf = blade(cx, cy, z0, spec["width"], spec["height"], spec.get("tip", 0.15))
     else:
         raise KeyError("unknown shape: %s" % kind)
     if "shear" in spec:

@@ -101,10 +101,10 @@ namespace Frankenstein.Core
                 case "wall_lantern": return new Footprint { HalfX = 0.13, HalfZ = 0.22, Height = 0.5, Solid = false };
                 case "tree": return new Footprint { HalfX = 0.95, HalfZ = 0.97, Height = 6.0, Solid = true };
                 case "bush": return new Footprint { HalfX = 1.07, HalfZ = 0.68, Height = 0.8, Solid = false };
-                case "reeds": return new Footprint { HalfX = 0.26, HalfZ = 0.31, Height = 1.78, Solid = false };
+                case "reeds": return new Footprint { HalfX = 0.33, HalfZ = 0.34, Height = 1.78, Solid = false };
                 case "rock": return new Footprint { HalfX = 0.97, HalfZ = 0.73, Height = 0.7, Solid = true };
                 case "laundry_line": return new Footprint { HalfX = 2.05, HalfZ = 0.05, Height = 2.3, Solid = false };
-                case "grass_tuft": return new Footprint { HalfX = 0.18, HalfZ = 0.08, Height = 0.55, Solid = false };
+                case "grass_tuft": return new Footprint { HalfX = 0.19, HalfZ = 0.17, Height = 0.52, Solid = false };
                 case "stump": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.48, Solid = true };
                 case "log": return new Footprint { HalfX = 1.0, HalfZ = 0.27, Height = 0.34, Solid = false };
                 case "woodpile": return new Footprint { HalfX = 0.95, HalfZ = 0.6, Height = 0.9, Solid = true };

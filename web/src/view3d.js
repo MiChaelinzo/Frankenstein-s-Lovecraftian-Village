@@ -60,6 +60,9 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 /** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
 export const FOLIAGE_PHASE = 1000;
 const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row']);
+/** Added on top of FOLIAGE_PHASE for plants that grow from the ground: the scene shader colours them from the ground palette under them. */
+export const GROUND_PLANT_PHASE = 300;
+const GROUND_PLANT_KINDS = new Set(['reeds', 'grass_tuft']);
 /** Added to the phase of hanging props (signs, laundry, nets, wall lanterns): the vertex shader swings them gently and removes the marker again. */
 export const HANG_PHASE = 2000;
 const HANG_KINDS = new Set(['sign', 'laundry_line', 'net', 'wall_lantern']);
@@ -243,7 +246,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
     if (!model) continue;
     const windows = WINDOW_KINDS.has(it.kind);
     if (model.texture || windows) padUv();
-    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE : HANG_KINDS.has(it.kind) ? HANG_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture || windows ? uv : null, windows });
+    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE + (GROUND_PLANT_KINDS.has(it.kind) ? GROUND_PLANT_PHASE : 0) : HANG_KINDS.has(it.kind) ? HANG_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture || windows ? uv : null, windows });
     placed++;
   }
   padUv();
@@ -305,6 +308,12 @@ float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); 
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float lumi(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+// The hand tuned ground palette (mossy grass, bare earth, dry straw), shared by the ground and the grass tufts and reeds that grow from it.
+float groundNoise(vec2 xz){ return vnoise(xz * 0.23) * 0.6 + vnoise(xz * 0.9) * 0.3 + vnoise(xz * 3.7) * 0.1; }
+vec3 groundPalette(vec2 xz, float gn){
+  vec3 moss = vec3(0.85, 1.25, 0.72), earth = vec3(1.25, 1.0, 0.8), straw = vec3(1.4, 1.25, 0.8);
+  return mix(mix(earth, moss, smoothstep(0.35, 0.6, gn)), straw, smoothstep(0.66, 0.8, vnoise(xz * 0.11 + 7.0)) * 0.6);
+}
 // Bump from the albedo: two extra taps give the height gradient along the texture axes tu and tv (no derivatives extension needed).
 vec3 bump(vec3 n, sampler2D tex, vec2 uv, float texel, vec3 tu, vec3 tv, float k){
   float h0 = lumi(texture2D(tex, uv).rgb), hu = lumi(texture2D(tex, uv + vec2(texel, 0.0)).rgb), hv = lumi(texture2D(tex, uv + vec2(0.0, texel)).rgb);
@@ -325,15 +334,14 @@ void main(){
     else {
       base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
       if (uDetail > 0.5 && dist < 60.0) { // hand tuned ground palette (far ground is fog by then: distance LOD): mossy grass, bare earth and dry straw patches instead of one flat tone
-        float gn = vnoise(vPos.xz * 0.23) * 0.6 + vnoise(vPos.xz * 0.9) * 0.3 + vnoise(vPos.xz * 3.7) * 0.1;
-        vec3 moss = vec3(0.85, 1.25, 0.72), earth = vec3(1.25, 1.0, 0.8), straw = vec3(1.4, 1.25, 0.8);
-        vec3 pal = mix(mix(earth, moss, smoothstep(0.35, 0.6, gn)), straw, smoothstep(0.66, 0.8, vnoise(vPos.xz * 0.11 + 7.0)) * 0.6);
-        base = base * pal * 1.12 + vec3(0.012, 0.02, 0.008) * (0.5 + gn);
+        float gn = groundNoise(vPos.xz);
+        base = base * groundPalette(vPos.xz, gn) * 1.12 + vec3(0.012, 0.02, 0.008) * (0.5 + gn);
       }
       if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * ${INV_TILE.ground}).rgb * 1.6, 0.9);
       gloss = 0.35; // packed earth only darkens and glints a little
     }
   }
+  if (uMode < 0.5 && vFol > 0.5 && vPhase > ${GROUND_PLANT_PHASE - 50}.0) base = mix(base, vec3(0.14, 0.2, 0.11), 0.5) * groundPalette(vPos.xz, groundNoise(vPos.xz)) * (0.4 + 0.35 * smoothstep(0.0, 0.5, vPos.y)); // tufts and reeds take the colour of the patch they grow from, darker at the root
   if (vUv.x > -0.5) base *= texture2D(uPropTex, vUv).rgb; // CC0 prop: its own base colour from the atlas (vColor is its white factor)
   else if (vUv.x > -1.5 && uMode < 0.5 && uHasWall > 0.5) { // window panes (vUv below -1.5) keep their own colour
     float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
