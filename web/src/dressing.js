@@ -1,21 +1,24 @@
 // JS port of Core/VillageDressing.cs: the seeded harbour quarter, market square and churchyard dressing. Golden-checked ("dressing").
 // Core is the source of truth; keep the numbers and the order of rolls identical to the C# file.
 import { SeededRandom } from './core.js';
-import { streetsEnabled, isStreetCell, isBuilding, facingYaw } from './streets.js';
+import { streetsEnabled, isStreetCell, isSquareCell, isBuilding, facingYaw, laneLines } from './streets.js';
 
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
 export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
 export const DOOR_KINDS = ['', 'barrel', 'crate_stack', 'sack', 'bench', 'cart', 'barrel', 'sack'];
-export const COAST_ROAD_V = -1, COTTAGE_V = -3.9, LAMP_V = -0.9, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.65, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.8, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+export const COAST_ROAD_V = -1, COTTAGE_V = -3.9, LAMP_V = -0.9, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+export const RUT_LIFT = 0.07, LANE_POST_CELLS = 7, BOLLARD_SPACING = 8, BOLLARD_V = -0.3, FOREGROUND_ROLL_STREAM = 0x6f1c;
 export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
 
 const FOOTPRINTS = {
-  cottage_thatch: [1.8, 1.82, 4.1, true], cottage_tall: [1.4, 1.4, 6.1, true], inn: [3.48, 3.58, 4.9, true], chapel: [2.0, 2.88, 6.1, true],
+  cottage_thatch: [2.25, 1.98, 4.1, true], cottage_tall: [1.82, 1.54, 6.1, true], inn: [4.31, 2.88, 4.9, true], chapel: [2.4, 2.76, 6.1, true],
   lighthouse: [2.2, 2.2, 10.2, true], market_stall: [1.3, 1.0, 2.5, true], crate_stack: [1.02, 0.57, 1.4, true], barrel: [0.88, 0.5, 0.93, true],
   gravestone: [0.45, 0.71, 1.38, false], gravestone_cross: [0.45, 0.9, 1.6, false], fence_iron: [1.5, 0.1, 1.52, false],
   well: [1.05, 0.95, 2.9, true], fence: [1.5, 0.24, 1.1, true], boat: [1.8, 0.78, 2.9, true], cart: [1.39, 0.66, 1.04, true], sack: [0.57, 0.52, 0.9, false],
   wall_low: [1.55, 0.25, 0.92, true], net: [1.35, 0.05, 1.9, false], bench: [0.75, 0.21, 1.05, false], sign: [0.52, 0.1, 2.46, false], wall_lantern: [0.13, 0.22, 0.5, false],
   tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.26, 0.31, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
+  grass_tuft: [0.18, 0.08, 0.55, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
+  picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
 export function footprintOf(kind) {
@@ -198,7 +201,89 @@ export function composeDressing(seed, gridW, gridD, layout) {
     const ru = lo + rng.next(Math.trunc(Math.max(1, hi - lo))), rv = 0.6 + rng.next(80) / 100, rr = rng.next(100);
     if (Math.abs(ru - dU) > 3) addShore(rr < 70 ? 'reeds' : 'rock', ru, rv, rr / 10, 1);
   }
+  composeForeground(items, seed, gridW, gridD, layout, streets, dU, lightU, chapelU);
   return items;
+}
+
+/**
+ * Foreground fill (mirrors VillageDressing.ComposeForeground): yard cell tufts, rocks, stumps, logs and bushes, lane edge weeds, wheel ruts and lamp posts on the lanes,
+ * wall stacks and gardens at the buildings, a stack at each coast cottage and the harbour edge. Own roll stream, runs last; every cell, segment and building rolls first.
+ */
+function composeForeground(items, seed, gridW, gridD, layout, streets, dU, lightU, chapelU) {
+  const rng = new SeededRandom(seed ^ FOREGROUND_ROLL_STREAM), along = alongShoreYaw(seed), hi = hiOf(seed, gridW, gridD);
+  const cols = streets ? laneLines(gridW) : [], rows = streets ? laneLines(gridD) : [];
+  const addShore = (kind, u, v, yaw, scale) => { const w = coastToWorldAt(seed, gridW, u, v); items.push({ kind, x: w.x, y: 0, z: w.z, yaw, scale }); };
+  const add = (kind, x, z, yaw, allowStreet) => tryAdd(items, { kind, x, y: 0, z, yaw, scale: 1 }, layout, gridW, gridD, allowStreet);
+
+  for (let cx = 0; cx < gridW; cx++) for (let cz = 0; cz < gridD; cz++) {
+    const roll = rng.next(100), roll2 = rng.next(100), ox = 0.5 + rng.next(300) / 100, oz = 0.5 + rng.next(300) / 100, yaw = rng.next(628) / 100;
+    if (streets && isStreetCell(gridW, gridD, cx, cz)) {
+      if (isSquareCell(gridW, gridD, cx, cz)) continue;
+      const edge = roll2 < 50 ? 0.55 : 3.45, column = cols.includes(cx);
+      add('grass_tuft', column ? cx * CELL_M + edge : cx * CELL_M + ox, column ? cz * CELL_M + oz : cz * CELL_M + edge, yaw, true);
+      continue;
+    }
+    const kind = roll < 24 ? 'grass_tuft' : roll < 30 ? 'rock' : roll < 37 ? 'stump' : roll < 43 ? 'log' : roll < 50 ? 'bush' : '';
+    if (kind) add(kind, cx * CELL_M + ox, cz * CELL_M + oz, yaw, false);
+  }
+
+  if (streets) {
+    let post = 0;
+    for (let axis = 0; axis < 2; axis++) {
+      const extent = axis === 0 ? gridD : gridW;
+      for (const line of axis === 0 ? cols : rows) for (let c = 0; c < extent; c++) {
+        const cx = axis === 0 ? line : c, cz = axis === 0 ? c : line, jitter = rng.next(40) / 100 - 0.2;
+        if (isSquareCell(gridW, gridD, cx, cz) || (axis === 0 ? rows.includes(cz) : cols.includes(cx))) continue;
+        const mx = (cx + 0.5) * CELL_M, mz = (cz + 0.5) * CELL_M;
+        if (c % 6 === 0) items.push({ kind: 'wheel_ruts', x: axis === 0 ? mx + jitter : mx, y: RUT_LIFT, z: axis === 0 ? mz : mz + jitter, yaw: axis === 0 ? Math.PI / 2 : 0, scale: 1 });
+        if (c % LANE_POST_CELLS === 3) {
+          const side = (post % 2 === 0 ? -1 : 1) * (CELL_M / 2 - 0.4);
+          add(DRESSING_LAMP_KINDS[post % 2], axis === 0 ? mx + side : mx, axis === 0 ? mz : mz + side, axis === 0 ? 0 : Math.PI / 2, true);
+          post++;
+        }
+      }
+    }
+  }
+
+  if (layout) for (const p of layout) {
+    if (!isBuilding(p.sizeX, p.sizeZ)) continue;
+    const gardenRoll = rng.next(100), wallRoll = rng.next(100), wallKind = rng.next(100), flip = rng.next(2);
+    if (!streets) continue;
+    const yaw = facingYaw(p.facing | 0), dirX = Math.sin(yaw), dirZ = Math.cos(yaw), sideX = Math.cos(yaw), sideZ = -Math.sin(yaw), odd = (p.facing | 0) % 2 !== 0;
+    const half = (odd ? p.sizeX : p.sizeZ) * CELL_M / 2, halfWide = (odd ? p.sizeZ : p.sizeX) * CELL_M / 2, cx = (p.x + p.sizeX / 2) * CELL_M, cz = (p.z + p.sizeZ / 2) * CELL_M, sgn = flip === 0 ? -1 : 1;
+    if (wallRoll < 70) {
+      const kind = wallKind < 30 ? 'woodpile' : wallKind < 55 ? 'crate_stack' : wallKind < 75 ? 'sack' : wallKind < 90 ? 'cart' : 'log';
+      const lateral = halfWide + 0.35 + footprintOf(kind).halfZ, slide = ((wallKind % 7) - 3) * 0.3;
+      add(kind, cx + sideX * sgn * lateral + dirX * slide, cz + sideZ * sgn * lateral + dirZ * slide, yaw + Math.PI / 2, false);
+    }
+    if (gardenRoll < 60) {
+      const slideG = sgn * 0.8, first = gardenRoll < 20 ? 'crop_row' : gardenRoll < 40 ? 'hedge' : 'picket_fence', back1 = half + 0.4 + footprintOf(first).halfZ + 1.2;
+      add(first, cx - dirX * back1 + sideX * slideG, cz - dirZ * back1 + sideZ * slideG, yaw, false);
+      const second = gardenRoll < 20 ? 'picket_fence' : gardenRoll < 40 ? 'grass_tuft' : 'bush', back2 = back1 + 1.8;
+      add(second, cx - dirX * back2 + sideX * slideG, cz - dirZ * back2 + sideZ * slideG, yaw, false);
+    }
+  }
+
+  const cottageCount = items.length;
+  for (let i = 0; i < cottageCount; i++) {
+    const c = items[i];
+    if (c.kind !== 'cottage_thatch' && c.kind !== 'cottage_tall') continue;
+    const sideRoll = rng.next(2), kindRoll = rng.next(100), kind = kindRoll < 40 ? 'woodpile' : kindRoll < 70 ? 'sack' : 'crate_stack';
+    const dx = along === 0 ? 1 : 0, dz = along === 0 ? 0 : 1, off = (sideRoll === 0 ? -1 : 1) * (footprintOf(c.kind).halfX * c.scale + 0.15 + footprintOf(kind).halfX);
+    const item = { kind, x: c.x + dx * off, y: 0, z: c.z + dz * off, yaw: along, scale: 1 };
+    if (!overlapsItems(item, items, 0.1)) items.push(item);
+  }
+
+  for (let u = 3; u < hi - 2; u += BOLLARD_SPACING) if (Math.abs(u - dU) > 2.6) addShore('bollard', u, BOLLARD_V, along, 1);
+  addShore('rope_coil', dU - 1.6, -1.5, along + 0.5, 1);
+  addShore('rope_coil', dU + 1.7, -1.4, along - 0.3, 1);
+  for (const du of [-6, 6]) if (dU + du > 4 && dU + du < hi - 4 && Math.abs(dU + du - lightU) > LIGHTHOUSE_CLEARANCE && Math.abs(dU + du - chapelU) > CHAPEL_CLEARANCE) addShore('net', dU + du, -0.8, along + 0.05, 1);
+  addShore('boat', dU + 5.5, 2.6, along + 0.15, 0.7);
+  addShore('boat', dU - 6, 3.2, along - 0.2, 0.7);
+  for (let i = 0; i < 5; i++) {
+    const ru = rng.next(Math.trunc(Math.max(1, hi))), rv = 0.4 + rng.next(100) / 100, ry = rng.next(628) / 100;
+    if (Math.abs(ru - dU) > 3) addShore('reeds', ru, rv, ry, 1);
+  }
 }
 
 /** Axis aligned collision boxes for the solid items, in the shape worldBoxes uses. */

@@ -57,3 +57,14 @@ Not done, on purpose: a first-person body or hands (no original mesh exists yet,
 - The sea meets the land with a broken, slowly pulsing foam band; clouds near the moon get a silver edge; the haze brightens toward the moon.
 - Contact: people get soft blob shadows; the 2D map gets cast shadows away from the moon and window light on the street.
 - Low tier keeps the round 20 look without the post pass, which is the honest fallback for a weak laptop. Stills: `docs/media/r21-high-rain-night.png`, `r21-low-rain-night.png`, `r21-before-rain-night.png`, `r21-high-square-wells.png`, `r21-2d-before.png`, `r21-2d-after.png`.
+
+## Dredge and Silent Hill mood (round 22)
+Qualitative only. Nothing is copied from either game: no assets, no names, no layouts. The goal is a village that feels like a damp fishing town with something wrong in the air.
+
+**Palette.** Ground is mossy and wet (dark green brown, hand placed bare earth and straw patches), stone is cold blue grey, wood is brown, and the only saturated colour is lamplight (amber, 255,190,110) and, at high dread, a dull red. Sky: cold violet zenith, a bruised band, a low warm horizon haze. Sea is near black with a faint moon streak. Walls keep a contact shadow at their base; foliage is exempt and gets a small lift so grass reads as grass, not black spikes.
+
+**Fog rules.** Fog is close and grey green, denser on higher tiers (`closeFog` in `view3d-math.js`), with colour taken from the sky, never pure grey. Fully fogged pixels return early. Far ground is fog by design (distance LOD). Fog rises with dread; at low dread it hides the edge of the world, at high dread it pools on the lanes. In 2D the same idea is a fog pool on the board plus a cold top and warm low grade (`dredgeMood`).
+
+**Rules for new content.** Lit windows are a minority at night (window mood: 20 to 50 percent unlit, some guttering); lamps and held lanterns always stay lit; light is warm and local; no jump scares; one unexplained detail per street.
+
+**Known gaps (Partially Verified, SwiftShader only):** windows read as flat brown shutters (no glass or interior), the held lantern glass is dull and low on screen, grass tufts are thin cones, wet sheen is faint. See round 23 tasks in `.kiro/specs/tasks.md`.

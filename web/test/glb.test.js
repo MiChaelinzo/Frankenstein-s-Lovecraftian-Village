@@ -73,7 +73,7 @@ test('every catalog kind has a committed original GLB under 200 KB', () => {
     const f = join(dir, k + '.glb');
     assert.ok(statSync(f).size < 200 * 1024, k + ' too large');
     const m = extractTriangles(parseGlb(readFileSync(f)));
-    assert.ok(m.stats.triangles >= 30, k + ' too few triangles');
+    assert.ok(m.stats.triangles >= 12, k + ' too few triangles'); // round 22: low foreground props (grass tufts, wheel ruts) are small by design
     const polys = projectModel(m);
     assert.equal(polys.length, m.triangles.length);
     assert.ok(polys.every((p) => p.pts.flat().every(Number.isFinite)));

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
-import { laneLines, isStreetCell, isSquareCell, isBuilding, facingFor, streetsEnabled, streetSurfaces, streetWalkers } from '../src/streets.js';
+import { laneLines, isStreetCell, isSquareCell, isBuilding, facingFor, streetsEnabled, streetSurfaces, streetWalkers, wellDeflected } from '../src/streets.js';
 import { composeDressing, walkBounds, footprintOf, CELL_M, COAST_ROAD_V, coastToWorldAt, hiOf } from '../src/dressing.js';
 import { stepCamera, BODY_RADIUS } from '../src/view3d-math.js';
 
@@ -104,5 +104,19 @@ test('a dense street village with every committed mesh stays within the triangle
     const w = buildWorld({ layout, meshes, seed, gridW: 24, gridD: 24 }), n = (a) => a.length / 11;
     const cost = frameCost({ vertices: { building: n(w.building), ground: n(w.ground), sea: 6, coast: n(w.coast), tentacle: 900, villager: 900 }, rain: 900, halos: 100, fireflies: 100, post: true, lights: 8 });
     assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.6 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
+  }
+});
+
+test('walkers on the main lanes swing round the well and the square props, never through them', () => {
+  assert.equal(wellDeflected(1.2, 10), 1.2); assert.equal(wellDeflected(-1.2, 0), -2); assert.equal(wellDeflected(1.2, 0), 2);
+  for (const [w, d, n] of GRIDS) for (const seed of [1818, 7, 42]) {
+    const solids = composeDressing(seed, w, d, generateLayout(catalog, w, d, n, seed)).filter((it) => ['well', 'market_stall', 'bench', 'sign'].includes(it.kind));
+    assert.ok(solids.some((it) => it.kind === 'well'));
+    for (let tick = 0; tick < 400; tick += 0.5) for (const wk of streetWalkers(seed, w, d, tick, 0)) for (const it of solids) {
+      const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw));
+      const hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
+      const dx = Math.max(Math.abs(wk.x - it.x) - hx, 0), dz = Math.max(Math.abs(wk.z - it.z) - hz, 0);
+      assert.ok(Math.hypot(dx, dz) >= BODY_RADIUS, `walker ${wk.id} inside the ${it.kind} at tick ${tick} seed ${seed}`);
+    }
   }
 });

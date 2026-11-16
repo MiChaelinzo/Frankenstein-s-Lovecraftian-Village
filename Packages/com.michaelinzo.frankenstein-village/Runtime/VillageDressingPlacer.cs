@@ -10,6 +10,9 @@ namespace Frankenstein.Runtime
     /// for the layout of a VillageBuilder, then instantiates one prefab per item and one flat slab per street rectangle. No rules live here.
     /// Core measures the dressing in metres on a VillageDressing.Cell grid, so positions are scaled by builder.cellSize / Cell to stay aligned
     /// with the builder's layout. Kinds without a prefab are skipped and counted, never replaced by guesses.
+    /// Every placed item is marked static and the whole set is merged once with StaticBatchingUtility.Combine, so the several hundred
+    /// foreground props (grass, rocks, ruts, garden edges, bollards) share a few static batches instead of one draw call each (Unity's
+    /// counterpart of the web demo's batchProps). Set combineStatic false to keep separate objects for editing.
     /// UNVERIFIED in Unity: compile checked against stubs only. The yaw sign convention (Core radians about the vertical axis versus Unity degrees) is unconfirmed.
     /// </summary>
     public sealed class VillageDressingPlacer : MonoBehaviour
@@ -20,6 +23,8 @@ namespace Frankenstein.Runtime
         [Tooltip("Slab thickness in metres.")]
         public float streetThickness = 0.04f;
         public Color streetColor = new Color(0.16f, 0.15f, 0.14f);
+        [Tooltip("Mark placed items static and merge them once into static batches after placing.")]
+        public bool combineStatic = true;
 
         /// <summary>Items placed by the last Place call.</summary>
         public int PlacedCount { get; private set; }
@@ -42,10 +47,12 @@ namespace Frankenstein.Runtime
                 var position = village.transform.position + new Vector3((float)item.X * ratio, (float)item.Y, (float)item.Z * ratio);
                 var instance = Instantiate(prefab, position, Quaternion.Euler(0f, (float)item.Yaw * Mathf.Rad2Deg, 0f), transform);
                 instance.transform.localScale = Vector3.one * (float)item.Scale;
+                instance.isStatic = combineStatic;
                 PlacedCount++;
             }
             foreach (var r in VillageStreets.Surfaces(village.width, village.depth, village.cellSize))
                 AddStreetSlab((float)r[0], (float)r[1], (float)r[2], (float)r[3]);
+            if (combineStatic && PlacedCount > 0) StaticBatchingUtility.Combine(gameObject);
             if (_missing.Count > 0) Debug.LogWarning("[Frankenstein] Dressing kinds without a prefab: " + string.Join(", ", _missing));
         }
 

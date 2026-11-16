@@ -95,11 +95,22 @@ namespace Frankenstein.Core
         public const double WalkerEndPad = 3.0;
         /// <summary>Metres off the lane centre line, clear of the well and of the door step clutter.</summary>
         public const double WalkerLateral = 1.2;
+        /// <summary>The main lanes run through the square, where the well stands on the lane centre line. A walker there swings out to this lateral offset (metres) at the well and back over <see cref="WellDeflectRadius"/> metres, so it never walks through the well.</summary>
+        public const double WellDeflectLateral = 2.0;
+        public const double WellDeflectRadius = 2.6;
         /// <summary>Walkers per lane: the main lanes (through the square) carry more.</summary>
         public const int MainLaneWalkers = 3;
         public const int SideLaneWalkers = 2;
         /// <summary>Fraction of walkers that leave the street per unit of dread (the village empties as it darkens).</summary>
         public const double DreadThinning = 0.9;
+
+        /// <summary>Lateral offset of a main lane walker that is distanceToWell metres (along the lane) from the well: the normal offset far away, <see cref="WellDeflectLateral"/> at the well, a cosine squared blend between.</summary>
+        public static double WellDeflected(double lateral, double distanceToWell)
+        {
+            if (distanceToWell >= WellDeflectRadius) return lateral;
+            double b = Math.Cos(Math.PI / 2 * distanceToWell / WellDeflectRadius);
+            return (lateral < 0 ? -1.0 : 1.0) * (WalkerLateral + (WellDeflectLateral - WalkerLateral) * b * b);
+        }
 
         public struct StreetWalker
         {
@@ -138,7 +149,9 @@ namespace Frankenstein.Core
                         double d = phase * 2 * length + speed * tick;
                         d -= 2 * length * Math.Floor(d / (2 * length));
                         bool forward = d < length;
-                        double along = WalkerEndPad + (forward ? d : 2 * length - d), centre = (line + 0.5) * VillageDressing.Cell + lateral;
+                        double along = WalkerEndPad + (forward ? d : 2 * length - d);
+                        if (line == extent / 2) lateral = WellDeflected(lateral, Math.Abs(along - (across / 2 + 0.5) * VillageDressing.Cell));
+                        double centre = (line + 0.5) * VillageDressing.Cell + lateral;
                         walkers.Add(new StreetWalker
                         {
                             Id = id, X = axis == 0 ? centre : along, Z = axis == 0 ? along : centre, Lantern = lantern,

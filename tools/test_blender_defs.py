@@ -13,7 +13,7 @@ class MeshDefs(unittest.TestCase):
         for k in mesh_defs.KINDS:
             parts = mesh_defs.build(k)
             self.assertEqual(mesh_defs.validate(parts), [], k)
-            self.assertGreaterEqual(mesh_defs.stats(parts)["tris"], 30, k)
+            self.assertGreaterEqual(mesh_defs.stats(parts)["tris"], 12, k)  # round 22: grass tufts and wheel ruts are small low props by design
 
     def test_catalog_ids_covered(self):
         import json
@@ -33,7 +33,7 @@ class MeshDefs(unittest.TestCase):
     def test_shape_data_file(self):
         data = mesh_defs.load_shapes()
         self.assertEqual(mesh_defs.validate_shapes(data), [])
-        self.assertEqual(len(mesh_defs.KINDS), 37)
+        self.assertEqual(len(mesh_defs.KINDS), 47)
         self.assertEqual(mesh_defs.KINDS, mesh_defs.CATALOG_KINDS + mesh_defs.PROP_KINDS + mesh_defs.VILLAGE_KINDS)
         for k in ("cottage_thatch", "cottage_tall", "inn", "chapel", "lighthouse", "market_stall", "crate_stack", "barrel",
                   "gravestone", "gravestone_cross", "fence_iron", "villager"):

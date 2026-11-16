@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml/badge.svg)](https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/actions/workflows/ci.yml)
 
-![A rainy night in the village on the High tier: lit half-timbered houses, bare trees, the moon in a clouded sky, the explorer's lantern at the lower right](docs/media/r21-high-rain-night.png)
+![Round 22, High tier: a lane at dusk with a villager and a lamp post, low fog pooling at the end of the street, a red horizon](docs/media/r22-lane-villager.png)
 
 ## [Play now: frankensteinlovecraftianvillage.vercel.app](https://frankensteinlovecraftianvillage.vercel.app/)
 
@@ -15,6 +15,13 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 4. **Endure the night:** once enough is found, `Endure the night` appears. Surviving carries your sanity into the next of five nights, and the masked name of the thing under the village fills in as you learn.
 5. **Endings:** six endings (Hollowed, Name Spoken, Dawn, Fever, Witness, Vessel). The result card is a PNG you can share; the result code replays the same seed.
 6. **The vigil binds you:** once a vigil has begun (your first clue or lantern) the sandbox is locked until it ends: the sanity slider and `[` `]`, the night controls, `D`, new village (`N`), seed, daily, load, story playback and the cinematic are refused with a quiet note, since they change sanity or the night. Free exploration before the first action and the tour are never locked. The rule lives in Core (`VigilRules.AllowsSandboxAction` with `VigilState.IsLocked`, begun and not finished) and refuses rather than marking a run tampered.
+
+| | |
+|---|---|
+| ![Round 22 2D before](docs/media/r22-2d-before.png) | ![Round 22 2D after: mossy ground, plank quay and pier lantern, yard tufts, fog pool, cold top and warm low grade](docs/media/r22-2d-after.png) |
+| ![Round 22 High tier: a lane at dusk, villager, lamp post, fog and a red horizon](docs/media/r22-lane-villager.png) | ![Round 21 High tier: a rainy night, still the best reference for wet stone](docs/media/r21-high-rain-night.png) |
+
+Round 22 stills (seed 1818, `?view=3d&intro=0&caption=0&quality=high`, SwiftShader, `cam3d=51.5,56.5,180,-4`, and the 2D map at Medium with `sanity=70`): the Dredge and Silent Hill mood (see `docs/ART_DIRECTION.md`) in 3D and the matching 2D view. Round 22 also filled the empty foreground (yard tufts, stumps, logs, wall stacks, gardens, lamp posts, wheel ruts, harbour bollards), made the coast cottages, inn and chapel bigger, and added a life layer (swaying signs and laundry, moths, leaves, chimney smoke, shore surge). **Known look bugs in this still set (Partially Verified, listed as round 23 tasks):** the held lantern glass is dull and cut off at the bottom edge, windows read as flat brown shutters more than glass, a few dressing props (benches at doors) sit very close to a wall and the player can stand 0.35 m from a wall face, and grass tufts are thin spikes.
 
 | | |
 |---|---|
@@ -44,6 +51,8 @@ Dynamic resolution steps the render scale down by 0.25 when the average frame is
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
 ### Honest quality bar
+**WebGL1 limits (round 22):** the 3D view is WebGL1 only, with no extensions required. That means no `dFdx` derivatives (bump is two albedo taps), no float render targets (so no real HDR bloom, the post pass works on 8 bit), no instancing (props are merged into chunked buffers), no shadow maps, at most 8 lantern lights per pixel, and a fixed texture unit budget. The Dredge and Silent Hill look is created with fog, a curve grade, rim light and window mood inside those limits, so it is a mood study, not a copy of those games. Measured only on SwiftShader (software GL); real GPU frame times are Unverified.
+
 This is a dependency-free WebGL1 renderer with flat shaded, procedurally built meshes, a handful of CC0 textures, a cheap bump from the albedo instead of normal maps, blob shadows instead of real shadow maps, no skinned animation and no baked lighting. It cannot reach the look of an $80 AAA environment pack, and it does not try to. What it offers is a readable, correctly scaled village (two-storey houses, lanes, a square, a harbour), a living sky (clock, weather, birds), and rules that are deterministic and tested. Round 21 added quality tiers, a filmic post pass and wet, foamy, moonlit surfaces, which makes it prettier but does not make it a AAA engine: there is no global illumination, no PBR, no skinned characters. Real GPU frame times and real-browser behavior are Unverified; every look claim above is Partially Verified from software-GL stills.
 
 | | |

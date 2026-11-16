@@ -7,14 +7,15 @@ export const QUALITY_CHOICES = Object.freeze(['auto', 'low', 'medium', 'high']);
 /**
  * What each tier enables. Every field is read by view3d.js or the 2D renderer; nothing here is aspirational.
  * maxPixels: backing store ceiling. minScale: lowest dynamic resolution scale. post: the fullscreen post pass (tone map, grade, bloom, grain).
- * bloom: post bloom gain. fxaa: edge smoothing in the post pass. detail: shader detail level (0 flat, 1 bump, wet sheen, foam and blob
+ * bloom: post bloom gain. bloomTaps: spiral sample pairs per pixel in the bloom (1..10, two texture reads each, the post pass's main fill cost). fxaa: edge smoothing in the post pass. detail: shader detail level (0 flat, 1 bump, wet sheen, foam and blob
  * shadows, 2 adds a third wave train, an extra cloud octave and moon glints on wet stone). particles, fireflies, birds: count multipliers.
- * fogSheets: drifting noise in the ground mist. sky2d: layered dusk sky and window glow on the 2D canvas.
+ * fogDense: distance fog multiplier (denser also culls sooner, saving frames). groundDense: low mist multiplier. godRays: moon shaft strength (High only).
+ * life: moth, leaf and chimney smoke point multiplier (0 Low, display only). fogSheets: drifting noise in the ground mist. sky2d: layered dusk sky and window glow on the 2D canvas.
  */
 export const QUALITY_TIERS = Object.freeze({
-  low: Object.freeze({ maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false }),
-  medium: Object.freeze({ maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true }),
-  high: Object.freeze({ maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true }),
+  low: Object.freeze({ maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, bloomTaps: 1, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false, fogDense: 1.3, groundDense: 1, godRays: 0, life: 0 }),
+  medium: Object.freeze({ maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, bloomTaps: 5, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.2, groundDense: 1.35, godRays: 0, life: 0.5 }),
+  high: Object.freeze({ maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, bloomTaps: 10, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.12, groundDense: 1.6, godRays: 1, life: 1 }),
 });
 
 /** A tier or choice name from free text (URL, storage, select), lower-cased; null when it is not one of QUALITY_CHOICES. */

@@ -1,6 +1,6 @@
 // Offline cache for the static demo. Network first, cache fallback. Precaches only the explicit list below.
 // It never touches local-pack (licensed art stays out of caches) and never serves or stores anything for ?pack=1.
-const CACHE = 'flv-shell-v24';
+const CACHE = 'flv-shell-v28';
 const PRECACHE = [
   './', 'index.html', 'selftest.html', 'meshes.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
   'data/village_catalog.json', 'data/stitch.json', 'data/village_shapes.json',
@@ -10,6 +10,7 @@ const PRECACHE = [
   'assets/meshes/house_a.glb', 'assets/meshes/house_b.glb', 'assets/meshes/church.glb', 'assets/meshes/well.glb', 'assets/meshes/altar.glb', 'assets/meshes/dead_tree.glb', 'assets/meshes/lamp.glb', 'assets/meshes/boat.glb', 'assets/meshes/dock.glb', 'assets/meshes/fence.glb', 'assets/meshes/cliff_rock.glb', 'assets/meshes/lamp_tall.glb', 'assets/meshes/lamp_double.glb',
   'assets/meshes/cottage_thatch.glb', 'assets/meshes/cottage_tall.glb', 'assets/meshes/inn.glb', 'assets/meshes/chapel.glb', 'assets/meshes/lighthouse.glb', 'assets/meshes/market_stall.glb', 'assets/meshes/crate_stack.glb', 'assets/meshes/barrel.glb', 'assets/meshes/gravestone.glb', 'assets/meshes/gravestone_cross.glb', 'assets/meshes/fence_iron.glb', 'assets/meshes/villager.glb',
   'assets/meshes/cart.glb', 'assets/meshes/sack.glb', 'assets/meshes/wall_low.glb', 'assets/meshes/net.glb', 'assets/meshes/bench.glb', 'assets/meshes/sign.glb', 'assets/meshes/wall_lantern.glb', 'assets/meshes/tree.glb', 'assets/meshes/bush.glb', 'assets/meshes/reeds.glb', 'assets/meshes/rock.glb', 'assets/meshes/laundry_line.glb',
+  'assets/meshes/grass_tuft.glb', 'assets/meshes/stump.glb', 'assets/meshes/log.glb', 'assets/meshes/woodpile.glb', 'assets/meshes/hedge.glb', 'assets/meshes/picket_fence.glb', 'assets/meshes/bollard.glb', 'assets/meshes/rope_coil.glb', 'assets/meshes/crop_row.glb', 'assets/meshes/wheel_ruts.glb',
 ];
 // Only page navigations may fall back to index.html offline; scripts, styles and JSON must never receive HTML.
 const isNavigation = (req) => req.mode === 'navigate' || (req.headers && req.headers.get('accept') || '').includes('text/html');
