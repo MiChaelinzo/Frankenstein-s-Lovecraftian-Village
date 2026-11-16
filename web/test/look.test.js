@@ -66,3 +66,11 @@ test('postParams: chromatic aberration is zero below the high dread threshold an
   assert.ok(postParams({ dread: 0.9 }).chroma > 0);
   assert.equal(postParams({ dread: 0.9, reduced: true }).chroma, 0);
 });
+
+test('shader source: window mood is building-only and foliage is lifted out of the wall base shadow (round 22 regressions)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/view3d.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(uWin\.x > 0\.0 && uMode < 0\.5\)/, 'held, villager and coast lanterns (mode 3) must never take the window unlit state');
+  assert.match(src, /if \(vFol > 0\.5\) base = base \* 1\.6/, 'grass, reeds and bushes get a colour lift');
+  assert.match(src, /else if \(uMode < 0\.5 \|\| uMode > 2\.5\) base \*= mix\(/, 'wall base shadow skips foliage');
+});
