@@ -8,7 +8,8 @@ import { keyLook } from './daylight.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
-import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG, BODY_RADIUS } from './world-scale.js';
+import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG, BODY_RADIUS, OVERHANG_CLEARANCE } from './world-scale.js';
+import { LAMP_POLE_HALF } from './dressing.js';
 export { EYE_HEIGHT };
 export { BODY_RADIUS };
 export const WALK_SPEED = 3.2;    // metres per second
@@ -291,6 +292,12 @@ export const windowLit = (piece) => !!piece.vis && piece.vis.lit > 0.35 && (piec
  * Lantern lights: one beside the door of every lit house (the front is the +z side, matching the 2D door)
  * and one lamp post per lit house at the street corner. Returns [{pos, radius, phase, post}] with metres.
  */
+/** Metres a house's corner lamp post stands out from its cell edges: at 0.7 the pole stood where lane walkers pass (0.8 m in), now it hugs the lane edge. */
+export const POST_LAMP_INSET = 0.2;
+/** Collision boxes for the corner lamp posts' poles, in the worldBoxes shape, so the explorer walks round them instead of through them. */
+export function postLampBoxes(lights, pole = LAMP_POLE_HALF + OVERHANG_CLEARANCE) {
+  return lights.filter((l) => l.post).map((l) => ({ minX: l.pos[0] - pole, maxX: l.pos[0] + pole, minZ: l.pos[2] - pole, maxZ: l.pos[2] + pole, height: 3.4 }));
+}
 export function lanternLights(layout, cell = CELL) {
   const out = [];
   for (const p of layout) {
@@ -300,7 +307,7 @@ export function lanternLights(layout, cell = CELL) {
     const dx = facingDx(p.facing | 0), dz = facingDz(p.facing | 0), sx = dz, sz = 0 - dx;
     const cx = (p.x + p.sizeX / 2) * cell, cz = (p.z + p.sizeZ / 2) * cell, front = (dx !== 0 ? p.sizeX : p.sizeZ) * cell / 2, side = (dx !== 0 ? p.sizeZ : p.sizeX) * cell / 2;
     out.push({ pos: [cx + dx * (front + 0.5), 2.2, cz + dz * (front + 0.5)], radius: 9, phase: p.vis.phase || 0, post: false });
-    if (p.vis.lit2 > 0.45) out.push({ pos: [cx + dx * (front + 0.7) + sx * (side + 0.7), 3.1, cz + dz * (front + 0.7) + sz * (side + 0.7)], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
+    if (p.vis.lit2 > 0.45) out.push({ pos: [cx + dx * (front + POST_LAMP_INSET) + sx * (side + POST_LAMP_INSET), 3.1, cz + dz * (front + POST_LAMP_INSET) + sz * (side + POST_LAMP_INSET)], radius: 11, phase: (p.vis.phase || 0) + 3, post: true });
   }
   return out;
 }

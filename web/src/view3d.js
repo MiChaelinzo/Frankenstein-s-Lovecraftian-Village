@@ -12,7 +12,7 @@ import {
   CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
-  viewProjection, windowLit, worldBounds, worldBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
+  viewProjection, windowLit, worldBounds, worldBoxes, postLampBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
@@ -883,7 +883,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
-    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
+    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
     if (!cam) {

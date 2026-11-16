@@ -30,7 +30,11 @@ namespace Frankenstein.Core
         public const double StripDepth = 6.0;
         public const double RoadV = -1.7;
         public const double CottageV = -4.3;
-        public const double LampV = -0.9;
+        public const double LampV = -0.2; // the seaward edge of the coast road, so the pole is not in the middle of the road
+        /// <summary>Half width of a lamp post's pole, metres: lamps block walking only at the pole, so the explorer no longer walks through them.</summary>
+        public const double LampPoleHalf = 0.12;
+        /// <summary>Metres between a lane's edge and the pole of a lane lamp post: lane walkers (at <see cref="VillageStreets.WalkerLateral"/> from the centre) pass clear of it.</summary>
+        public const double LanePostInset = 0.2;
         /// <summary>Centre line of the walkable coast road: between the cottage fronts (about -2) and the shore stand off (-0.6).</summary>
         public const double CoastRoadV = -1.0;
         /// <summary>Nearest a shore rock may stand to the coast road, in metres seaward of the shore line: leaves a walker (body radius plus overhang clearance) room to pass.</summary>
@@ -118,9 +122,14 @@ namespace Frankenstein.Core
             }
         }
 
-        /// <summary>Half extents (x, z) of the walking collision box of a solid item: its footprint swept by yaw and scale, plus <see cref="WorldScale.OverhangClearance"/> on each side. Non-solid kinds return false.</summary>
+        /// <summary>Half extents (x, z) of the walking collision box of a solid item: its footprint swept by yaw and scale (a lamp post: only its pole), plus <see cref="WorldScale.OverhangClearance"/> on each side. Non-solid kinds return false.</summary>
         public static bool TryCollisionHalfExtents(DressingItem item, out double halfX, out double halfZ)
         {
+            if (Array.IndexOf(LampKinds, item.Kind) >= 0)
+            {
+                halfX = halfZ = LampPoleHalf * item.Scale + WorldScale.OverhangClearance;
+                return true;
+            }
             var f = FootprintOf(item.Kind);
             double c = Math.Abs(Math.Cos(item.Yaw)), s = Math.Abs(Math.Sin(item.Yaw));
             halfX = (c * f.HalfX + s * f.HalfZ) * item.Scale + WorldScale.OverhangClearance;
@@ -398,7 +407,7 @@ namespace Frankenstein.Core
                                 items.Add(new DressingItem { Kind = "wheel_ruts", X = axis == 0 ? mx + jitter : mx, Y = RutLift, Z = axis == 0 ? mz : mz + jitter, Yaw = axis == 0 ? Math.PI / 2 : 0.0, Scale = 1.0 });
                             if (c % LanePostCells == 3)
                             {
-                                double side = (post % 2 == 0 ? -1 : 1) * (Cell / 2 - 0.4);
+                                double side = (post % 2 == 0 ? -1 : 1) * (Cell / 2 - LanePostInset);
                                 TryAdd(items, new DressingItem { Kind = LampKinds[post % 2], X = axis == 0 ? mx + side : mx, Z = axis == 0 ? mz : mz + side, Yaw = axis == 0 ? 0.0 : Math.PI / 2, Scale = 1.0 }, layout, gridW, gridD, true);
                                 post++;
                             }

@@ -7,7 +7,7 @@ import { generateLayout, PrefabCatalog } from '../src/core.js';
 import { composeDressing, dressingBoxes, dockU, footprintOf, DRESSING_KINDS, overlapsLayout, CELL_M, hiOf, coastToWorldAt, COAST_ROAD_V, RUT_LIFT, INN_SCALE, CHAPEL_SCALE } from '../src/dressing.js';
 import { facingYaw } from '../src/streets.js';
 import { OVERHANG_CLEARANCE, BODY_RADIUS } from '../src/world-scale.js';
-import { DOOR_KINDS, DOOR_WALL_CLEARANCE } from '../src/dressing.js';
+import { DOOR_KINDS, DOOR_WALL_CLEARANCE, DRESSING_LAMP_KINDS, LAMP_POLE_HALF } from '../src/dressing.js';
 import { laneLines, isStreetCell } from '../src/streets.js';
 import { coastFeatures } from '../src/view3d-math.js';
 import { loadGlbBuffer } from '../src/glb.js';
@@ -49,9 +49,9 @@ test('dressing is deterministic, never enlarges, and keeps solid items off layou
   }
 });
 
-test('collision boxes cover only solid kinds', () => {
+test('collision boxes cover only solid kinds and lamp poles', () => {
   const items = composeDressing(1818, 24, 24, layoutFor(1818, 24));
-  assert.equal(dressingBoxes(items).length, items.filter((i) => footprintOf(i.kind).solid).length);
+  assert.equal(dressingBoxes(items).length, items.filter((i) => footprintOf(i.kind).solid || DRESSING_LAMP_KINDS.includes(i.kind)).length);
 });
 
 test('footprint table matches the committed meshes within 5 cm and heights within 10 cm', () => {

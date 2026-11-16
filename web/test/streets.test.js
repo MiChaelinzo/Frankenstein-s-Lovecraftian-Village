@@ -121,3 +121,18 @@ test('walkers on the main lanes swing round the well and the square props, never
     }
   }
 });
+
+test('lane walkers never pass through a lamp post pole (lane posts and the corner posts of lit houses)', async () => {
+  const { DRESSING_LAMP_KINDS, LAMP_POLE_HALF } = await import('../src/dressing.js');
+  const { lanternLights, POST_LAMP_INSET } = await import('../src/view3d-math.js');
+  assert.ok(POST_LAMP_INSET < 0.5);
+  for (const [w, d, n] of GRIDS) for (const seed of [1818, 7, 42]) {
+    const layout = generateLayout(catalog, w, d, n, seed), lit = layout.map((p) => ({ ...p, vis: { lit: 1, lit2: 1, phase: 0 } }));
+    const poles = [...composeDressing(seed, w, d, layout).filter((it) => DRESSING_LAMP_KINDS.includes(it.kind)).map((it) => [it.x, it.z]), ...lanternLights(lit).filter((l) => l.post).map((l) => [l.pos[0], l.pos[2]])];
+    assert.ok(poles.length > 5);
+    for (let tick = 0; tick < 400; tick += 0.5) for (const wk of streetWalkers(seed, w, d, tick, 0)) for (const [x, z] of poles) {
+      const dx = Math.max(Math.abs(wk.x - x) - LAMP_POLE_HALF, 0), dz = Math.max(Math.abs(wk.z - z) - LAMP_POLE_HALF, 0);
+      assert.ok(Math.hypot(dx, dz) >= VILLAGER_RADIUS, `walker ${wk.id} through a lamp post at ${x.toFixed(1)},${z.toFixed(1)} tick ${tick} seed ${seed}`);
+    }
+  }
+});

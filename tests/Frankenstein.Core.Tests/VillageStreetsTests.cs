@@ -198,6 +198,25 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Lane_walkers_never_pass_through_a_lamp_post_pole()
+        {
+            var cat = Catalog();
+            foreach (var g in Grids)
+                foreach (int seed in new[] { 1818, 7, 42 })
+                {
+                    var poles = VillageDressing.Compose(seed, g.w, g.d, VillageLayoutGenerator.Generate(cat, g.w, g.d, g.n, seed)).Where(it => VillageDressing.LampKinds.Contains(it.Kind)).ToList();
+                    Assert.NotEmpty(poles);
+                    for (double tick = 0; tick < 400; tick += 0.5)
+                        foreach (var w in VillageStreets.Walkers(seed, g.w, g.d, tick, 0))
+                            foreach (var it in poles)
+                            {
+                                double dx = Math.Max(Math.Abs(w.X - it.X) - VillageDressing.LampPoleHalf, 0), dz = Math.Max(Math.Abs(w.Z - it.Z) - VillageDressing.LampPoleHalf, 0);
+                                Assert.True(Math.Sqrt(dx * dx + dz * dz) >= VillagerRadius, $"walker {w.Id} through the {it.Kind} at tick {tick} seed {seed}");
+                            }
+                }
+        }
+
+        [Fact]
         public void Near_field_every_walk_position_has_ground_props_two_to_eight_metres_away()
         {
             var cat = Catalog();
