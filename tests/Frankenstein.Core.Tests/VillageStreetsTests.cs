@@ -12,7 +12,8 @@ namespace Frankenstein.Core.Tests
     {
         private static readonly int[] Seeds = { 1, 7, 42, -7, 1818, 99999, 123456789 };
         private static readonly (int w, int d, int n)[] Grids = { (24, 24, 80), (20, 20, 60), (32, 24, 100) };
-        private const double BodyRadius = 0.35;
+        private const double BodyRadius = WorldScale.BodyRadius;
+        private const double VillagerRadius = WorldScale.VillagerRadius;
         /// <summary>Lanes end at the harbour quarter, where cottages overhang the grid edge by a metre or so, so the lane walk stops short of the edge.</summary>
         private const double EndMargin = 2.5;
 
@@ -36,10 +37,7 @@ namespace Frankenstein.Core.Tests
         {
             foreach (var it in items)
             {
-                var f = VillageDressing.FootprintOf(it.Kind);
-                if (!f.Solid) continue;
-                double c = Math.Abs(Math.Cos(it.Yaw)), s = Math.Abs(Math.Sin(it.Yaw));
-                double hx = (c * f.HalfX + s * f.HalfZ) * it.Scale, hz = (s * f.HalfX + c * f.HalfZ) * it.Scale;
+                if (!VillageDressing.TryCollisionHalfExtents(it, out double hx, out double hz)) continue;
                 if (CircleHitsBox(x, z, it.X - hx, it.X + hx, it.Z - hz, it.Z + hz)) return true;
             }
             foreach (var p in layout)
@@ -194,7 +192,7 @@ namespace Frankenstein.Core.Tests
                                 var f = VillageDressing.FootprintOf(it.Kind);
                                 double c = Math.Abs(Math.Cos(it.Yaw)), s = Math.Abs(Math.Sin(it.Yaw));
                                 double dx = Math.Max(Math.Abs(w.X - it.X) - (c * f.HalfX + s * f.HalfZ) * it.Scale, 0), dz = Math.Max(Math.Abs(w.Z - it.Z) - (s * f.HalfX + c * f.HalfZ) * it.Scale, 0);
-                                Assert.True(Math.Sqrt(dx * dx + dz * dz) >= BodyRadius, $"walker {w.Id} inside the {it.Kind} at tick {tick} seed {seed}");
+                                Assert.True(Math.Sqrt(dx * dx + dz * dz) >= VillagerRadius, $"walker {w.Id} inside the {it.Kind} at tick {tick} seed {seed}");
                             }
                 }
         }

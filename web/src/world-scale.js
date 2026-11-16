@@ -13,6 +13,9 @@ export const HOUSE_STOREYS = 2;
 export const RIDGE_MIN = 6.0;       // village house ridge, about 3.5 to 6 times a person
 export const RIDGE_MAX = 10.0;
 export const HOUSE_FOOTPRINT_MIN_CELLS = 2; // catalog footprint of a house, both axes
+export const BODY_RADIUS = 0.45;    // explorer body: shoulders plus a held lantern, so the camera never sits in a wall face. Mirrors WorldScale.BodyRadius
+export const VILLAGER_RADIUS = 0.35;   // a villager's body, no lantern held out. Mirrors WorldScale.VillagerRadius
+export const OVERHANG_CLEARANCE = 0.15; // metres added to every side of a solid prop's collision box (eaves, thatch, branches). Mirrors WorldScale.OverhangClearance
 export const MAX_PLACE_SCALE = 1;   // fitScale never enlarges a mesh
 export const EYE_MIN = 1.5, EYE_MAX = 1.8;                    // eye height setting range of the first-person view
 export const FOV_MIN_DEG = 55, FOV_MAX_DEG = 75, FOV_DEFAULT_DEG = 64; // vertical field of view setting range, degrees

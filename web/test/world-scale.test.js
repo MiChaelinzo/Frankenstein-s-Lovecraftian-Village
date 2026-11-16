@@ -106,3 +106,16 @@ test('props that sit in the street are smaller than a person or a door, and hous
   for (const k of ['barrel', 'bench', 'sack', 'crate_stack', 'cart', 'bush', 'rock']) assert.ok(top(k) < scale.DOOR_HEIGHT, k);
   assert.ok(top('house_a') >= 3 * scale.PERSON_HEIGHT);
 });
+
+test('body radius, villager radius and overhang clearance equal Core WorldScale.cs, and door clearance and rock offset equal VillageDressing.cs', async () => {
+  const core = join(web, '..', 'Packages', 'com.michaelinzo.frankenstein-village', 'Core');
+  const ws = readFileSync(join(core, 'WorldScale.cs'), 'utf8'), vd = readFileSync(join(core, 'VillageDressing.cs'), 'utf8');
+  const num = (src, name) => Number(new RegExp(`const (?:float|double) ${name} = (-?[0-9.]+)f?;`).exec(src)[1]);
+  assert.equal(scale.BODY_RADIUS, num(ws, 'BodyRadius'));
+  assert.equal(scale.VILLAGER_RADIUS, num(ws, 'VillagerRadius'));
+  assert.equal(scale.OVERHANG_CLEARANCE, num(ws, 'OverhangClearance'));
+  const d = await import('../src/dressing.js');
+  assert.equal(d.DOOR_WALL_CLEARANCE, num(vd, 'DoorWallClearance'));
+  assert.equal(d.ROCK_MIN_V, num(vd, 'RockMinV'));
+  assert.ok(scale.BODY_RADIUS > scale.VILLAGER_RADIUS, 'the explorer holds a lantern out, so the body is wider than a villager');
+});

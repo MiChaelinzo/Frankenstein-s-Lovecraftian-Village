@@ -29,10 +29,12 @@ namespace Frankenstein.Core
         /// <summary>Inland depth of the free strip between the shoreline and the first layout cell.</summary>
         public const double StripDepth = 6.0;
         public const double RoadV = -1.7;
-        public const double CottageV = -3.9;
+        public const double CottageV = -4.3;
         public const double LampV = -0.9;
         /// <summary>Centre line of the walkable coast road: between the cottage fronts (about -2) and the shore stand off (-0.6).</summary>
         public const double CoastRoadV = -1.0;
+        /// <summary>Nearest a shore rock may stand to the coast road, in metres seaward of the shore line: leaves a walker (body radius plus overhang clearance) room to pass.</summary>
+        public const double RockMinV = 0.9;
         public const double LampSpacing = 9.0;
         public const double MinSlotSpacing = 6.0;
         public const double DockClearance = 7.0;
@@ -44,6 +46,12 @@ namespace Frankenstein.Core
         public const int HillGraveRows = 4;
         /// <summary>Metres between the edge of a building's cell rectangle and its wall (the house mesh is smaller than its cells).</summary>
         public const double HouseSetback = 0.7;
+        /// <summary>
+        /// Metres between a house wall and the back of the bench at its door. The bench stands in the setback, inside its own cell, so lane walkers and the
+        /// explorer (who collide with the cell box) never meet it. Before round 23 the door prop was tested against its own cell with the 0.3 m layout clearance
+        /// and so was always rejected: no house ever had a door prop.
+        /// </summary>
+        public const double DoorWallClearance = 0.15;
         public const double WallLanternLift = 2.2;
         /// <summary>Metres from the square centre to the well's benches and the market stall.</summary>
         public const double SquareBench = 3.8;
@@ -51,7 +59,7 @@ namespace Frankenstein.Core
         /// <summary>One scatter candidate (tree, bush or rock) per this many grid cells.</summary>
         public const int ScatterPerCells = 16;
         /// <summary>Door step clutter by roll 0..7; an empty entry is a bare door.</summary>
-        public static readonly string[] DoorKinds = { "", "barrel", "crate_stack", "sack", "bench", "cart", "barrel", "sack" };
+        public static readonly string[] DoorKinds = { "", "", "", "", "bench", "", "", "" }; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget
         /// <summary>Metres left between the player and the foam on the coast side, so the coast road is walkable up to the shore but not into the sea.</summary>
         public const double ShoreStandOff = 0.6;
         /// <summary>Metres of walkable margin past the grid edge on every side that is not the coast.</summary>
@@ -108,6 +116,16 @@ namespace Frankenstein.Core
                 case "wheel_ruts": return new Footprint { HalfX = 1.6, HalfZ = 0.63, Height = 0.02, Solid = false };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
+        }
+
+        /// <summary>Half extents (x, z) of the walking collision box of a solid item: its footprint swept by yaw and scale, plus <see cref="WorldScale.OverhangClearance"/> on each side. Non-solid kinds return false.</summary>
+        public static bool TryCollisionHalfExtents(DressingItem item, out double halfX, out double halfZ)
+        {
+            var f = FootprintOf(item.Kind);
+            double c = Math.Abs(Math.Cos(item.Yaw)), s = Math.Abs(Math.Sin(item.Yaw));
+            halfX = (c * f.HalfX + s * f.HalfZ) * item.Scale + WorldScale.OverhangClearance;
+            halfZ = (s * f.HalfX + c * f.HalfZ) * item.Scale + WorldScale.OverhangClearance;
+            return f.Solid;
         }
 
         public static readonly string[] LampKinds = { "lamp", "lamp_tall", "lamp_double" };
@@ -206,7 +224,7 @@ namespace Frankenstein.Core
                 double u = slots[i][0];
                 if (Math.Abs(u - dockU) < DockClearance || Math.Abs(u - lightU) < LighthouseClearance || Math.Abs(u - chapelU) < ChapelClearance) continue;
                 string kind = i == innSlot ? "inn" : slots[i][1] == 0 ? "cottage_tall" : "cottage_thatch";
-                double v = i == innSlot ? -4.0 : CottageV + slots[i][2];
+                double v = i == innSlot ? -4.4 : CottageV + slots[i][2];
                 AddShore(items, seed, gridW, gridD, kind, u, v, seaward + slots[i][3], i == innSlot ? InnScale : 1.0);
                 if (i == innSlot) AddShore(items, seed, gridW, gridD, "barrel", u - 3.1, -3.4, along + 0.2, 1.0);
             }
@@ -316,7 +334,7 @@ namespace Frankenstein.Core
             for (int i = 0; i < 6; i++)
             {
                 double ru = lo + rng.Next((int)Math.Max(1, hi - lo)), rv = 0.6 + rng.Next(80) / 100.0, rr = rng.Next(100);
-                if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rv, rr / 10.0, 1.0);
+                if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rr < 70 ? rv : Math.Max(rv, RockMinV), rr / 10.0, 1.0);
             }
             ComposeForeground(items, seed, gridW, gridD, layout, streets, dockU, lightU, chapelU);
             return items;
@@ -327,7 +345,7 @@ namespace Frankenstein.Core
         /// <summary>Metres between the lamp posts along a lane, in cells, and the spacing of the harbour bollards in metres.</summary>
         public const int LanePostCells = 7;
         public const double BollardSpacing = 8.0;
-        public const double BollardV = -0.3;
+        public const double BollardV = -0.2;
         /// <summary>Seed salt of the foreground fill's own roll stream.</summary>
         public const int ForegroundRollStream = 0x6f1c;
 
@@ -523,8 +541,8 @@ namespace Frankenstein.Core
             if (door.Length > 0)
             {
                 var df = FootprintOf(door);
-                double depth = wall + 0.1 + df.HalfZ;
-                TryAdd(items, new DressingItem { Kind = door, X = cx + dirX * depth + sideX * side, Z = cz + dirZ * depth + sideZ * side, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, true);
+                double depth = wall + DoorWallClearance + df.HalfZ;
+                TryAdd(items, new DressingItem { Kind = door, X = cx + dirX * depth + sideX * side, Z = cz + dirZ * depth + sideZ * side, Yaw = yaw, Scale = 1.0 }, OtherPieces(layout, p), gridW, gridD, true); // the bench stands inside its own cell, so only the other pieces are obstacles
             }
             string yard = yardRoll < 25 ? "fence" : yardRoll < 45 ? "wall_low" : yardRoll < 60 ? "laundry_line" : yardRoll < 75 ? "bush" : yardRoll < 90 ? "tree" : "";
             if (yard.Length > 0)
@@ -533,6 +551,13 @@ namespace Frankenstein.Core
                 double back = half + 0.4 + yf.HalfZ + (yard == "tree" ? 0.6 : 0.0);
                 TryAdd(items, new DressingItem { Kind = yard, X = cx - dirX * back, Z = cz - dirZ * back, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
             }
+        }
+
+        private static List<PlacedPiece> OtherPieces(IList<PlacedPiece> layout, PlacedPiece self)
+        {
+            var others = new List<PlacedPiece>(layout.Count);
+            foreach (var q in layout) if (q.X != self.X || q.Z != self.Z) others.Add(q);
+            return others;
         }
 
         /// <summary>True when the item's footprint (swept by its yaw) comes within clearance metres of any layout piece.</summary>

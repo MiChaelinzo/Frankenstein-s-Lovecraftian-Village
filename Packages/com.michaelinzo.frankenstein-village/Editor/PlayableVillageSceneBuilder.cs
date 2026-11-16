@@ -138,12 +138,12 @@ namespace Frankenstein.Editor
                     body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
                     UnityEngine.Object.DestroyImmediate(body.GetComponent<CapsuleCollider>());
                     body.transform.SetParent(root.transform, false);
-                    body.transform.localScale = new Vector3(WorldScale.BodyRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.BodyRadius * 2f);
+                    body.transform.localScale = new Vector3(WorldScale.VillagerRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.VillagerRadius * 2f);
                 }
                 body.name = "Villager " + v.Index + " " + v.Name;
                 var hitbox = body.AddComponent<CapsuleCollider>();
                 hitbox.height = WorldScale.PersonHeight;
-                hitbox.radius = WorldScale.BodyRadius;
+                hitbox.radius = WorldScale.VillagerRadius;
                 hitbox.center = new Vector3(0f, WorldScale.PersonHeight * 0.5f, 0f);
 
                 var lanternGo = new GameObject("Lantern");
@@ -248,7 +248,7 @@ namespace Frankenstein.Editor
             visual.name = "Body";
             UnityEngine.Object.DestroyImmediate(visual.GetComponent<CapsuleCollider>());
             visual.transform.SetParent(go.transform, false);
-            visual.transform.localScale = new Vector3(WorldScale.BodyRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.BodyRadius * 2f);
+            visual.transform.localScale = new Vector3(WorldScale.VillagerRadius * 2f, WorldScale.PersonHeight * 0.5f, WorldScale.VillagerRadius * 2f); // the visible body stays slim; the controller radius below includes the held lantern
 
             var explorer = go.AddComponent<FirstPersonExplorer>();
             explorer.body = go.AddComponent<CharacterController>();

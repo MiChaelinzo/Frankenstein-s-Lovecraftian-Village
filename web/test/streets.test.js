@@ -7,6 +7,7 @@ import { generateLayout, PrefabCatalog } from '../src/core.js';
 import { laneLines, isStreetCell, isSquareCell, isBuilding, facingFor, streetsEnabled, streetSurfaces, streetWalkers, wellDeflected } from '../src/streets.js';
 import { composeDressing, walkBounds, footprintOf, CELL_M, COAST_ROAD_V, coastToWorldAt, hiOf } from '../src/dressing.js';
 import { stepCamera, BODY_RADIUS } from '../src/view3d-math.js';
+import { OVERHANG_CLEARANCE, VILLAGER_RADIUS } from '../src/world-scale.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8'));
@@ -57,7 +58,7 @@ test('pieces never stand on a street and every building fronts one', () => {
 const hitsBox = (x, z, b) => { const dx = x - Math.max(b.minX, Math.min(x, b.maxX)), dz = z - Math.max(b.minZ, Math.min(z, b.maxZ)); return dx * dx + dz * dz < BODY_RADIUS * BODY_RADIUS; };
 const solidBoxes = (items, layout) => [
   ...items.filter((it) => footprintOf(it.kind).solid).map((it) => {
-    const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
+    const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     return { minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz };
   }),
   ...layout.map((p) => ({ minX: p.x * CELL_M, maxX: (p.x + p.sizeX) * CELL_M, minZ: p.z * CELL_M, maxZ: (p.z + p.sizeZ) * CELL_M })),
@@ -116,7 +117,7 @@ test('walkers on the main lanes swing round the well and the square props, never
       const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw));
       const hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
       const dx = Math.max(Math.abs(wk.x - it.x) - hx, 0), dz = Math.max(Math.abs(wk.z - it.z) - hz, 0);
-      assert.ok(Math.hypot(dx, dz) >= BODY_RADIUS, `walker ${wk.id} inside the ${it.kind} at tick ${tick} seed ${seed}`);
+      assert.ok(Math.hypot(dx, dz) >= VILLAGER_RADIUS, `walker ${wk.id} inside the ${it.kind} at tick ${tick} seed ${seed}`);
     }
   }
 });

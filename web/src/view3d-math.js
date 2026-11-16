@@ -8,9 +8,9 @@ import { keyLook } from './daylight.js';
 
 export const LAMP_PICK_RADIUS = 0.45; // metres; small enough that a level gaze at a door (eye 1.6 m, lantern 2.2 m) still picks the door
 export const CELL = 4;            // metres per layout cell
-import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG } from './world-scale.js';
+import { EYE_HEIGHT, EYE_MIN, EYE_MAX, FOV_MIN_DEG, FOV_MAX_DEG, FOV_DEFAULT_DEG, BODY_RADIUS } from './world-scale.js';
 export { EYE_HEIGHT };
-export const BODY_RADIUS = 0.35;
+export { BODY_RADIUS };
 export const WALK_SPEED = 3.2;    // metres per second
 export const TURN_SPEED = 1.9;    // radians per second (stick and arrow keys)
 export const MOUSE_SENSITIVITY = 0.0022;
