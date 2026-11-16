@@ -9,6 +9,26 @@ import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, de
 import { lerp, mix } from './util.js';
 import { locName } from './i18n-text.js';
 
+/**
+ * Dredge and Silent Hill mood for the 2D view (docs/ART_DIRECTION.md): mossy damp ground, grey green close fog, a cold top and warm low grade.
+ * Pure and dread driven, so a test can pin it; the renderer only reads it on tiers with sky2d. Colours are [r,g,b] 0..255, alphas 0..1.
+ */
+export function dredgeMood(dread) {
+  const d = Math.max(0, Math.min(1, Number.isFinite(dread) ? dread : 0));
+  return {
+    ground: mix([26, 40, 32], [44, 12, 16], d),
+    garden: mix([46, 66, 40], [70, 28, 26], d),
+    straw: mix([92, 80, 48], [96, 44, 34], d),
+    quay: mix([54, 44, 36], [58, 24, 24], d),
+    fogRgb: mix([118, 130, 126], [110, 56, 58], d),
+    fogAlpha: 0.12 + 0.14 * d,
+    gradeTop: [16, 34, 46, 0.14 + 0.06 * d],
+    gradeLow: [70, 36, 22, 0.1 + 0.04 * d],
+  };
+}
+const rgbStr = (c) => (typeof c === 'string' ? c : `rgb(${c.map(Math.round).join(',')})`);
+const rgbList = (c) => (typeof c === 'string' ? c.slice(c.indexOf('(') + 1, c.indexOf(')')) : c.map(Math.round).join(','));
+
 export function createRenderer(env) {
   const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $, meshes } = env;
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
@@ -312,11 +332,43 @@ export function createRenderer(env) {
 
   function drawGround(dread) {
     const corners = [iso(0, 0), iso(GRID_W, 0), iso(GRID_W, GRID_D), iso(0, GRID_D)];
-    poly(corners, surf(pickRole(pack.roles, 'ground', 'ground_stones'), mix([24, 38, 32], [42, 12, 16], dread), 0.25), mix([60, 84, 72], [100, 28, 34], dread));
+    poly(corners, surf(pickRole(pack.roles, 'ground', 'ground_stones'), fancy ? dredgeMood(dread).ground : mix([24, 38, 32], [42, 12, 16], dread), 0.25), mix([60, 84, 72], [100, 28, 34], dread));
     ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 1; ctx.beginPath();
     for (let i = 1; i < GRID_W; i++) { const a = iso(i, 0), b = iso(i, GRID_D); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
     for (let i = 1; i < GRID_D; i++) { const a = iso(0, i), b = iso(GRID_W, i); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
     ctx.stroke();
+  }
+
+  // Seeded garden tufts and straw patches on the ground (the same yard fill the 3D view gets from Core), so the same seed has the same overgrowth.
+  const yardTufts = Array.from({ length: 150 }, (_, i) => { const r = new SeededRandom(i + 8181); return { x: 0.4 + r.next(GRID_W * 10 - 8) / 10, z: 0.4 + r.next(GRID_D * 10 - 8) / 10, straw: r.next(100) < 28, lean: (r.next(100) - 50) / 60 }; });
+  function drawYard(dread) {
+    const m = dredgeMood(dread); ctx.lineCap = 'round'; ctx.lineWidth = 1.3;
+    for (const t of yardTufts) {
+      const b = iso(t.x, t.z); ctx.strokeStyle = rgbStr(t.straw ? m.straw : m.garden);
+      ctx.beginPath(); for (let k = -1; k <= 1; k++) { ctx.moveTo(b.x + k * 1.6, b.y); ctx.lineTo(b.x + k * 2.4 + t.lean * 2, b.y - 4 - (k === 0 ? 2 : 0)); } ctx.stroke();
+    }
+  }
+  /** Harbour: a plank quay along the sea edge with bollards, and a short pier with a lantern at a seeded position. */
+  function drawHarbour(dread, time) {
+    const m = dredgeMood(dread), pierX = 4 + new SeededRandom(state.seed ^ 0x4a7).next(Math.max(1, GRID_W - 10));
+    poly([iso(0, GRID_D - 0.7), iso(GRID_W, GRID_D - 0.7), iso(GRID_W, GRID_D), iso(0, GRID_D)], rgbStr(m.quay), 'rgba(0,0,0,.35)');
+    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0.5; x < GRID_W; x += 0.5) { const a = iso(x, GRID_D - 0.7), b = iso(x, GRID_D); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(14,12,12,.9)';
+    for (let x = 2; x < GRID_W; x += 4) { const b = iso(x, GRID_D - 0.15); ctx.fillRect(b.x - 1.2, b.y - 4, 2.4, 4); }
+    poly([iso(pierX, GRID_D), iso(pierX + 1.1, GRID_D), iso(pierX + 1.1, GRID_D + 4.5), iso(pierX, GRID_D + 4.5)], rgbStr(m.quay), 'rgba(0,0,0,.4)');
+    const tip = iso(pierX + 0.55, GRID_D + 4.3), flick = reduceMotion ? 1 : 0.85 + 0.15 * Math.sin(time / 130);
+    ctx.fillStyle = 'rgba(14,12,12,.9)'; ctx.fillRect(tip.x - 1, tip.y - 9, 2, 9);
+    glow(tip.x, tip.y - 10, 22 * flick, '255,190,110', 0.55); ctx.fillStyle = 'rgb(255,214,140)'; ctx.fillRect(tip.x - 1.5, tip.y - 12, 3, 3);
+  }
+  /** Close grey green fog that pools on the board (Silent Hill), and a cold top, warm low grade (Dredge dusk). Tiers with sky2d only. */
+  function drawMoodGrade(dread) {
+    const m = dredgeMood(dread), c = iso(GRID_W / 2, GRID_D / 2);
+    const fog = cachedGrad(`mood${q(dread)}`, () => { const gr = ctx.createRadialGradient(0, 0, 40, 0, 0, 430); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.6, `rgba(${rgbList(m.fogRgb)},1)`); gr.addColorStop(1, `rgba(${rgbList(m.fogRgb)},0)`); return gr; });
+    ctx.save(); ctx.translate(c.x, c.y + 30); ctx.scale(1.35, 0.75); ctx.globalAlpha = m.fogAlpha * 1.6; ctx.fillStyle = fog; ctx.fillRect(-440, -440, 880, 880); ctx.restore();
+    const g = cachedGrad(`grade${q(dread)}`, () => { const gr = ctx.createLinearGradient(0, 0, 0, canvas.height); gr.addColorStop(0, `rgba(${m.gradeTop.slice(0, 3).join(',')},${m.gradeTop[3].toFixed(3)})`); gr.addColorStop(0.55, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(${m.gradeLow.slice(0, 3).join(',')},${m.gradeLow[3].toFixed(3)})`); return gr; });
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   function drawFog(dread, time) {
@@ -547,6 +599,7 @@ export function createRenderer(env) {
     if (!reduceMotion) { const j = dreadJitter(state.seed, real, dread); ctx.translate(j.dx, j.dy); }
     drawSea(dread, time);
     drawGround(dread);
+    if (fancy && !state.dlnk) { drawHarbour(dread, time); drawYard(dread); }
     if (fancy && !state.dlnk && !topDownNow()) drawShadows(dread);
     active.length = 0;
     const n = state.dlnk ? 0 : Math.min(cultistCount(tier), state.walkers.length);
@@ -570,6 +623,7 @@ export function createRenderer(env) {
     drawTentacles(dread, time);
     drawFog(dread, time);
     ctx.restore();
+    if (fancy) drawMoodGrade(dread);
     if (state.flash > 0) { ctx.fillStyle = `rgba(210,230,255,${state.flash.toFixed(2)})`; ctx.fillRect(0, 0, canvas.width, canvas.height); state.flash = Math.max(0, state.flash - 0.04); }
     else if (!reduceMotion) applyFlash(state, ambientFlash(state.seed, real, dread), real);
     drawWeather(dread, time);

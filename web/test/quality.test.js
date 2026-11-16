@@ -95,3 +95,19 @@ test('2D renderer: the tier switches the layered sky, cast shadows and window sp
   const low = run('low'), med = run('medium');
   assert.ok(med > low, `medium draws the extra layers (${med} fills vs ${low})`);
 });
+
+test('2D mood: dredgeMood is pure, dread driven and clamped; Low skips the harbour, yard and grade layers', async () => {
+  const { createRenderer, dredgeMood } = await import('../src/draw.js');
+  assert.deepEqual(dredgeMood(0.4), dredgeMood(0.4));
+  assert.deepEqual(dredgeMood(-3), dredgeMood(0));
+  assert.deepEqual(dredgeMood(9), dredgeMood(1));
+  assert.ok(dredgeMood(1).fogAlpha > dredgeMood(0).fogAlpha, 'fog thickens with dread');
+  assert.notEqual(dredgeMood(0).ground, dredgeMood(1).ground);
+  const strokes = { n: 0, grad: 0 };
+  const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : k === 'createLinearGradient' || k === 'createRadialGradient' ? () => { strokes.grad++; return { addColorStop() {} }; } : k === 'measureText' ? () => ({ width: 10 }) : (...a) => { if (k === 'stroke') strokes.n++; }), set: (t, k, v) => ((t[k] = v), true) });
+  const state = { layout: [], drawOrder: [], walkers: [], villagers: [], landmarks: [], doors: [], shakes: new Map(), theme: 'auto', eye: 0, tentacle: 0, flash: 0, seed: 7, floor: 0 };
+  const r = createRenderer({ canvas: { width: 960, height: 560 }, ctx, state, cam: { k: 1, hs: 1, mode: 0 }, pack: { roles: {}, patterns: {} }, tex: { resolvePattern: () => null, surf: (r2, c) => c, hintLabel: () => '', paintSurface() {} }, V: { tw: 40, th: 20, ox: 480, oy: 60 }, GRID_W: 24, GRID_D: 24, reduceMotion: true, currentNight: () => null, lang: 'en', $: () => ({}), meshes: null });
+  r.setQuality(QUALITY_TIERS.low); strokes.n = 0; r.drawScene(0, 0, 0.3, 1); const low = strokes.n;
+  r.setQuality(QUALITY_TIERS.medium); strokes.n = 0; r.drawScene(0, 0, 0.3, 1); const med = strokes.n;
+  assert.ok(med >= low + 2, `medium strokes yard tufts and the quay (${med} vs ${low})`);
+});
