@@ -71,6 +71,6 @@ test('shader source: window mood is building-only and foliage is lifted out of t
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/view3d.js', import.meta.url), 'utf8');
   assert.match(src, /if \(uWin\.x > 0\.0 && uMode < 0\.5\)/, 'held, villager and coast lanterns (mode 3) must never take the window unlit state');
-  assert.match(src, /if \(vFol > 0\.5\) base = base \* 1\.6/, 'grass, reeds and bushes get a colour lift');
+  assert.match(src, /if \(vFol > 0\.5\) base = base \* 1\.35/, 'grass, reeds and bushes get a colour lift');
   assert.match(src, /else if \(uMode < 0\.5 \|\| uMode > 2\.5\) base \*= mix\(/, 'wall base shadow skips foliage');
 });

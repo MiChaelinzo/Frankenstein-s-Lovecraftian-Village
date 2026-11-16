@@ -354,7 +354,7 @@ void main(){
   }
   vec3 spec = vec3(0.0);
   if (wet > 0.0) spec += uMoonColor * pow(max(dot(reflect(-uMoonDir, n), V), 0.0), 60.0) * wet * 1.6;
-  if (vFol > 0.5) base = base * 1.6 + vec3(0.035, 0.05, 0.02) * (0.4 + 0.6 * skyUp); // grass, reeds and bushes: dark moss colours get a lift and skip the wall base shadow, so tufts read as grass instead of black spikes
+  if (vFol > 0.5) base = base * 1.35 + vec3(0.02, 0.035, 0.012) * (0.4 + 0.6 * skyUp); // grass, reeds and bushes: dark moss colours get a lift and skip the wall base shadow, so tufts read as grass instead of black spikes
   else if (uMode < 0.5 || uMode > 2.5) base *= mix(uDetail > 0.5 ? 0.34 : 0.5, 1.0, smoothstep(0.0, 1.8, vPos.y)) * (uDetail > 0.5 && uMode < 0.5 ? 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.9, vPos.y)) * vnoise(vec2(vPos.x + vPos.z, vPos.y) * 3.0) : 1.0); // contact shadow and grime at wall bases
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
