@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 2): C key chat with citizens (task 124)
+- Core: `VillagerRules.Chat` picks a deterministic hint (clues, lanterns or sanity topic) from `VillagerRules.Talk` and `VigilRules`; only lucid (Normal) villagers hint, no clue or sanity change. Golden `chats` section, JS port `chat()` in `villagers.js`, C# property test, node parity and UI tests.
+- Web: `C` chats with the nearest villager (3D: within range, again for the next topic; 2D: cycles present villagers), touch Chat button, gamepad left trigger (button 6). The AI narrator is not used for chat. en and fr wording `villagerui.chat.*`.
+- Key change: entering the church moved from `C` to `Q` (2D) so `C` has one meaning. Help dialog and README updated. Service worker cache `flv-shell-v30`.
+- Unity: thin `VillagerAgent.Chat` hook only (no key binding or hint wording yet).
+- Status: Verified by tests (see below in the commit). Unverified: Unity runtime, chat panel stills.
+
 ### Round 23 (part 1): look and walking bug fixes
 - Held lantern: glass burns at full strength and sits higher so the base is no longer cut off (`a716127`).
 - Walking: wider explorer body, overhang clearance on solid props, door benches moved into the wall setback; Core, golden and JS updated, C# and node tests (`e9f4ac6`).

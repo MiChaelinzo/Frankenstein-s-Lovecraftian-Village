@@ -150,7 +150,8 @@ What the demo does:
 | Key | Action |
 |-----|--------|
 | `W` | whisper |
-| `C` | enter the church |
+| `Q` | enter the church |
+| `C` | chat with the nearest villager for a hint (3D: in range; again for the next topic) |
 | `L` | light a candle |
 | `N` | new village |
 | `[` `]` | sanity -5 / +5 |
