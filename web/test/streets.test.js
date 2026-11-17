@@ -7,6 +7,7 @@ import { generateLayout, PrefabCatalog } from '../src/core.js';
 import { laneLines, isStreetCell, isSquareCell, isBuilding, facingFor, streetsEnabled, streetSurfaces, streetWalkers, wellDeflected } from '../src/streets.js';
 import { composeDressing, walkBounds, footprintOf, CELL_M, COAST_ROAD_V, coastToWorldAt, hiOf } from '../src/dressing.js';
 import { stepCamera, BODY_RADIUS } from '../src/view3d-math.js';
+import { OVERHANG_CLEARANCE, VILLAGER_RADIUS } from '../src/world-scale.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8'));
@@ -57,7 +58,7 @@ test('pieces never stand on a street and every building fronts one', () => {
 const hitsBox = (x, z, b) => { const dx = x - Math.max(b.minX, Math.min(x, b.maxX)), dz = z - Math.max(b.minZ, Math.min(z, b.maxZ)); return dx * dx + dz * dz < BODY_RADIUS * BODY_RADIUS; };
 const solidBoxes = (items, layout) => [
   ...items.filter((it) => footprintOf(it.kind).solid).map((it) => {
-    const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
+    const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     return { minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz };
   }),
   ...layout.map((p) => ({ minX: p.x * CELL_M, maxX: (p.x + p.sizeX) * CELL_M, minZ: p.z * CELL_M, maxZ: (p.z + p.sizeZ) * CELL_M })),
@@ -116,7 +117,22 @@ test('walkers on the main lanes swing round the well and the square props, never
       const f = footprintOf(it.kind), c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw));
       const hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
       const dx = Math.max(Math.abs(wk.x - it.x) - hx, 0), dz = Math.max(Math.abs(wk.z - it.z) - hz, 0);
-      assert.ok(Math.hypot(dx, dz) >= BODY_RADIUS, `walker ${wk.id} inside the ${it.kind} at tick ${tick} seed ${seed}`);
+      assert.ok(Math.hypot(dx, dz) >= VILLAGER_RADIUS, `walker ${wk.id} inside the ${it.kind} at tick ${tick} seed ${seed}`);
+    }
+  }
+});
+
+test('lane walkers never pass through a lamp post pole (lane posts and the corner posts of lit houses)', async () => {
+  const { DRESSING_LAMP_KINDS, LAMP_POLE_HALF } = await import('../src/dressing.js');
+  const { lanternLights, POST_LAMP_INSET } = await import('../src/view3d-math.js');
+  assert.ok(POST_LAMP_INSET < 0.5);
+  for (const [w, d, n] of GRIDS) for (const seed of [1818, 7, 42]) {
+    const layout = generateLayout(catalog, w, d, n, seed), lit = layout.map((p) => ({ ...p, vis: { lit: 1, lit2: 1, phase: 0 } }));
+    const poles = [...composeDressing(seed, w, d, layout).filter((it) => DRESSING_LAMP_KINDS.includes(it.kind)).map((it) => [it.x, it.z]), ...lanternLights(lit).filter((l) => l.post).map((l) => [l.pos[0], l.pos[2]])];
+    assert.ok(poles.length > 5);
+    for (let tick = 0; tick < 400; tick += 0.5) for (const wk of streetWalkers(seed, w, d, tick, 0)) for (const [x, z] of poles) {
+      const dx = Math.max(Math.abs(wk.x - x) - LAMP_POLE_HALF, 0), dz = Math.max(Math.abs(wk.z - z) - LAMP_POLE_HALF, 0);
+      assert.ok(Math.hypot(dx, dz) >= VILLAGER_RADIUS, `walker ${wk.id} through a lamp post at ${x.toFixed(1)},${z.toFixed(1)} tick ${tick} seed ${seed}`);
     }
   }
 });

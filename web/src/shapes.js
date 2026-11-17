@@ -1,7 +1,7 @@
 // Pure reader for data/village_shapes.json, the shape source shared with tools/blender/mesh_defs.py and the Unity builder.
 // Builds the same model the GLB reader returns ({ triangles, bounds, stats }), so a mesh whose GLB fails to load can still be drawn.
 // Source coordinates are Z-up (Blender); the model is glTF Y-up: (x, y, z) becomes (x, z, -y). Deterministic, no DOM, no randomness.
-export const SHAPE_KINDS = ['box', 'wedge', 'cylinder', 'cone', 'hull'];
+export const SHAPE_KINDS = ['box', 'wedge', 'cylinder', 'cone', 'hull', 'blade'];
 
 const boxGeometry = (cx, cy, z0, sx, sy, sz) => {
   const x0 = cx - sx / 2, x1 = cx + sx / 2, y0 = cy - sy / 2, y1 = cy + sy / 2, z1 = z0 + sz;
@@ -42,6 +42,12 @@ const hullGeometry = (length, width, depth, z0, bottom) => {
   return { v, f };
 };
 
+/** A flat tapered card (grass, reeds): two faces on separate vertices, one per side. Mirrors mesh_defs.blade and ShapeMeshBuilder.Blade. */
+const bladeGeometry = (cx, cy, z0, width, height, tip) => {
+  const hw = width / 2, tw = (width * tip) / 2, quad = [[cx - hw, cy, z0], [cx + hw, cy, z0], [cx + tw, cy, z0 + height], [cx - tw, cy, z0 + height]];
+  return { v: [...quad, ...quad.map((q) => [...q])], f: [[0, 1, 2, 3], [7, 6, 5, 4]] };
+};
+
 function partGeometry(spec) {
   const [cx, cy, z0] = spec.at;
   let g;
@@ -50,6 +56,7 @@ function partGeometry(spec) {
   else if (spec.shape === 'cylinder') g = cylinderGeometry(cx, cy, z0, spec.radii[0], spec.radii[1], spec.height, spec.sides ?? 8);
   else if (spec.shape === 'cone') g = cylinderGeometry(cx, cy, z0, spec.radius, 0, spec.height, spec.sides ?? 8);
   else if (spec.shape === 'hull') g = hullGeometry(...spec.size, z0, spec.bottom ?? 0.55);
+  else if (spec.shape === 'blade') g = bladeGeometry(cx, cy, z0, spec.width, spec.height, spec.tip ?? 0.15);
   else throw new Error(`shapes: unknown shape "${spec.shape}" in part ${spec.name}`);
   let v = g.v;
   if (spec.shear) { const { dx, from, height } = spec.shear; v = v.map(([x, y, z]) => [x + (dx * Math.max(0, z - from)) / height, y, z]); }

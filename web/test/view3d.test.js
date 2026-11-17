@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, InteractionRules } from '../src/core.js';
-import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS } from '../src/glb.js';
+import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS, windowUvs, WINDOW_UV } from '../src/glb.js';
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
 import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
@@ -527,7 +527,8 @@ test('held lantern: small, in the lower right of the view, past the near plane, 
     assert.ok(nx > 0.1, 'right half'); ys.push(ny); if (ny > -1) visible++;
   }
   assert.ok(Math.max(...ys) < -0.2 && visible > 0, `lower part of the screen and partly visible (top ${Math.max(...ys).toFixed(2)})`);
-  assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v > 0.5), 'the glass glows');
+  assert.ok(Math.min(...ys) > -0.97, `the whole lantern stays inside the frame, the base is not cut off (bottom ${Math.min(...ys).toFixed(2)})`);
+  assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v >= 1), 'the glass glows at full strength');
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4, reduced: true }), buildHeldLantern({ eye, basis, swingPhase: 2.9, reduced: true }), 'still with reduced motion');
   assert.notDeepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), buildHeldLantern({ eye, basis, swingPhase: 1.2 }));
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), a, 'deterministic');
@@ -570,4 +571,20 @@ test('shader wiring: tier detail gates bump, wet sheen, blob shadows and foam; p
   const src = readFileSync(new URL('../src/view3d.js', import.meta.url), 'utf8');
   for (const needle of ['uniform float uDetail', 'uniform float uWet', 'uBlob[', 'uniform vec3 uShore', 'vec3 aces(', 'vec3 fxaa(', 'uniform float uFogSheets', 'vec3 bump(']) assert.ok(src.includes(needle), needle);
   assert.ok(!/OES_standard_derivatives|dFdx|dFdy/.test(src), 'no extension needed: bump uses extra taps');
+});
+
+test('window panes: emissive house triangles get pane coordinates 0..1 across and up, lamps and plain props do not', () => {
+  const quad = [[0, 1, 5], [0.9, 1, 5], [0.9, 2.2, 5]], uv = windowUvs(quad, [0, 0, 1]);
+  assert.deepEqual(uv.map(([s, t]) => [WINDOW_UV - s, WINDOW_UV - t]).map((p) => p.map((v) => Math.round(v * 100) / 100)), [[0, 0], [1, 0], [1, 1]]);
+  assert.deepEqual(windowUvs(quad, [0, 1, 0]), quad.map(() => [WINDOW_UV - 0.5, WINDOW_UV - 0.5]), 'top faces get the pane centre');
+  const house = mesh('house_a'), out = [], uvs = [];
+  appendMeshVertices(out, house, { x: 0, z: 0, sizeX: 2, sizeZ: 2 }, M.CELL, { uvOut: uvs, windows: true });
+  assert.equal(uvs.length, (out.length / VERTEX_FLOATS) * 2);
+  for (let i = 0; i < out.length / VERTEX_FLOATS; i++) {
+    const glowing = out[i * VERTEX_FLOATS + 9] > 0, u = uvs[i * 2];
+    assert.ok(glowing ? u <= -2 && u >= -3 : u === -1, `vertex ${i}: glow ${glowing} uv ${u}`);
+  }
+  const lamp = [], lampUv = [];
+  appendMeshVertices(lamp, mesh('lamp'), null, M.CELL, { scale: 1, at: [0, 0], uvOut: lampUv });
+  assert.ok(lampUv.every((v) => v === -1), 'lamp glass stays plain glow');
 });

@@ -58,6 +58,17 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Blade_is_a_two_sided_tapered_card()
+        {
+            var lib = ShapeLibrary.Parse("{\"palette\":{\"moss\":[1,1,1,1]},\"meshes\":[{\"id\":\"g\",\"group\":\"village\",\"parts\":[{\"name\":\"b\",\"material\":\"moss\",\"shape\":\"blade\",\"at\":[0,0,0],\"width\":0.4,\"height\":0.5,\"tip\":0.25}]}]}");
+            var m = lib.Build("g");
+            Assert.Equal(4, m.TriangleCount); // one quad per side, so it shows from both sides under back face culling
+            var b = m.Bounds();
+            Assert.Equal(-0.2f, b[0], 5); Assert.Equal(0.2f, b[3], 5); Assert.Equal(0.5f, b[4], 5);
+            Assert.True(b[5] - b[2] < 1e-5f, "a flat card");
+        }
+
+        [Fact]
         public void Bad_data_fails_with_a_clear_error()
         {
             Assert.Throws<FormatException>(() => ShapeLibrary.Parse("{\"palette\":{},\"meshes\":[{\"id\":\"x\",\"parts\":[{\"name\":\"p\",\"material\":\"nope\",\"shape\":\"box\",\"at\":[0,0,0],\"size\":[1,1,1]}]}]}"));

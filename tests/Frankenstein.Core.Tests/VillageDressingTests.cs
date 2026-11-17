@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Frankenstein.Core;
@@ -30,6 +31,42 @@ namespace Frankenstein.Core.Tests
             var blocker = new List<PlacedPiece> { new PlacedPiece { Id = "house_a", X = 5, Z = 5, SizeX = 2, SizeZ = 2 } };
             var items = VillageDressing.Compose(1818, 12, 12, blocker);
             foreach (var it in items.Where(i => i.Kind == "market_stall")) Assert.False(VillageDressing.OverlapsLayout(it, blocker, 0));
+        }
+
+        [Fact]
+        public void Door_props_keep_wall_clearance_so_a_bench_never_touches_the_plaster()
+        {
+            int checkedProps = 0;
+            for (int facing = 0; facing < 4; facing++)
+                for (int seed = 1; seed <= 60; seed++)
+                {
+                    var house = new PlacedPiece { Id = "house_a", X = 10, Z = 10, SizeX = 3, SizeZ = 3, Facing = facing };
+                    double yaw = VillageStreets.FacingYaw(facing), dirX = Math.Sin(yaw), dirZ = Math.Cos(yaw), sideX = Math.Cos(yaw), sideZ = -Math.Sin(yaw);
+                    double cx = (house.X + house.SizeX / 2.0) * VillageDressing.Cell, cz = (house.Z + house.SizeZ / 2.0) * VillageDressing.Cell;
+                    double wall = house.SizeX * VillageDressing.Cell / 2.0 - VillageDressing.HouseSetback;
+                    foreach (var it in VillageDressing.Compose(seed, 24, 24, new List<PlacedPiece> { house }))
+                    {
+                        if (Array.IndexOf(VillageDressing.DoorKinds, it.Kind) < 1 || it.Yaw != yaw) continue;
+                        double ahead = (it.X - cx) * dirX + (it.Z - cz) * dirZ, across = (it.X - cx) * sideX + (it.Z - cz) * sideZ;
+                        if (Math.Abs(Math.Abs(across) - 2.2) > 1e-6) continue; // only the door step of this house, not scatter or other items
+                        Assert.True(ahead - VillageDressing.FootprintOf(it.Kind).HalfZ - wall >= VillageDressing.DoorWallClearance - 1e-9, $"{it.Kind} touches the wall, facing {facing} seed {seed}");
+                        Assert.True(ahead + VillageDressing.FootprintOf(it.Kind).HalfZ <= house.SizeX * VillageDressing.Cell / 2.0 + 1e-9, $"{it.Kind} sticks out into the lane, facing {facing} seed {seed}");
+                        checkedProps++;
+                    }
+                }
+            Assert.True(checkedProps > 20, $"only {checkedProps} door props checked");
+        }
+
+        [Fact]
+        public void Collision_box_adds_the_overhang_clearance_and_only_for_solid_kinds()
+        {
+            var barrel = new DressingItem { Kind = "barrel", Yaw = 0, Scale = 1.0 };
+            Assert.True(VillageDressing.TryCollisionHalfExtents(barrel, out double hx, out double hz));
+            var f = VillageDressing.FootprintOf("barrel");
+            Assert.Equal(f.HalfX + WorldScale.OverhangClearance, hx, 6);
+            Assert.Equal(f.HalfZ + WorldScale.OverhangClearance, hz, 6);
+            Assert.False(VillageDressing.TryCollisionHalfExtents(new DressingItem { Kind = "bench", Yaw = 0, Scale = 1.0 }, out _, out _));
+            Assert.True(WorldScale.BodyRadius >= 0.45f);
         }
     }
 }

@@ -302,3 +302,12 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - Gotchas: `pip install --user` fails here (read-only `/root/.local`), `pip install --target <dir> pillow` and `PYTHONPATH` works; the image viewer caches by path, so copy a changed still to a new file name before viewing it again.
 - Browser check (full run, SwiftShader): 99 of 101. One failure was a stale expected mesh count (`37 of 37`, now 47 after the round 22 props), fixed in `tools/browser_check.mjs`. The other was the real-time frame timing check (`frames > 30` in a 6 s walk), which is bimodal on this host: the same build alternates between about 37 frames at 150 ms and 14 frames at 450 ms mean; I first suspected the 2D mood fills, but reverting only the 2D file did not give a stable result (A/B alternation reproduced both modes with identical code). Partially Verified; run `TIMING_ONLY=1` again on a quiet machine. Main `d72a4fa` measured 45 frames at 136 ms, `f4cf0a1` 38 frames at 144 ms, `3c81de0` 48 frames at 127 ms.
 - Added after the docs commit: `26a67f4` fix: gentler foliage lift, sw cache v28.
+
+## Round 23 part 1 commits (look and walking bug fixes, branch feat/round23)
+- `a716127` fix: held lantern glass burns at full strength, raised so the base is not cut off
+- `e9f4ac6` fix: wider explorer body, overhang clearance on solid props, door benches in the wall setback (Core, golden, JS)
+- `7d27f45` feat: real windows with glass, interior glow, curtains, timber cross and per-floor lights
+- `7209519` feat: grass tufts and reeds as wide crossed blades with a dark contact blot, coloured from the ground palette
+- `2adea36` fix: lamp posts block walking at the pole and stand clear of lane walkers and the coast road (Core, golden, JS)
+- Test commit: walk-timing gate pinned to frames keep coming (`WALK_TIMING_MIN_FRAMES = 8`) in `tools/browser_check.mjs`.
+- Verified: validator, node 495, dotnet Core 182, UnityCompileCheck 0/0. Partially Verified: look changes (SwiftShader stills only). Unverified: real GPU, Unity runtime.

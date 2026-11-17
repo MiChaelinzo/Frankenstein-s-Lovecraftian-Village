@@ -5,6 +5,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
 import { composeDressing, dressingBoxes, dockU, footprintOf, DRESSING_KINDS, overlapsLayout, CELL_M, hiOf, coastToWorldAt, COAST_ROAD_V, RUT_LIFT, INN_SCALE, CHAPEL_SCALE } from '../src/dressing.js';
+import { facingYaw } from '../src/streets.js';
+import { OVERHANG_CLEARANCE, BODY_RADIUS } from '../src/world-scale.js';
+import { DOOR_KINDS, DOOR_WALL_CLEARANCE, DRESSING_LAMP_KINDS, LAMP_POLE_HALF } from '../src/dressing.js';
 import { laneLines, isStreetCell } from '../src/streets.js';
 import { coastFeatures } from '../src/view3d-math.js';
 import { loadGlbBuffer } from '../src/glb.js';
@@ -46,9 +49,9 @@ test('dressing is deterministic, never enlarges, and keeps solid items off layou
   }
 });
 
-test('collision boxes cover only solid kinds', () => {
+test('collision boxes cover only solid kinds and lamp poles', () => {
   const items = composeDressing(1818, 24, 24, layoutFor(1818, 24));
-  assert.equal(dressingBoxes(items).length, items.filter((i) => footprintOf(i.kind).solid).length);
+  assert.equal(dressingBoxes(items).length, items.filter((i) => footprintOf(i.kind).solid || DRESSING_LAMP_KINDS.includes(i.kind)).length);
 });
 
 test('footprint table matches the committed meshes within 5 cm and heights within 10 cm', () => {
@@ -112,4 +115,30 @@ test('batchProps merges any mix of kinds into one static buffer with one uv pair
   batchProps(again, uv2, items, meshes);
   assert.deepEqual(again, out, 'deterministic');
   assert.equal(batchProps([], [], items, null), 0);
+});
+
+test('door props keep wall clearance so a bench never touches the plaster (mirrors Core)', () => {
+  let checked = 0;
+  for (let facing = 0; facing < 4; facing++) for (let seed = 1; seed <= 60; seed++) {
+    const house = { id: 'house_a', x: 10, z: 10, sizeX: 3, sizeZ: 3, facing };
+    const yaw = facingYaw(facing), dirX = Math.sin(yaw), dirZ = Math.cos(yaw), sideX = Math.cos(yaw), sideZ = -Math.sin(yaw);
+    const cx = (house.x + 1.5) * CELL_M, cz = (house.z + 1.5) * CELL_M, wall = 3 * CELL_M / 2 - 0.7;
+    for (const it of composeDressing(seed, 24, 24, [house])) {
+      if (DOOR_KINDS.indexOf(it.kind) < 1 || it.yaw !== yaw) continue;
+      const ahead = (it.x - cx) * dirX + (it.z - cz) * dirZ, across = (it.x - cx) * sideX + (it.z - cz) * sideZ;
+      if (Math.abs(Math.abs(across) - 2.2) > 1e-6) continue;
+      assert.ok(ahead - footprintOf(it.kind).halfZ - wall >= DOOR_WALL_CLEARANCE - 1e-9, `${it.kind} touches the wall, facing ${facing} seed ${seed}`);
+      assert.ok(ahead + footprintOf(it.kind).halfZ <= 3 * CELL_M / 2 + 1e-9, `${it.kind} sticks out into the lane, facing ${facing} seed ${seed}`);
+      checked++;
+    }
+  }
+  assert.ok(checked > 20, `only ${checked} door props checked`);
+});
+
+test('solid collision boxes carry the overhang clearance and the body radius is the Core value', () => {
+  const barrel = { kind: 'barrel', x: 5, z: 5, yaw: 0, scale: 1 }, [box] = dressingBoxes([barrel, { kind: 'bench', x: 1, z: 1, yaw: 0, scale: 1 }]);
+  const f = footprintOf('barrel');
+  assert.ok(Math.abs(box.maxX - box.minX - 2 * (f.halfX + OVERHANG_CLEARANCE)) < 1e-9);
+  assert.ok(Math.abs(box.maxZ - box.minZ - 2 * (f.halfZ + OVERHANG_CLEARANCE)) < 1e-9);
+  assert.equal(BODY_RADIUS, 0.45);
 });

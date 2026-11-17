@@ -1,14 +1,18 @@
 // JS port of Core/VillageDressing.cs: the seeded harbour quarter, market square and churchyard dressing. Golden-checked ("dressing").
 // Core is the source of truth; keep the numbers and the order of rolls identical to the C# file.
 import { SeededRandom } from './core.js';
+import { OVERHANG_CLEARANCE } from './world-scale.js';
 import { streetsEnabled, isStreetCell, isSquareCell, isBuilding, facingYaw, laneLines } from './streets.js';
 
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
 export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
-export const DOOR_KINDS = ['', 'barrel', 'crate_stack', 'sack', 'bench', 'cart', 'barrel', 'sack'];
-export const COAST_ROAD_V = -1, COTTAGE_V = -3.9, LAMP_V = -0.9, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
-export const RUT_LIFT = 0.07, LANE_POST_CELLS = 7, BOLLARD_SPACING = 8, BOLLARD_V = -0.3, FOREGROUND_ROLL_STREAM = 0x6f1c;
+export const DOOR_WALL_CLEARANCE = 0.15; // metres between a house wall and the back of the door bench, which stands in the setback inside its own cell. Mirrors VillageDressing.DoorWallClearance Mirrors VillageDressing.DoorWallClearance
+export const DOOR_KINDS = ['', '', '', '', 'bench', '', '', '']; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget. Mirrors VillageDressing.DoorKinds
+export const ROCK_MIN_V = 0.9; // nearest a shore rock may stand to the coast road. Mirrors VillageDressing.RockMinV
+export const COAST_ROAD_V = -1, COTTAGE_V = -4.3, LAMP_V = -0.2, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+export const RUT_LIFT = 0.07, LANE_POST_CELLS = 7, BOLLARD_SPACING = 8, BOLLARD_V = -0.2, FOREGROUND_ROLL_STREAM = 0x6f1c;
 export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
+export const LAMP_POLE_HALF = 0.12, LANE_POST_INSET = 0.2; // a lamp blocks walking only at its pole; lane posts stand this far inside the lane edge. Mirror VillageDressing
 
 const FOOTPRINTS = {
   cottage_thatch: [2.25, 1.98, 4.1, true], cottage_tall: [1.82, 1.54, 6.1, true], inn: [4.31, 2.88, 4.9, true], chapel: [2.4, 2.76, 6.1, true],
@@ -16,8 +20,8 @@ const FOOTPRINTS = {
   gravestone: [0.45, 0.71, 1.38, false], gravestone_cross: [0.45, 0.9, 1.6, false], fence_iron: [1.5, 0.1, 1.52, false],
   well: [1.05, 0.95, 2.9, true], fence: [1.5, 0.24, 1.1, true], boat: [1.8, 0.78, 2.9, true], cart: [1.39, 0.66, 1.04, true], sack: [0.57, 0.52, 0.9, false],
   wall_low: [1.55, 0.25, 0.92, true], net: [1.35, 0.05, 1.9, false], bench: [0.75, 0.21, 1.05, false], sign: [0.52, 0.1, 2.46, false], wall_lantern: [0.13, 0.22, 0.5, false],
-  tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.26, 0.31, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
-  grass_tuft: [0.18, 0.08, 0.55, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
+  tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.33, 0.34, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
+  grass_tuft: [0.19, 0.17, 0.52, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
   picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
@@ -99,8 +103,8 @@ function composeFrontage(items, p, layout, gridW, gridD, lantern, doorRoll, side
   }
   const door = DOOR_KINDS[doorRoll];
   if (door) {
-    const depth = wall + 0.1 + footprintOf(door).halfZ;
-    tryAdd(items, { kind: door, x: cx + dirX * depth + sideX * side, y: 0, z: cz + dirZ * depth + sideZ * side, yaw, scale: 1 }, layout, gridW, gridD, true);
+    const depth = wall + DOOR_WALL_CLEARANCE + footprintOf(door).halfZ;
+    tryAdd(items, { kind: door, x: cx + dirX * depth + sideX * side, y: 0, z: cz + dirZ * depth + sideZ * side, yaw, scale: 1 }, layout.filter((q) => q.x !== p.x || q.z !== p.z), gridW, gridD, true); // the bench stands inside its own cell, so only the other pieces are obstacles
   }
   const yard = yardRoll < 25 ? 'fence' : yardRoll < 45 ? 'wall_low' : yardRoll < 60 ? 'laundry_line' : yardRoll < 75 ? 'bush' : yardRoll < 90 ? 'tree' : '';
   if (yard) {
@@ -130,7 +134,7 @@ export function composeDressing(seed, gridW, gridD, layout) {
   slots.forEach((s, i) => {
     if (blocked(s[0])) return;
     const kind = i === innSlot ? 'inn' : s[1] === 0 ? 'cottage_tall' : 'cottage_thatch';
-    addShore(kind, s[0], i === innSlot ? -4 : COTTAGE_V + s[2], seaward + s[3], i === innSlot ? INN_SCALE : 1);
+    addShore(kind, s[0], i === innSlot ? -4.4 : COTTAGE_V + s[2], seaward + s[3], i === innSlot ? INN_SCALE : 1);
     if (i === innSlot) addShore('barrel', s[0] - 3.1, -3.4, along + 0.2, 1);
   });
 
@@ -199,7 +203,7 @@ export function composeDressing(seed, gridW, gridD, layout) {
   }
   for (let i = 0; i < 6; i++) {
     const ru = lo + rng.next(Math.trunc(Math.max(1, hi - lo))), rv = 0.6 + rng.next(80) / 100, rr = rng.next(100);
-    if (Math.abs(ru - dU) > 3) addShore(rr < 70 ? 'reeds' : 'rock', ru, rv, rr / 10, 1);
+    if (Math.abs(ru - dU) > 3) addShore(rr < 70 ? 'reeds' : 'rock', ru, rr < 70 ? rv : Math.max(rv, ROCK_MIN_V), rr / 10, 1);
   }
   composeForeground(items, seed, gridW, gridD, layout, streets, dU, lightU, chapelU);
   return items;
@@ -237,7 +241,7 @@ function composeForeground(items, seed, gridW, gridD, layout, streets, dU, light
         const mx = (cx + 0.5) * CELL_M, mz = (cz + 0.5) * CELL_M;
         if (c % 6 === 0) items.push({ kind: 'wheel_ruts', x: axis === 0 ? mx + jitter : mx, y: RUT_LIFT, z: axis === 0 ? mz : mz + jitter, yaw: axis === 0 ? Math.PI / 2 : 0, scale: 1 });
         if (c % LANE_POST_CELLS === 3) {
-          const side = (post % 2 === 0 ? -1 : 1) * (CELL_M / 2 - 0.4);
+          const side = (post % 2 === 0 ? -1 : 1) * (CELL_M / 2 - LANE_POST_INSET);
           add(DRESSING_LAMP_KINDS[post % 2], axis === 0 ? mx + side : mx, axis === 0 ? mz : mz + side, axis === 0 ? 0 : Math.PI / 2, true);
           post++;
         }
@@ -290,9 +294,10 @@ function composeForeground(items, seed, gridW, gridD, layout, streets, dU, light
 export function dressingBoxes(items) {
   const out = [];
   for (const it of items) {
+    if (DRESSING_LAMP_KINDS.includes(it.kind)) { const h = LAMP_POLE_HALF * it.scale + OVERHANG_CLEARANCE; out.push({ minX: it.x - h, maxX: it.x + h, minZ: it.z - h, maxZ: it.z + h, height: footprintOf(it.kind).height * it.scale }); continue; }
     const f = footprintOf(it.kind);
     if (!f.solid) continue;
-    const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale, hz = (s * f.halfX + c * f.halfZ) * it.scale;
+    const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     out.push({ minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz, height: f.height * it.scale });
   }
   return out;

@@ -120,6 +120,7 @@ namespace Frankenstein.Core
                 case "cylinder": { var r = Nums(spec["radii"]); g = Cylinder(cx, cy, z0, r[0], r[1], Num(spec["height"]), sides); break; }
                 case "cone": g = Cylinder(cx, cy, z0, Num(spec["radius"]), 0.0, Num(spec["height"]), sides); break;
                 case "hull": { var s = Nums(spec["size"]); g = Hull(s[0], s[1], s[2], z0, Has(spec, "bottom") ? Num(spec["bottom"]) : 0.55); break; }
+                case "blade": g = Blade(cx, cy, z0, Num(spec["width"]), Num(spec["height"]), Has(spec, "tip") ? Num(spec["tip"]) : 0.15); break;
                 default: throw new FormatException("shapes: unknown shape " + shape + " in part " + spec["name"]);
             }
             var v = g.v;
@@ -136,6 +137,20 @@ namespace Frankenstein.Core
                     v[i] = new[] { cx + (v[i][0] - cx) * c - (v[i][1] - cy) * s, cy + (v[i][0] - cx) * s + (v[i][1] - cy) * c, v[i][2] };
             }
             return (v, g.f);
+        }
+
+        /// <summary>A flat tapered card in the XZ plane (grass, reeds). Two faces on separate vertices, one per side, so it shows from both sides with back face culling.</summary>
+        private static (double[][] v, int[][] f) Blade(double cx, double cy, double z0, double width, double height, double tip)
+        {
+            double hw = width / 2, tw = width * tip / 2;
+            var v = new double[8][];
+            for (int side = 0; side < 2; side++)
+            {
+                v[side * 4] = new[] { cx - hw, cy, z0 }; v[side * 4 + 1] = new[] { cx + hw, cy, z0 };
+                v[side * 4 + 2] = new[] { cx + tw, cy, z0 + height }; v[side * 4 + 3] = new[] { cx - tw, cy, z0 + height };
+            }
+            var f = new[] { new[] { 0, 1, 2, 3 }, new[] { 7, 6, 5, 4 } };
+            return (v, f);
         }
 
         private static (double[][] v, int[][] f) Box(double cx, double cy, double z0, double sx, double sy, double sz)

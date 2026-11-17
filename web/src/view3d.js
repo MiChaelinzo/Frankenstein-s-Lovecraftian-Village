@@ -12,7 +12,7 @@ import {
   CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
-  viewProjection, windowLit, worldBounds, worldBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
+  viewProjection, windowLit, worldBounds, worldBoxes, postLampBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
@@ -60,9 +60,14 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 /** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
 export const FOLIAGE_PHASE = 1000;
 const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row']);
+/** Added on top of FOLIAGE_PHASE for plants that grow from the ground: the scene shader colours them from the ground palette under them. */
+export const GROUND_PLANT_PHASE = 300;
+const GROUND_PLANT_KINDS = new Set(['reeds', 'grass_tuft']);
 /** Added to the phase of hanging props (signs, laundry, nets, wall lanterns): the vertex shader swings them gently and removes the marker again. */
 export const HANG_PHASE = 2000;
 const HANG_KINDS = new Set(['sign', 'laundry_line', 'net', 'wall_lantern']);
+/** Dressing kinds whose emissive parts are windows (glass, frame, curtains in the shader); lamp and lantern glass stays plain glow. */
+export const WINDOW_KINDS = new Set(['cottage_thatch', 'cottage_tall', 'inn', 'chapel']);
 const STREET_Y = 0.06, STREET_COLOR = [0.3, 0.29, 0.28], STREET_PHASE = -5; // phase below -3 marks cobbled street quads for the ground shader
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
@@ -199,9 +204,9 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
 // ---------- the explorer's own lantern, held low at the right of the view ----------
 
 /** Where the held lantern hangs in camera space (metres: right, up, forward of the eye). Low and to the right, so only its glass and cap sit in the corner. */
-export const HELD_LANTERN_OFFSET = Object.freeze([0.44, -0.5, 0.75]);
+export const HELD_LANTERN_OFFSET = Object.freeze([0.4, -0.42, 0.8]);
 export const HELD_LANTERN_SWING_RAD = 0.06; // walking swing amplitude in radians; zero with reduced motion
-const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.8, 0.55, 0.28];
+const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
 
 /**
  * A small original hand lantern (about 0.24 m tall, 0.11 m wide: base, glowing glass, cap and ring) placed in front of the eye.
@@ -210,7 +215,7 @@ const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.8, 0.55, 0.28];
 export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }) {
   const local = [];
   pushFrustum(local, -0.055, -0.055, 0.055, 0.055, 0, 0.025, 1, HELD_METAL);                       // base plate
-  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 0.55, 0.7);        // glass chimney, glowing
+  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 1, 0.7);        // glass chimney, glowing
   pushFrustum(local, -0.06, -0.06, 0.06, 0.06, 0.17, 0.21, 0.3, HELD_METAL);                         // cap
   pushFrustum(local, -0.012, -0.012, 0.012, 0.012, 0.21, 0.245, 1, HELD_METAL);                     // ring the hand holds
   const swing = reduced ? 0 : Math.sin(swingPhase * 3.75) * HELD_LANTERN_SWING_RAD, cs = Math.cos(swing), sn = Math.sin(swing);
@@ -239,8 +244,9 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
   if (meshes) for (const it of items) {
     const model = meshes.get(it.kind);
     if (!model) continue;
-    if (model.texture) padUv();
-    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE : HANG_KINDS.has(it.kind) ? HANG_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture ? uv : null });
+    const windows = WINDOW_KINDS.has(it.kind);
+    if (model.texture || windows) padUv();
+    appendMeshVertices(out, model, null, cell, { glow: 1, phase: it.x * 0.37 + it.z * 0.11 + (FOLIAGE_KINDS.has(it.kind) ? FOLIAGE_PHASE + (GROUND_PLANT_KINDS.has(it.kind) ? GROUND_PLANT_PHASE : 0) : HANG_KINDS.has(it.kind) ? HANG_PHASE : 0), scale: it.scale, at: [it.x, it.z], rot: it.yaw, lift: it.y, uvOut: model.texture || windows ? uv : null, windows });
     placed++;
   }
   padUv();
@@ -252,12 +258,12 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
 export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL }) {
-  const out = [], heights = [];
+  const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
     const lit = p.id === 'house_a' || p.id === 'house_b' ? (windowLit(p) ? 1 : 0) : 1;
     const phase = p.vis ? p.vis.phase : 0;
-    if (model) heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase: p.id === 'dead_tree' ? phase + FOLIAGE_PHASE : phase, tint: tintFor(p.id), rot: facingYaw(p.facing | 0) }));
+    if (model) { while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); heights.push(appendMeshVertices(out, model, p, cell, { glow: lit, phase: p.id === 'dead_tree' ? phase + FOLIAGE_PHASE : phase, tint: tintFor(p.id), rot: facingYaw(p.facing | 0), uvOut: uv, windows: true })); }
     else { heights.push(3); pushBox(out, p, cell, 3, BOX_COLORS[p.id] || [0.3, 0.3, 0.3]); }
   }
   const lights = lanternLights(layout, cell);
@@ -265,7 +271,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const lamp = l.post && (meshes.get(lampKind(l)) || meshes.get('lamp'));
     if (lamp) appendMeshVertices(out, lamp, null, cell, { glow: 1, phase: l.phase, scale: 1, at: [l.pos[0], l.pos[2]] });
   }
-  const dressing = composeDressing(seed, gridW, gridD, layout), uv = [];
+  const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
@@ -302,6 +308,12 @@ float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); 
 float vnoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float lumi(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+// The hand tuned ground palette (mossy grass, bare earth, dry straw), shared by the ground and the grass tufts and reeds that grow from it.
+float groundNoise(vec2 xz){ return vnoise(xz * 0.23) * 0.6 + vnoise(xz * 0.9) * 0.3 + vnoise(xz * 3.7) * 0.1; }
+vec3 groundPalette(vec2 xz, float gn){
+  vec3 moss = vec3(0.85, 1.25, 0.72), earth = vec3(1.25, 1.0, 0.8), straw = vec3(1.4, 1.25, 0.8);
+  return mix(mix(earth, moss, smoothstep(0.35, 0.6, gn)), straw, smoothstep(0.66, 0.8, vnoise(xz * 0.11 + 7.0)) * 0.6);
+}
 // Bump from the albedo: two extra taps give the height gradient along the texture axes tu and tv (no derivatives extension needed).
 vec3 bump(vec3 n, sampler2D tex, vec2 uv, float texel, vec3 tu, vec3 tv, float k){
   float h0 = lumi(texture2D(tex, uv).rgb), hu = lumi(texture2D(tex, uv + vec2(texel, 0.0)).rgb), hv = lumi(texture2D(tex, uv + vec2(0.0, texel)).rgb);
@@ -322,17 +334,16 @@ void main(){
     else {
       base *= 0.94 + 0.08 * hash(floor(vPos.xz * 1.5)) + 0.04 * sin(vPos.x * 0.21) * sin(vPos.z * 0.17);
       if (uDetail > 0.5 && dist < 60.0) { // hand tuned ground palette (far ground is fog by then: distance LOD): mossy grass, bare earth and dry straw patches instead of one flat tone
-        float gn = vnoise(vPos.xz * 0.23) * 0.6 + vnoise(vPos.xz * 0.9) * 0.3 + vnoise(vPos.xz * 3.7) * 0.1;
-        vec3 moss = vec3(0.85, 1.25, 0.72), earth = vec3(1.25, 1.0, 0.8), straw = vec3(1.4, 1.25, 0.8);
-        vec3 pal = mix(mix(earth, moss, smoothstep(0.35, 0.6, gn)), straw, smoothstep(0.66, 0.8, vnoise(vPos.xz * 0.11 + 7.0)) * 0.6);
-        base = base * pal * 1.12 + vec3(0.012, 0.02, 0.008) * (0.5 + gn);
+        float gn = groundNoise(vPos.xz);
+        base = base * groundPalette(vPos.xz, gn) * 1.12 + vec3(0.012, 0.02, 0.008) * (0.5 + gn);
       }
       if (uHasGround > 0.5) base *= mix(vec3(1.0), texture2D(uGroundTex, vPos.xz * ${INV_TILE.ground}).rgb * 1.6, 0.9);
       gloss = 0.35; // packed earth only darkens and glints a little
     }
   }
+  if (uMode < 0.5 && vFol > 0.5 && vPhase > ${GROUND_PLANT_PHASE - 50}.0) base = mix(base, vec3(0.14, 0.2, 0.11), 0.5) * groundPalette(vPos.xz, groundNoise(vPos.xz)) * (0.4 + 0.35 * smoothstep(0.0, 0.5, vPos.y)); // tufts and reeds take the colour of the patch they grow from, darker at the root
   if (vUv.x > -0.5) base *= texture2D(uPropTex, vUv).rgb; // CC0 prop: its own base colour from the atlas (vColor is its white factor)
-  else if (uMode < 0.5 && uHasWall > 0.5) {
+  else if (vUv.x > -1.5 && uMode < 0.5 && uHasWall > 0.5) { // window panes (vUv below -1.5) keep their own colour
     float sat = max(vColor.r, max(vColor.g, vColor.b)) - min(vColor.r, min(vColor.g, vColor.b));
     if (uPacked > 0.5) base *= mix(vec3(1.0), texture2D(uWallTex, vec2(vPos.x + vPos.z, vPos.y) * ${INV_TILE.wall}).rgb * 1.6, 0.85);
     else if (vNormal.y > 0.35 && vPos.y > 2.2) { base *= mix(vec3(1.0), texture2D(uRoofTex, vPos.xz * ${INV_TILE.roof}).rgb * 1.6, 0.9); gloss = 0.8; } // slate and shingle on roof slopes
@@ -397,12 +408,29 @@ void main(){
   }
   float peak = max(col.r, max(col.g, col.b)); // hue-preserving soft shoulder: lit walls keep their colour under a lantern instead of clipping to white
   if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
-  if (vGlow > 0.0) {
+  if (vGlow > 0.0 || vUv.x < -1.5) {
     float storey = floor(max(vPos.y - 0.5, 0.0) / 2.9); float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3 + storey * 1.9));
     float on = 1.0, hw = hash(vec2(vPhase * 1.7 + storey * 5.3, floor((vPos.x + vPos.z) * 0.8))); // one state per house, storey and bay
     if (uWin.x > 0.0 && uMode < 0.5) { on = step(uWin.x, hw); float gut = step(1.0 - uWin.y, fract(hw * 7.31)) * on; fl *= 1.0 - gut * uFlicker * (0.45 + 0.45 * sin(uTime * 17.0 + hw * 90.0) * sin(uTime * 7.3 + hw * 40.0)); }
     vec3 lit = uGlowColor * 1.4 * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
-    col = mix(col, mix(col * 0.55, lit, on), clamp(vGlow, 0.0, 1.0) * mix(1.0, fl, on));
+    if (vUv.x < -1.5 && uMode < 0.5) { // a real window: whole floors are lit or dark, warm glass with curtains and a timber cross, or black glass holding the sky
+      float floorOn = step(max(uWin.x, 0.22), hash(vec2(vPhase * 3.1 + storey * 11.7, storey + 0.5))); on = on * floorOn * step(0.001, vGlow); // a house whose lights are out (vGlow 0) shows only dark panes
+      vec2 w = vec2(-2.0) - vUv; // pane coordinates 0..1
+      float frame = 1.0 - step(0.08, w.x) * step(w.x, 0.92) * step(0.07, w.y) * step(w.y, 0.93);
+      float bar = max(1.0 - step(0.025, abs(w.x - 0.5)), 1.0 - step(0.025, abs(w.y - 0.58)));
+      float drape = smoothstep(0.26, 0.2, w.x - 0.04 * sin(w.y * 9.0)) + smoothstep(0.74, 0.8, w.x + 0.04 * sin(w.y * 9.0 + 1.3)); // curtains gathered at both sides
+      float fold = 0.75 + 0.25 * sin(w.x * 70.0);
+      vec3 room = lit * (0.75 + 0.45 * (1.0 - abs(w.x - 0.5) * 1.6) * smoothstep(0.0, 0.6, w.y)); // the lamp inside: brighter in the middle and upper pane
+      vec3 cloth = lit * vec3(0.95, 0.42, 0.22) * 0.75 * fold;
+      vec3 dark = mix(uHorizon, uZenith, 0.5 + 0.5 * n.y) * 0.18 + uMoonColor * 0.05 * pow(max(dot(reflect(-V, n), uMoonDir), 0.0), 8.0); // unlit glass: cold sky in black panes
+      vec3 darkCloth = vec3(0.06, 0.035, 0.03) * fold;
+      vec3 glassCol = mix(mix(dark, room, on * fl), mix(darkCloth, cloth, on * fl), clamp(drape, 0.0, 1.0));
+      vec3 wood = vec3(0.07, 0.05, 0.035) * (0.6 + lightSum * 0.6);
+      col = mix(glassCol, wood, max(frame, bar));
+    } else {
+      if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); lit = uGlowColor / max(gp, 0.001) * 1.25 * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
+      col = mix(col, mix(col * 0.55, lit, on), clamp(vGlow, 0.0, 1.0) * mix(1.0, fl, on));
+    }
   }
   float f = 1.0 - exp(-pow(dist * uFog, 2.0));
   float sheet = uFogSheets > 0.5 ? 0.6 + 0.8 * vnoise(vPos.xz * 0.06 + uFogOff) * (0.6 + 0.4 * vnoise(vPos.xz * 0.19 - uFogOff * 1.7)) : 1.0; // drifting sheets (tier fogSheets) or a flat layer
@@ -855,7 +883,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
-    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
+    boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
     if (!cam) {

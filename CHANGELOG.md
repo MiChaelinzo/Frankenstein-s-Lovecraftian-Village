@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 1): look and walking bug fixes
+- Held lantern: glass burns at full strength and sits higher so the base is no longer cut off (`a716127`).
+- Walking: wider explorer body, overhang clearance on solid props, door benches moved into the wall setback; Core, golden and JS updated, C# and node tests (`e9f4ac6`).
+- Windows: real glass, interior glow, curtains, timber cross and per-floor lights (`7d27f45`).
+- Grass tufts and reeds: wide crossed blades with a dark contact blot, coloured from the ground palette (`7209519`).
+- Lamp posts block walking at the pole and stand clear of lane walkers and the coast road; Core, golden, JS (`2adea36`).
+- `tools/browser_check.mjs`: the bimodal SwiftShader walk-timing gate now requires frames to keep coming (`WALK_TIMING_MIN_FRAMES = 8`).
+- Status: Verified by tests (validator, node 495, dotnet Core 182, UnityCompileCheck 0 errors 0 warnings). Partially Verified: the look changes, from SwiftShader stills only. Unverified: real GPU look, Unity runtime.
+
 ### Round 22 part C: 2D mood, regression fixes, docs
 - 2D (`draw.js`, tiers with `sky2d`): `dredgeMood(dread)` palette (mossy damp ground, plank quay with bollards and a pier lantern along the sea edge, seeded yard tufts and straw, a grey green fog pool on the board, a cold top and warm low grade). Low keeps the flat look. Tests in `quality.test.js`.
 - Fix (regression from the round 22 window mood): the unlit window state applied to every glowing vertex, so held, villager and coast lanterns (draw mode 3) could randomly go dark with the camera position. It now applies to the building buffer only. Foliage (`vFol`) skips the wall base shadow and gets a small colour lift, so the new grass tufts and reeds no longer render near black. Source guard test in `look.test.js`.

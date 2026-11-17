@@ -30,7 +30,11 @@ namespace Frankenstein.Core
         public const float FovMinDegrees = 55f;
         public const float FovMaxDegrees = 75f;
         public const float FovDefaultDegrees = 64f;
-        /// <summary>CharacterController radius for the explorer, a shoulder-width body.</summary>
-        public const float BodyRadius = 0.3f;
+        /// <summary>CharacterController radius for the explorer: shoulders plus a hand lantern held out to one side, so the camera never sits in a wall face.</summary>
+        public const float BodyRadius = 0.45f;
+        /// <summary>Body radius of a villager (no lantern held out): lane walkers clear props by this much and the Unity villager capsule uses it.</summary>
+        public const float VillagerRadius = 0.35f;
+        /// <summary>Metres added to every side of a solid prop's collision box, because eaves, thatch and branches overhang the measured footprint.</summary>
+        public const float OverhangClearance = 0.15f;
     }
 }
