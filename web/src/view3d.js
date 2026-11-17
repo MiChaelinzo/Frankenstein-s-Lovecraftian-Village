@@ -938,6 +938,14 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (!InteractionRules.cooldownElapsed(tt, lastUse)) return;
     lastUse = tt; onInteract(hit.piece, hit.kind); wake();
   }
+  /** Chats with the villager nearest the camera within range (C key, touch button, gamepad left trigger). Pressing again moves to the next topic. */
+  function chatNearest() {
+    if (!active || !cam) return;
+    const s = getScene(), near = nearestVillager(s.villagers || [], cam.x, cam.z, InteractionRules.RANGE);
+    if (!near) return;
+    const v = s.villagers.find((e) => e.id === near.id);
+    onInteract({ id: 'villager', villagerIndex: v.id, name: v.name }, 'villager-chat'); wake();
+  }
   /** Talks to the villager nearest the camera within range, whatever the view direction (touch button, gamepad trigger). */
   function talkNearest() {
     if (!active || !cam) return;
@@ -964,7 +972,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const snap = snapshotPad(pads[0]), ax = padAxes3d(snap);
       inp.forward += ax.forward; inp.strafe += ax.strafe; inp.turn += ax.turn; inp.look += ax.look;
       const acts = mapGamepad(padPrev, snap); padPrev = snap;
-      if (acts.includes('talk')) talkNearest();
+      if (acts.includes('chat')) chatNearest();
+      else if (acts.includes('talk')) talkNearest();
       else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
       if (acts.includes('whisper')) onExit();
     }
@@ -1081,6 +1090,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const onKeyDown = (e) => {
     if (!active || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Escape') { if (locked) document.exitPointerLock(); else onExit(); e.preventDefault(); return; }
+    if (e.code === 'KeyC') { chatNearest(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { interact(centerRay()); e.preventDefault(); return; }
     if (KEY_MOVE[e.code]) { keys.add(e.code); e.preventDefault(); wake(); }
   };
@@ -1175,7 +1185,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     /** On-screen controls: a held joystick vector, look drag deltas and an interact at the screen centre. */
     setTouchDrive(v) { stick = { forward: v.forward, strafe: v.strafe }; wake(); },
     addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
-    talkNearest,
+    talkNearest, chatNearest,
     interactCenter() { if (active && cam) interact(centerRay()); },
     /** Eye height (m) and field of view (deg) from the saved settings; values are clamped. */
     setSettings(next) { settings = sanitizeViewSettings(next); wake(); },

@@ -61,6 +61,7 @@
           <div class="touch-buttons">
             <button id="touchInteract" type="button" data-i18n="touch.interact">Interact</button>
             <button id="touchTalk" type="button" data-i18n="touch.talk">Talk</button>
+            <button id="touchChat" type="button" data-i18n="touch.chat">Chat</button>
             <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
             <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
             <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
@@ -261,15 +262,16 @@
     <h2 id="helpTitle" data-i18n="help.title">How to play</h2>
     <p id="helpDevice" class="stats" role="status"></p>
     <div id="helpDevices" class="help-devices">
-      <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic.</p>
-      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, touch devices (or ?touch=1) show a stick to walk, a pad to look and Interact, Lantern, Endure and Help buttons; dragging the view itself works too.</p>
+      <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic, left trigger chat.</p>
+      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, touch devices (or ?touch=1) show a stick to walk, a pad to look and Interact, Talk, Chat, Lantern, Endure and Help buttons; dragging the view itself works too.</p>
     </div>
     <div class="help-groups">
       <section class="help-group">
         <h3 data-i18n="help.g.play">Play</h3>
         <ul>
           <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
-          <li data-i18n-html="keys.church"><kbd>C</kbd> enter the church</li>
+          <li data-i18n-html="keys.church"><kbd>Q</kbd> enter the church</li>
+          <li data-i18n-html="keys.chat"><kbd>C</kbd> chat with the nearest villager for a hint (3D: in range; again for the next topic)</li>
           <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>
           <li data-i18n-html="keys.endure"><kbd>E</kbd> endure the night once enough clues are heard (2D view)</li>
           <li data-i18n-html="keys.newvillage"><kbd>N</kbd> new village</li>

@@ -151,6 +151,7 @@ function interact3d(p, kind) {
   if (kind === 'door') { tryDoor(p); return; }
   if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
   if (kind === 'villager') { villagers.talkTo(p.villagerIndex); return; }
+  if (kind === 'villager-chat') { villagers.chatWith(p.villagerIndex); return; }
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
   if (kind === 'landmark') { progress.note.listen(); const li = state.landmarks.indexOf(p); if (li >= 0) setFocus(li); } else progress.note.whisper();
   adjust(InteractionRules.sanityDelta(kind), p.id);
@@ -602,7 +603,7 @@ const vigil = createVigilController({
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
-  tickNow: clockTick, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
+  tickNow: clockTick, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
   onChange: () => { drawMinimap(); mark(); },
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
@@ -822,6 +823,7 @@ function doAction(raw) {
     case 'whisper': doWhisper(); break;
     case 'candle': doCandle(); break;
     case 'talk': if (villagers.isOpen()) villagers.close(); else villagers.talkNext(); break;
+    case 'chat': villagers.chatNext(); break;
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
     case 'cinematic': setCinematic(!cine.on); break;
@@ -877,7 +879,8 @@ addEventListener('keydown', (e) => {
     case 's': case 'S': playerStory(); break;
     case 'u': case 'U': setMuted(!muted); break;
     case 'w': case 'W': doWhisper(); break;
-    case 'c': case 'C': doChurch(); break;
+    case 'c': case 'C': villagers.chatNext(); break;
+    case 'q': case 'Q': doChurch(); break;
     case 'l': case 'L': doCandle(); break;
     case 'e': case 'E': vigil.endure(); break;
     case 'n': case 'N': reroll(); break;
