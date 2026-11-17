@@ -109,5 +109,18 @@ namespace Frankenstein.Runtime
             if (hud != null) hud.ShowMessage(v.Name + ": " + VillagerStrings.Line(language, v.Role, result.Behavior, result.LineVariant, v.Name));
             return result;
         }
+
+        /// <summary>
+        /// Chat (C key) through Core VillagerRules.Chat. Changes no clue and no sanity. The caller supplies what the vigil still needs
+        /// and maps HintId to wording (the hint wording lives in web/src/i18n.js, villagerui.chat.*); an empty HintId means the villager is
+        /// not lucid and the usual Talk line applies. Compile checked only; runtime behaviour is Unverified in Unity.
+        /// </summary>
+        public VillagerChatResult Chat(int topic, int cluesLeft, int lampsLeft, int sanity)
+        {
+            var v = Villager;
+            if (v == null) return new VillagerChatResult { HintId = "" };
+            int night = walkthrough != null ? walkthrough.NightIndex + 1 : 1;
+            return VillagerRules.Chat(village.seed, v, Tick, Dread, night, topic, cluesLeft, lampsLeft, sanity);
+        }
     }
 }

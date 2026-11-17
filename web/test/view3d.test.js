@@ -8,7 +8,7 @@ import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS, windowUvs, 
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
 import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
-import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer, buildHeldLantern, HELD_LANTERN_OFFSET, HELD_LANTERN_SWING_RAD } from '../src/view3d.js';
+import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer, buildHeldLantern, chatTarget, HELD_LANTERN_OFFSET, HELD_LANTERN_SWING_RAD } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
 import { texturePlan } from '../src/pack.js';
 import { tierFor } from '../src/core.js';
@@ -587,4 +587,21 @@ test('window panes: emissive house triangles get pane coordinates 0..1 across an
   const lamp = [], lampUv = [];
   appendMeshVertices(lamp, mesh('lamp'), null, M.CELL, { scale: 1, at: [0, 0], uvOut: lampUv });
   assert.ok(lampUv.every((v) => v === -1), 'lamp glass stays plain glow');
+});
+
+test('C prefers a villager in range over a book, and falls back to a book only when nobody is in range', () => {
+  const v = [{ id: 3, pos: [5, 1.5, 5] }], b = [{ id: 'b01', pos: [5.2, 0, 5] }];
+  assert.deepEqual(chatTarget(v, b, 5, 5), { kind: 'villager', id: 3 }, 'a book nearer than the villager does not win');
+  assert.deepEqual(chatTarget([], b, 5, 5), { kind: 'book', id: 'b01' });
+  assert.deepEqual(chatTarget([{ id: 3, pos: [20, 1.5, 20] }], b, 5, 5), { kind: 'book', id: 'b01' }, 'a far villager is not in range');
+  assert.equal(chatTarget(v, b, 60, 60), null); assert.equal(chatTarget(undefined, undefined, 0, 0), null);
+});
+
+test('a read book is dimmed in the world mesh: fewer lit vertices, glow 0, same position', () => {
+  const l = layout(1818), at = [{ id: 'b01', pos: [3, 0, 3] }];
+  const glowSum = (w) => { let g = 0, n = 0; for (const arr of Object.values(w)) if (arr && arr.length && arr.BYTES_PER_ELEMENT) for (let i = 9; i < arr.length; i += 11) { g += arr[i]; n++; } return [g, n]; };
+  const total = (read) => glowSum(buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24, books: at.map((x) => ({ ...x, read })) }));
+  const unread = total(false), read = total(true);
+  assert.ok(read[0] < unread[0], 'a read book glows less');
+  assert.ok(read[1] < unread[1], 'a read book drops the light shaft');
 });

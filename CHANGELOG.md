@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 5): silhouettes and lantern halos (task 126, FEAT-007 remainder)
+- `village_shapes.json` (package source and web copy): `house_a`, `house_b`, `cottage_thatch`, `cottage_tall`, `inn` get stone ground floors under timber upper floors, wider jettied uppers, taller chimneys (a pair on `house_b`), dormers on `cottage_tall` and `inn` (`house_b` already had them); roof rises now differ per building (1.9 to 3.4 m, chapel 2.2). GLBs regenerated with Blender 4.2.23, all under 35 KB (limit 200 KB). `VillageDressing` footprints and heights for the cottages and inn updated in C# and JS, goldens regenerated, new silhouette test in `shapes.test.js`. Triangle budget: the third-party frame test caps at 60% of 60,000, so dormers on `house_a`, chimney pots, jetty brackets, posts and chapel buttresses were left out (they pushed seed 1818 to 37,577 triangles; now 35,813).
+- `quality.js`: `lampHalo` (1, 1.25, 1.5) scales lantern halos and `lampCore` (0, 0.35, 0.6) adds a warm core in the halo shader; Low is unchanged. sw cache v33.
+- Stills `docs/media/r23b-*.png` (after). Optional CC0 textures not added: Poly Haven stone and cobble are already in use and the shader moss covers the mossy look.
+- Per-tier timing (`TIER_ONLY=1`, SwiftShader, indicative only): Low 269 ms, Medium 324 ms, High 357 ms mean (80 frames); the round 22 run was 216, 260, 299, so the machine was about 25% slower on unchanged Low too. JS time 3.5 to 3.9 ms per frame in all tiers.
+
+### Round 23 (part 4): world depth look (task 126, partial)
+- Web 3D shader (Medium and High only, gated by `uDetail`, Low unchanged): moss and green grime climbing lower walls, moss in cobble seams with damp-dark joints, warmer window glass, dusky blue-violet fog with a warm band toward the horizon (`duskFog`, also used by the early fog cutoff so far pixels match). Service worker cache `flv-shell-v32`.
+- Stills: `docs/media/r23-street-dusk-high.png`, `r23-harbour-night-high.png`, `r23-square-night-medium.png` (seed 1818, SwiftShader).
+- Not done: richer building silhouettes in `village_shapes.json` and Blender regen, optional CC0 textures, before/after pairs, TIER_ONLY=1 timing, browser_check. No DLNK pack data used or committed.
+
+### Round 23 (part 3): lore books (task 125)
+- Data: `Data/lore_books.json` (30 original books, en and fr, six place kinds, per-book sanity cost and clue flag), byte copy in `web/data/`. `tools/validate_repo.py`, a C# test and a node test fail on drift.
+- Core: `LoreLibrary.Parse`, `LoreBookRules.Place` (seeded: 3 on streets in front of houses, one each at chapel, inn, lighthouse, dock and churchyard graves, never in a wall or off the walkable area) and `LoreBookRules.Read` (effects on the first reading only, clue id `book@<id>`). Golden `lore`, JS port `web/src/lore.js`, C# and node tests.
+- Web: glowing book prop in 3D, minimap marker, `E` reads at a book (`C` chats with a villager in range first and only falls back to a book when nobody is in range), `J` reads the next book in 2D, aged-paper page dialog (Esc, E or Enter close, high contrast style), journal entry and a Lore books list in the codex panel, books read are saved per village (`lore` in the session). en and fr wording `lore.*`. Service worker cache `flv-shell-v31`.
+- Unity: thin `LoreBookInteractable` only.
+- Status: Verified by tests (dotnet 189, node 508, validator, tools tests, UnityCompileCheck 0/0) and by stills (3D book prop and page dialog, SwiftShader). Unverified: Unity runtime, browser_check, the book glow at dusk (the prop follows the window lamp rule and can read dim then), touch button for books.
+
+### Round 23 (part 2): C key chat with citizens (task 124)
+- Core: `VillagerRules.Chat` picks a deterministic hint (clues, lanterns or sanity topic) from `VillagerRules.Talk` and `VigilRules`; only lucid (Normal) villagers hint, no clue or sanity change. Golden `chats` section, JS port `chat()` in `villagers.js`, C# property test, node parity and UI tests.
+- Web: `C` chats with the nearest villager (3D: within range, again for the next topic; 2D: cycles present villagers), touch Chat button, gamepad left trigger (button 6). The AI narrator is not used for chat. en and fr wording `villagerui.chat.*`.
+- Key change: entering the church moved from `C` to `Q` (2D) so `C` has one meaning. Help dialog and README updated. Service worker cache `flv-shell-v30`.
+- Unity: thin `VillagerAgent.Chat` hook only (no key binding or hint wording yet).
+- Status: Verified by tests (see below in the commit). Unverified: Unity runtime, chat panel stills.
+
 ### Round 23 (part 1): look and walking bug fixes
 - Held lantern: glass burns at full strength and sits higher so the base is no longer cut off (`a716127`).
 - Walking: wider explorer body, overhang clearance on solid props, door benches moved into the wall setback; Core, golden and JS updated, C# and node tests (`e9f4ac6`).

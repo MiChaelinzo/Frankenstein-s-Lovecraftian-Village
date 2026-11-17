@@ -180,6 +180,31 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Chat_is_deterministic_follows_the_vigil_needs_and_only_lucid_villagers_hint()
+        {
+            Property.ForAll((r, seed) =>
+            {
+                var roster = World(seed).roster;
+                foreach (var v in roster)
+                    foreach (var d in Dreads)
+                        for (int topic = -1; topic < 5; topic++)
+                        {
+                            var a = VillagerRules.Chat(seed, v, 1200, d, 3, topic, 2, 1, VigilRules.SteadySanity - 1);
+                            Assert.Equal(a, VillagerRules.Chat(seed, v, 1200, d, 3, topic, 2, 1, VigilRules.SteadySanity - 1));
+                            var talk = VillagerRules.Talk(seed, v, 1200, d, null, 3);
+                            Assert.Equal(talk.Available, a.Available);
+                            Assert.InRange(a.Topic, 0, VillagerRules.ChatTopics - 1);
+                            if (!a.Available || a.Behavior != VillagerBehavior.Normal) { Assert.Equal("", a.HintId); continue; }
+                            Assert.InRange(a.LineVariant, 0, VillagerRules.LineVariants - 1);
+                            string[] seeking = { "clues_seek", "lamps_light", "sanity_low" };
+                            string[] done = { "clues_done", "lamps_done", "sanity_steady" };
+                            Assert.Equal(seeking[a.Topic], a.HintId);
+                            Assert.Equal(done[a.Topic], VillagerRules.Chat(seed, v, 1200, d, 3, a.Topic, 0, 0, VigilRules.SteadySanity).HintId);
+                        }
+            });
+        }
+
+        [Fact]
         public void Talk_result_does_not_depend_on_display_text_or_language()
         {
             var (_, roster) = World(7);

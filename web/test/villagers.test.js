@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { PrefabCatalog, generateLayout, generateCampaign, InteractionRules } from '../src/core.js';
 import { MINUTES_PER_DAY, PHASE_LENGTHS, wrapTick, dayNumber, phaseAt, daylightPercent, lanternsLit, SESSION_START_TICK } from '../src/clock.js';
 import {
-  ROLE_IDS, generateRoster, scheduledKind, scheduledPlace, behaviorAt, locationAt, talk, lineKey, causeOf, LINE_VARIANTS,
+  ROLE_IDS, generateRoster, scheduledKind, scheduledPlace, behaviorAt, locationAt, talk, chat, CHAT_TOPICS, lineKey, causeOf, LINE_VARIANTS,
   carriesLitLantern,
 } from '../src/villagers.js';
 import { standingPoint } from '../src/villager-view.js';
@@ -46,16 +46,21 @@ test('roster, schedule, locations and talk match C# for every golden seed', () =
     const campaign = generateCampaign(w.seed, 5);
     const locations = [];
     const talks = [];
+    const chats = [];
     for (const v of roster) for (const t of golden.ticks) for (const raw of golden.dreads) {
       const d = num(raw);
       const place = locationAt(v, t, d);
       locations.push([behaviorAt(v, t, d), place.kind, place.pieceIndex]);
       const night = 1 + (v.index + t) % 7;
       const r = talk(w.seed, v, t, d, campaign, night);
+      const topic = (v.index + night) % CHAT_TOPICS, cluesLeft = (v.index + t) % 3, lampsLeft = (v.index + night) % 2, sanity = 50 - 10 + 20 * (v.index % 2);
+      const c = chat(w.seed, v, t, d, night, topic, cluesLeft, lampsLeft, sanity);
+      chats.push([night, topic, cluesLeft, lampsLeft, sanity, c.available ? 1 : 0, c.topic, c.hintId, c.lineVariant]);
       talks.push([night, r.available ? 1 : 0, r.behavior, r.yieldsClue ? 1 : 0, r.clueId, r.sanityDelta, r.lineVariant, r.rumor]);
     }
     assert.deepEqual(locations, w.locations, `locations ${w.seed}`);
     assert.deepEqual(talks, w.talks, `talks ${w.seed}`);
+    assert.deepEqual(chats, w.chats, `chats ${w.seed}`);
     assert.deepEqual(roster.flatMap((v) => golden.ticks.map((t) => (carriesLitLantern(v, t) ? 1 : 0))), w.lanterns, `lanterns ${w.seed}`);
     const stand = [];
     for (const v of roster) for (let k = 0; k <= 3; k++) { const pt = standingPoint(v, k, layout, 24, 24, w.seed); stand.push([k, pt.x, pt.z, pt.faceDx, pt.faceDz]); }
@@ -107,4 +112,14 @@ test('every role and behavior has a line in en and fr, and en and fr define the 
       }
     }
   }
+});
+
+test('chat is deterministic, wraps topics and only lucid villagers hint', () => {
+  const v = generateRoster(7, generateLayout(catalog, 24, 24, 40, 7))[0];
+  assert.deepEqual(chat(7, v, 1000, 0.1, 2, 4, 1, 1, 10), chat(7, v, 1000, 0.1, 2, 4, 1, 1, 10));
+  assert.equal(chat(7, v, 1000, 0.1, 2, -2, 1, 1, 10).topic, 1);
+  assert.equal(chat(7, v, 1000, 0.1, 2, 0, 0, 1, 10).hintId, 'clues_done');
+  assert.equal(chat(7, v, 1000, 0.1, 2, 2, 0, 0, 10).hintId, 'sanity_low');
+  assert.equal(chat(7, v, 1000, 0.6, 2, 0, 1, 1, 10).hintId, '', 'a restless villager gives no hint');
+  assert.equal(chat(7, v, 1000, 1, 2, 0, 1, 1, 10).available, false);
 });

@@ -58,6 +58,21 @@ namespace Frankenstein.Core
     }
 
     /// <summary>
+    /// Result of chatting (the C key). A chat never changes sanity or clues; it only points at what the vigil still needs.
+    /// HintId is empty when the villager is not lucid enough to help (any behavior but Normal); the client then shows the usual talk line.
+    /// </summary>
+    public struct VillagerChatResult
+    {
+        public bool Available;
+        public VillagerBehavior Behavior;
+        /// <summary>0 clues, 1 lanterns, 2 sanity (<see cref="VillagerRules.ChatTopics"/>).</summary>
+        public int Topic;
+        /// <summary>Stable hint id such as "clues_seek"; clients map it to wording. Empty when none.</summary>
+        public string HintId;
+        public int LineVariant;
+    }
+
+    /// <summary>
     /// Engine-free villagers: a seeded roster placed on the village layout, a daily routine across <see cref="GameClock"/>, and the
     /// way dread bends that routine. Same seed, layout, tick and dread always give the same result; nothing here is random beyond the seed.
     /// Behavior has causes: the dark (dusk and night) deepens what dread starts, haunted villagers react one step earlier,
@@ -324,6 +339,29 @@ namespace Frankenstein.Core
                 int n = Math.Max(1, Math.Min(campaign.Nights.Count, night));
                 result.Rumor = campaign.Nights[n - 1].Rumor;
             }
+            return result;
+        }
+
+        /// <summary>Number of chat topics: clues, lanterns, sanity.</summary>
+        public const int ChatTopics = 3;
+
+        /// <summary>
+        /// Chatting with a villager (C key). Availability and behavior come from <see cref="Talk"/>; the hint comes from what the vigil still
+        /// needs: clues left tonight (<see cref="VigilRules.ClueTarget"/>), lanterns left (<see cref="VigilRules.LampsPerNight"/>) and whether
+        /// sanity is under <see cref="VigilRules.SteadySanity"/>. Topic is wrapped into range. Same inputs always give the same result and
+        /// display wording is not an input.
+        /// </summary>
+        public static VillagerChatResult Chat(int seed, Villager v, int tick, float dread, int night, int topic, int cluesLeft, int lampsLeft, int sanity)
+        {
+            var talk = Talk(seed, v, tick, dread, null, night);
+            int t = ((topic % ChatTopics) + ChatTopics) % ChatTopics;
+            var result = new VillagerChatResult { Available = talk.Available, Behavior = talk.Behavior, Topic = t, HintId = "" };
+            if (!talk.Available) return result;
+            result.LineVariant = new SeededRandom(seed ^ (v.Index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).Next(LineVariants);
+            if (talk.Behavior != VillagerBehavior.Normal) return result;
+            result.HintId = t == 0 ? (cluesLeft > 0 ? "clues_seek" : "clues_done")
+                          : t == 1 ? (lampsLeft > 0 ? "lamps_light" : "lamps_done")
+                          : (sanity < VigilRules.SteadySanity ? "sanity_low" : "sanity_steady");
             return result;
         }
     }

@@ -16,6 +16,7 @@ import {
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
+const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
 import { lookAt } from './daylight.js';
@@ -35,6 +36,25 @@ function pushBox(out, p, cell, h, color) {
   const faces = [[[x0, 0, z1], [x1, 0, z1], [x1, h, z1], [x0, h, z1], [0, 0, 1]], [[x1, 0, z0], [x0, 0, z0], [x0, h, z0], [x1, h, z0], [0, 0, -1]],
     [[x1, 0, z1], [x1, 0, z0], [x1, h, z0], [x1, h, z1], [1, 0, 0]], [[x0, 0, z0], [x0, 0, z1], [x0, h, z1], [x0, h, z0], [-1, 0, 0]], [[x0, h, z1], [x1, h, z1], [x1, h, z0], [x0, h, z0], [0, 1, 0]]];
   for (const [a, b, c, d, n] of faces) for (const v of [a, b, c, a, c, d]) out.push(v[0], v[1], v[2], n[0], n[1], n[2], color[0], color[1], color[2], 0, 0);
+}
+
+/** What C talks to: the nearest villager in range; only when nobody is in range does it fall back to a book at your feet (reading proper stays on E, so a villager beside a book never costs a first-read sanity hit). */
+export function chatTarget(villagers, books, x, z) {
+  const v = nearestVillager(villagers || [], x, z, InteractionRules.RANGE);
+  if (v) return { kind: 'villager', id: v.id };
+  const b = nearestVillager(books || [], x, z, InteractionRules.RANGE);
+  return b ? { kind: 'book', id: b.id } : null;
+}
+
+/** A lore book lying on the ground: a dark cover, pages that glow (glow 1 draws like a lit window) and a thin shaft of light above it so it reads from across the street. Yaw comes from the id so books do not all line up. */
+function pushBook(out, x, z, id, read = false) {
+  const turn = ((id.charCodeAt(id.length - 1) * 7 + id.charCodeAt(id.length - 2) * 3) % 8) / 8 * Math.PI, c = Math.cos(turn), s = Math.sin(turn);
+  const rot = (dx, dz) => [x + dx * c - dz * s, z + dx * s + dz * c];
+  const quad = (hx, hz, y0, y1, color, glow) => { const a = rot(-hx, -hz), b = rot(hx, -hz), d = rot(hx, hz), e = rot(-hx, hz); pushFrustum(out, Math.min(a[0], b[0], d[0], e[0]), Math.min(a[1], b[1], d[1], e[1]), Math.max(a[0], b[0], d[0], e[0]), Math.max(a[1], b[1], d[1], e[1]), y0, y1, 1, color, glow, 0); };
+  quad(0.3, 0.22, 0.0, 0.07, [0.16, 0.07, 0.05], 0);
+  if (read) { quad(0.26, 0.18, 0.07, 0.12, [0.32, 0.28, 0.2], 0); return; } // a read book keeps its cover and dull pages but loses the glow and the light shaft
+  quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
+  pushFrustum(out, x - 0.025, z - 0.025, x + 0.025, z + 0.025, 0.12, 0.8, 0.4, [0.95, 0.82, 0.5], 1, 0);
 }
 
 // Frustum from a rectangle on the ground: the top rectangle is the base scaled about its centre by `taper` (0 = pyramid, 1 = box, >1 = flares out).
@@ -257,7 +277,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [] }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -273,6 +293,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
+  for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
@@ -319,10 +340,11 @@ vec3 bump(vec3 n, sampler2D tex, vec2 uv, float texel, vec3 tu, vec3 tv, float k
   float h0 = lumi(texture2D(tex, uv).rgb), hu = lumi(texture2D(tex, uv + vec2(texel, 0.0)).rgb), hv = lumi(texture2D(tex, uv + vec2(0.0, texel)).rgb);
   return normalize(n - (tu * (hu - h0) + tv * (hv - h0)) * k);
 }
+vec3 duskFog(vec3 fc, vec3 V) { if (uDetail < 0.5) return fc; float lowSun = exp(-abs(V.y) * 7.0); fc = mix(fc, fc * vec3(0.9, 0.92, 1.18) + vec3(0.004, 0.0, 0.012), 0.35); return fc + uHorizon * vec3(0.16, 0.09, 0.02) * lowSun * (uDetail > 1.5 ? 1.0 : 0.6); }
 void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   float fogEarly = 1.0 - exp(-pow(dist * uFog, 2.0));
-  if (fogEarly > 0.995) { gl_FragColor = vec4(uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)), 1.0); return; } // early fog cutoff: fully fogged pixels skip texture, noise and light work
+  if (fogEarly > 0.995) { gl_FragColor = vec4(duskFog(uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)), V), 1.0); return; } // early fog cutoff: fully fogged pixels skip texture, noise and light work
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
   vec3 base = vColor; float gloss = 0.0; // gloss: how much wet sheen this surface takes (stone, cobbles, slate)
   if (uMode > 0.5 && uMode < 1.5) {
@@ -356,6 +378,7 @@ void main(){
   }
   float wet = uDetail > 0.5 ? uWet * gloss * (uDetail > 1.5 ? 0.65 + 0.35 * vnoise(vPos.xz * 0.45) : 1.0) : 0.0; // puddled patches at detail 2
   base *= 1.0 - 0.3 * wet; // wet stone is darker
+  if (uDetail > 0.5 && gloss > 0.0 && uMode > 0.5 && uMode < 1.5) { float seam = vnoise(vPos.xz * 2.3) * vnoise(vPos.xz * 0.7 + 4.0); base = mix(base, base * vec3(0.62, 0.86, 0.5) + vec3(0.0, 0.012, 0.0), smoothstep(0.34, 0.62, seam) * 0.5 * (uDetail > 1.5 ? 1.0 : 0.7)); base *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.5, vnoise(vPos.xz * 5.0))); } // moss creeping into the cobble seams, damp-dark joints (Medium and High)
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
   float shade = 1.0;
@@ -367,6 +390,7 @@ void main(){
   if (wet > 0.0) spec += uMoonColor * pow(max(dot(reflect(-uMoonDir, n), V), 0.0), 60.0) * wet * 1.6;
   if (vFol > 0.5) base = base * 1.35 + vec3(0.02, 0.035, 0.012) * (0.4 + 0.6 * skyUp); // grass, reeds and bushes: dark moss colours get a lift and skip the wall base shadow, so tufts read as grass instead of black spikes
   else if (uMode < 0.5 || uMode > 2.5) base *= mix(uDetail > 0.5 ? 0.34 : 0.5, 1.0, smoothstep(0.0, 1.8, vPos.y)) * (uDetail > 0.5 && uMode < 0.5 ? 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.9, vPos.y)) * vnoise(vec2(vPos.x + vPos.z, vPos.y) * 3.0) : 1.0); // contact shadow and grime at wall bases
+  if (uDetail > 0.5 && vFol < 0.5 && (uMode < 0.5 || uMode > 2.5) && n.y < 0.6) { float mg = (1.0 - smoothstep(0.0, uDetail > 1.5 ? 1.7 : 1.2, vPos.y)) * (0.45 + 0.55 * vnoise(vec2(vPos.x + vPos.z, vPos.y * 2.0) * 2.6)); base = mix(base, base * vec3(0.55, 0.78, 0.42) + vec3(0.004, 0.016, 0.004), clamp(mg, 0.0, 1.0) * 0.55); } // damp moss and green grime climbing the lower walls
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
     vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att / (1.0 + r2 * 0.08); // windowed inverse square
@@ -412,7 +436,7 @@ void main(){
     float storey = floor(max(vPos.y - 0.5, 0.0) / 2.9); float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3 + storey * 1.9));
     float on = 1.0, hw = hash(vec2(vPhase * 1.7 + storey * 5.3, floor((vPos.x + vPos.z) * 0.8))); // one state per house, storey and bay
     if (uWin.x > 0.0 && uMode < 0.5) { on = step(uWin.x, hw); float gut = step(1.0 - uWin.y, fract(hw * 7.31)) * on; fl *= 1.0 - gut * uFlicker * (0.45 + 0.45 * sin(uTime * 17.0 + hw * 90.0) * sin(uTime * 7.3 + hw * 40.0)); }
-    vec3 lit = uGlowColor * 1.4 * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
+    vec3 lit = uGlowColor * (uDetail > 0.5 ? vec3(1.5, 1.38, 1.1) : vec3(1.4)) * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
     if (vUv.x < -1.5 && uMode < 0.5) { // a real window: whole floors are lit or dark, warm glass with curtains and a timber cross, or black glass holding the sky
       float floorOn = step(max(uWin.x, 0.22), hash(vec2(vPhase * 3.1 + storey * 11.7, storey + 0.5))); on = on * floorOn * step(0.001, vGlow); // a house whose lights are out (vGlow 0) shows only dark panes
       vec2 w = vec2(-2.0) - vUv; // pane coordinates 0..1
@@ -437,6 +461,7 @@ void main(){
   float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
   f = 1.0 - (1.0 - f) * (1.0 - mist);
   vec3 fogCol = uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)); // moonlight scattered in the haze toward the moon
+  fogCol = duskFog(fogCol, V); // dusky blue-violet haze with a warm lamp-lit band toward the horizon (Medium and High)
   gl_FragColor = vec4(mix(col, fogCol, clamp(f, 0.0, 1.0)), 1.0);
 }`;
 const SKY_VS = 'attribute vec2 aPos; varying vec2 vNdc; void main(){ vNdc = aPos; gl_Position = vec4(aPos, 0.9999, 1.0); }';
@@ -493,9 +518,9 @@ void main(){
   gl_PointSize = clamp(aSize * uScale / max(gl_Position.w, 0.5), 2.0, 140.0);
   vFlick = uReduced > 0.5 ? 1.0 : 0.85 + 0.15 * sin(uTime * 5.3 + aHalo.w * 1.7);
 }`;
-const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; varying float vFlick; varying float vDist;
-void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float a = pow(clamp(1.0 - r, 0.0, 1.0), 2.2) * 0.85 * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
-  gl_FragColor = vec4(uColor, a); }`;
+const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; uniform float uCore; varying float vFlick; varying float vDist;
+void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float k = clamp(1.0 - r, 0.0, 1.0); float a = (pow(k, 2.2) * 0.85 + pow(k, 7.0) * uCore) * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
+  gl_FragColor = vec4(mix(uColor, vec3(1.0, 0.82, 0.5), clamp(pow(k, 5.0) * uCore, 0.0, 1.0)), min(a, 1.0)); }`;
 const PART_VS = `attribute vec3 aSeed; uniform mat4 uVP; uniform vec3 uCam; uniform vec3 uBox; uniform vec3 uVel; uniform float uTime; uniform float uSize; uniform float uScale;
 varying float vFade;
 void main(){
@@ -775,7 +800,7 @@ export function createGlRenderer(gl) {
         gl.enableVertexAttribArray(hl); gl.vertexAttribPointer(hl, 4, gl.FLOAT, false, HALO_FLOATS * 4, 0);
         gl.enableVertexAttribArray(sl2); gl.vertexAttribPointer(sl2, 1, gl.FLOAT, false, HALO_FLOATS * 4, 16);
         gl.uniformMatrix4fv(halo.u('uVP'), false, f.vp); gl.uniform3fv(halo.u('uCam'), f.camPos); gl.uniform1f(halo.u('uScale'), f.pointScale);
-        gl.uniform1f(halo.u('uTime'), f.time); gl.uniform1f(halo.u('uReduced'), f.reduced ? 1 : 0); gl.uniform1f(halo.u('uFog'), f.fog); gl.uniform3fv(halo.u('uColor'), f.glowColor);
+        gl.uniform1f(halo.u('uTime'), f.time); gl.uniform1f(halo.u('uReduced'), f.reduced ? 1 : 0); gl.uniform1f(halo.u('uFog'), f.fog); gl.uniform3fv(halo.u('uColor'), f.glowColor); gl.uniform1f(halo.u('uCore'), f.lampCore);
         gl.drawArrays(gl.POINTS, 0, counts.halo);
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
@@ -879,10 +904,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join('')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(',')].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
+    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [] });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -926,6 +951,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const v = vs[vHit.index];
       return { piece: { id: 'villager', villagerIndex: v.id, name: v.name }, kind: 'villager', distance: vHit.distance, inRange: InteractionRules.inRange(vHit.distance) };
     }
+    // Lore books lie on the ground and share the view ray the same way.
+    const bs = s.books || [];
+    const bHit = bs.length ? pickLamp(origin, ray, bs, 60, BOOK_PICK_RADIUS) : null;
+    if (bHit && (!hit || bHit.distance <= hit.distance + 0.6)) {
+      const b = bs[bHit.index];
+      return { piece: { id: 'book', bookId: b.id, read: !!b.read }, kind: 'book', distance: bHit.distance, inRange: InteractionRules.inRange(bHit.distance) };
+    }
     if (!hit || hit.index >= layoutCount) return null; // a dressing prop only blocks the view
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };
@@ -937,6 +969,15 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (!hit || !hit.inRange) return;
     if (!InteractionRules.cooldownElapsed(tt, lastUse)) return;
     lastUse = tt; onInteract(hit.piece, hit.kind); wake();
+  }
+  /** Chats with the villager nearest the camera within range (C key, touch button, gamepad left trigger). Pressing again moves to the next topic. */
+  function chatNearest() {
+    if (!active || !cam) return;
+    const s = getScene(), t = chatTarget(s.villagers, s.books, cam.x, cam.z);
+    if (!t) return;
+    if (t.kind === 'book') { onInteract({ id: 'book', bookId: t.id }, 'book'); wake(); return; }
+    const v = s.villagers.find((e) => e.id === t.id);
+    onInteract({ id: 'villager', villagerIndex: v.id, name: v.name }, 'villager-chat'); wake();
   }
   /** Talks to the villager nearest the camera within range, whatever the view direction (touch button, gamepad trigger). */
   function talkNearest() {
@@ -964,7 +1005,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const snap = snapshotPad(pads[0]), ax = padAxes3d(snap);
       inp.forward += ax.forward; inp.strafe += ax.strafe; inp.turn += ax.turn; inp.look += ax.look;
       const acts = mapGamepad(padPrev, snap); padPrev = snap;
-      if (acts.includes('talk')) talkNearest();
+      if (acts.includes('chat')) chatNearest();
+      else if (acts.includes('talk')) talkNearest();
       else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
       if (acts.includes('whisper')) onExit();
     }
@@ -1032,7 +1074,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
     const sk = flashSky(day.sky, flashState.flash); // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
-    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',');
+    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',') + '|' + tier.lampHalo;
     const lifeNow = lifeParams({ tier, reduced, weather, dread: Math.round(s.dread * 4) / 4 }), fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}|${tier.fireflies}`;
     if (fliesKey !== lastFlies) {
       lastFlies = fliesKey;
@@ -1041,7 +1083,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       all.set(fl); all.set(lf, fl.length); renderer.setFireflies(all);
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
-      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo }))));
+      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
     }
     const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
@@ -1073,7 +1115,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (hc) { postP.grain = 0; postP.chroma = 0; } postP.vignette = Math.max(0, postP.vignette + grade.vignetteBoost); if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     renderer.draw({
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
+      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, lampCore: tier.lampCore, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
     });
   }
 
@@ -1081,6 +1123,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const onKeyDown = (e) => {
     if (!active || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Escape') { if (locked) document.exitPointerLock(); else onExit(); e.preventDefault(); return; }
+    if (e.code === 'KeyC') { chatNearest(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { interact(centerRay()); e.preventDefault(); return; }
     if (KEY_MOVE[e.code]) { keys.add(e.code); e.preventDefault(); wake(); }
   };
@@ -1175,7 +1218,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     /** On-screen controls: a held joystick vector, look drag deltas and an interact at the screen centre. */
     setTouchDrive(v) { stick = { forward: v.forward, strafe: v.strafe }; wake(); },
     addTouchLook(dx, dy) { look.dx += dx; look.dy += dy; wake(); },
-    talkNearest,
+    talkNearest, chatNearest,
     interactCenter() { if (active && cam) interact(centerRay()); },
     /** Eye height (m) and field of view (deg) from the saved settings; values are clamped. */
     setSettings(next) { settings = sanitizeViewSettings(next); wake(); },

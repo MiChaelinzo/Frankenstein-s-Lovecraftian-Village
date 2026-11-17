@@ -253,5 +253,7 @@ export function createVigilController(deps) {
     reset, restore, serialize, watchClock, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
     endingOpen: () => endingIsOpen, canEndure: () => !!vigil && vigil.canEndureNight && !vigil.isFinished,
     isFinished: () => !!vigil && vigil.isFinished, isLive: live,
+    /** What tonight still needs, for villager chat hints: clues and lanterns left, and the sanity in vigil points. */
+    needs: () => (vigil ? { cluesLeft: Math.max(0, vigil.clueTarget - vigil.nightClueIds.size), lampsLeft: Math.max(0, VIGIL_LAMPS_PER_NIGHT - vigil.nightLampIds.size), sanity: sanityPoints(state.sanity.value) } : { cluesLeft: 0, lampsLeft: 0, sanity: sanityPoints(state.sanity.value) }),
   };
 }

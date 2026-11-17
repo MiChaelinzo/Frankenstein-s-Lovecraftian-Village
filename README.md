@@ -21,6 +21,10 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 | ![Round 22 2D before](docs/media/r22-2d-before.png) | ![Round 22 2D after: mossy ground, plank quay and pier lantern, yard tufts, fog pool, cold top and warm low grade](docs/media/r22-2d-after.png) |
 | ![Round 22 High tier: a lane at dusk, villager, lamp post, fog and a red horizon](docs/media/r22-lane-villager.png) | ![Round 21 High tier: a rainy night, still the best reference for wet stone](docs/media/r21-high-rain-night.png) |
 
+![Harbour at night, High tier, stone ground floors, jetties and dormers](docs/media/r23b-harbour-night-high.png)
+
+Round 23 depth pass (Medium and High, SwiftShader stills in `docs/media/r23-*.png`): mossy wall bases and cobble seams, warmer windows, blue-violet fog with a warm horizon, plus stone ground floors, jettied timber upper floors, dormers and varied roof pitches on the houses (`docs/media/r23b-*.png`).
+
 Round 22 stills (seed 1818, `?view=3d&intro=0&caption=0&quality=high`, SwiftShader, `cam3d=51.5,56.5,180,-4`, and the 2D map at Medium with `sanity=70`): the Dredge and Silent Hill mood (see `docs/ART_DIRECTION.md`) in 3D and the matching 2D view. Round 22 also filled the empty foreground (yard tufts, stumps, logs, wall stacks, gardens, lamp posts, wheel ruts, harbour bollards), made the coast cottages, inn and chapel bigger, and added a life layer (swaying signs and laundry, moths, leaves, chimney smoke, shore surge). **Known look bugs in this still set (Partially Verified, fixed in round 23 part 1: lantern glass, windows, wall clearance, grass blades):** the held lantern glass is dull and cut off at the bottom edge, windows read as flat brown shutters more than glass, a few dressing props (benches at doors) sit very close to a wall and the player can stand 0.35 m from a wall face, and grass tufts are thin spikes.
 
 | | |
@@ -150,7 +154,9 @@ What the demo does:
 | Key | Action |
 |-----|--------|
 | `W` | whisper |
-| `C` | enter the church |
+| `Q` | enter the church |
+| `C` | chat with the nearest villager for a hint (3D: in range; again for the next topic) |
+| `J` | read the next lore book (2D; in 3D press `E` at a glowing book) |
 | `L` | light a candle |
 | `N` | new village |
 | `[` `]` | sanity -5 / +5 |

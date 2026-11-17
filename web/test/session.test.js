@@ -12,13 +12,13 @@ import { parseStoryParam } from '../src/story.js';
 import { parseLang } from '../src/i18n.js';
 import { parseSession, serializeSession, saveSession, loadSession, safeStorage, sessionHash, buildShareLink, SESSION_KEY } from '../src/session.js';
 
-const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], vigil: '' };
+const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], lore: ['b03'], vigil: '' };
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) }; };
 
 test('round trips and clamps', () => {
   assert.deepEqual(parseSession(serializeSession(good)), good);
   const c = parseSession({ seed: '7', sanity: 900, night: 99, beat: -4, theme: 'x y', cam: 'zzz', floor: 50 });
-  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], vigil: '' });
+  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], lore: [], vigil: '' });
 });
 test('rejects junk', () => {
   for (const bad of [null, undefined, 5, [], '{', '[]', {}, { seed: 'a', sanity: 1 }, { seed: 1 }, { seed: 1, sanity: NaN }, { seed: '', sanity: 1 }]) assert.equal(parseSession(bad), null);
@@ -58,6 +58,8 @@ test('old saves without codex or achievements still load, junk ids are dropped',
   assert.deepEqual(v.codex, ['s1', 'o3']);
   assert.deepEqual(v.ach, ['abyss']);
   assert.deepEqual(parseSession({ seed: 5, sanity: 80, codex: 'oops', ach: { a: 1 } }).codex, []);
+  assert.deepEqual(old.lore, []);
+  assert.deepEqual(parseSession({ seed: 5, sanity: 80, lore: ['b01', 'b01', 'evil', 'b123', 4, 'b30'] }).lore, ['b01', 'b30']);
   assert.deepEqual(parseSession(serializeSession(good)), good);
 });
 
