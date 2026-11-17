@@ -167,3 +167,13 @@ test('markup: dialogue, panel and talk button exist; index.html declares aria an
   assert.match(html, /id="villagerDialog"[^>]*role="dialog"[^>]*hidden/);
   for (const f of ['../_headers', '../../vercel.json', '../../netlify.toml']) assert.match(readFileSync(new URL(f, import.meta.url), 'utf8'), /connect-src 'self' https:[;"\s]/, f);
 });
+
+test('chat topics restart when the village or the night changes', () => {
+  const r = run(null, null);
+  assert.equal(r.ctl.chatWith(0).topic, 0); assert.equal(r.ctl.chatWith(0).topic, 1);
+  r.state.night = 1; r.ctl.refresh();
+  assert.equal(r.ctl.chatWith(0).topic, 0, 'a new night starts at topic 0');
+  assert.equal(r.ctl.chatWith(0).topic, 1);
+  r.state.seed = 2024; r.state.layout = layout.slice(0, layout.length - 1); r.ctl.refresh();
+  assert.equal(r.ctl.chatWith(0).topic, 0, 'a new village starts at topic 0');
+});

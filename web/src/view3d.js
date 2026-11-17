@@ -38,12 +38,21 @@ function pushBox(out, p, cell, h, color) {
   for (const [a, b, c, d, n] of faces) for (const v of [a, b, c, a, c, d]) out.push(v[0], v[1], v[2], n[0], n[1], n[2], color[0], color[1], color[2], 0, 0);
 }
 
+/** What C talks to: the nearest villager in range; only when nobody is in range does it fall back to a book at your feet (reading proper stays on E, so a villager beside a book never costs a first-read sanity hit). */
+export function chatTarget(villagers, books, x, z) {
+  const v = nearestVillager(villagers || [], x, z, InteractionRules.RANGE);
+  if (v) return { kind: 'villager', id: v.id };
+  const b = nearestVillager(books || [], x, z, InteractionRules.RANGE);
+  return b ? { kind: 'book', id: b.id } : null;
+}
+
 /** A lore book lying on the ground: a dark cover, pages that glow (glow 1 draws like a lit window) and a thin shaft of light above it so it reads from across the street. Yaw comes from the id so books do not all line up. */
-function pushBook(out, x, z, id) {
+function pushBook(out, x, z, id, read = false) {
   const turn = ((id.charCodeAt(id.length - 1) * 7 + id.charCodeAt(id.length - 2) * 3) % 8) / 8 * Math.PI, c = Math.cos(turn), s = Math.sin(turn);
   const rot = (dx, dz) => [x + dx * c - dz * s, z + dx * s + dz * c];
   const quad = (hx, hz, y0, y1, color, glow) => { const a = rot(-hx, -hz), b = rot(hx, -hz), d = rot(hx, hz), e = rot(-hx, hz); pushFrustum(out, Math.min(a[0], b[0], d[0], e[0]), Math.min(a[1], b[1], d[1], e[1]), Math.max(a[0], b[0], d[0], e[0]), Math.max(a[1], b[1], d[1], e[1]), y0, y1, 1, color, glow, 0); };
   quad(0.3, 0.22, 0.0, 0.07, [0.16, 0.07, 0.05], 0);
+  if (read) { quad(0.26, 0.18, 0.07, 0.12, [0.32, 0.28, 0.2], 0); return; } // a read book keeps its cover and dull pages but loses the glow and the light shaft
   quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
   pushFrustum(out, x - 0.025, z - 0.025, x + 0.025, z + 0.025, 0.12, 0.8, 0.4, [0.95, 0.82, 0.5], 1, 0);
 }
@@ -284,7 +293,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
-  for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id);
+  for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
@@ -895,7 +904,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id).join(',')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(',')].join('|');
     if (key === worldKey) return;
     worldKey = key;
     lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [] });
@@ -964,10 +973,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   /** Chats with the villager nearest the camera within range (C key, touch button, gamepad left trigger). Pressing again moves to the next topic. */
   function chatNearest() {
     if (!active || !cam) return;
-    const s = getScene(), near = nearestVillager(s.villagers || [], cam.x, cam.z, InteractionRules.RANGE), book = nearestVillager(s.books || [], cam.x, cam.z, InteractionRules.RANGE);
-    if (book && (!near || book.distance <= near.distance)) { onInteract({ id: 'book', bookId: book.id }, 'book'); wake(); return; } // a book at your feet is read first (C or E)
-    if (!near) return;
-    const v = s.villagers.find((e) => e.id === near.id);
+    const s = getScene(), t = chatTarget(s.villagers, s.books, cam.x, cam.z);
+    if (!t) return;
+    if (t.kind === 'book') { onInteract({ id: 'book', bookId: t.id }, 'book'); wake(); return; }
+    const v = s.villagers.find((e) => e.id === t.id);
     onInteract({ id: 'villager', villagerIndex: v.id, name: v.name }, 'villager-chat'); wake();
   }
   /** Talks to the villager nearest the camera within range, whatever the view direction (touch button, gamepad trigger). */

@@ -14,12 +14,12 @@ import { esc } from './util.js';
  */
 export function createVillagerController(deps) {
   const { $, tr, state } = deps;
-  let roster = [], rosterKey = '', openFor = -1, talkId = 0, chatCounts = new Map(), panelOn = false, listKey = '', cursor = -1, returnFocus = null;
+  let roster = [], rosterKey = '', openFor = -1, talkId = 0, chatCounts = new Map(), chatNight = -1, panelOn = false, listKey = '', cursor = -1, returnFocus = null;
   state.villagers = [];
 
   function ensureRoster() {
     const key = `${state.seed}|${state.layout.length}`;
-    if (key !== rosterKey) { rosterKey = key; roster = state.layout.length ? generateRoster(state.seed, state.layout) : []; }
+    if (key !== rosterKey) { rosterKey = key; chatCounts.clear(); roster = state.layout.length ? generateRoster(state.seed, state.layout) : []; }
     return roster;
   }
   const placementOf = (index) => state.villagers.find((p) => p.index === index) || null;
@@ -106,7 +106,9 @@ export function createVillagerController(deps) {
   function chatWith(index) {
     const v = ensureRoster()[index], p = placementOf(index);
     if (!v || !p) return null;
-    const night = state.night + 1, topic = chatCounts.get(index) || 0, need = deps.chatNeeds();
+    const night = state.night + 1;
+    if (night !== chatNight) { chatNight = night; chatCounts.clear(); } // topics restart each night, so the first chat of a night is always topic 0
+    const topic = chatCounts.get(index) || 0, need = deps.chatNeeds();
     const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity);
     const line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
     if (result.available) chatCounts.set(index, topic + 1);

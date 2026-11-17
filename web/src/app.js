@@ -608,7 +608,7 @@ const vigil = createVigilController({
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
 });
-// Lore books: seeded by Core rules (lore.js), read with E or C in 3D (J in 2D); the first reading applies the data file's clue and sanity effect.
+// Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   onChange: () => { drawMinimap(); mark(); }, journal: (text) => log('lore', text),
