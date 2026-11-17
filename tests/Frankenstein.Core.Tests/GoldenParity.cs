@@ -709,6 +709,19 @@ namespace Frankenstein.Core.Tests
                               .Append(r.LineVariant).Append(", ").Append(J(r.Rumor)).Append(']');
                             firstTalk = false;
                         }
+                sb.Append("], \"chats\": [");
+                bool firstChat = true;
+                foreach (var v in roster)
+                    foreach (var t in VillagerTicks)
+                        foreach (var d in VillagerDreads)
+                        {
+                            int night = 1 + (v.Index + t) % 7, topic = (v.Index + night) % VillagerRules.ChatTopics;
+                            int cluesLeft = (v.Index + t) % 3, lampsLeft = (v.Index + night) % 2, sanity = VigilRules.SteadySanity - 10 + 20 * (v.Index % 2);
+                            var c = VillagerRules.Chat(seed, v, t, d, night, topic, cluesLeft, lampsLeft, sanity);
+                            sb.Append(firstChat ? "" : ", ").Append('[').Append(night).Append(", ").Append(topic).Append(", ").Append(cluesLeft).Append(", ").Append(lampsLeft).Append(", ").Append(sanity).Append(", ")
+                              .Append(c.Available ? 1 : 0).Append(", ").Append(c.Topic).Append(", ").Append(J(c.HintId)).Append(", ").Append(c.LineVariant).Append(']');
+                            firstChat = false;
+                        }
                 sb.Append("] }");
             }
             sb.Append("\n    ],\n    \"ticks\": ").Append(J(VillagerTicks)).Append(",\n    \"dreads\": [");
