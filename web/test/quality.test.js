@@ -111,3 +111,10 @@ test('2D mood: dredgeMood is pure, dread driven and clamped; Low skips the harbo
   r.setQuality(QUALITY_TIERS.medium); strokes.n = 0; r.drawScene(0, 0, 0.3, 1); const med = strokes.n;
   assert.ok(med >= low + 2, `medium strokes yard tufts and the quay (${med} vs ${low})`);
 });
+
+test('lantern halo settings grow with the tier and Low keeps the plain disc', () => {
+  const { low, medium, high } = QUALITY_TIERS;
+  assert.equal(low.lampHalo, 1); assert.equal(low.lampCore, 0);
+  assert.ok(medium.lampHalo > low.lampHalo && high.lampHalo > medium.lampHalo);
+  assert.ok(medium.lampCore > 0 && high.lampCore > medium.lampCore);
+});
