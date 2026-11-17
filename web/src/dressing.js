@@ -15,7 +15,7 @@ export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
 export const LAMP_POLE_HALF = 0.12, LANE_POST_INSET = 0.2; // a lamp blocks walking only at its pole; lane posts stand this far inside the lane edge. Mirror VillageDressing
 
 const FOOTPRINTS = {
-  cottage_thatch: [2.25, 1.98, 4.1, true], cottage_tall: [1.82, 1.54, 6.1, true], inn: [4.31, 2.88, 4.9, true], chapel: [2.4, 2.76, 6.1, true],
+  cottage_thatch: [2.25, 1.98, 4.6, true], cottage_tall: [1.9, 1.65, 6.9, true], inn: [4.36, 2.88, 4.9, true], chapel: [2.4, 2.76, 6.1, true],
   lighthouse: [2.2, 2.2, 10.2, true], market_stall: [1.3, 1.0, 2.5, true], crate_stack: [1.02, 0.57, 1.4, true], barrel: [0.88, 0.5, 0.93, true],
   gravestone: [0.45, 0.71, 1.38, false], gravestone_cross: [0.45, 0.9, 1.6, false], fence_iron: [1.5, 0.1, 1.52, false],
   well: [1.05, 0.95, 2.9, true], fence: [1.5, 0.24, 1.1, true], boat: [1.8, 0.78, 2.9, true], cart: [1.39, 0.66, 1.04, true], sack: [0.57, 0.52, 0.9, false],

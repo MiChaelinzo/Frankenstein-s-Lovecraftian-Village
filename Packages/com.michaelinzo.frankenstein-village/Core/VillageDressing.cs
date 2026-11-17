@@ -82,9 +82,9 @@ namespace Frankenstein.Core
         {
             switch (kind)
             {
-                case "cottage_thatch": return new Footprint { HalfX = 2.25, HalfZ = 1.98, Height = 4.1, Solid = true };
-                case "cottage_tall": return new Footprint { HalfX = 1.82, HalfZ = 1.54, Height = 6.1, Solid = true };
-                case "inn": return new Footprint { HalfX = 4.31, HalfZ = 2.88, Height = 4.9, Solid = true };
+                case "cottage_thatch": return new Footprint { HalfX = 2.25, HalfZ = 1.98, Height = 4.6, Solid = true };
+                case "cottage_tall": return new Footprint { HalfX = 1.9, HalfZ = 1.65, Height = 6.9, Solid = true };
+                case "inn": return new Footprint { HalfX = 4.36, HalfZ = 2.88, Height = 4.9, Solid = true };
                 case "chapel": return new Footprint { HalfX = 2.4, HalfZ = 2.76, Height = 6.1, Solid = true };
                 case "lighthouse": return new Footprint { HalfX = 2.2, HalfZ = 2.2, Height = 10.2, Solid = true };
                 case "market_stall": return new Footprint { HalfX = 1.3, HalfZ = 1.0, Height = 2.5, Solid = true };

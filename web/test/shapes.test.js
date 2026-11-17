@@ -116,3 +116,22 @@ test('blade is a two-sided tapered card (grass tufts and reeds), and the tuft ca
   assert.ok(tuft.parts.some((p) => p.material === 'soil'), 'contact blot');
   assert.ok(tuft.parts.filter((p) => p.shape === 'blade').every((p) => p.width >= 0.3), 'wide blades');
 });
+
+test('round 23 silhouettes: stone ground floors, jettied timber uppers, dormers, chimney stacks and varied roof pitches', () => {
+  const mesh = (id) => shapes.meshes.find((m) => m.id === id).parts;
+  const part = (id, name) => mesh(id).find((p) => p.name === name);
+  assert.equal(part('house_a', 'ground').material, 'stone');
+  assert.equal(part('house_b', 'ground').material, 'stone');
+  assert.equal(part('cottage_tall', 'lower').material, 'stone');
+  assert.equal(part('cottage_thatch', 'walls').material, 'stone');
+  assert.equal(part('inn', 'hall').material, 'stone');
+  // jetty: the timber upper floor is wider than the stone floor under it
+  assert.ok(part('house_a', 'upper').size[0] > part('house_a', 'ground').size[0]);
+  assert.ok(part('cottage_tall', 'upper').size[0] > part('cottage_tall', 'lower').size[0]);
+  assert.ok(part('inn', 'hall_upper').size[1] > part('inn', 'hall').size[1]);
+  for (const id of ['house_b', 'cottage_tall', 'inn']) assert.ok(mesh(id).some((p) => p.name.startsWith('dormer')), `${id} dormer`);
+  assert.ok(mesh('house_b').filter((p) => p.name.startsWith('chimney')).length >= 2, 'house_b chimney stack pair');
+  const rises = [part('house_a', 'roof'), part('house_b', 'roof'), part('cottage_thatch', 'thatch'), part('cottage_tall', 'roof'), part('inn', 'hall_roof'), part('chapel', 'nave_roof')].map((p) => p.size[2]);
+  assert.ok(new Set(rises).size >= 5, `roof rises vary: ${rises}`);
+  for (const id of ['house_a', 'house_b', 'cottage_thatch', 'cottage_tall', 'inn', 'chapel']) assert.ok(statSync(join(web, 'assets', 'meshes', id + '.glb')).size < 200 * 1024, `${id} under 200 KB`);
+});
