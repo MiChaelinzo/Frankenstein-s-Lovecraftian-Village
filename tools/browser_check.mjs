@@ -90,6 +90,7 @@ async function main() {
   const text = (idv) => ev(`document.getElementById('${idv}').textContent`);
   const hidden = (idv) => ev(`document.getElementById('${idv}').hidden`);
 
+  const WALK_TIMING_MIN_FRAMES = 8;
   /** Real-time frame timing while walking (TIMING_ONLY=1 runs only this). Software GL, so indicative only; the HUD line adds the JavaScript ms per frame and the culled triangle count. */
   const timingRun = async () => {
     await nav('?intro=0&view=3d&perf=1' + (process.env.TIMING_QUERY || '') + '#seed=1818&sanity=60');
@@ -98,7 +99,9 @@ async function main() {
     const stats = frameStats(await ev(`window.__ft`));
     const hud = await ev(`(document.getElementById('perfHud')||{}).textContent`);
     const renderer = await ev(`(()=>{const g=document.createElement('canvas').getContext('webgl'),e=g.getExtension('WEBGL_debug_renderer_info');return e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):'n/a'})()`);
-    rec('3d: real-time frame timing, SwiftShader software GL (indicative only)', stats.frames > 30, { ...stats, renderer, hud });
+    // Pinned low on purpose: on the CI sandbox SwiftShader is bimodal (about 20 or about 60 frames in the same 6 s walk, run to run), so the old > 30
+    // threshold failed at random. This check proves frames keep coming while walking; the numbers in the record are the indicative timing.
+    rec('3d: real-time frame timing, SwiftShader software GL (indicative only, frames keep coming while walking)', stats.frames >= WALK_TIMING_MIN_FRAMES, { ...stats, renderer, hud, minFrames: WALK_TIMING_MIN_FRAMES });
   };
   /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. */
   const tierTimingRun = async () => {
