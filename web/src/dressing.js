@@ -31,7 +31,7 @@ export function footprintOf(kind) {
 }
 export const DRESSING_KINDS = Object.keys(FOOTPRINTS);
 
-const coastSideOf = (seed) => new SeededRandom(seed ^ 0x2f6b).next(3);
+export const coastSideOf = (seed) => new SeededRandom(seed ^ 0x2f6b).next(3);
 export const hiOf = (seed, gridW, gridD) => (coastSideOf(seed) === 2 ? gridW * CELL_M : gridD * CELL_M);
 export function dockU(seed, gridW, gridD) { return 0 + (hiOf(seed, gridW, gridD) - 0) * (0.3 + new SeededRandom(seed ^ 0x51ed).next(40) / 100); }
 
