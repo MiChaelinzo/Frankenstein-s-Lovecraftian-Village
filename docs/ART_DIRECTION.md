@@ -69,4 +69,6 @@ Qualitative only. Nothing is copied from either game: no assets, no names, no la
 
 **Known gaps (Partially Verified, SwiftShader only):** windows read as flat brown shutters (no glass or interior), the held lantern glass is dull and low on screen, grass tufts are thin cones, wet sheen is faint. See round 23 tasks in `.kiro/specs/tasks.md`.
 
+**Round 23 silhouettes (all tiers, meshes; Partially Verified in SwiftShader stills):** houses and cottages stand on stone ground floors with a wider timber upper floor (jetty), dormers on `house_b`, `cottage_tall` and `inn`, a pair of taller chimneys on `house_b`, and roof rises from 1.9 to 3.4 m. Lantern halos grow on Medium (x1.25) and High (x1.5) and gain a warm core. The frame triangle budget (60% of 60,000 at seed 1818) caps how much detail fits.
+
 **Round 23 depth pass (Medium and High, Partially Verified in SwiftShader stills):** lower walls gather moss and grime, cobble seams grow moss and stay damp-dark, window glass is warmer, and distant fog leans blue-violet with a warm band at the horizon. Low keeps the flat look. Stills: `docs/media/r23-*.png`.

@@ -303,6 +303,12 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - Browser check (full run, SwiftShader): 99 of 101. One failure was a stale expected mesh count (`37 of 37`, now 47 after the round 22 props), fixed in `tools/browser_check.mjs`. The other was the real-time frame timing check (`frames > 30` in a 6 s walk), which is bimodal on this host: the same build alternates between about 37 frames at 150 ms and 14 frames at 450 ms mean; I first suspected the 2D mood fills, but reverting only the 2D file did not give a stable result (A/B alternation reproduced both modes with identical code). Partially Verified; run `TIMING_ONLY=1` again on a quiet machine. Main `d72a4fa` measured 45 frames at 136 ms, `f4cf0a1` 38 frames at 144 ms, `3c81de0` 48 frames at 127 ms.
 - Added after the docs commit: `26a67f4` fix: gentler foliage lift, sw cache v28.
 
+## Round 23 part 5 (silhouettes, lantern halos)
+- Blender needs `LD_LIBRARY_PATH=<pack-scratch/blender/libs/usr/lib64>`; only the six edited GLBs change, the other 41 regenerate byte-identical.
+- Triangle budget bit first: the full detail set raised seed 1818 to 37,577 (limit 36,000), so decoration was trimmed to 35,813. A regex that deleted `post_*` parts also removed posts from other meshes; restored from HEAD, check `git diff` on shape data.
+- `/tmp` was cleared mid-session; keep scripts in the workspace.
+- Before/after stills viewed (street, square, harbour, dusk and night, Medium and High); the square cam3d stands against a house wall at night, so it is not used. TIER_ONLY=1: Low 269, Medium 324, High 357 ms (noisy, indicative).
+
 ## Round 23 part 1 commits (look and walking bug fixes, branch feat/round23)
 - `a716127` fix: held lantern glass burns at full strength, raised so the base is not cut off
 - `e9f4ac6` fix: wider explorer body, overhang clearance on solid props, door benches in the wall setback (Core, golden, JS)

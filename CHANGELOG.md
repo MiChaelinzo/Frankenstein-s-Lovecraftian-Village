@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 5): silhouettes and lantern halos (task 126, FEAT-007 remainder)
+- `village_shapes.json` (package source and web copy): `house_a`, `house_b`, `cottage_thatch`, `cottage_tall`, `inn` get stone ground floors under timber upper floors, wider jettied uppers, taller chimneys (a pair on `house_b`), dormers on `cottage_tall` and `inn` (`house_b` already had them); roof rises now differ per building (1.9 to 3.4 m, chapel 2.2). GLBs regenerated with Blender 4.2.23, all under 35 KB (limit 200 KB). `VillageDressing` footprints and heights for the cottages and inn updated in C# and JS, goldens regenerated, new silhouette test in `shapes.test.js`. Triangle budget: the third-party frame test caps at 60% of 60,000, so dormers on `house_a`, chimney pots, jetty brackets, posts and chapel buttresses were left out (they pushed seed 1818 to 37,577 triangles; now 35,813).
+- `quality.js`: `lampHalo` (1, 1.25, 1.5) scales lantern halos and `lampCore` (0, 0.35, 0.6) adds a warm core in the halo shader; Low is unchanged. sw cache v33.
+- Stills `docs/media/r23b-*.png` (after). Optional CC0 textures not added: Poly Haven stone and cobble are already in use and the shader moss covers the mossy look.
+- Per-tier timing (`TIER_ONLY=1`, SwiftShader, indicative only): Low 269 ms, Medium 324 ms, High 357 ms mean (80 frames); the round 22 run was 216, 260, 299, so the machine was about 25% slower on unchanged Low too. JS time 3.5 to 3.9 ms per frame in all tiers.
+
 ### Round 23 (part 4): world depth look (task 126, partial)
 - Web 3D shader (Medium and High only, gated by `uDetail`, Low unchanged): moss and green grime climbing lower walls, moss in cobble seams with damp-dark joints, warmer window glass, dusky blue-violet fog with a warm band toward the horizon (`duskFog`, also used by the early fog cutoff so far pixels match). Service worker cache `flv-shell-v32`.
 - Stills: `docs/media/r23-street-dusk-high.png`, `r23-harbour-night-high.png`, `r23-square-night-medium.png` (seed 1818, SwiftShader).
