@@ -1,20 +1,20 @@
 // Villager DOM: the Who is where list, the talk dialogue and the optional AI line. The rules come from villagers.js (Core mirror), the
 // positions from villager-view.js. Talking applies its clue and sanity effect through deps.applyEffect BEFORE any narrator request starts,
 // and the narrator text is only ever written with textContent, so an AI answer (or its failure) cannot change game state.
-import { generateRoster, talk, lineKey } from './villagers.js';
+import { generateRoster, talk, chat, lineKey } from './villagers.js';
 import { phaseAt, PHASE_NAMES } from './clock.js';
 import { villagerPlacements, whoIsWhereRows, clockParts } from './villager-view.js';
 import { buildVillagerRequest, fetchVillagerLine } from './villager-narrator.js';
 import { esc } from './util.js';
 
 /**
- * deps: { $, tr, lang, state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
+ * deps: { $, tr, lang, chatNeeds() -> { cluesLeft, lampsLeft, sanity } (what the vigil still needs), state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
  *   narratorUrl, fetchImpl, exitPointerLock(), onChange() }
  * state.villagers (placements) is kept current for the 2D and 3D renderers.
  */
 export function createVillagerController(deps) {
   const { $, tr, state } = deps;
-  let roster = [], rosterKey = '', openFor = -1, talkId = 0, panelOn = false, listKey = '', cursor = -1, returnFocus = null;
+  let roster = [], rosterKey = '', openFor = -1, talkId = 0, chatCounts = new Map(), panelOn = false, listKey = '', cursor = -1, returnFocus = null;
   state.villagers = [];
 
   function ensureRoster() {
@@ -59,7 +59,7 @@ export function createVillagerController(deps) {
     return panelOn;
   }
 
-  function showDialog(p, result, line) {
+  function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
     $('villagerName').textContent = p.name;
     $('villagerRole').textContent = tr(`villager.role.${p.roleId}`);
@@ -68,7 +68,7 @@ export function createVillagerController(deps) {
     if (result.yieldsClue) effect.push(tr('villagerui.effect.clue'));
     if (result.sanityDelta !== 0) effect.push(tr('villagerui.effect.sanity', { n: result.sanityDelta }));
     if (result.rumor && result.yieldsClue) effect.push(`${tr('label.rumor')}: ${result.rumor}`);
-    $('villagerEffect').textContent = effect.join(' ');
+    $('villagerEffect').textContent = effectText === null ? effect.join(' ') : effectText;
     dlg.hidden = false;
     deps.exitPointerLock?.();
     returnFocus = deps.activeElement ? deps.activeElement() : null;
@@ -97,6 +97,30 @@ export function createVillagerController(deps) {
       });
     }
     return result;
+  }
+
+  /**
+   * Chat with a villager (C key): a Core-chosen hint about what the vigil still needs. Changes no clue and no sanity, and asks no narrator.
+   * Chatting again with the same villager moves on to the next topic. Returns the Core result, or null when nobody is there.
+   */
+  function chatWith(index) {
+    const v = ensureRoster()[index], p = placementOf(index);
+    if (!v || !p) return null;
+    const night = state.night + 1, topic = chatCounts.get(index) || 0, need = deps.chatNeeds();
+    const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity);
+    const line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    if (result.available) chatCounts.set(index, topic + 1);
+    openFor = result.available ? index : -1; cursor = index; talkId++;
+    showDialog(p, result, line, result.hintId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');
+    deps.announce(`${v.name}: ${line}`);
+    return result;
+  }
+
+  /** Chat with the nearest present villager in the 2D view, which has no player position: cycles like talkNext. */
+  function chatNext() {
+    const present = state.villagers.filter((p) => !p.gone);
+    if (!present.length) return null;
+    return chatWith((present.find((p) => p.index > cursor) || present[0]).index);
   }
 
   /** Cycles through villagers who are present (gamepad in 2D). */
@@ -128,5 +152,5 @@ export function createVillagerController(deps) {
   });
   $('villagerToggle')?.addEventListener?.('click', () => setPanel(!panelOn));
 
-  return { refresh, talkTo, talkNext, close, isOpen, setPanel, get panelOn() { return panelOn; }, get roster() { return ensureRoster(); } };
+  return { refresh, talkTo, talkNext, chatWith, chatNext, close, isOpen, setPanel, get panelOn() { return panelOn; }, get roster() { return ensureRoster(); } };
 }

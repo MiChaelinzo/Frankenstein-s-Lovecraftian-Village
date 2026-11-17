@@ -116,7 +116,7 @@ function run(fetchImpl, narratorUrl) {
   const state = { seed: 1818, layout, sanity: new SanityModel(40), campaign: generateCampaign(1818), night: 0, villagers: [] };
   const effects = [], said = [];
   const ctl = createVillagerController({
-    $, tr: (k, v) => t(k, 'en', v), lang: 'en', state, gridW: 24, gridD: 24, tickNow: () => 300, announce: (x) => said.push(x), narratorUrl, fetchImpl,
+    $, tr: (k, v) => t(k, 'en', v), lang: 'en', state, gridW: 24, gridD: 24, tickNow: () => 300, chatNeeds: () => ({ cluesLeft: 2, lampsLeft: 1, sanity: 30 }), announce: (x) => said.push(x), narratorUrl, fetchImpl,
     applyEffect: (result) => { effects.push(result); state.sanity.apply(result.sanityDelta); },
   });
   ctl.refresh();
@@ -131,6 +131,23 @@ test('talking: same clue and sanity effect with no narrator, a failing narrator 
   assert.notEqual(runs[2].els.get('villagerLine').textContent, runs[0].els.get('villagerLine').textContent);
   assert.equal(runs[2].els.get('villagerLine').textContent, 'AI whisper');
   assert.equal(runs[1].els.get('villagerLine').textContent, runs[0].els.get('villagerLine').textContent, 'failure keeps the deterministic line');
+});
+test('chat shows a Core hint, cycles topics, changes no state and asks no narrator', () => {
+  let fetched = 0;
+  const r = run(async () => { fetched++; return { ok: true, json: async () => ({ text: 'AI' }) }; }, 'https://ok.test/n');
+  const before = r.state.sanity.value;
+  const first = r.ctl.chatWith(0), second = r.ctl.chatWith(0);
+  assert.equal(first.topic, 0); assert.equal(second.topic, 1);
+  assert.equal(r.effects.length, 0); assert.equal(r.state.sanity.value, before); assert.equal(fetched, 0);
+  assert.equal(first.hintId, 'clues_seek');
+  assert.equal(r.els.get('villagerLine').textContent, t(`villagerui.chat.lamps_light.${second.lineVariant}`, 'en'));
+  assert.ok(r.els.get('villagerEffect').textContent.includes(t('villagerui.chat.topic.1', 'en')));
+  assert.ok(r.ctl.chatNext(), 'the 2D key finds somebody present');
+});
+test('a vanished villager cannot be chatted with', () => {
+  const r = run(null, null); r.state.sanity = new SanityModel(0); r.ctl.refresh();
+  assert.equal(r.ctl.chatWith(0).available, false); assert.equal(r.els.get('villagerLine').textContent, t('villager.gone', 'en'));
+  assert.equal(r.ctl.chatNext(), null);
 });
 test('a vanished villager cannot be talked to and applies no effect', () => {
   const r = run(null, null); r.state.sanity = new SanityModel(0); r.ctl.refresh();
