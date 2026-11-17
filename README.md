@@ -152,6 +152,7 @@ What the demo does:
 | `W` | whisper |
 | `Q` | enter the church |
 | `C` | chat with the nearest villager for a hint (3D: in range; again for the next topic) |
+| `J` | read the next lore book (2D; in 3D press `E` or `C` at a glowing book) |
 | `L` | light a candle |
 | `N` | new village |
 | `[` `]` | sanity -5 / +5 |

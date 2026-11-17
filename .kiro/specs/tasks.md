@@ -146,7 +146,7 @@ Triage of look bugs seen in round 22 stills (none are regressions unless noted):
 - [x] 122. Grass tufts and reeds are thin cones with no ground contact: wider crossed blades, a dark contact blot, colour from the ground palette. Tufts were a round 22 regression (fixed for black, shape remains)
 - [ ] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
 - [x] 124. `C` key chat with citizens: talk to the nearest villager to get clues about what to do next (Core line selection first, deterministic fallback, optional AI later in round 26)
-- [ ] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
+- [x] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
 - [ ] 126. Huge world: regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
 - [ ] 127. Inventory and items (previously Round 22 roadmap): find, store, use; sleep and food sanity recovery
 

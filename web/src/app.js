@@ -984,6 +984,7 @@ function foldGroupsOnNarrow() {
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
   if (optParam('villagers') === '1') villagers.setPanel(true);
+  if (optParam('lore') === '1') lore.readNext(); // QA: opens the first lore book page (stills)
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);
   if (perfWanted(location.search, location.hash)) setPerf(true);

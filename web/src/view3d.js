@@ -45,7 +45,7 @@ function pushBook(out, x, z, id) {
   const quad = (hx, hz, y0, y1, color, glow) => { const a = rot(-hx, -hz), b = rot(hx, -hz), d = rot(hx, hz), e = rot(-hx, hz); pushFrustum(out, Math.min(a[0], b[0], d[0], e[0]), Math.min(a[1], b[1], d[1], e[1]), Math.max(a[0], b[0], d[0], e[0]), Math.max(a[1], b[1], d[1], e[1]), y0, y1, 1, color, glow, 0); };
   quad(0.3, 0.22, 0.0, 0.07, [0.16, 0.07, 0.05], 0);
   quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
-  pushFrustum(out, x - 0.03, z - 0.03, x + 0.03, z + 0.03, 0.12, 1.3, 0.4, [0.95, 0.82, 0.5], 1, 0);
+  pushFrustum(out, x - 0.025, z - 0.025, x + 0.025, z + 0.025, 0.12, 0.8, 0.4, [0.95, 0.82, 0.5], 1, 0);
 }
 
 // Frustum from a rectangle on the ground: the top rectangle is the base scaled about its centre by `taper` (0 = pyramid, 1 = box, >1 = flares out).

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 3): lore books (task 125)
+- Data: `Data/lore_books.json` (30 original books, en and fr, six place kinds, per-book sanity cost and clue flag), byte copy in `web/data/`. `tools/validate_repo.py`, a C# test and a node test fail on drift.
+- Core: `LoreLibrary.Parse`, `LoreBookRules.Place` (seeded: 3 on streets in front of houses, one each at chapel, inn, lighthouse, dock and churchyard graves, never in a wall or off the walkable area) and `LoreBookRules.Read` (effects on the first reading only, clue id `book@<id>`). Golden `lore`, JS port `web/src/lore.js`, C# and node tests.
+- Web: glowing book prop in 3D, minimap marker, `E` or `C` reads at a book (C prefers a nearer book to a villager), `J` reads the next book in 2D, aged-paper page dialog (Esc, E or Enter close, high contrast style), journal entry and a Lore books list in the codex panel, books read are saved per village (`lore` in the session). en and fr wording `lore.*`. Service worker cache `flv-shell-v31`.
+- Unity: thin `LoreBookInteractable` only.
+- Status: Verified by tests (dotnet 189, node 508, validator, tools tests, UnityCompileCheck 0/0) and by stills (3D book prop and page dialog, SwiftShader). Unverified: Unity runtime, browser_check, the book glow at dusk (the prop follows the window lamp rule and can read dim then), touch button for books.
+
 ### Round 23 (part 2): C key chat with citizens (task 124)
 - Core: `VillagerRules.Chat` picks a deterministic hint (clues, lanterns or sanity topic) from `VillagerRules.Talk` and `VigilRules`; only lucid (Normal) villagers hint, no clue or sanity change. Golden `chats` section, JS port `chat()` in `villagers.js`, C# property test, node parity and UI tests.
 - Web: `C` chats with the nearest villager (3D: within range, again for the next topic; 2D: cycles present villagers), touch Chat button, gamepad left trigger (button 6). The AI narrator is not used for chat. en and fr wording `villagerui.chat.*`.
