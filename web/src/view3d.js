@@ -331,10 +331,11 @@ vec3 bump(vec3 n, sampler2D tex, vec2 uv, float texel, vec3 tu, vec3 tv, float k
   float h0 = lumi(texture2D(tex, uv).rgb), hu = lumi(texture2D(tex, uv + vec2(texel, 0.0)).rgb), hv = lumi(texture2D(tex, uv + vec2(0.0, texel)).rgb);
   return normalize(n - (tu * (hu - h0) + tv * (hv - h0)) * k);
 }
+vec3 duskFog(vec3 fc, vec3 V) { if (uDetail < 0.5) return fc; float lowSun = exp(-abs(V.y) * 7.0); fc = mix(fc, fc * vec3(0.9, 0.92, 1.18) + vec3(0.004, 0.0, 0.012), 0.35); return fc + uHorizon * vec3(0.16, 0.09, 0.02) * lowSun * (uDetail > 1.5 ? 1.0 : 0.6); }
 void main(){
   vec3 toCam = uCam - vPos; float dist = length(toCam); vec3 V = toCam / max(dist, 0.001);
   float fogEarly = 1.0 - exp(-pow(dist * uFog, 2.0));
-  if (fogEarly > 0.995) { gl_FragColor = vec4(uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)), 1.0); return; } // early fog cutoff: fully fogged pixels skip texture, noise and light work
+  if (fogEarly > 0.995) { gl_FragColor = vec4(duskFog(uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)), V), 1.0); return; } // early fog cutoff: fully fogged pixels skip texture, noise and light work
   vec3 n = normalize(vNormal); if (dot(n, V) < 0.0) n = -n;
   vec3 base = vColor; float gloss = 0.0; // gloss: how much wet sheen this surface takes (stone, cobbles, slate)
   if (uMode > 0.5 && uMode < 1.5) {
@@ -368,6 +369,7 @@ void main(){
   }
   float wet = uDetail > 0.5 ? uWet * gloss * (uDetail > 1.5 ? 0.65 + 0.35 * vnoise(vPos.xz * 0.45) : 1.0) : 0.0; // puddled patches at detail 2
   base *= 1.0 - 0.3 * wet; // wet stone is darker
+  if (uDetail > 0.5 && gloss > 0.0 && uMode > 0.5 && uMode < 1.5) { float seam = vnoise(vPos.xz * 2.3) * vnoise(vPos.xz * 0.7 + 4.0); base = mix(base, base * vec3(0.62, 0.86, 0.5) + vec3(0.0, 0.012, 0.0), smoothstep(0.34, 0.62, seam) * 0.5 * (uDetail > 1.5 ? 1.0 : 0.7)); base *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.5, vnoise(vPos.xz * 5.0))); } // moss creeping into the cobble seams, damp-dark joints (Medium and High)
   float skyUp = n.y * 0.5 + 0.5;
   vec3 lightSum = uAmbient * (0.55 + 0.75 * skyUp) + uMoonColor * max(dot(n, uMoonDir), 0.0);
   float shade = 1.0;
@@ -379,6 +381,7 @@ void main(){
   if (wet > 0.0) spec += uMoonColor * pow(max(dot(reflect(-uMoonDir, n), V), 0.0), 60.0) * wet * 1.6;
   if (vFol > 0.5) base = base * 1.35 + vec3(0.02, 0.035, 0.012) * (0.4 + 0.6 * skyUp); // grass, reeds and bushes: dark moss colours get a lift and skip the wall base shadow, so tufts read as grass instead of black spikes
   else if (uMode < 0.5 || uMode > 2.5) base *= mix(uDetail > 0.5 ? 0.34 : 0.5, 1.0, smoothstep(0.0, 1.8, vPos.y)) * (uDetail > 0.5 && uMode < 0.5 ? 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.9, vPos.y)) * vnoise(vec2(vPos.x + vPos.z, vPos.y) * 3.0) : 1.0); // contact shadow and grime at wall bases
+  if (uDetail > 0.5 && vFol < 0.5 && (uMode < 0.5 || uMode > 2.5) && n.y < 0.6) { float mg = (1.0 - smoothstep(0.0, uDetail > 1.5 ? 1.7 : 1.2, vPos.y)) * (0.45 + 0.55 * vnoise(vec2(vPos.x + vPos.z, vPos.y * 2.0) * 2.6)); base = mix(base, base * vec3(0.55, 0.78, 0.42) + vec3(0.004, 0.016, 0.004), clamp(mg, 0.0, 1.0) * 0.55); } // damp moss and green grime climbing the lower walls
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
     vec4 L = uLight[i]; if (L.w <= 0.0) continue;
     vec3 d = L.xyz - vPos; float r2 = dot(d, d); float att = clamp(1.0 - r2 / (L.w * L.w), 0.0, 1.0); att *= att / (1.0 + r2 * 0.08); // windowed inverse square
@@ -424,7 +427,7 @@ void main(){
     float storey = floor(max(vPos.y - 0.5, 0.0) / 2.9); float fl = 1.0 - uFlicker * 0.12 * (0.5 + 0.5 * sin(uTime * 6.0 + vPhase * 2.3 + storey * 1.9));
     float on = 1.0, hw = hash(vec2(vPhase * 1.7 + storey * 5.3, floor((vPos.x + vPos.z) * 0.8))); // one state per house, storey and bay
     if (uWin.x > 0.0 && uMode < 0.5) { on = step(uWin.x, hw); float gut = step(1.0 - uWin.y, fract(hw * 7.31)) * on; fl *= 1.0 - gut * uFlicker * (0.45 + 0.45 * sin(uTime * 17.0 + hw * 90.0) * sin(uTime * 7.3 + hw * 40.0)); }
-    vec3 lit = uGlowColor * 1.4 * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
+    vec3 lit = uGlowColor * (uDetail > 0.5 ? vec3(1.5, 1.38, 1.1) : vec3(1.4)) * (1.0 - 0.05 * storey) * (0.85 + 0.3 * hash(vec2(hw * 40.0, storey))); // warm, each window a little different
     if (vUv.x < -1.5 && uMode < 0.5) { // a real window: whole floors are lit or dark, warm glass with curtains and a timber cross, or black glass holding the sky
       float floorOn = step(max(uWin.x, 0.22), hash(vec2(vPhase * 3.1 + storey * 11.7, storey + 0.5))); on = on * floorOn * step(0.001, vGlow); // a house whose lights are out (vGlow 0) shows only dark panes
       vec2 w = vec2(-2.0) - vUv; // pane coordinates 0..1
@@ -449,6 +452,7 @@ void main(){
   float mist = (1.0 - exp(-dist * uGroundFog * sheet)) * exp(-max(vPos.y, 0.0) / uGroundH) * 0.9;
   f = 1.0 - (1.0 - f) * (1.0 - mist);
   vec3 fogCol = uFogColor + (uDetail > 0.5 ? uMoonColor * 0.22 * pow(max(dot(-V, uMoonDir), 0.0), 6.0) : vec3(0.0)); // moonlight scattered in the haze toward the moon
+  fogCol = duskFog(fogCol, V); // dusky blue-violet haze with a warm lamp-lit band toward the horizon (Medium and High)
   gl_FragColor = vec4(mix(col, fogCol, clamp(f, 0.0, 1.0)), 1.0);
 }`;
 const SKY_VS = 'attribute vec2 aPos; varying vec2 vNdc; void main(){ vNdc = aPos; gl_Position = vec4(aPos, 0.9999, 1.0); }';

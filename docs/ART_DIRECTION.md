@@ -68,3 +68,5 @@ Qualitative only. Nothing is copied from either game: no assets, no names, no la
 **Rules for new content.** Lit windows are a minority at night (window mood: 20 to 50 percent unlit, some guttering); lamps and held lanterns always stay lit; light is warm and local; no jump scares; one unexplained detail per street.
 
 **Known gaps (Partially Verified, SwiftShader only):** windows read as flat brown shutters (no glass or interior), the held lantern glass is dull and low on screen, grass tufts are thin cones, wet sheen is faint. See round 23 tasks in `.kiro/specs/tasks.md`.
+
+**Round 23 depth pass (Medium and High, Partially Verified in SwiftShader stills):** lower walls gather moss and grime, cobble seams grow moss and stay damp-dark, window glass is warmer, and distant fog leans blue-violet with a warm band at the horizon. Low keeps the flat look. Stills: `docs/media/r23-*.png`.

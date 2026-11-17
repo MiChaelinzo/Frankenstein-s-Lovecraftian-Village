@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 23 (part 4): world depth look (task 126, partial)
+- Web 3D shader (Medium and High only, gated by `uDetail`, Low unchanged): moss and green grime climbing lower walls, moss in cobble seams with damp-dark joints, warmer window glass, dusky blue-violet fog with a warm band toward the horizon (`duskFog`, also used by the early fog cutoff so far pixels match). Service worker cache `flv-shell-v32`.
+- Stills: `docs/media/r23-street-dusk-high.png`, `r23-harbour-night-high.png`, `r23-square-night-medium.png` (seed 1818, SwiftShader).
+- Not done: richer building silhouettes in `village_shapes.json` and Blender regen, optional CC0 textures, before/after pairs, TIER_ONLY=1 timing, browser_check. No DLNK pack data used or committed.
+
 ### Round 23 (part 3): lore books (task 125)
 - Data: `Data/lore_books.json` (30 original books, en and fr, six place kinds, per-book sanity cost and clue flag), byte copy in `web/data/`. `tools/validate_repo.py`, a C# test and a node test fail on drift.
 - Core: `LoreLibrary.Parse`, `LoreBookRules.Place` (seeded: 3 on streets in front of houses, one each at chapel, inn, lighthouse, dock and churchyard graves, never in a wall or off the walkable area) and `LoreBookRules.Read` (effects on the first reading only, clue id `book@<id>`). Golden `lore`, JS port `web/src/lore.js`, C# and node tests.
