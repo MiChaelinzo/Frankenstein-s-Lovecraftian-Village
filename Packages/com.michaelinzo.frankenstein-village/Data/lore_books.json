@@ -1,0 +1,425 @@
+{
+ "version": 1,
+ "books": [
+  {
+   "id": "b01",
+   "place": "house",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Ledger of Salt",
+    "text": "Salt, eleven pounds. Candles, forty. Nails, none, because the nails went missing again. I have stopped writing the thief's name in the margin. It writes itself there each morning, in my hand, and the ink is never dry."
+   },
+   "fr": {
+    "title": "Registre du sel",
+    "text": "Sel, onze livres. Chandelles, quarante. Clous, aucun, car les clous ont encore disparu. J'ai cesse d'ecrire le nom du voleur en marge. Il s'ecrit tout seul chaque matin, de ma main, et l'encre n'est jamais seche."
+   }
+  },
+  {
+   "id": "b02",
+   "place": "house",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "A Mother's Recipe Book",
+    "text": "Boil the fish heads for as long as the bell does not ring. If it rings, pour the pot into the sea and begin again tomorrow. Mother never said why. Mother never ate the soup either."
+   },
+   "fr": {
+    "title": "Le cahier de recettes",
+    "text": "Faites bouillir les tetes de poisson tant que la cloche ne sonne pas. Si elle sonne, versez la marmite a la mer et recommencez demain. Mere ne disait jamais pourquoi. Mere ne mangeait jamais la soupe."
+   }
+  },
+  {
+   "id": "b03",
+   "place": "house",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "Window Counting",
+    "text": "Nine windows face the street. Last night I counted ten. This morning I counted nine and the tenth sill was warm. Keep a lamp lit in the one that is not there, and the street stays kind."
+   },
+   "fr": {
+    "title": "Compter les fenetres",
+    "text": "Neuf fenetres donnent sur la rue. Hier soir j'en ai compte dix. Ce matin j'en ai compte neuf et le dixieme rebord etait tiede. Gardez une lampe allumee dans celle qui n'existe pas, et la rue reste douce."
+   }
+  },
+  {
+   "id": "b04",
+   "place": "house",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "The Cellar Letters",
+    "text": "My brother writes from below the floor. The letters arrive under the door, damp, in a hand I know. He says it is quiet there and that the stairs have more steps than I remember. I have not answered."
+   },
+   "fr": {
+    "title": "Les lettres de la cave",
+    "text": "Mon frere ecrit depuis le dessous du plancher. Les lettres arrivent sous la porte, humides, d'une ecriture que je connais. Il dit que c'est calme la-bas et que l'escalier a plus de marches que dans mon souvenir. Je n'ai pas repondu."
+   }
+  },
+  {
+   "id": "b05",
+   "place": "house",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Notes on the Weather",
+    "text": "Fog from the east means a quiet night. Fog from the sea means shut the shutters. Fog from the chimney means someone has been burning something that was not wood, and you should not ask whose it was."
+   },
+   "fr": {
+    "title": "Notes sur le temps",
+    "text": "Brume venue de l'est, nuit calme. Brume venue de la mer, fermez les volets. Brume sortie de la cheminee, quelqu'un a brule autre chose que du bois, et il ne faut pas demander a qui c'etait."
+   }
+  },
+  {
+   "id": "b06",
+   "place": "house",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Lullaby, Third Verse",
+    "text": "Hush now, the tide has your name and will give it back at dawn. Hush now, the lamps are counted and the counting is kept. Hush now, whatever knocks, it has already been let in."
+   },
+   "fr": {
+    "title": "Berceuse, troisieme couplet",
+    "text": "Dors, la maree tient ton nom et te le rendra a l'aube. Dors, les lampes sont comptees et le compte est garde. Dors, quoi qu'il frappe, il est deja entre."
+   }
+  },
+  {
+   "id": "b07",
+   "place": "house",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "The Carpenter's Tally",
+    "text": "Forty doors I hung in this village. Every one of them opens inward now, though I built them to open out. Nobody here will say who turned the hinges, and nobody here sleeps near the doors."
+   },
+   "fr": {
+    "title": "Le compte du charpentier",
+    "text": "J'ai pose quarante portes dans ce village. Toutes s'ouvrent vers l'interieur maintenant, alors que je les avais faites pour s'ouvrir vers l'exterieur. Personne ne dit qui a retourne les gonds, et personne ne dort pres des portes."
+   }
+  },
+  {
+   "id": "b08",
+   "place": "house",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "What the Well Said",
+    "text": "I leaned over the rim and asked how deep. The well answered with my grandmother's voice, and the number it gave was the number of nights I have left. I have written it on the wall. I will not look at it."
+   },
+   "fr": {
+    "title": "Ce que dit le puits",
+    "text": "Je me suis penche sur la margelle pour demander la profondeur. Le puits a repondu avec la voix de ma grand-mere, et le nombre qu'il a donne est celui des nuits qu'il me reste. Je l'ai ecrit sur le mur. Je ne le regarderai pas."
+   }
+  },
+  {
+   "id": "b09",
+   "place": "house",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "A Child's Map",
+    "text": "The drawing shows our street, our house, and a small door beside the chimney in crayon. The door is red. There is no red door beside our chimney. There is now, and the crayon is still wet."
+   },
+   "fr": {
+    "title": "La carte d'un enfant",
+    "text": "Le dessin montre notre rue, notre maison, et une petite porte a cote de la cheminee, au crayon. La porte est rouge. Il n'y a pas de porte rouge a cote de notre cheminee. Il y en a une maintenant, et le crayon est encore humide."
+   }
+  },
+  {
+   "id": "b10",
+   "place": "house",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "Seasons of the Hearth",
+    "text": "In spring the fire burns yellow. In summer, white. In autumn it burns green for three nights, and we sit very still. In winter it does not burn at all, yet the room is never cold, and that is worse."
+   },
+   "fr": {
+    "title": "Les saisons du foyer",
+    "text": "Au printemps le feu brule jaune. En ete, blanc. A l'automne il brule vert pendant trois nuits, et nous restons tres immobiles. En hiver il ne brule plus, pourtant la piece n'est jamais froide, et c'est pire."
+   }
+  },
+  {
+   "id": "b11",
+   "place": "chapel",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "Sermon Against Echoes",
+    "text": "Brothers, when you speak in this nave and the stones answer a moment late, do not answer the stones. They are not repeating you. They are rehearsing."
+   },
+   "fr": {
+    "title": "Sermon contre les echos",
+    "text": "Freres, quand vous parlez dans cette nef et que les pierres repondent un instant trop tard, ne repondez pas aux pierres. Elles ne vous repetent pas. Elles s'entrainent."
+   }
+  },
+  {
+   "id": "b12",
+   "place": "chapel",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "Register of Baptisms",
+    "text": "Forty names in the last ten years, and the same hand wrote each one, though the priest was away at the coast. The ink matches no bottle in the vestry. The last entry is dated tomorrow."
+   },
+   "fr": {
+    "title": "Registre des baptemes",
+    "text": "Quarante noms en dix ans, et la meme main les a tous ecrits, alors que le pretre etait au loin sur la cote. L'encre ne correspond a aucun flacon de la sacristie. La derniere ligne porte la date de demain."
+   }
+  },
+  {
+   "id": "b13",
+   "place": "chapel",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "The Bell Rope",
+    "text": "We cut the rope after the third night the bell rang alone. It rang anyway. The sexton says the sound is not coming from the tower. He says it comes from underneath, and that it is the answer to something."
+   },
+   "fr": {
+    "title": "La corde de la cloche",
+    "text": "Nous avons coupe la corde apres la troisieme nuit ou la cloche a sonne seule. Elle a sonne quand meme. Le sacristain dit que le son ne vient pas du clocher. Il dit qu'il monte d'en dessous, et que c'est la reponse a quelque chose."
+   }
+  },
+  {
+   "id": "b14",
+   "place": "chapel",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Hymn Without a Last Line",
+    "text": "The old hymn has seven verses and ends mid-word. Every choir that tried to finish it lost a singer within the year. We now stop together, breathing in, as if the word were a held breath."
+   },
+   "fr": {
+    "title": "Cantique sans derniere ligne",
+    "text": "Le vieux cantique compte sept couplets et s'arrete au milieu d'un mot. Chaque choeur qui a voulu le finir a perdu un chanteur dans l'annee. Nous nous arretons maintenant ensemble, en inspirant, comme si le mot etait un souffle retenu."
+   }
+  },
+  {
+   "id": "b15",
+   "place": "chapel",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "The Candle Rule",
+    "text": "Light seven candles, never eight. If an eighth is burning when you return, do not blow it out and do not look at who lit it. Kneel, finish the prayer, and leave with your back to the altar."
+   },
+   "fr": {
+    "title": "La regle des cierges",
+    "text": "Allumez sept cierges, jamais huit. Si un huitieme brule a votre retour, ne le soufflez pas et ne regardez pas qui l'a allume. Agenouillez-vous, finissez la priere, et sortez en tournant le dos a l'autel."
+   }
+  },
+  {
+   "id": "b16",
+   "place": "inn",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Guest Book, Water-Stained",
+    "text": "Room four: a surveyor, who left without his boots. Room two: a widow, who stayed. Room nine: no name, paid in coins from a king I could not place, left the bed made with the sheets wet."
+   },
+   "fr": {
+    "title": "Livre d'or des voyageurs",
+    "text": "Chambre quatre : un geometre, parti sans ses bottes. Chambre deux : une veuve, qui est restee. Chambre neuf : sans nom, paye en pieces d'un roi que je n'ai pas su situer, lit fait, draps mouilles."
+   }
+  },
+  {
+   "id": "b17",
+   "place": "inn",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "House Rules",
+    "text": "No songs after the lamps are lit. No mirrors on the second floor. No questions to the cellar. Guests who hear their own voice from the next room should stay where they are and pay in the morning."
+   },
+   "fr": {
+    "title": "Reglement de la maison",
+    "text": "Pas de chansons apres l'allumage des lampes. Pas de miroirs au premier etage. Pas de questions a la cave. Les voyageurs qui entendent leur propre voix dans la chambre voisine doivent rester ou ils sont et payer au matin."
+   }
+  },
+  {
+   "id": "b18",
+   "place": "inn",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "The Innkeeper's Count",
+    "text": "Thirty-one beds, thirty-one guests, one of them is not on my books and eats nothing. It sits by the window at dusk, always the same chair. I have started laying a place for it. It seems to help."
+   },
+   "fr": {
+    "title": "Le compte de l'aubergiste",
+    "text": "Trente et un lits, trente et un voyageurs, dont un qui n'est pas sur mes livres et ne mange rien. Il s'assied pres de la fenetre au crepuscule, toujours sur la meme chaise. J'ai commence a mettre un couvert pour lui. Cela semble aider."
+   }
+  },
+  {
+   "id": "b19",
+   "place": "inn",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "A Sailor's Song, Scratched on a Beam",
+    "text": "They drowned in sight of the lamp and the lamp kept burning. They called for the keeper and the keeper did not turn. Now when the tide is low you can hear them walking up the street, wet, and in step."
+   },
+   "fr": {
+    "title": "Chanson de marin gravee sur une poutre",
+    "text": "Ils se sont noyes a la vue du feu et le feu a continue de bruler. Ils ont appele le gardien et le gardien ne s'est pas retourne. Maintenant, a maree basse, on les entend monter la rue, trempes, au meme pas."
+   }
+  },
+  {
+   "id": "b20",
+   "place": "inn",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Menu of the Season",
+    "text": "Smoked eel. Black bread. A stew of whatever the nets bring up, which this year is heavy and does not float. The cook asks that you do not look into the pot, and that you do not count the eyes."
+   },
+   "fr": {
+    "title": "Menu de la saison",
+    "text": "Anguille fumee. Pain noir. Un ragout de ce que ramenent les filets, qui cette annee est lourd et ne flotte pas. Le cuisinier vous prie de ne pas regarder dans la marmite, et de ne pas compter les yeux."
+   }
+  },
+  {
+   "id": "b21",
+   "place": "lighthouse",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "Keeper's Log, Last Page",
+    "text": "The light turns every eleven seconds. Tonight it turned once in twelve, then in ten, then it waited. In that gap I saw the whole sea look up. I trimmed the wick and wrote nothing more."
+   },
+   "fr": {
+    "title": "Journal du gardien, derniere page",
+    "text": "Le feu tourne toutes les onze secondes. Cette nuit il a tourne en douze, puis en dix, puis il a attendu. Dans cet intervalle j'ai vu toute la mer lever les yeux. J'ai coupe la meche et je n'ai plus rien ecrit."
+   }
+  },
+  {
+   "id": "b22",
+   "place": "lighthouse",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "Spiral Stair, Counting",
+    "text": "One hundred and twelve steps going up. One hundred and nineteen going down. The extra seven are not in the stone. They are in the dark between the landings, and they are patient."
+   },
+   "fr": {
+    "title": "Escalier en colimacon",
+    "text": "Cent douze marches pour monter. Cent dix-neuf pour descendre. Les sept en plus ne sont pas dans la pierre. Elles sont dans le noir entre les paliers, et elles sont patientes."
+   }
+  },
+  {
+   "id": "b23",
+   "place": "lighthouse",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "Signal Code, Unofficial",
+    "text": "Three flashes mean ship. Two mean storm. One long flash means someone is waving from the water and you should not wave back. I never learned what four flashes mean, but the sea answers them."
+   },
+   "fr": {
+    "title": "Code de signaux, non officiel",
+    "text": "Trois eclats, un navire. Deux, la tempete. Un long eclat, quelqu'un fait signe depuis l'eau et il ne faut pas lui repondre. Je n'ai jamais appris ce que veulent dire quatre eclats, mais la mer les repete."
+   }
+  },
+  {
+   "id": "b24",
+   "place": "lighthouse",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "Oil and Ash",
+    "text": "The oil comes by cart on the first of the month, thick and slow. The ash I carry out by moonlight in a bucket and spread on the rocks. It is not ash from the lamp. I do not remember a second fire."
+   },
+   "fr": {
+    "title": "Huile et cendres",
+    "text": "L'huile arrive en charrette le premier du mois, epaisse et lente. Les cendres, je les sors au clair de lune dans un seau et je les etale sur les rochers. Ce ne sont pas les cendres de la lampe. Je ne me souviens d'aucun second feu."
+   }
+  },
+  {
+   "id": "b25",
+   "place": "harbour",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "The Harbour Master's Complaint",
+    "text": "Boats leave full and return full, and the crews are not the crews that left. I wrote to the county. The county replied in my own handwriting, thanking me for my patience."
+   },
+   "fr": {
+    "title": "La plainte du capitaine de port",
+    "text": "Les barques partent pleines et reviennent pleines, et les equipages ne sont pas ceux qui sont partis. J'ai ecrit au comte. Le comte a repondu de ma propre ecriture, me remerciant de ma patience."
+   }
+  },
+  {
+   "id": "b26",
+   "place": "harbour",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "Net Mender's Rhyme",
+    "text": "Knot for the cod and knot for the crab, knot for the one that came up with a face. Knot it tight and knot it twice, and throw it back before it learns your name."
+   },
+   "fr": {
+    "title": "Comptine du raccommodeur",
+    "text": "Un noeud pour la morue, un noeud pour le crabe, un noeud pour celui qui est remonte avec un visage. Serre-le fort, serre-le deux fois, et rends-le a l'eau avant qu'il apprenne ton nom."
+   }
+  },
+  {
+   "id": "b27",
+   "place": "harbour",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "Tide Table, Corrected",
+    "text": "High water at the sixth hour, low water at the twelfth. At the dead of night, a third tide, not in any almanac. It does not rise. It stands, and what is on the quay stands with it, listening."
+   },
+   "fr": {
+    "title": "Table des marees, corrigee",
+    "text": "Maree haute a la sixieme heure, basse a la douzieme. Au coeur de la nuit, une troisieme maree, qu'aucun almanach ne connait. Elle ne monte pas. Elle se tient, et ce qui est sur le quai se tient avec elle, a l'ecoute."
+   }
+  },
+  {
+   "id": "b28",
+   "place": "grave",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "Epitaph, Half Weathered",
+    "text": "Here lies one who counted the lamps and found them one too many. The rest of the stone has been scraped by hand, from the inside."
+   },
+   "fr": {
+    "title": "Epitaphe a demi effacee",
+    "text": "Ici repose celui qui comptait les lampes et en trouva une de trop. Le reste de la pierre a ete gratte a la main, de l'interieur."
+   }
+  },
+  {
+   "id": "b29",
+   "place": "grave",
+   "sanity": 0,
+   "clue": true,
+   "en": {
+    "title": "The Gravedigger's Note",
+    "text": "I dig them six feet. I find them at four. Whatever lifts them does it gently, and the earth is always put back, tamped down, as if by someone who wishes us to feel looked after."
+   },
+   "fr": {
+    "title": "Note du fossoyeur",
+    "text": "Je les creuse a six pieds. Je les retrouve a quatre. Ce qui les remonte le fait avec douceur, et la terre est toujours remise, tassee, comme par quelqu'un qui souhaite que nous nous sentions soignes."
+   }
+  },
+  {
+   "id": "b30",
+   "place": "grave",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "A Name Without a Date",
+    "text": "Only a name is cut here, and the name is the reader's. The mason swears he cut another. Whoever stands here long enough sees the letters settle into their own, one at a time, like frost."
+   },
+   "fr": {
+    "title": "Un nom sans date",
+    "text": "Seul un nom est grave ici, et c'est celui du lecteur. Le tailleur jure en avoir grave un autre. Qui reste assez longtemps voit les lettres se changer en les siennes, une a une, comme le givre."
+   }
+  }
+ ]
+}

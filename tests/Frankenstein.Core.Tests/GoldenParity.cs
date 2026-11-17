@@ -328,6 +328,9 @@ namespace Frankenstein.Core.Tests
             AppendWalkers(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendLore(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -734,6 +737,34 @@ namespace Frankenstein.Core.Tests
             "", "V1", "V1-5-dawn", "V2-5-dawn-10", "V1-5-nobody-10", "V1-5-dawn--10", "V1-5-dawn-+10", "V1-05-dawn-10", "V1--0-dawn-10",
             "V1-5-dawn-010", "V1-abc-dawn-10", "V1-99999999999-dawn-10", "V1-5-dawn-10-", "V1--7-name_spoken-3400", "V1-2147483647-vessel-0",
         };
+
+        /// <summary>Top level key "lore": the library digest (id, place, sanity, clue) and the seeded placements per village (positions to 3 decimals).</summary>
+        private static void AppendLore(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = LoreLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "lore_books.json")));
+            sb.Append("  \"lore\": {\n    \"books\": [");
+            for (int i = 0; i < lib.Books.Count; i++)
+            {
+                var b = lib.Books[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(b.Id).Append("\", \"").Append(b.Place).Append("\", ").Append(b.Sanity).Append(", ").Append(b.Clue ? 1 : 0).Append(']');
+            }
+            sb.Append("],\n    \"villages\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var placed = LoreBookRules.Place(seed, grid, grid, layout, lib);
+                    sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"books\": [");
+                    first = false;
+                    for (int i = 0; i < placed.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(placed[i].BookId).Append("\", \"").Append(placed[i].Place).Append("\", ")
+                          .Append(Math.Round(placed[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(placed[i].Z, 3).ToString("0.###", inv)).Append(']');
+                    sb.Append("] }");
+                }
+            sb.Append("\n    ]\n  }\n");
+        }
 
         /// <summary>Top level key "shapes": per mesh part count, triangle count, material count and Unity-axis bounds (3 decimals) from Data/village_shapes.json.</summary>
         private static void AppendShapes(StringBuilder sb)
