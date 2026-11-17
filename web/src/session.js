@@ -7,6 +7,7 @@ const THEME_RE = /^[a-z0-9_-]{1,32}$/;
 const int = (v) => (typeof v === 'number' || typeof v === 'string') && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
 const VIGIL_RE = /^vigil1;[0-9;,A-Za-z_@.\-]{0,600}$/;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
+const LORE_RE = /^b\d{2}$/;
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
 export function parseSession(input) {
@@ -28,6 +29,8 @@ export function parseSession(input) {
     // Added in round 10; older saves lack them and load as empty. Unknown ids are dropped.
     codex: Array.isArray(o.codex) ? [...new Set(o.codex.filter((i) => typeof i === 'string' && CODEX_RE.test(i)))] : [],
     ach: cleanAchievementIds(o.ach),
+    // Added in round 23: ids of the lore books read in this village (see lore.js). Anything else is dropped.
+    lore: Array.isArray(o.lore) ? [...new Set(o.lore.filter((i) => typeof i === 'string' && LORE_RE.test(i)))].slice(0, 60) : [],
     // Added in round 17: the compact VigilState string. Anything that is not that shape is dropped (VigilState.tryRestore validates the rest).
     vigil: typeof o.vigil === 'string' && VIGIL_RE.test(o.vigil) ? o.vigil : '',
   };

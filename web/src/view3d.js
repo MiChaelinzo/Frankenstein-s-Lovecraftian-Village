@@ -16,6 +16,7 @@ import {
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
+const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
 import { lookAt } from './daylight.js';
@@ -35,6 +36,16 @@ function pushBox(out, p, cell, h, color) {
   const faces = [[[x0, 0, z1], [x1, 0, z1], [x1, h, z1], [x0, h, z1], [0, 0, 1]], [[x1, 0, z0], [x0, 0, z0], [x0, h, z0], [x1, h, z0], [0, 0, -1]],
     [[x1, 0, z1], [x1, 0, z0], [x1, h, z0], [x1, h, z1], [1, 0, 0]], [[x0, 0, z0], [x0, 0, z1], [x0, h, z1], [x0, h, z0], [-1, 0, 0]], [[x0, h, z1], [x1, h, z1], [x1, h, z0], [x0, h, z0], [0, 1, 0]]];
   for (const [a, b, c, d, n] of faces) for (const v of [a, b, c, a, c, d]) out.push(v[0], v[1], v[2], n[0], n[1], n[2], color[0], color[1], color[2], 0, 0);
+}
+
+/** A lore book lying on the ground: a dark cover, pages that glow (glow 1 draws like a lit window) and a thin shaft of light above it so it reads from across the street. Yaw comes from the id so books do not all line up. */
+function pushBook(out, x, z, id) {
+  const turn = ((id.charCodeAt(id.length - 1) * 7 + id.charCodeAt(id.length - 2) * 3) % 8) / 8 * Math.PI, c = Math.cos(turn), s = Math.sin(turn);
+  const rot = (dx, dz) => [x + dx * c - dz * s, z + dx * s + dz * c];
+  const quad = (hx, hz, y0, y1, color, glow) => { const a = rot(-hx, -hz), b = rot(hx, -hz), d = rot(hx, hz), e = rot(-hx, hz); pushFrustum(out, Math.min(a[0], b[0], d[0], e[0]), Math.min(a[1], b[1], d[1], e[1]), Math.max(a[0], b[0], d[0], e[0]), Math.max(a[1], b[1], d[1], e[1]), y0, y1, 1, color, glow, 0); };
+  quad(0.3, 0.22, 0.0, 0.07, [0.16, 0.07, 0.05], 0);
+  quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
+  pushFrustum(out, x - 0.03, z - 0.03, x + 0.03, z + 0.03, 0.12, 1.3, 0.4, [0.95, 0.82, 0.5], 1, 0);
 }
 
 // Frustum from a rectangle on the ground: the top rectangle is the base scaled about its centre by `taper` (0 = pyramid, 1 = box, >1 = flares out).
@@ -257,7 +268,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [] }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -273,6 +284,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
+  for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
@@ -879,10 +891,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join('')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id).join(',')].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint });
+    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [] });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -926,6 +938,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       const v = vs[vHit.index];
       return { piece: { id: 'villager', villagerIndex: v.id, name: v.name }, kind: 'villager', distance: vHit.distance, inRange: InteractionRules.inRange(vHit.distance) };
     }
+    // Lore books lie on the ground and share the view ray the same way.
+    const bs = s.books || [];
+    const bHit = bs.length ? pickLamp(origin, ray, bs, 60, BOOK_PICK_RADIUS) : null;
+    if (bHit && (!hit || bHit.distance <= hit.distance + 0.6)) {
+      const b = bs[bHit.index];
+      return { piece: { id: 'book', bookId: b.id, read: !!b.read }, kind: 'book', distance: bHit.distance, inRange: InteractionRules.inRange(bHit.distance) };
+    }
     if (!hit || hit.index >= layoutCount) return null; // a dressing prop only blocks the view
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
     return { piece, kind, distance: hit.distance, inRange: InteractionRules.inRange(hit.distance) };
@@ -941,7 +960,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   /** Chats with the villager nearest the camera within range (C key, touch button, gamepad left trigger). Pressing again moves to the next topic. */
   function chatNearest() {
     if (!active || !cam) return;
-    const s = getScene(), near = nearestVillager(s.villagers || [], cam.x, cam.z, InteractionRules.RANGE);
+    const s = getScene(), near = nearestVillager(s.villagers || [], cam.x, cam.z, InteractionRules.RANGE), book = nearestVillager(s.books || [], cam.x, cam.z, InteractionRules.RANGE);
+    if (book && (!near || book.distance <= near.distance)) { onInteract({ id: 'book', bookId: book.id }, 'book'); wake(); return; } // a book at your feet is read first (C or E)
     if (!near) return;
     const v = s.villagers.find((e) => e.id === near.id);
     onInteract({ id: 'villager', villagerIndex: v.id, name: v.name }, 'villager-chat'); wake();

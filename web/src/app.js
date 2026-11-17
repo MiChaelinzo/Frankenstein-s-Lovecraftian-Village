@@ -22,6 +22,7 @@ import { createView3d } from './view3d.js';
 import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTINGS_KEY } from './view3d-math.js';
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
+import { createLoreController } from './lore-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
@@ -125,8 +126,8 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
-    labelFor: (p, kind) => (kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
+    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL), books: lore.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    labelFor: (p, kind) => (kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
@@ -134,7 +135,7 @@ const view3d = createView3d({
   onThunder: (delayMs) => ambient?.thunder(delayMs), onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
-  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen(), close: () => villagers.close() },
+  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen(), close: () => { villagers.close(); lore.close(); } },
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
@@ -150,6 +151,7 @@ function interact3d(p, kind) {
   progress.arm();
   if (kind === 'door') { tryDoor(p); return; }
   if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
+  if (kind === 'book') { lore.readById(p.bookId); return; }
   if (kind === 'villager') { villagers.talkTo(p.villagerIndex); return; }
   if (kind === 'villager-chat') { villagers.chatWith(p.villagerIndex); return; }
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
@@ -187,6 +189,7 @@ async function loadCatalog() {
   const res = await fetch('data/village_catalog.json');
   const json = await res.json();
   state.catalog = new PrefabCatalog(json.entries);
+  try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
   state.layout = generateLayout(state.catalog, GRID_W, GRID_D, PIECES, state.seed);
@@ -209,6 +212,7 @@ function rebuild() {
   state.walkers = buildWalkers(state.layout, GRID_W, GRID_D, state.seed);
   state.focus = -1;
   stopInvestigator();
+  lore.renderList();
   state.campaign = generateCampaign(state.seed);
   state.ritual = generateRitual(state.campaign);
   state.ritualStage = -1;
@@ -386,7 +390,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -417,6 +421,10 @@ function drawMinimap() {
   for (const m of villagerMarkers(state.villagers || [], GRID_W, GRID_D, c.width)) {
     g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(m.x, m.y, Math.max(2, sc * 0.35), 0, 6.283); g.fill();
     g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
+  }
+  for (const m of lore.markers(c.width)) {
+    g.fillStyle = m.read ? '#8a7a55' : '#ffd68c'; g.strokeStyle = '#000000'; g.lineWidth = 1;
+    g.beginPath(); g.rect(m.x - 3, m.y - 2.5, 6, 5); g.fill(); g.stroke();
   }
   $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
 }
@@ -599,6 +607,12 @@ const vigil = createVigilController({
   reroll: () => rerollVillage(),
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
+});
+// Lore books: seeded by Core rules (lore.js), read with E or C in 3D (J in 2D); the first reading applies the data file's clue and sanity effect.
+const lore = createLoreController({
+  $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
+  onChange: () => { drawMinimap(); mark(); }, journal: (text) => log('lore', text),
+  applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
 });
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
@@ -881,6 +895,7 @@ addEventListener('keydown', (e) => {
     case 'w': case 'W': doWhisper(); break;
     case 'c': case 'C': villagers.chatNext(); break;
     case 'q': case 'Q': doChurch(); break;
+    case 'j': case 'J': lore.readNext(); break;
     case 'l': case 'L': doCandle(); break;
     case 'e': case 'E': vigil.endure(); break;
     case 'n': case 'N': reroll(); break;
@@ -963,7 +978,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) vigil.restore(saved.vigil); } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

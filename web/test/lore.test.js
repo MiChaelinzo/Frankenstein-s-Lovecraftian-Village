@@ -56,3 +56,66 @@ test('reading applies effects once', () => {
   assert.deepEqual(readBook(clue, true), { firstRead: false, sanityDelta: 0, yieldsClue: false, clueId: '' });
   assert.ok(lib.books.every((b) => b.sanity <= 0 && b.sanity >= -3));
 });
+
+// ---- lore-ui controller with a minimal fake DOM ----
+import { createLoreController } from '../src/lore-ui.js';
+import { t } from '../src/i18n.js';
+
+function fakeDom() {
+  const els = new Map();
+  const el = (id) => { if (!els.has(id)) els.set(id, { id, hidden: true, textContent: '', innerHTML: '', focus() {}, addEventListener() {} }); return els.get(id); };
+  return { $: el, els };
+}
+function controller(seed = 1818) {
+  const dom = fakeDom(), calls = { effects: [], journal: [], announce: [] };
+  const state = { seed, layout: generateLayout(catalog, 24, 24, 40, seed) };
+  const c = createLoreController({
+    $: dom.$, tr: (k, p) => t(k, 'en', p), lang: 'en', state, gridW: 24, gridD: 24, announce: (x) => calls.announce.push(x),
+    applyEffect: (r, b) => calls.effects.push([r, b.id]), journal: (x) => calls.journal.push(x),
+  });
+  c.setLibrary(webText);
+  return { c, dom, calls, state };
+}
+
+test('reading a book once: dialog, journal, effect, codex list; again changes nothing', () => {
+  const { c, dom, calls } = controller();
+  const first = c.scene()[0];
+  assert.equal(first.read, false);
+  const r = c.readById(first.id);
+  assert.equal(r.firstRead, true);
+  assert.equal(dom.$('loreDialog').hidden, false);
+  assert.equal(dom.$('loreText').textContent, bookText(lib.find(first.id), 'en'));
+  assert.equal(calls.effects.length, 1); assert.equal(calls.journal.length, 1);
+  assert.match(dom.$('loreList').innerHTML, new RegExp(lib.find(first.id).titles.en.split(' ')[0]));
+  assert.equal(c.close(), true);
+  const again = c.readById(first.id);
+  assert.equal(again.firstRead, false);
+  assert.equal(calls.effects.length, 1); assert.equal(calls.journal.length, 1);
+  assert.equal(c.scene()[0].read, true);
+});
+
+test('snapshot and restore keep only valid ids of this village, a new seed clears them', () => {
+  const { c, state } = controller();
+  c.readById(c.scene()[1].id);
+  const snap = c.snapshot();
+  assert.equal(snap.lore.length, 1);
+  c.restore({ lore: [...snap.lore, 'junk'] });
+  assert.deepEqual(c.snapshot().lore, snap.lore);
+  state.seed = 5; state.layout = generateLayout(catalog, 24, 24, 40, 5);
+  assert.deepEqual(c.snapshot().lore, []);
+});
+
+test('readNext cycles through unread books, then rereads', () => {
+  const { c } = controller();
+  const n = c.scene().length, seen = new Set();
+  for (let i = 0; i < n; i++) { c.readNext(); c.close(); seen.add(c.snapshot().lore.length); }
+  assert.equal(c.snapshot().lore.length, n);
+  assert.equal(c.readNext().firstRead, false);
+});
+
+test('lore strings exist in en and fr', async () => {
+  const { STRINGS } = await import('../src/i18n.js');
+  for (const k of ['view3d.prompt.book', 'view3d.prompt.bookread', 'lore.progress', 'lore.locked', 'lore.journal', 'lore.reread', 'keys.lore', ...LORE_PLACES.map((p) => `lore.place.${p}`)]) {
+    assert.ok(STRINGS.en[k] && STRINGS.fr[k], k);
+  }
+});

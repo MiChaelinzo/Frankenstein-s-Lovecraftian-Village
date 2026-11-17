@@ -215,6 +215,16 @@ html.hc .touch-knob { background: #fff; border-color: #000; }
 .villager-list li { padding: 6px 0; border-bottom: 1px solid #1f2b2d; }
 .villager-list .vrole, .villager-list .vwhere { opacity: .75; }
 .villager-list button { min-height: 32px; margin-left: 6px; }
+.lore-dialog { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: min(500px, 92%); padding: 16px 20px; background: #d9c79c linear-gradient(180deg, #e3d3aa, #c9b583); color: #2a1d0e; border: 1px solid #6b5230; box-shadow: 0 0 28px #000, inset 0 0 40px rgba(90,60,20,.45); z-index: 7; font-family: Georgia, "Times New Roman", serif; }
+.lore-dialog[hidden] { display: none; }
+.lore-dialog h2 { margin: 0 0 8px; font-size: 1.15rem; color: #3a2610; }
+.lore-page { margin: 8px 0; font-size: 1.05rem; line-height: 1.5; }
+.lore-dialog .stats { color: #4a3216; }
+.lore-dialog button { min-height: 36px; background: #3a2610; color: #f2e6c8; border: 1px solid #1c1206; }
+.lore-text { margin: 4px 0 0; font-style: italic; }
+html.hc .lore-dialog { background: #000; color: #fff; border: 2px solid #fff; box-shadow: none; }
+html.hc .lore-dialog h2, html.hc .lore-dialog .stats { color: #fff; }
+html.hc .lore-dialog button { background: #000; color: #fff; border-color: #fff; }
 html.hc .villager-dialog { background: #000; border: 2px solid #ffffff; }
 
 /* Clock chip: phase-tinted so dawn, day, dusk and night read at a glance; text stays high contrast. */

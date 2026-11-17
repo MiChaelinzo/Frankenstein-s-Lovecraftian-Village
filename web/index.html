@@ -50,6 +50,12 @@
             <p id="villagerEffect" class="stats"></p>
             <button id="villagerClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
+          <div id="loreDialog" class="lore-dialog" role="dialog" aria-labelledby="loreTitle" aria-describedby="loreText" hidden>
+            <h2 id="loreTitle"></h2>
+            <p id="loreText" class="lore-page"></p>
+            <p id="loreEffect" class="stats"></p>
+            <button id="loreClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
+          </div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
@@ -215,6 +221,9 @@
           <h2 id="codexTitle" data-i18n="title.codex">Necronomicon codex</h2>
           <p id="codexMeta" class="stats" role="status"></p>
           <ul id="codexList" class="codex-list"></ul>
+          <h2 data-i18n="title.lore">Lore books</h2>
+          <p id="loreMeta" class="stats" role="status"></p>
+          <ul id="loreList" class="codex-list"></ul>
           <h2 data-i18n="title.ach">Achievements</h2>
           <p id="achMeta" class="stats" role="status"></p>
           <ul id="achList" class="codex-list"></ul>
@@ -271,6 +280,7 @@
         <ul>
           <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
           <li data-i18n-html="keys.church"><kbd>Q</kbd> enter the church</li>
+          <li data-i18n-html="keys.lore"><kbd>J</kbd> read the next lore book (2D view; in 3D press <kbd>E</kbd> or <kbd>C</kbd> at a glowing book)</li>
           <li data-i18n-html="keys.chat"><kbd>C</kbd> chat with the nearest villager for a hint (3D: in range; again for the next topic)</li>
           <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>
           <li data-i18n-html="keys.endure"><kbd>E</kbd> endure the night once enough clues are heard (2D view)</li>
