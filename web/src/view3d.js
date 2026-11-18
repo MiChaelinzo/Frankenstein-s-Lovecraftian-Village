@@ -2,7 +2,7 @@
 // core.js, meshes from glb.js and the interaction rules from InteractionRules in core.js. This file only owns GL objects, shaders,
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
-import { composeDressing, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
 import { streetSurfaces, facingYaw } from './streets.js';
 import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
 import { proceduralTexture } from './proc-textures.js';
@@ -79,7 +79,7 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 
 /** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
 export const FOLIAGE_PHASE = 1000;
-const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row']);
+const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row', 'tentacle_tree', 'tentacle_sapling']);
 /** Added on top of FOLIAGE_PHASE for plants that grow from the ground: the scene shader colours them from the ground palette under them. */
 export const GROUND_PLANT_PHASE = 300;
 const GROUND_PLANT_KINDS = new Set(['reeds', 'grass_tuft']);
@@ -277,7 +277,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [] }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], corruption = 0 }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -293,6 +293,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
+  if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
@@ -904,10 +905,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(',')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [] });
+    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);

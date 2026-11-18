@@ -118,6 +118,13 @@ namespace Frankenstein.Core
                 case "rope_coil": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.13, Solid = false };
                 case "crop_row": return new Footprint { HalfX = 1.2, HalfZ = 0.78, Height = 0.58, Solid = false };
                 case "wheel_ruts": return new Footprint { HalfX = 1.6, HalfZ = 0.63, Height = 0.02, Solid = false };
+                case "tentacle_tree": return new Footprint { HalfX = 1.4, HalfZ = 1.62, Height = 4.85, Solid = true };
+                case "tentacle_sapling": return new Footprint { HalfX = 0.6, HalfZ = 0.75, Height = 2.4, Solid = false };
+                case "fungus_tall": return new Footprint { HalfX = 0.97, HalfZ = 0.78, Height = 2.64, Solid = false };
+                case "fungus_cluster": return new Footprint { HalfX = 0.58, HalfZ = 0.47, Height = 0.58, Solid = false };
+                case "fungus_shelf": return new Footprint { HalfX = 0.74, HalfZ = 0.61, Height = 0.87, Solid = false };
+                case "spire_horn": return new Footprint { HalfX = 1.01, HalfZ = 0.48, Height = 4.85, Solid = true };
+                case "spire_ribbed": return new Footprint { HalfX = 0.97, HalfZ = 0.7, Height = 5.95, Solid = true };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
         }
@@ -145,6 +152,15 @@ namespace Frankenstein.Core
             double lo = 0, hi = HiOf(seed, gridW, gridD), span = hi - lo;
             return lo + span * (0.3 + new SeededRandom(seed ^ 0x51ed).Next(40) / 100.0);
         }
+
+        /// <summary>Metres of the lighthouse along the shore: the end of the shore farther from the dock.</summary>
+        public static double LightU(int seed, int gridW, int gridD)
+        {
+            double hi = HiOf(seed, gridW, gridD), dockU = DockU(seed, gridW, gridD);
+            return dockU > hi - dockU ? 6 : hi - 6;
+        }
+
+        public static double ShoreLength(int seed, int gridW, int gridD) { return HiOf(seed, gridW, gridD); }
 
         private static double HiOf(int seed, int gridW, int gridD)
         {
@@ -209,7 +225,7 @@ namespace Frankenstein.Core
             double seaward = SeawardYaw(seed), along = AlongShoreYaw(seed);
 
             // The lighthouse stands at the end of the shore farther from the dock.
-            double lightU = dockU - lo > hi - dockU ? lo + 6 : hi - 6;
+            double lightU = LightU(seed, gridW, gridD);
             AddShore(items, seed, gridW, gridD, "lighthouse", lightU, -4.2, seaward, 1.0);
             // A small seamen's chapel stands a little inland of the light, toward the middle of the shore.
             double chapelU = lightU < (lo + hi) / 2 ? lightU + ChapelOffset : lightU - ChapelOffset;

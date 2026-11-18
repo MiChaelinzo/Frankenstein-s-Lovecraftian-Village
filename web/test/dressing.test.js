@@ -142,3 +142,49 @@ test('solid collision boxes carry the overhang clearance and the body radius is 
   assert.ok(Math.abs(box.maxZ - box.minZ - 2 * (f.halfZ + OVERHANG_CLEARANCE)) < 1e-9);
   assert.equal(BODY_RADIUS, 0.45);
 });
+
+// ---------- round 23: corruption growth (tentacle trees, fungi, spires) ----------
+import { corruptionLevel, corruptionSites, corruptionScale, growCorruption, CORRUPTION_LEVELS, CORRUPTION_FIRST_SCALE } from '../src/dressing.js';
+const corruptionGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).corruption;
+
+test('corruption growth levels match the C# golden, including NaN, negative and huge inputs', () => {
+  assert.ok(corruptionGolden.levels.length >= 60);
+  for (const [dread, night, level] of corruptionGolden.levels) assert.equal(corruptionLevel(dread === null ? NaN : dread, night), level, `${dread}/${night}`);
+});
+
+test('corruption sites and per-level scales match the C# golden', () => {
+  assert.equal(corruptionGolden.worlds.length, 10);
+  for (const w of corruptionGolden.worlds) {
+    const sites = corruptionSites(w.seed, w.grid, w.grid);
+    assert.equal(sites.length, w.sites.length);
+    sites.forEach((it, i) => {
+      assert.equal(it.kind, w.sites[i][0]);
+      [it.x, it.y, it.z, it.yaw, it.scale].forEach((v, j) => assert.ok(Math.abs(v - w.sites[i][j + 1]) < 1e-9, `${w.seed}/${w.grid} site ${i}.${j}`));
+    });
+    w.scales.forEach((row, level) => row.forEach((s, rank) => assert.ok(Math.abs(corruptionScale(rank, sites.length, level) - s) < 1e-12, `${w.seed} level ${level} rank ${rank}`)));
+  }
+});
+
+test('corruption is empty when calm, complete at the top level, and only ever grows', () => {
+  for (const seed of [1, 42, 1818]) {
+    assert.equal(growCorruption(seed, 24, 24, 0).length, 0);
+    assert.equal(growCorruption(seed, 24, 24, CORRUPTION_LEVELS).length, corruptionSites(seed, 24, 24).length);
+    let prev = 0;
+    for (let level = 0; level <= CORRUPTION_LEVELS; level++) {
+      const grown = growCorruption(seed, 24, 24, level);
+      assert.ok(grown.length >= prev); prev = grown.length;
+      for (const it of grown) assert.ok(it.scale >= CORRUPTION_FIRST_SCALE && it.scale <= 1, `${it.kind} scale ${it.scale}`);
+    }
+  }
+  assert.equal(corruptionLevel(0, 1), 0);
+  assert.equal(corruptionLevel(1, 10), CORRUPTION_LEVELS);
+  let last = 0;
+  for (let d = 0; d <= 100; d++) { const l = corruptionLevel(d / 100, 3); assert.ok(l >= last); last = l; }
+});
+
+test('corruption kinds have meshes and their stand sites lie outside the village grid', async () => {
+  for (const seed of [1, 42, 1818]) for (const it of corruptionSites(seed, 24, 24)) {
+    assert.ok(DRESSING_KINDS.includes(it.kind));
+    assert.ok(!(it.x > 0 && it.x < 96 && it.z > 0 && it.z < 96), `${it.kind} inside the grid`);
+  }
+});

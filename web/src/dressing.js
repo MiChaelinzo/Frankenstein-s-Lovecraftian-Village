@@ -23,6 +23,8 @@ const FOOTPRINTS = {
   tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.33, 0.34, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
   grass_tuft: [0.19, 0.17, 0.52, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
   picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
+  tentacle_tree: [1.4, 1.62, 4.85, true], tentacle_sapling: [0.6, 0.75, 2.4, false], fungus_tall: [0.97, 0.78, 2.64, false], fungus_cluster: [0.58, 0.47, 0.58, false],
+  fungus_shelf: [0.74, 0.61, 0.87, false], spire_horn: [1.01, 0.48, 4.85, true], spire_ribbed: [0.97, 0.7, 5.95, true],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
 export function footprintOf(kind) {
@@ -300,5 +302,54 @@ export function dressingBoxes(items) {
     const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     out.push({ minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz, height: f.height * it.scale });
   }
+  return out;
+}
+
+/** Metres of the lighthouse along the shore: the end of the shore farther from the dock. Mirrors VillageDressing.LightU. */
+export function lightU(seed, gridW, gridD) { const hi = hiOf(seed, gridW, gridD); return dockU(seed, gridW, gridD) > hi - dockU(seed, gridW, gridD) ? 6 : hi - 6; }
+
+// ---------- Corruption growth: mirrors Core/CorruptionGrowth.cs (golden "corruption") ----------
+export const CORRUPTION_LEVELS = 6, CORRUPTION_DREAD_WEIGHT = 0.75, CORRUPTION_NIGHT_WEIGHT = 0.25, CORRUPTION_FULL_NIGHT = 10;
+export const CORRUPTION_FIRST_SCALE = 0.55, CORRUPTION_SCALE_STEP = 0.15, CORRUPTION_ROLL_STREAM = 0x7c0d, GROVE_SETBACK = 13;
+const CLIFFS = [['spire_horn', 5, 0.3], ['spire_ribbed', 9, -0.4], ['spire_horn', 13, 0.9], ['tentacle_sapling', 7, -1.2], ['spire_ribbed', 16, 0.1]];
+const MARSH = [['fungus_cluster', 4, -2.0], ['fungus_tall', 7, -3.2], ['fungus_cluster', 10, -1.0], ['tentacle_sapling', 13, -2.6], ['fungus_tall', 16, -1.4], ['fungus_cluster', 19, -3.5]];
+const CHURCHYARD = [['fungus_shelf', 3.8, -6.6], ['tentacle_sapling', 5.2, 3.2], ['fungus_cluster', 6.6, -6.4], ['spire_horn', 7.0, 3.6], ['fungus_shelf', 7.4, -1.8], ['tentacle_sapling', 4.8, -7.2]];
+const GROVE = [['tentacle_tree', 0, 4.5], ['tentacle_tree', 72, 5.5], ['tentacle_tree', 144, 4.8], ['tentacle_tree', 216, 5.8], ['tentacle_tree', 288, 5.0], ['fungus_shelf', 36, 3.0], ['fungus_shelf', 180, 3.4], ['fungus_tall', 108, 2.6]];
+
+/** Growth level 0..6 from dread (0..1, NaN is 0) and the night number. Monotonic in both. */
+export function corruptionLevel(dread, night) {
+  const d = Number.isNaN(dread) ? 0 : Math.max(0, Math.min(1, dread)), n = Math.max(0, Math.min(1, (night - 1) / (CORRUPTION_FULL_NIGHT - 1)));
+  return Math.min(CORRUPTION_LEVELS, Math.floor((CORRUPTION_DREAD_WEIGHT * d + CORRUPTION_NIGHT_WEIGHT * n) * CORRUPTION_LEVELS));
+}
+export const corruptionAppearLevel = (rank, total) => 1 + Math.floor((rank * CORRUPTION_LEVELS) / total);
+export function corruptionScale(rank, total, level) {
+  const appear = corruptionAppearLevel(rank, total);
+  return level < appear ? 0 : Math.min(1, CORRUPTION_FIRST_SCALE + CORRUPTION_SCALE_STEP * (level - appear));
+}
+/** The cursed grove centre, behind the village on the side away from the sea. */
+export function groveCentre(seed, gridW, gridD) {
+  const side = coastSideOf(seed);
+  if (side === 0) return { x: gridW * CELL_M + GROVE_SETBACK, z: gridD * CELL_M * 0.85 };
+  if (side === 1) return { x: -GROVE_SETBACK, z: gridD * CELL_M * 0.85 };
+  return { x: gridW * CELL_M * 0.6, z: gridD * CELL_M + GROVE_SETBACK };
+}
+/** Every candidate at full size, ranked (first of each site, then second of each ...). Three rolls per candidate in table order. */
+export function corruptionSites(seed, gridW, gridD) {
+  const rng = new SeededRandom(seed ^ CORRUPTION_ROLL_STREAM), hi = hiOf(seed, gridW, gridD), cliffDir = lightU(seed, gridW, gridD) < hi / 2 ? -1 : 1;
+  const cliffEnd = cliffDir < 0 ? 0 : hi, marshEnd = cliffDir < 0 ? hi : 0, church = churchRise(seed, gridW, gridD), grove = groveCentre(seed, gridW, gridD);
+  const roll = () => ({ jx: (rng.next(100) - 50) / 100, jz: (rng.next(100) - 50) / 100, yaw: rng.next(628) / 100 });
+  const sites = [[], [], [], []];
+  for (const [kind, a, b] of CLIFFS) { const r = roll(), p = coastToWorldAt(seed, gridW, cliffEnd + cliffDir * a + r.jx, b + r.jz); sites[0].push({ kind, x: p.x, y: 0, z: p.z, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of MARSH) { const r = roll(), p = coastToWorldAt(seed, gridW, marshEnd - cliffDir * a + r.jx, b + r.jz); sites[1].push({ kind, x: p.x, y: 0, z: p.z, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of CHURCHYARD) { const r = roll(); sites[2].push({ kind, x: church.x + church.faceX * a + r.jx * 0.5, y: church.hill, z: church.z + b + r.jz * 0.5, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of GROVE) { const r = roll(), ang = (a * Math.PI) / 180; sites[3].push({ kind, x: grove.x + Math.cos(ang) * b + r.jx, y: 0, z: grove.z + Math.sin(ang) * b + r.jz, yaw: r.yaw, scale: 1 }); }
+  const ranked = [];
+  for (let i = 0; sites.some((l) => i < l.length); i++) for (const l of sites) if (i < l.length) ranked.push(l[i]);
+  return ranked;
+}
+/** The corruption standing at a growth level: the ranked candidates that have appeared, each scaled (never above 1). */
+export function growCorruption(seed, gridW, gridD, level) {
+  const all = corruptionSites(seed, gridW, gridD), out = [];
+  all.forEach((it, rank) => { const scale = corruptionScale(rank, all.length, level); if (scale > 0) out.push({ ...it, scale }); });
   return out;
 }

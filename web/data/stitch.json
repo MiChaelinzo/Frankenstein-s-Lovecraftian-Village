@@ -4,11 +4,11 @@
       "count": 1
     },
     "core": {
-      "count": 33
+      "count": 34
     },
     "golden": {
-      "count": 26,
-      "vectors": 526
+      "count": 27,
+      "vectors": 533
     },
     "js": {
       "count": 58,
@@ -21,7 +21,7 @@
       "tasksTotal": 129
     },
     "pwa": {
-      "count": 116
+      "count": 123
     },
     "unity": {
       "bridges": 4,

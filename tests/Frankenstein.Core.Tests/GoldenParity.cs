@@ -325,6 +325,9 @@ namespace Frankenstein.Core.Tests
             AppendDressing(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendCorruption(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendWalkers(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -625,6 +628,46 @@ namespace Frankenstein.Core.Tests
                     sb.Append("] }");
                 }
             sb.Append("\n  ]\n");
+        }
+
+        /// <summary>Top level key "corruption": growth levels for dread and night pairs, and per world the ranked sites at full size with the scale of every candidate at every level.</summary>
+        private static void AppendCorruption(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"corruption\": {\n    \"levels\": [");
+            double[] dreads = { 0.0, 0.1, 0.25, 0.4, 0.5, 0.75, 0.9, 1.0, double.NaN, -1.0, 2.0 };
+            int[] nights = { -3, 1, 2, 5, 10, 40 };
+            bool first = true;
+            foreach (var d in dreads)
+                foreach (var n in nights)
+                {
+                    sb.Append(first ? "" : ", ").Append('[').Append(double.IsNaN(d) ? "null" : d.ToString("R", inv)).Append(", ").Append(n).Append(", ").Append(CorruptionGrowth.Level(d, n)).Append(']');
+                    first = false;
+                }
+            sb.Append("],\n    \"worlds\": [");
+            bool firstWorld = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var sites = CorruptionGrowth.Sites(seed, grid, grid);
+                    sb.Append(firstWorld ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"sites\": [");
+                    firstWorld = false;
+                    for (int i = 0; i < sites.Count; i++)
+                    {
+                        var it = sites[i];
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(it.Kind).Append("\", ").Append(it.X.ToString("R", inv)).Append(", ").Append(it.Y.ToString("R", inv)).Append(", ")
+                          .Append(it.Z.ToString("R", inv)).Append(", ").Append(it.Yaw.ToString("R", inv)).Append(", ").Append(it.Scale.ToString("R", inv)).Append(']');
+                    }
+                    sb.Append("], \"scales\": [");
+                    for (int level = 0; level <= CorruptionGrowth.Levels; level++)
+                    {
+                        sb.Append(level > 0 ? ", [" : "[");
+                        for (int rank = 0; rank < sites.Count; rank++) sb.Append(rank > 0 ? ", " : "").Append(CorruptionGrowth.ScaleAt(rank, sites.Count, level).ToString("R", inv));
+                        sb.Append(']');
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n    ]\n  }\n");
         }
 
         /// <summary>Top level key "villagers": clock, seeded rosters on the real layout, schedules, locations, behaviors, clue rule and talk results.</summary>
