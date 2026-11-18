@@ -103,12 +103,12 @@ async function main() {
     // threshold failed at random. This check proves frames keep coming while walking; the numbers in the record are the indicative timing.
     rec('3d: real-time frame timing, SwiftShader software GL (indicative only, frames keep coming while walking)', stats.frames >= WALK_TIMING_MIN_FRAMES, { ...stats, renderer, hud, minFrames: WALK_TIMING_MIN_FRAMES });
   };
-  /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. */
+  /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. TIER_CAM=x,z,yaw,pitch moves the camera (round 23: 126,144,40,14 is the same relative spot in the 36 by 36 city as the default is in the old 24 by 24 village). */
   const tierTimingRun = async () => {
     const out = {};
     for (const q of ['low', 'medium', 'high']) {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=${q}&cam3d=84,96,40,14&tick=1250${process.env.TIER_QUERY || ""}#seed=1818&sanity=60`);
+      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=${q}&cam3d=${process.env.TIER_CAM || '84,96,40,14'}&tick=1250${process.env.TIER_QUERY || ""}#seed=1818&sanity=60`);
       await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000);
       await sleep(Number(process.env.TIER_WARMUP || 6000)); // shader compile, texture and chunk uploads settle before sampling
       await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<${process.env.TIER_FRAMES || 80})requestAnimationFrame(t)})(performance.now())`);
@@ -145,6 +145,19 @@ async function main() {
       / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas && warns.length === 0, { ...seen, warns: warns.slice(0, 2) });
   };
 
+  /** City districts (round 23): the HUD chip names the quarter under the 3D camera in English and French, the city is the 36 by 36 grid with 180 pieces and the minimap paints. DISTRICT_ONLY=1 runs only this. */
+  const districtRun = async () => {
+    const out = {};
+    for (const [lang, want] of [['en', 'Market'], ['fr', 'Le Marche']]) {
+      await nav(`?intro=0&view=3d&lang=${lang}&cam3d=74.5,74.5,0,0#seed=1818&sanity=80`);
+      out[lang] = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.textContent.trim()})()`), 20000).catch(() => null);
+    }
+    await nav(`?intro=0&view=3d&cam3d=4,4,0,0#seed=1818&sanity=80`);
+    out.corner = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.getAttribute('data-district')})()`), 20000).catch(() => null);
+    out.stats = await text('stats');
+    rec('districts: the HUD chip names the quarter under the camera (en Market, fr Le Marche), another quarter at the corner, and the stats show the 36 by 36 city', out.en === 'Market' && out.fr === 'Le Marche' && !!out.corner && out.corner !== 'market' && /36/.test(out.stats || ''), out);
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -152,6 +165,7 @@ async function main() {
     if (process.env.TIER_ONLY) { await tierTimingRun(); break suite; }
     if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
+    if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -298,6 +312,7 @@ async function main() {
 
     await timingRun();
     await qualityRun();
+    await districtRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });

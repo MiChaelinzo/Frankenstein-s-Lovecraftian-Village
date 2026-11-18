@@ -41,7 +41,7 @@ namespace Frankenstein.Core.Tests
         public void Growth_is_deterministic_and_monotonic_in_count_and_scale()
         {
             foreach (var seed in Seeds)
-                foreach (var grid in new[] { 24, 16 })
+                foreach (var grid in new[] { 24, 16, VillageDistricts.CityGrid })
                 {
                     var sites = CorruptionGrowth.Sites(seed, grid, grid);
                     var again = CorruptionGrowth.Sites(seed, grid, grid);
@@ -85,7 +85,7 @@ namespace Frankenstein.Core.Tests
         public void Sites_stay_outside_the_village_grid_and_the_grove_clears_the_church_rise()
         {
             foreach (var seed in Seeds)
-                foreach (var grid in new[] { 24, 16 })
+                foreach (var grid in new[] { 24, 16, VillageDistricts.CityGrid })
                 {
                     double w = grid * VillageDressing.Cell;
                     VillageDressing.ChurchSite(seed, grid, grid, out double chX, out double chZ, out _, out double hill);

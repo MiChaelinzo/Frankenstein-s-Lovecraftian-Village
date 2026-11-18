@@ -2,6 +2,7 @@
 // Core is the source of truth; keep the numbers and the order of rolls identical to the C# file.
 import { SeededRandom } from './core.js';
 import { OVERHANG_CLEARANCE } from './world-scale.js';
+import { districtAt, districtPalette, paletteDensity } from './districts.js'; // a cycle with districts.js, used only inside functions
 import { streetsEnabled, isStreetCell, isSquareCell, isBuilding, facingYaw, laneLines } from './streets.js';
 
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
@@ -9,7 +10,11 @@ export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, W
 export const DOOR_WALL_CLEARANCE = 0.15; // metres between a house wall and the back of the door bench, which stands in the setback inside its own cell. Mirrors VillageDressing.DoorWallClearance Mirrors VillageDressing.DoorWallClearance
 export const DOOR_KINDS = ['', '', '', '', 'bench', '', '', '']; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget. Mirrors VillageDressing.DoorKinds
 export const ROCK_MIN_V = 0.9; // nearest a shore rock may stand to the coast road. Mirrors VillageDressing.RockMinV
-export const COAST_ROAD_V = -1, COTTAGE_V = -4.3, LAMP_V = -0.2, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+/** Metres from the inn centre to its barrel: the inn half length (4.36 * INN_SCALE, 3.27) plus the barrel swept half length (0.96) plus the 0.3 m prop clearance. Mirrors VillageDressing.InnBarrelOffset. */
+export const INN_BARREL_OFFSET = 4.7;
+/** Metres a cottage keeps from the inn along the shore: inn half length (3.27) plus a cottage swept half length (2.5) plus a margin. Mirrors VillageDressing.InnClearance. */
+export const INN_CLEARANCE = 6.4;
+export const COAST_ROAD_V = -1, COTTAGE_V = -4.3, LAMP_V = -0.2, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 8.6, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 6.5, HILL_GRAVE_ROWS = 4;
 export const RUT_LIFT = 0.07, LANE_POST_CELLS = 7, BOLLARD_SPACING = 8, BOLLARD_V = -0.2, FOREGROUND_ROLL_STREAM = 0x6f1c;
 export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
 export const LAMP_POLE_HALF = 0.12, LANE_POST_INSET = 0.2; // a lamp blocks walking only at its pole; lane posts stand this far inside the lane edge. Mirror VillageDressing
@@ -134,11 +139,15 @@ export function composeDressing(seed, gridW, gridD, layout) {
   const blocked = (u) => Math.abs(u - dU) < DOCK_CLEARANCE || Math.abs(u - lightU) < LIGHTHOUSE_CLEARANCE || Math.abs(u - chapelU) < CHAPEL_CLEARANCE;
   slots.forEach((s, i) => { if (blocked(s[0])) return; const d = Math.abs(s[0] - (dU + innSide * 11)); if (d < best) { best = d; innSlot = i; } });
   slots.forEach((s, i) => {
-    if (blocked(s[0])) return;
+    if (blocked(s[0]) || (innSlot >= 0 && i !== innSlot && Math.abs(s[0] - slots[innSlot][0]) < INN_CLEARANCE)) return;
     const kind = i === innSlot ? 'inn' : s[1] === 0 ? 'cottage_tall' : 'cottage_thatch';
     addShore(kind, s[0], i === innSlot ? -4.4 : COTTAGE_V + s[2], seaward + s[3], i === innSlot ? INN_SCALE : 1);
-    if (i === innSlot) addShore('barrel', s[0] - 3.1, -3.4, along + 0.2, 1);
   });
+  // The inn's barrel stands at one gable end, outside the inn's own footprint (round 23: the inn grew and the old offset put the barrel inside it): the first side that is free.
+  if (innSlot >= 0) for (const side of [-1, 1]) {
+    const w = coastToWorldAt(seed, gridW, slots[innSlot][0] + side * INN_BARREL_OFFSET, -3.4), barrel = { kind: 'barrel', x: w.x, y: 0, z: w.z, yaw: along + 0.2, scale: 1 };
+    if (!overlapsItems(barrel, items, 0.3)) { items.push(barrel); break; }
+  }
 
   addShore('crate_stack', dU - 2.7, -3 + cm(rng, 30) - 0.15, along, 1);
   addShore('barrel', dU + 2.6, -2.8, along + 0.4, 1);
@@ -207,8 +216,29 @@ export function composeDressing(seed, gridW, gridD, layout) {
     const ru = lo + rng.next(Math.trunc(Math.max(1, hi - lo))), rv = 0.6 + rng.next(80) / 100, rr = rng.next(100);
     if (Math.abs(ru - dU) > 3) addShore(rr < 70 ? 'reeds' : 'rock', ru, rr < 70 ? rv : Math.max(rv, ROCK_MIN_V), rr / 10, 1);
   }
+  composeDistricts(items, seed, gridW, gridD, layout);
   composeForeground(items, seed, gridW, gridD, layout, streets, dU, lightU, chapelU);
   return items;
+}
+
+/** Seed salt of the district palette's own roll stream. Mirrors VillageDressing.DistrictRollStream. */
+export const DISTRICT_ROLL_STREAM = 0x4453;
+
+/**
+ * District palettes (mirrors VillageDressing.ComposeDistricts): every free yard cell may hold one prop from the palette of its district. Runs before the foreground
+ * fill (the quarter's own props get the free yards first) with its own roll stream. Every cell rolls first, so the stream never depends on what is skipped.
+ */
+function composeDistricts(items, seed, gridW, gridD, layout) {
+  const rng = new SeededRandom(seed ^ DISTRICT_ROLL_STREAM);
+  for (let cx = 0; cx < gridW; cx++) for (let cz = 0; cz < gridD; cz++) {
+    const chance = rng.next(100), pick = rng.next(100), yawRoll = rng.next(628), ox = 0.8 + rng.next(240) / 100, oz = 0.8 + rng.next(240) / 100;
+    if (isStreetCell(gridW, gridD, cx, cz)) continue;
+    const district = districtAt(seed, gridW, gridD, cx, cz);
+    if (chance >= paletteDensity(district)) continue;
+    const palette = districtPalette(district), kind = palette[Math.floor(pick * palette.length / 100)], f = footprintOf(kind);
+    const yaw = f.halfX > 1.2 && f.halfZ < 0.4 ? (yawRoll % 2) * Math.PI / 2 : yawRoll / 100;
+    tryAdd(items, { kind, x: cx * CELL_M + ox, y: 0, z: cz * CELL_M + oz, yaw, scale: 1 }, layout, gridW, gridD, false);
+  }
 }
 
 /**

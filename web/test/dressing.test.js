@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
+import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 import { composeDressing, dressingBoxes, dockU, footprintOf, DRESSING_KINDS, overlapsLayout, CELL_M, hiOf, coastToWorldAt, COAST_ROAD_V, RUT_LIFT, INN_SCALE, CHAPEL_SCALE } from '../src/dressing.js';
 import { facingYaw } from '../src/streets.js';
 import { OVERHANG_CLEARANCE, BODY_RADIUS } from '../src/world-scale.js';
@@ -16,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).dressing;
 const entries = JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries;
 const catalog = new PrefabCatalog(entries);
-const layoutFor = (seed, grid) => generateLayout(catalog, grid, grid, grid === 24 ? 40 : 20, seed);
+const layoutFor = (seed, grid) => (grid === CITY_GRID ? generateCityLayout(catalog, grid, grid, CITY_PIECES, seed) : generateLayout(catalog, grid, grid, grid === 24 ? 40 : 20, seed));
 
 test('dressing matches the C# golden items', () => {
   assert.ok(golden.length >= 10);
@@ -153,7 +154,7 @@ test('corruption growth levels match the C# golden, including NaN, negative and 
 });
 
 test('corruption sites and per-level scales match the C# golden', () => {
-  assert.equal(corruptionGolden.worlds.length, 10);
+  assert.equal(corruptionGolden.worlds.length, 15); // five seeds on the 24, 16 and 36 (city) grids
   for (const w of corruptionGolden.worlds) {
     const sites = corruptionSites(w.seed, w.grid, w.grid);
     assert.equal(sites.length, w.sites.length);
@@ -183,8 +184,9 @@ test('corruption is empty when calm, complete at the top level, and only ever gr
 });
 
 test('corruption kinds have meshes and their stand sites lie outside the village grid', async () => {
-  for (const seed of [1, 42, 1818]) for (const it of corruptionSites(seed, 24, 24)) {
+  for (const grid of [24, CITY_GRID]) for (const seed of [1, 42, 1818, 7, 2024]) for (const it of corruptionSites(seed, grid, grid)) {
+    const w = grid * CELL_M;
     assert.ok(DRESSING_KINDS.includes(it.kind));
-    assert.ok(!(it.x > 0 && it.x < 96 && it.z > 0 && it.z < 96), `${it.kind} inside the grid`);
+    assert.ok(!(it.x > 0 && it.x < w && it.z > 0 && it.z < w), `${it.kind} inside the ${grid} grid`);
   }
 });

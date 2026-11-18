@@ -173,18 +173,33 @@ export const PrefabNameMatcher = (() => {
 export function generateLayout(catalog, width, depth, targetCount, seed) {
   const result = [];
   if (!catalog || catalog.entries.length === 0 || width <= 0 || depth <= 0 || targetCount <= 0) return result;
-  const rng = new SeededRandom(seed);
+  fillRegion(result, new SeededRandom(seed), reserveStreets(width, depth), catalog, width, depth, [0, 0, width, depth], targetCount, null);
+  return result;
+}
+
+/** Cells of the grid that are street, reserved before any piece is placed. Indexed x * depth + z. */
+export function reserveStreets(width, depth) {
   const occupied = new Uint8Array(width * depth);
   for (let sx = 0; sx < width; sx++) for (let sz = 0; sz < depth; sz++) if (isStreetCell(width, depth, sx, sz)) occupied[sx * depth + sz] = 1;
+  return occupied;
+}
+
+/**
+ * Places up to target pieces with their cells inside region [x0, z0, x1, z1) (mirrors VillageLayoutGenerator.Fill). With a district taste function
+ * (x, z, pieceId) => percent, every pick also rolls its taste for the district it lands in.
+ */
+export function fillRegion(result, rng, occupied, catalog, width, depth, [x0, z0, x1, z1], target, taste) {
   const total = catalog.totalWeight;
-  const attempts = targetCount * 20;
-  for (let i = 0; i < attempts && result.length < targetCount; i++) {
+  const attempts = target * 20;
+  let placed = 0;
+  for (let i = 0; i < attempts && placed < target; i++) {
     const entry = catalog.pickByWeight(rng.next(total));
-    const x = rng.next(width);
-    const z = rng.next(depth);
+    const x = x0 + rng.next(x1 - x0);
+    const z = z0 + rng.next(z1 - z0);
+    if (taste && rng.next(100) >= taste(x, z, entry.id)) continue;
     const sx = entry.footprintX;
     const sz = entry.footprintZ;
-    if (!fits(occupied, width, depth, x, z, sx, sz)) continue;
+    if (!fits(occupied, x1, z1, depth, x, z, sx, sz)) continue;
     let facing = 0;
     if (streetsEnabled(width, depth) && isBuilding(sx, sz)) {
       facing = facingFor(width, depth, x, z, sx, sz);
@@ -192,13 +207,13 @@ export function generateLayout(catalog, width, depth, targetCount, seed) {
     }
     for (let dx = 0; dx < sx; dx++) for (let dz = 0; dz < sz; dz++) occupied[(x + dx) * depth + (z + dz)] = 1;
     result.push({ id: entry.id, x, z, sizeX: sx, sizeZ: sz, facing });
+    placed++;
   }
-  return result;
 }
 
-function fits(occ, w, d, x, z, sx, sz) {
+function fits(occ, w, d, stride, x, z, sx, sz) {
   if (x + sx > w || z + sz > d) return false;
-  for (let dx = 0; dx < sx; dx++) for (let dz = 0; dz < sz; dz++) if (occ[(x + dx) * d + (z + dz)]) return false;
+  for (let dx = 0; dx < sx; dx++) for (let dz = 0; dz < sz; dz++) if (occ[(x + dx) * stride + (z + dz)]) return false;
   return true;
 }
 

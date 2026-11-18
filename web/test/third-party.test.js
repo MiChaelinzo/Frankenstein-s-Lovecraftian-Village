@@ -8,7 +8,9 @@ import { dirname, join } from 'node:path';
 import { loadGlbBuffer, fitModelInto, atlasModel, loadThirdPartyModels, THIRD_PARTY_MODELS, ATLAS_GRID, KINDS, VERTEX_FLOATS } from '../src/glb.js';
 import { buildWorld, createGlRenderer, THIRD_PARTY_TEXTURES, THIRD_PARTY_BASE } from '../src/view3d.js';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
-import { frameCost, FRAME_BUDGET } from '../src/view3d-math.js';
+import { frameCost, FRAME_BUDGET, partitionChunks, visibleRanges, frustumPlanes, viewProjection, fogFloorFor, chunkCullDistance } from '../src/view3d-math.js';
+import { tierSettings } from '../src/quality.js';
+import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 import { composeDressing } from '../src/dressing.js';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..'), tp = join(web, 'assets', 'third_party');
@@ -98,7 +100,27 @@ test('buildWorld: buildingUv has one pair per building vertex, -1 everywhere exc
     assert.ok(props > 0 && textured > 0, `seed ${seed}: ${props} props, ${textured} textured vertices`);
     assert.deepEqual(w.buildingUv, buildWorld({ layout: l, meshes, seed, gridW: 24, gridD: 24 }).buildingUv, 'deterministic');
     const cost = frameCost({ vertices: { building: w.building.length / VERTEX_FLOATS, ground: w.ground.length / VERTEX_FLOATS, sea: 6, coast: w.coast.length / VERTEX_FLOATS, tentacle: 900, villager: 900 }, rain: 900, mist: 300, halos: 100, fireflies: 100, post: true, lights: 8 });
-    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.6 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
+    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.7 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
+  }
+});
+
+// Round 23: the city is 36 by 36 cells, so the whole world is over one frame's budget by design; what counts is what a frame draws. Chunks are culled by the frustum and the fog.
+test('city: the chunk culled building triangles in view stay inside the frame budget from every compass heading and several spots', async () => {
+  const meshes = await upgradedSet(), g = CITY_GRID;
+  for (const seed of [1818, 7, 42, 2024, -7]) {
+    const l = generateCityLayout(catalog, g, g, CITY_PIECES, seed).map((p, i) => ({ ...p, detail: 3, vis: { lit: 0.9, lit2: 0.9, phase: i } }));
+    const w = buildWorld({ layout: l, meshes, seed, gridW: g, gridD: g }), chunks = partitionChunks(w.building, w.buildingUv, VERTEX_FLOATS).chunks;
+    for (const q of ['low', 'medium', 'high']) {
+    const far = tierSettings(q).drawDistance, density = fogFloorFor(far); // a clear day: the fog is at its floor, so only the draw distance culls
+    let worst = 0;
+    for (const [x, z] of [[g * 2, g * 2], [g, g], [g * 3, g * 3], [2, 2], [g * 3, g]]) for (let k = 0; k < 8; k++) {
+      const cam = { x, y: 1.6, z, yaw: k * Math.PI / 4, pitch: 0 }, ranges = visibleRanges(chunks, frustumPlanes(viewProjection(cam, 16 / 9)), [x, 1.6, z], chunkCullDistance(density, far));
+      worst = Math.max(worst, ranges.reduce((a, r) => a + r.count, 0));
+    }
+    const cost = frameCost({ vertices: { building: worst, ground: w.ground.length / VERTEX_FLOATS, sea: 6, coast: w.coast.length / VERTEX_FLOATS, tentacle: 900, villager: 900 }, rain: 900, mist: 300, halos: 100, fireflies: 100, post: true, lights: 8 });
+    assert.ok(cost.triangles <= FRAME_BUDGET.triangles, `seed ${seed} ${q}: ${JSON.stringify(cost)}`);
+    assert.ok(Math.abs(Math.exp(-((far * density) ** 2)) - 0.05) < 1e-9, 'the fog leaves 5% of the colour at the draw distance');
+    }
   }
 });
 

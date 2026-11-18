@@ -1,9 +1,10 @@
 import {
-  PrefabCatalog, generateLayout, SanityModel, SeededRandom, DreadEventTracker, tierFor,
+  PrefabCatalog, SanityModel, SeededRandom, DreadEventTracker, tierFor,
   buildVillageReport, reportToMarkdown, reportToJson, generateCampaign,
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
   detailLevel, doorOmen, generateRitual, ritualProgress, Investigator, InteractionRules, VIGIL_ENDING_IDS,
 } from './core.js';
+import { generateCityLayout, districtAtWorld, districtMap, districtMinimapLabels, DISTRICT_TINTS } from './districts.js';
 import {
   computeView, buildWalkers,
   reportFilename, wrapIndex, postcardFilename, nightFromHash, applyFlash, toastMayReplace,
@@ -54,7 +55,7 @@ import {
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL, weatherNameL,
 } from './i18n-text.js';
 
-const GRID_W = 24, GRID_D = 24, PIECES = 80;
+const GRID_W = 36, GRID_D = 36, PIECES = 180; // the city: 3 by 3 chunks of 12 cells (Core VillageDistricts.CityGrid, CityPieces; web/src/districts.js)
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const ctx = canvas.getContext('2d');
@@ -192,7 +193,7 @@ async function loadCatalog() {
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
-  state.layout = generateLayout(state.catalog, GRID_W, GRID_D, PIECES, state.seed);
+  state.layout = generateCityLayout(state.catalog, GRID_W, GRID_D, PIECES, state.seed);
   state.layout.forEach((p, i) => {
     const r = new SeededRandom(state.seed * 31 + i * 7919 + 1); // visual-only variation, separate from layout RNG
     p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 };
@@ -410,6 +411,8 @@ function drawMinimap() {
   const sel = state.focus >= 0 ? state.landmarks[state.focus] : null;
   const m = minimapModel(state.layout, GRID_W, GRID_D, c.width, sel);
   g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0b1012'; g.fillRect(0, 0, c.width, c.height);
+  const dmap = districtMap(state.seed, GRID_W, GRID_D), dsx = c.width / GRID_W, dsz = c.height / GRID_D;
+  for (let x = 0; x < GRID_W; x++) for (let z = 0; z < GRID_D; z++) { g.fillStyle = DISTRICT_TINTS[dmap[x * GRID_D + z]]; g.fillRect(x * dsx, z * dsz, Math.ceil(dsx), Math.ceil(dsz)); }
   for (const k of m.cells) { g.fillStyle = k.color; g.fillRect(k.x, k.y, k.w, k.h); }
   for (const k of m.cells) if (k.selected) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.strokeRect(k.x - 1, k.y - 1, k.w + 2, k.h + 2); }
   if (state.investigator && state.investigator.route.length) {
@@ -426,6 +429,8 @@ function drawMinimap() {
     g.fillStyle = m.read ? '#8a7a55' : '#ffd68c'; g.strokeStyle = '#000000'; g.lineWidth = 1;
     g.beginPath(); g.rect(m.x - 3, m.y - 2.5, 6, 5); g.fill(); g.stroke();
   }
+  g.font = '9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#efe4c8';
+  for (const l of districtMinimapLabels(state.seed, GRID_W, GRID_D, c.width)) { const name = tr(`district.${l.id}`); g.strokeText(name, l.x, l.y); g.fillText(name, l.x, l.y); }
   $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
 }
 // ---------- investigator (Core Investigator, off by default) ----------
@@ -562,7 +567,7 @@ function applyHash() {
 }
 function reroll() { if (!vigil.allows('new_village')) return; rerollVillage(); }
 function rerollVillage() { state.seed = (Math.random() * 2147483647) | 0; $('seed').value = state.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio(); }
-function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); mark(); }
+function setFocus(i) { state.focus = i; $('listen').value = i >= 0 ? String(i) : ''; updateDesc(); renderDistrictChip(); mark(); }
 function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   progress.note.listen();
@@ -635,8 +640,18 @@ const HINT_KEY = 'flv.clockhint';
 const hintStore = (() => { try { return window.sessionStorage; } catch { return null; } })();
 if ($('clockHint') && params.get('capture') !== '1' && !(hintStore && hintStore.getItem(HINT_KEY))) $('clockHint').hidden = false;
 $('clockHintClose')?.addEventListener('click', () => { $('clockHint').hidden = true; try { hintStore?.setItem(HINT_KEY, '1'); } catch (err) { console.warn(`[clock] could not store the hint dismissal: ${err.message}`); } });
-renderClockChip();
-setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); if (villagers.refresh()) { drawMinimap(); mark(); } }, 1000);
+// HUD district chip: the quarter the explorer stands in (3D), or of the building in focus (2D). Hidden elsewhere.
+function renderDistrictChip() {
+  const chip = $('districtChip'); if (!chip) return;
+  const c = view3d.active ? view3d.camera : null, f = state.focus >= 0 ? state.landmarks?.[state.focus] : null;
+  const id = c ? districtAtWorld(state.seed, GRID_W, GRID_D, c.x, c.z) : f ? districtAtWorld(state.seed, GRID_W, GRID_D, (f.x + 0.5) * CELL, (f.z + 0.5) * CELL) : null;
+  const text = id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
+  if ($('districtChipText').textContent !== text) $('districtChipText').textContent = text;
+  if (chip.getAttribute?.('data-district') !== (id || '')) chip.setAttribute?.('data-district', id || '');
+  chip.hidden = !id;
+}
+renderClockChip(); renderDistrictChip();
+setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } }, 1000);
 // Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
 // map with a slow CSS drift. Both stop the moment the player chooses a view.
 let backdropKind = null, backdropT0 = 0;

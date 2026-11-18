@@ -15,7 +15,9 @@ namespace Frankenstein.Runtime
         public VillageCatalogAsset catalog;
         public int width = 24;
         public int depth = 24;
-        public int pieceCount = 80; // matches the web demo piece count (24x24 grid; use the same seed to compare)
+        public int pieceCount = 80; // the web demo before round 23 (24x24 grid). The web city is 36x36 with 180 pieces and city on (VillageDistricts.CityGrid, CityPieces)
+        [Tooltip("Use the chunked city layout with districts (VillageLayoutGenerator.GenerateCity), as the web demo does since round 23.")]
+        public bool city = false;
         public int seed = 1818; // Frankenstein was published in 1818
         public float cellSize = 6f;
         [Tooltip("Build a plain block for catalog ids that have no prefab bound.")]
@@ -30,9 +32,14 @@ namespace Frankenstein.Runtime
         {
             get
             {
-                if (_layout == null && catalog != null) _layout = VillageLayoutGenerator.Generate(catalog.ToCatalog(), width, depth, pieceCount, seed);
+                if (_layout == null && catalog != null) _layout = Generate(catalog.ToCatalog());
                 return _layout;
             }
+        }
+
+        private List<PlacedPiece> Generate(PrefabCatalog pieces)
+        {
+            return city ? VillageLayoutGenerator.GenerateCity(pieces, width, depth, pieceCount, seed) : VillageLayoutGenerator.Generate(pieces, width, depth, pieceCount, seed);
         }
 
         /// <summary>World position of a cell coordinate (fractional cells allowed), on the ground.</summary>
@@ -45,7 +52,7 @@ namespace Frankenstein.Runtime
         {
             if (catalog == null) { Debug.LogWarning("VillageBuilder: no catalog assigned."); return; }
             var pieces = catalog.ToCatalog();
-            var layout = _layout = VillageLayoutGenerator.Generate(pieces, width, depth, pieceCount, seed);
+            var layout = _layout = Generate(pieces);
             foreach (var p in layout)
             {
                 CatalogEntry entry;

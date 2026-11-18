@@ -328,6 +328,9 @@ namespace Frankenstein.Core.Tests
             AppendCorruption(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendCity(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendWalkers(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -612,9 +615,9 @@ namespace Frankenstein.Core.Tests
             sb.Append("  \"dressing\": [");
             bool firstWorld = true;
             foreach (var seed in VigilSeeds)
-                foreach (var grid in new[] { 24, 16 })
+                foreach (var grid in new[] { 24, 16, VillageDistricts.CityGrid })
                 {
-                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var layout = grid == VillageDistricts.CityGrid ? VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed) : VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
                     var items = VillageDressing.Compose(seed, grid, grid, layout);
                     sb.Append(firstWorld ? "\n    " : ",\n    ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"dockU\": ")
                       .Append(VillageDressing.DockU(seed, grid, grid).ToString("R", inv)).Append(", \"items\": [");
@@ -624,6 +627,36 @@ namespace Frankenstein.Core.Tests
                         var it = items[i];
                         sb.Append(i > 0 ? ", " : "").Append('[').Append('"').Append(it.Kind).Append('"').Append(", ").Append(it.X.ToString("R", inv)).Append(", ").Append(it.Y.ToString("R", inv)).Append(", ")
                           .Append(it.Z.ToString("R", inv)).Append(", ").Append(it.Yaw.ToString("R", inv)).Append(", ").Append(it.Scale.ToString("R", inv)).Append(']');
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n  ]\n");
+        }
+
+        /// <summary>Top level key "city": per seed and grid the district map (one string per z row, a digit per cell) and the chunked city layout.</summary>
+        private static void AppendCity(StringBuilder sb, PrefabCatalog cat)
+        {
+            sb.Append("  \"city\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var g in new[] { new[] { VillageDistricts.CityGrid, VillageDistricts.CityPieces }, new[] { 24, 80 }, new[] { 30, 120 }, new[] { 12, 10 } })
+                {
+                    int grid = g[0];
+                    var map = VillageDistricts.Map(seed, grid, grid);
+                    var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, g[1], seed);
+                    sb.Append(first ? "\n    " : ",\n    ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"count\": ").Append(g[1]).Append(", \"districts\": [");
+                    first = false;
+                    for (int z = 0; z < grid; z++)
+                    {
+                        sb.Append(z > 0 ? ", \"" : "\"");
+                        for (int x = 0; x < grid; x++) sb.Append((char)('0' + map[x, z]));
+                        sb.Append('"');
+                    }
+                    sb.Append("], \"pieces\": [");
+                    for (int i = 0; i < layout.Count; i++)
+                    {
+                        var p = layout[i];
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(p.Id).Append("\", ").Append(p.X).Append(", ").Append(p.Z).Append(", ").Append(p.SizeX).Append(", ").Append(p.SizeZ).Append(", ").Append(p.Facing).Append(']');
                     }
                     sb.Append("] }");
                 }
@@ -647,7 +680,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("],\n    \"worlds\": [");
             bool firstWorld = true;
             foreach (var seed in VigilSeeds)
-                foreach (var grid in new[] { 24, 16 })
+                foreach (var grid in new[] { 24, 16, VillageDistricts.CityGrid })
                 {
                     var sites = CorruptionGrowth.Sites(seed, grid, grid);
                     sb.Append(firstWorld ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"sites\": [");

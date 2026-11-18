@@ -834,6 +834,13 @@ export const CHUNK_METRES = 24;       // chunk edge: a 96 m village is about 16 
 export const CHUNK_PAD = 1.5;         // metres added to every chunk box: foliage and flags sway in the vertex shader
 export const FOG_CULL_FACTOR = 3;     // exp(-(d * density)^2) < 0.0002 at 3 / density metres: fully fogged, so nothing is lost by not drawing it
 
+/** sqrt(ln 20): (d * density)^2 = 3 leaves 5% of the colour at d metres, the residue that may vanish at the draw distance without a visible pop. */
+export const DRAW_FOG_K = Math.sqrt(Math.log(20));
+/** Lowest fog density for a draw distance in metres: at that distance the fog factor is 0.95. 0 for an infinite or missing distance. */
+export const fogFloorFor = (drawDistance) => (drawDistance > 0 && Number.isFinite(drawDistance) ? DRAW_FOG_K / drawDistance : 0);
+/** Metres beyond which building chunks are skipped: the fog cull distance, capped by the tier draw distance. */
+export const chunkCullDistance = (density, drawDistance) => Math.min(fogCullDistance(density), drawDistance > 0 ? drawDistance : Infinity);
+
 /** Metres beyond which geometry is lost in the fog (the same exponential squared law as the scene shader). Infinity without fog. */
 export const fogCullDistance = (density) => (density > 0 ? FOG_CULL_FACTOR / density : Infinity);
 

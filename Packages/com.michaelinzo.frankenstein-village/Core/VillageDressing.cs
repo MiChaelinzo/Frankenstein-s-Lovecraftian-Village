@@ -41,10 +41,14 @@ namespace Frankenstein.Core
         public const double RockMinV = 0.9;
         public const double LampSpacing = 9.0;
         public const double MinSlotSpacing = 6.0;
-        public const double DockClearance = 7.0;
+        public const double DockClearance = 8.6;
         public const double LighthouseClearance = 6.5;
-        public const double ChapelClearance = 5.5;
+        public const double ChapelClearance = 6.5;
         public const double InnScale = 0.75;
+        /// <summary>Metres a cottage keeps from the inn along the shore: inn half length (3.27) plus a cottage swept half length (2.5) plus a margin.</summary>
+        public const double InnClearance = 6.4;
+        /// <summary>Metres from the inn centre to its barrel: inn half length (4.36 * <see cref="InnScale"/>, 3.27) plus the barrel swept half length (0.96) plus the 0.3 m prop clearance. Before round 23 the barrel stood 3.1 m off, inside the inn.</summary>
+        public const double InnBarrelOffset = 4.7;
         public const double ChapelOffset = 8.0;
         public const double ChapelScale = 0.9;
         public const int HillGraveRows = 4;
@@ -248,11 +252,19 @@ namespace Frankenstein.Core
             {
                 double u = slots[i][0];
                 if (Math.Abs(u - dockU) < DockClearance || Math.Abs(u - lightU) < LighthouseClearance || Math.Abs(u - chapelU) < ChapelClearance) continue;
+                if (innSlot >= 0 && i != innSlot && Math.Abs(u - slots[innSlot][0]) < InnClearance) continue;
                 string kind = i == innSlot ? "inn" : slots[i][1] == 0 ? "cottage_tall" : "cottage_thatch";
                 double v = i == innSlot ? -4.4 : CottageV + slots[i][2];
                 AddShore(items, seed, gridW, gridD, kind, u, v, seaward + slots[i][3], i == innSlot ? InnScale : 1.0);
-                if (i == innSlot) AddShore(items, seed, gridW, gridD, "barrel", u - 3.1, -3.4, along + 0.2, 1.0);
             }
+            // The inn's barrel stands at one gable end, outside the inn's own footprint: the first side that is free.
+            if (innSlot >= 0)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    CoastToWorld(seed, gridW, gridD, slots[innSlot][0] + side * InnBarrelOffset, -3.4, out double bx, out double bz);
+                    var barrel = new DressingItem { Kind = "barrel", X = bx, Z = bz, Yaw = along + 0.2, Scale = 1.0 };
+                    if (!OverlapsItems(barrel, items, 0.3)) { items.Add(barrel); break; }
+                }
 
             // Harbour yard at the dock root, inside the fence runs that flank the dock.
             AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 2.7, -3.0 + Cm(rng, 30) - 0.15, along, 1.0);
@@ -361,8 +373,36 @@ namespace Frankenstein.Core
                 double ru = lo + rng.Next((int)Math.Max(1, hi - lo)), rv = 0.6 + rng.Next(80) / 100.0, rr = rng.Next(100);
                 if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rr < 70 ? rv : Math.Max(rv, RockMinV), rr / 10.0, 1.0);
             }
+            ComposeDistricts(items, seed, gridW, gridD, layout);
             ComposeForeground(items, seed, gridW, gridD, layout, streets, dockU, lightU, chapelU);
             return items;
+        }
+
+        /// <summary>Seed salt of the district palette's own roll stream.</summary>
+        public const int DistrictRollStream = 0x4453;
+
+        /// <summary>
+        /// District palettes: every free yard cell may hold one prop from the palette of its district (<see cref="VillageDistricts.Palette"/>): crates and rope at the harbour,
+        /// stalls and carts in the market, nets and laundry on Fishers' Row, gravestones on Chapel Hill, benches and hedges in the old town. Runs before the foreground fill
+        /// (so the quarter's own props get the free yards first) with its own roll stream. Every cell rolls first, so the stream never depends on what is skipped.
+        /// </summary>
+        private static void ComposeDistricts(List<DressingItem> items, int seed, int gridW, int gridD, IList<PlacedPiece> layout)
+        {
+            var rng = new SeededRandom(seed ^ DistrictRollStream);
+            for (int cx = 0; cx < gridW; cx++)
+                for (int cz = 0; cz < gridD; cz++)
+                {
+                    int chance = rng.Next(100), pick = rng.Next(100), yawRoll = rng.Next(628);
+                    double ox = 0.8 + rng.Next(240) / 100.0, oz = 0.8 + rng.Next(240) / 100.0;
+                    if (VillageStreets.IsStreetCell(gridW, gridD, cx, cz)) continue;
+                    int district = VillageDistricts.At(seed, gridW, gridD, cx, cz);
+                    if (chance >= VillageDistricts.PaletteDensity(district)) continue;
+                    var palette = VillageDistricts.Palette(district);
+                    string kind = palette[pick * palette.Length / 100];
+                    var f = FootprintOf(kind);
+                    double yaw = f.HalfX > 1.2 && f.HalfZ < 0.4 ? (yawRoll % 2) * Math.PI / 2 : yawRoll / 100.0;
+                    TryAdd(items, new DressingItem { Kind = kind, X = cx * Cell + ox, Z = cz * Cell + oz, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+                }
         }
 
         /// <summary>Metres above the ground at which wheel ruts lie: just over the cobbled street surface so they never fight with it.</summary>
