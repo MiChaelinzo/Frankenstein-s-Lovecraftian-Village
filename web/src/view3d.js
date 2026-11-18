@@ -5,7 +5,8 @@ import { InteractionRules } from './core.js';
 import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
 import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
-import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
@@ -861,19 +862,53 @@ async function fetchImage(url) {
  * ground, stone, roof and cobble, and the props in THIRD_PARTY_MODELS replace their original meshes in `meshes`. Every failure is a
  * console.warn and leaves the original in place. Resolves the number of props upgraded.
  */
-async function loadThirdParty(renderer, meshes) {
-  const names = Object.keys(THIRD_PARTY_TEXTURES), imgs = await Promise.all(names.map((n) => fetchImage(THIRD_PARTY_BASE + THIRD_PARTY_TEXTURES[n])));
-  renderer.setMaterialTextures(Object.fromEntries(names.map((n, i) => [n, imgs[i]])));
-  const props = await loadThirdPartyModels(fetch.bind(globalThis), THIRD_PARTY_BASE + 'models/', meshes);
-  const bitmaps = await Promise.all(props.map((p) => decodeImage(p.texture.bytes, p.texture.mimeType, p.kind)));
+async function loadThirdParty(renderer, meshes, { cc0 = true, wantAlien = false } = {}) {
+  let props = [], bitmaps = [];
+  if (cc0) {
+    const names = Object.keys(THIRD_PARTY_TEXTURES), imgs = await Promise.all(names.map((n) => fetchImage(THIRD_PARTY_BASE + THIRD_PARTY_TEXTURES[n])));
+    renderer.setMaterialTextures(Object.fromEntries(names.map((n, i) => [n, imgs[i]])));
+    props = await loadThirdPartyModels(fetch.bind(globalThis), THIRD_PARTY_BASE + 'models/', meshes);
+    bitmaps = await Promise.all(props.map((p) => decodeImage(p.texture.bytes, p.texture.mimeType, p.kind)));
+  }
   const ok = props.filter((_, i) => bitmaps[i]);
-  if (!ok.length) return 0;
-  const slotPx = 512, atlas = document.createElement('canvas'); atlas.width = atlas.height = slotPx * ATLAS_GRID;
+  const alien = wantAlien ? await loadAlienPack(meshes) : [];
+  if (!ok.length && !alien.length) return 0;
+  const slotPx = 512, grid = alien.length ? ATLAS_GRID * 2 : ATLAS_GRID, atlas = document.createElement('canvas'); atlas.width = atlas.height = slotPx * grid;
   const ctx = atlas.getContext('2d');
+  // with the Alien pack the 2 x 2 CC0 atlas stays as the top left quarter of a 4 x 4 atlas; the Alien models take the other slots
+  const taken = (s) => s % grid < ATLAS_GRID && Math.floor(s / grid) < ATLAS_GRID, freeSlots = Array.from({ length: grid * grid }, (_, s) => s).filter((s) => !taken(s));
   props.forEach((p, i) => { if (bitmaps[i]) ctx.drawImage(bitmaps[i], (p.slot % ATLAS_GRID) * slotPx, Math.floor(p.slot / ATLAS_GRID) * slotPx, slotPx, slotPx); });
+  for (const p of ok) meshes.set(p.kind, alien.length ? shrinkUv(p.model, ATLAS_GRID / grid) : p.model);
+  let placed = ok.length;
+  for (const a of alien) {
+    let model = a.model;
+    if (a.texture) {
+      const bmp = await decodeImage(a.texture.bytes, a.texture.mimeType, a.kind), slot = freeSlots.shift();
+      if (bmp && slot !== undefined) { ctx.drawImage(bmp, (slot % grid) * slotPx, Math.floor(slot / grid) * slotPx, slotPx, slotPx); model = atlasModel(model, slot, grid); }
+      else model = { ...model, texture: null, triangles: model.triangles.map(({ uv, ...flat }) => flat) }; // no room or no bitmap: flat colour
+    }
+    meshes.set(a.kind, model);
+    placed++;
+  }
   renderer.setPropAtlas(atlas);
-  for (const p of ok) meshes.set(p.kind, p.model);
-  return ok.length;
+  return placed;
+}
+
+/**
+ * Local horror area, only under ?pack=1: the Alien Terrain Pack look-alikes of the corruption kinds from the git-ignored local-pack/alien/.
+ * No manifest (the usual case on any other machine) or a bad one logs one console warning and leaves every original mesh in place.
+ */
+async function loadAlienPack(meshes) {
+  try {
+    const res = await fetch('local-pack/alien/manifest.json');
+    if (!res.ok) throw new Error(`no local-pack/alien/manifest.json (HTTP ${res.status}); run python3 tools/build_alien_pack.py`);
+    const v = validateAlienManifest(await res.json());
+    if (!v.ok) throw new Error('bad manifest: ' + v.errors.join('; '));
+    return await loadAlienModels(fetch.bind(globalThis), 'local-pack/alien/', v.models, meshes);
+  } catch (err) {
+    console.warn(`[alien-pack] ${err.message}; keeping the original meshes`);
+    return [];
+  }
 }
 
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
@@ -885,10 +920,11 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
  *   fly: camera {x,y,z,yaw,pitch} while the ?cinematic=1 fly-through runs (it replaces walking), else null }
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
+ * alienPack(): true only under ?pack=1, then the local Alien models replace the corruption look-alikes when local-pack/alien/ exists.
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
@@ -1194,9 +1230,9 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       for (const [target_, type, fn] of listeners) target_.addEventListener(type, fn);
       loadMeshesOnce().then((set) => {
         meshes = set; worldKey = ''; wake();
-        if (!thirdParty || thirdPartyStarted) return;
+        if ((!thirdParty && !alienPack()) || thirdPartyStarted) return;
         thirdPartyStarted = true;
-        loadThirdParty(renderer, set).then((n) => { upgraded = n; worldKey = ''; wake(); }, (err) => console.warn('[third-party] upgrade failed: ' + err.message));
+        loadThirdParty(renderer, set, { cc0: thirdParty, wantAlien: alienPack() }).then((n) => { upgraded = n; worldKey = ''; wake(); }, (err) => console.warn('[third-party] upgrade failed: ' + err.message));
       });
       const plan = packLoaded ? null : packTextures();
       if (plan) {

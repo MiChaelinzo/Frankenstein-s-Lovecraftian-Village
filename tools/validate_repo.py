@@ -53,10 +53,10 @@ for f in tracked:
         errors.append(f"pack-derived path must not be tracked: {f}")
 
 for probe in ("Assets/ThirdParty/LovecraftianVillage/pack_inventory.json", "probe.unitypackage",
-              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "Packages/Lovecraftian Village/x.prefab", "Packages/com.dlnk.village/package.json", "web/local-pack/manifest.json", "dist/index.html"):
+              "Assets/_DLNK/x.prefab", "Assets/_DLNK.meta", "Packages/Lovecraftian Village/x.prefab", "Packages/com.dlnk.village/package.json", "web/local-pack/manifest.json", "web/local-pack/alien/manifest.json", "web/local-pack/alien/tentacle_tree.glb", "web/local-pack/screenshots/x.png", "dist/index.html"):
     if subprocess.run(["git", "check-ignore", "-q", probe]).returncode != 0:
         errors.append(f"{probe} must be gitignored")
-for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py"):
+for f in ("tools/inspect_unitypackage.py", "tools/test_inspect_unitypackage.py", "tools/build_local_pack.py", "tools/test_build_local_pack.py", "tools/build_alien_pack.py", "tools/test_build_alien_pack.py"):
     if not os.path.isfile(f):
         errors.append(f"missing {f}")
 

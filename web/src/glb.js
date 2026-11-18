@@ -177,6 +177,35 @@ export async function loadThirdPartyModels(fetchFn, base, originals, warn = cons
   return out;
 }
 
+// ---- local Alien Terrain horror area (?pack=1 only, models from the git-ignored local-pack/alien/) ----
+
+/**
+ * Loads the local Alien models of `entries` ({kind: {file}}) through the injected fetch and fits each into the bounding box of the original mesh of
+ * the same kind (same footprint, collision and Core growth scale). Returns [{ kind, model, texture }] (texture null when the model is flat coloured).
+ * A model that fails is logged once and left out, so the original look-alike stays.
+ */
+export async function loadAlienModels(fetchFn, base, entries, originals, warn = console.warn) {
+  const out = [];
+  for (const [kind, entry] of Object.entries(entries)) {
+    const reference = originals && originals.get(kind);
+    if (!reference) continue;
+    try {
+      const res = await fetchFn(base + entry.file);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const model = loadGlbBuffer(await res.arrayBuffer());
+      out.push({ kind, model: fitModelInto(model, reference), texture: model.texture });
+    } catch (e) {
+      warn(`[alien-pack] ${entry.file} failed (${e.message}); keeping the original ${kind} mesh`);
+    }
+  }
+  return out;
+}
+
+/** Moves the uv of an already atlased model into the first `fraction` of each axis, for when its atlas becomes the corner of a bigger one. */
+export function shrinkUv(model, fraction) {
+  return { ...model, triangles: model.triangles.map((t) => (t.uv ? { ...t, uv: t.uv.map(([u, v]) => [u * fraction, v * fraction]) } : t)) };
+}
+
 const lin2srgb = (v) => Math.round(255 * Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2));
 
 // Rotate around the vertical (glTF +Y) axis, tilt for a three quarter view, flat Lambert shading, painter's order.

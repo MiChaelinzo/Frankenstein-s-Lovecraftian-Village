@@ -301,8 +301,8 @@ test('frame budget (pure counts, not timings): worst case weather, dread and lig
 test('view3d wiring for round 15: fly camera replaces walking, pack textures only via the plan, no network', () => {
   const v = readFileSync(join(web, 'src', 'view3d.js'), 'utf8'), app = readFileSync(join(web, 'src', 'app.js'), 'utf8');
   assert.match(v, /s\.fly \? streetFly\(s\.fly\)/); assert.match(app, /flythroughCamera\(/); assert.match(app, /cine\.on && view3d\.active/);
-  // the only fetches are the original meshes and the same-origin CC0 upgrade under THIRD_PARTY_BASE; pack textures load through Image
-  const rest = v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '').replace(/loadThirdPartyModels\(fetch\.bind\(globalThis\), THIRD_PARTY_BASE/, '').replace(/async function fetchImage\(url\) \{\s*try \{\s*const res = await fetch\(url\);/, '');
+  // the only fetches are the original meshes, the same-origin CC0 upgrade under THIRD_PARTY_BASE and the ?pack=1 only local-pack/alien files; pack textures load through Image
+  const rest = v.replace(/loadMeshSet\(fetch\.bind\(globalThis\)/, '').replace(/loadThirdPartyModels\(fetch\.bind\(globalThis\), THIRD_PARTY_BASE/, '').replace(/await fetch\('local-pack\/alien\/manifest\.json'\)/, '').replace(/loadAlienModels\(fetch\.bind\(globalThis\)/, '').replace(/async function fetchImage\(url\) \{\s*try \{\s*const res = await fetch\(url\);/, '');
   assert.ok(!/fetch\(/.test(rest), 'no other fetch in view3d.js');
   assert.match(v, /fetchImage\(THIRD_PARTY_BASE \+ THIRD_PARTY_TEXTURES\[n\]\)/); assert.equal((v.match(/fetchImage\(/g) || []).length, 2, 'fetchImage is defined once and called only for the CC0 textures');
   assert.match(v, /export const THIRD_PARTY_BASE = 'assets\/third_party\/';/);
