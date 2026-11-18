@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { loadGlbBuffer, loadAlienModels, shrinkUv, fitModelInto } from '../src/glb.js';
 import { validateAlienManifest, ALIEN_KINDS } from '../src/pack.js';
-import { CORRUPTION_LEVELS, growCorruption } from '../src/dressing.js';
+import { CORRUPTION_LEVELS, growCorruption, corruptionSites } from '../src/dressing.js';
+import { groundHeight } from '../src/landmarks.js';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bytes = (k) => { const b = readFileSync(join(web, 'assets', 'meshes', `${k}.glb`)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); };
@@ -63,4 +64,11 @@ test('the pack area is gated, never precached and never named in the service wor
   assert.ok(!/alien/i.test(sw));
   assert.match(app, /alienPack: \(\) => pack\.want/);
   assert.match(view, /wantAlien: alienPack\(\)/);
+});
+
+test('every corruption site stands on the Core ground height, so fitted pack models (floor at the original floor) never hover', () => {
+  for (const seed of [1818, 1, 7, 4400, 123456]) for (const it of corruptionSites(seed, 36, 36)) {
+    assert.ok(Math.abs(it.y - groundHeight(seed, 36, 36, it.x, it.z)) < 1e-9, `${seed} ${it.kind} at ${it.x},${it.z}`);
+    assert.equal(original(it.kind).bounds.min[1], 0, `${it.kind} original mesh floor`);
+  }
 });
