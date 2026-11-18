@@ -337,3 +337,10 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `84d32a7` feat: optional CorruptionGrowthPlacer prefab slots for the Unity scene (compile checked)
 - Verified: offline tests (14 Python, 6 new node), node 538, dotnet Core 210, validator, UnityCompileCheck 0/0, `git status` clean of local-pack output. Partially Verified: SwiftShader stills of the grove (git-ignored). Unverified: real GPU, Unity runtime.
 
+
+## Round 23 part 10 (grove investigation and docs, FEAT-006, branch feat/round23c)
+Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: Core CorruptionGrowth, `344a2a1` docs, `e458bd2` city and districts, `adb835b` docs, `2d1d357` test, `b029687` landmarks, `5d38558` landmark chip and culling, `9cb6ba9` docs, `60b94f3` Alien area, `84d32a7` Unity placer slots, `50c4c88` docs, plus the test and docs commits of this part.
+- Investigation: the hash does not set the clock (sessions start at dusk; add `tick=1250`), `sanity=0&night=10` is level 6 and `sanity=100&night=1` level 0, pack models stand on the original floor (min y 0 for all seven kinds) and all sites sit on Core `groundHeight`. A pack tree looks like it hovers because its roots are 0.5% of its vertices. The earlier no-pack still faced away from the grove. A node test pins the grounding.
+- A pack still taken with `capture=1` right after load may show the originals, because the alien upgrade finishes after the first frame; use a longer `SHOT_TIMEOUT` or look in a real browser. Partially Verified.
+- Timings (SwiftShader, indicative): see CHANGELOG parts 7 and 8. Before the city, camera 84,96: 268/330/353 ms (Low/Medium/High). After, same camera inside the city: 410/480/516 ms; city edge: 269/311/354 ms. The halo and firefly cull gave no speedup.
+- Gotcha: the image viewer failed the first read of a fresh PNG ("ENOENT"); reading it again worked.

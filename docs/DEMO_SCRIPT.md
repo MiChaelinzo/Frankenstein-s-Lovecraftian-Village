@@ -87,3 +87,8 @@ Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted musi
 - Round 21 tiers: `?intro=0&view=3d&perf=1&weather=rain&tick=1250#seed=1818&cam3d=84,96,40,14` with `&quality=high`, then `&quality=low`; open Help (`?`) > First-person view > Graphics quality to show the list of what each tier turns on. The HUD line ends with the tier, render scale and size. Stills: `docs/media/r21-high-rain-night.png`, `r21-low-rain-night.png`; 2D: `?intro=0&tick=1250&quality=medium#seed=1818&sanity=70` (`r21-2d-after.png`).
 
 - Round 22 shots: a lane at dusk (`?view=3d&intro=0&caption=0&quality=high&cam3d=51.5,56.5,180,-4#seed=1818&sanity=80`) for the fog and villager, then the 2D map (`?intro=0&quality=medium#seed=1818&sanity=70`) with the quay and pier lantern. Say that the mood is original (no assets from Dredge or Silent Hill) and that it was checked on software GL only. Do not linger on the held lantern or the windows, they are listed as known bugs.
+
+## Round 23 world depth shots (optional, 10 s each)
+- Grove growth: open `?view=3d&intro=0&caption=0&tick=1250#seed=1818&sanity=100&night=1&cam3d=-13,134,0,3`, then the same with `sanity=0&night=10`. Say: "Nothing is scripted. The grove changes with dread and night."
+- A district chip and a landmark chip (Old Town, the Abbey Ruins) while walking the lit path.
+- Do not show the local Alien pack area on the public recording; say that the public site uses original assets only.

@@ -144,11 +144,12 @@ Triage of look bugs seen in round 22 stills (none are regressions unless noted):
 - [x] 120. Walking collision: `BODY_RADIUS` 0.35 m lets the camera sit almost in a wall face and house meshes overhang their footprint; raise the radius and add overhang clearance, with tests. Dressing benches at doors sit against walls: add wall clearance in Core (C# test, golden, JS). Not a regression
 - [x] 121. Windows read as flat brown shutters: real glass, interior glow, curtains, per floor on and off (supersedes 107). Not a regression
 - [x] 122. Grass tufts and reeds are thin cones with no ground contact: wider crossed blades, a dark contact blot, colour from the ground palette. Tufts were a round 22 regression (fixed for black, shape remains)
-- [x] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
+- [x] 123. Bigger city: 36 by 36 grid, 180 pieces, five districts, 12 cell chunks, draw distance per tier (round 23 part 7; timing recorded, SwiftShader only)
 - [x] 124. `C` key chat with citizens: talk to the nearest villager to get clues about what to do next (Core line selection first, deterministic fallback, optional AI later in round 26)
 - [x] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
-- [x] 126. Huge world (round 23 part 8: six landmarks, lit paths, walkable hill, lore; regions beyond are still open) : regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
-- [ ] 127. Inventory and items (previously Round 22 roadmap): find, store, use; sleep and food sanity recovery
+- [x] 126. Huge world (round 23 parts 6, 8, 9, 10: six landmarks, lit paths, walkable hill, lore, original corruption growth in Core, local-only Alien pack area under `?pack=1`; regions beyond are still open) : regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
+- [ ] 127. Inventory and items (moved to the next round, 24): find, store, use; sleep and food sanity recovery
+- [x] 127a. Original tentacle trees, fungi and spires with Core `CorruptionGrowth` (dread and night), plus the local-only Alien pack area (`tools/build_alien_pack.py`, `?pack=1`)
 
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).

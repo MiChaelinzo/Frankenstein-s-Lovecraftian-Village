@@ -228,3 +228,8 @@ Status: design written before code. Core rules, C# property tests and golden par
 - New debt, small: two kinds (`church_nave`, `church_tower`) are collision only and have no mesh (`COLLISION_ONLY_KINDS`). The Unity builder does not place landmarks yet (Unverified).
 - Perf: the halo and firefly cull is correct but showed no SwiftShader gain; do not claim a speed-up. Frame time is raster bound; profile on a real GPU before tuning further.
 
+
+## Round 23 part 10: grove investigation (FEAT-006)
+- Facts (Verified by a node test and a script over 10 seeds): every `CorruptionGrowth` site stands on Core `groundHeight`; `fitModelInto` puts a fitted pack model on the floor of the original mesh. So pack models cannot hover by placement. A pack tree can look raised because only 0.5% of its vertices touch the floor (Partially Verified: still inspection).
+- Not a bug: stills from the hash alone use the dusk clock; pass `tick=1250` for night. `corruptionLevel` is 0.75 dread plus 0.25 night.
+- Residual risk: the pack upgrade is async, so a `capture=1` still can show originals. Unverified in a real browser with a GPU.

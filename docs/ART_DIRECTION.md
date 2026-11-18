@@ -72,3 +72,12 @@ Qualitative only. Nothing is copied from either game: no assets, no names, no la
 **Round 23 silhouettes (all tiers, meshes; Partially Verified in SwiftShader stills):** houses and cottages stand on stone ground floors with a wider timber upper floor (jetty), dormers on `house_b`, `cottage_tall` and `inn`, a pair of taller chimneys on `house_b`, and roof rises from 1.9 to 3.4 m. Lantern halos grow on Medium (x1.25) and High (x1.5) and gain a warm core. The frame triangle budget (60% of 60,000 at seed 1818) caps how much detail fits.
 
 **Round 23 depth pass (Medium and High, Partially Verified in SwiftShader stills):** lower walls gather moss and grime, cobble seams grow moss and stay damp-dark, window glass is warmer, and distant fog leans blue-violet with a warm band at the horizon. Low keeps the flat look. Stills: `docs/media/r23-*.png`.
+
+## Corruption, districts and landmarks (round 23, original assets)
+**Tentacle trees and saplings** are black, drooping trunks with long writhing tendrils that sway like foliage. **Fungi** (tall, cluster, shelf) are pale caps that glow faintly at night. **Organic spires** (horn, ribbed) are bone white rising to dark tips. They are our own meshes from primitives, mood only, no pack data. They appear at Core ruled sites (cliffs, marsh, churchyard edges, the grove) and grow with dread and night (level 0 to 6, scale 0.55 up to 1). Rule: nothing moves toward the player and nothing appears in view; the village changes while you are elsewhere. Stills: `docs/media/round23-grove-growth-{low,mid,high}.png`.
+
+**Districts** give each quarter its own yard dressing and density: Harbour (nets, crates, bollards), Old Town (dense, tight yards), Chapel Hill (graves and stones), Market (stalls, carts), Fishers' Row (nets and boats on the coast band). The HUD chip and minimap tint name them.
+
+**Landmarks** each hold one idea: the Lighthouse Cliffs (wind and distance), the Wreck of the Marguerite (a ship that went nowhere), the Abbey Ruins (arches with no roof), the Cemetery on the church rise (view of the whole village), the Black Marsh (still pools, spires), the Cursed Grove (the first place corruption grows). Lit paths with a lamp every 14 m connect them so the dark is never total on the way. Stills: `docs/media/round23-landmark-*.jpg`.
+
+**Local pack area:** under `?pack=1` on the author's machine only, the Alien Terrain models replace the corruption look-alikes (fitted to the same footprint). The public site keeps the originals.
