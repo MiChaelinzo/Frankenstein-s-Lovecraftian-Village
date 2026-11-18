@@ -328,6 +328,9 @@ namespace Frankenstein.Core.Tests
             AppendCorruption(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendLandmarks(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendCity(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -701,6 +704,62 @@ namespace Frankenstein.Core.Tests
                     sb.Append("] }");
                 }
             sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "landmarks": names, and per world the landmark anchors, props, lit paths, path stones and lamps, the walk bounds and the church rise heights.</summary>
+        private static void AppendLandmarks(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string R(double v) { return v.ToString("R", inv); }
+            sb.Append("  \"landmarks\": {\n    \"names\": [");
+            for (int i = 0; i < VillageLandmarks.Ids.Length; i++)
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(VillageLandmarks.Ids[i]).Append("\", \"").Append(VillageLandmarks.Name(VillageLandmarks.Ids[i], "en")).Append("\", \"").Append(VillageLandmarks.Name(VillageLandmarks.Ids[i], "fr")).Append("\"]");
+            sb.Append("],\n    \"hill\": [");
+            double[][] probes = { new[] { 0.0, 0.0 }, new[] { 5.0, 3.0 }, new[] { -12.0, 6.0 }, new[] { 18.0, -9.0 }, new[] { 24.0, 0.0 }, new[] { 30.0, 2.0 } };
+            for (int i = 0; i < probes.Length; i++) sb.Append(i > 0 ? ", " : "").Append('[').Append(R(probes[i][0])).Append(", ").Append(R(probes[i][1])).Append(", ").Append(R(VillageLandmarks.HillHeight(9.0, probes[i][0], probes[i][1]))).Append(']');
+            sb.Append("],\n    \"worlds\": [");
+            bool firstWorld = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, VillageDistricts.CityGrid })
+                {
+                    sb.Append(firstWorld ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid);
+                    firstWorld = false;
+                    VillageDressing.WalkBounds(seed, grid, grid, out double minX, out double maxX, out double minZ, out double maxZ);
+                    sb.Append(", \"bounds\": [").Append(R(minX)).Append(", ").Append(R(maxX)).Append(", ").Append(R(minZ)).Append(", ").Append(R(maxZ)).Append("], \"marks\": [");
+                    var marks = VillageLandmarks.All(seed, grid, grid);
+                    for (int i = 0; i < marks.Count; i++) sb.Append(i > 0 ? ", " : "").Append("[\"").Append(marks[i].Id).Append("\", ").Append(R(marks[i].X)).Append(", ").Append(R(marks[i].Z)).Append(", ").Append(R(marks[i].Radius)).Append(']');
+                    sb.Append("], \"props\": ");
+                    AppendItems(sb, VillageLandmarks.Dressing(seed, grid, grid), inv);
+                    sb.Append(", \"paths\": [");
+                    var paths = VillageLandmarks.Paths(seed, grid, grid);
+                    for (int i = 0; i < paths.Count; i++)
+                    {
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(paths[i].Target).Append("\"");
+                        foreach (var pt in paths[i].Points) sb.Append(", [").Append(R(pt[0])).Append(", ").Append(R(pt[1])).Append(']');
+                        sb.Append(']');
+                    }
+                    sb.Append("], \"lit\": ");
+                    AppendItems(sb, VillageLandmarks.PathDressing(seed, grid, grid), inv);
+                    sb.Append(", \"at\": [");
+                    for (int i = 0; i < marks.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(VillageLandmarks.At(seed, grid, grid, marks[i].X + 2.0, marks[i].Z - 1.0)).Append('"');
+                    sb.Append("], \"ground\": [");
+                    VillageDressing.ChurchSite(seed, grid, grid, out double cx, out double cz, out int face, out double hill);
+                    for (int i = 0; i < probes.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(VillageLandmarks.GroundHeight(seed, grid, grid, cx + probes[i][0], cz + probes[i][1])));
+                    sb.Append("] }");
+                }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static void AppendItems(StringBuilder sb, List<DressingItem> items, CultureInfo inv)
+        {
+            sb.Append('[');
+            for (int i = 0; i < items.Count; i++)
+            {
+                var it = items[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(it.Kind).Append("\", ").Append(it.X.ToString("R", inv)).Append(", ").Append(it.Y.ToString("R", inv)).Append(", ").Append(it.Z.ToString("R", inv)).Append(", ")
+                  .Append(it.Yaw.ToString("R", inv)).Append(", ").Append(it.Scale.ToString("R", inv)).Append(']');
+            }
+            sb.Append(']');
         }
 
         /// <summary>Top level key "villagers": clock, seeded rosters on the real layout, schedules, locations, behaviors, clue rule and talk results.</summary>

@@ -70,8 +70,6 @@ namespace Frankenstein.Core
         public static readonly string[] DoorKinds = { "", "", "", "", "bench", "", "", "" }; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget
         /// <summary>Metres left between the player and the foam on the coast side, so the coast road is walkable up to the shore but not into the sea.</summary>
         public const double ShoreStandOff = 0.6;
-        /// <summary>Metres of walkable margin past the grid edge on every side that is not the coast.</summary>
-        public const double EdgeWalkMargin = 2.0;
 
         /// <summary>Footprint half extents (x, z at yaw 0) and height in metres per kind, measured from the committed meshes at scale 1. Kinds that do not block walking have Solid false.</summary>
         public struct Footprint
@@ -129,6 +127,15 @@ namespace Frankenstein.Core
                 case "fungus_shelf": return new Footprint { HalfX = 0.74, HalfZ = 0.61, Height = 0.87, Solid = false };
                 case "spire_horn": return new Footprint { HalfX = 1.01, HalfZ = 0.48, Height = 4.85, Solid = true };
                 case "spire_ribbed": return new Footprint { HalfX = 0.97, HalfZ = 0.7, Height = 5.95, Solid = true };
+                case "cliff_rock": return new Footprint { HalfX = 5.0, HalfZ = 4.48, Height = 8.0, Solid = true };
+                case "shipwreck": return new Footprint { HalfX = 5.13, HalfZ = 1.6, Height = 5.5, Solid = true };
+                case "abbey_arch": return new Footprint { HalfX = 2.49, HalfZ = 1.085, Height = 5.6, Solid = false };
+                case "abbey_wall": return new Footprint { HalfX = 2.6, HalfZ = 0.715, Height = 3.6, Solid = true };
+                case "abbey_pillar": return new Footprint { HalfX = 1.025, HalfZ = 0.825, Height = 3.25, Solid = true };
+                case "marsh_pool": return new Footprint { HalfX = 3.0, HalfZ = 2.85, Height = 0.09, Solid = false };
+                case "path_stone": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.09, Solid = false };
+                case "church_nave": return new Footprint { HalfX = 3.0, HalfZ = 5.9, Height = 7.4, Solid = true };
+                case "church_tower": return new Footprint { HalfX = 1.9, HalfZ = 1.9, Height = 18.0, Solid = true };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
         }
@@ -192,12 +199,13 @@ namespace Frankenstein.Core
         }
 
         /// <summary>
-        /// Where the player may stand (metres): the grid plus <see cref="EdgeWalkMargin"/> on every side, and on the coast side out to the shore
+        /// Where the player may stand (metres): the grid plus <see cref="VillageLandmarks.WorldMargin"/> on every side (out to the landmarks), and on the coast side out to the shore
         /// (ShoreInset from the grid edge, less <see cref="ShoreStandOff"/>), so the coast road along the harbour quarter is walkable.
         /// </summary>
         public static void WalkBounds(int seed, int gridW, int gridD, out double minX, out double maxX, out double minZ, out double maxZ)
         {
-            minX = -EdgeWalkMargin; minZ = -EdgeWalkMargin; maxX = gridW * Cell + EdgeWalkMargin; maxZ = gridD * Cell + EdgeWalkMargin;
+            double m = VillageLandmarks.WorldMargin;
+            minX = -m; minZ = -m; maxX = gridW * Cell + m; maxZ = gridD * Cell + m;
             double shore = ShoreInset - ShoreStandOff;
             int side = VillagerRules.CoastSide(seed);
             if (side == 0) minX = -shore;

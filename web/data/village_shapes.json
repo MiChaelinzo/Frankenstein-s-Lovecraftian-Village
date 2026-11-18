@@ -29,10 +29,17 @@
     "fungus_gill": [0.2, 0.1, 0.14, 1.0],
     "bone": [0.74, 0.7, 0.6, 1.0],
     "bone_mid": [0.45, 0.42, 0.37, 1.0],
-    "bone_dark": [0.17, 0.15, 0.15, 1.0]
+    "bone_dark": [0.17, 0.15, 0.15, 1.0],
+    "wreck_wood": [0.2, 0.15, 0.11, 1.0],
+    "wreck_dark": [0.09, 0.07, 0.06, 1.0],
+    "ruin_stone": [0.36, 0.35, 0.33, 1.0],
+    "ruin_moss": [0.14, 0.2, 0.13, 1.0],
+    "mud": [0.07, 0.06, 0.045, 1.0],
+    "water_dark": [0.015, 0.03, 0.035, 1.0],
+    "path_stone": [0.42, 0.4, 0.36, 1.0]
   },
   "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5, "storeyHeight": 3.0, "houseStoreys": 2, "ridgeMin": 6.0, "ridgeMax": 10.0, "houseFootprintMinCells": 2},
-  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7]},
+  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7], "shipwreck": [3, 6], "abbey_arch": [4, 6.5], "abbey_wall": [2.5, 4.5], "abbey_pillar": [1.5, 4], "marsh_pool": [0.0, 0.1], "path_stone": [0.0, 0.12]},
   "meshes": [
     {"id": "house_a", "group": "catalog", "parts": [
       {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [6.4, 5.8, 0.4]},
@@ -638,6 +645,57 @@
       {"name": "ribbed_rib_3", "material": "bone_mid", "shape": "cylinder", "at": [-0.458, 0, 2.75], "radii": [0.598, 0.558], "height": 0.12, "sides": 6},
       {"name": "ribbed_rib_4", "material": "bone_dark", "shape": "cylinder", "at": [-0.592, 0, 3.55], "radii": [0.527, 0.487], "height": 0.12, "sides": 6},
       {"name": "ribbed_rib_5", "material": "bone_dark", "shape": "cylinder", "at": [-0.725, 0, 4.35], "radii": [0.457, 0.417], "height": 0.12, "sides": 6}
+    ]},
+    {"id": "shipwreck", "group": "village", "parts": [
+      {"name": "stern", "material": "wreck_wood", "shape": "hull", "at": [-2.4, 0.0, 0.0], "size": [4.6, 3.2, 2.0], "bottom": 0.5},
+      {"name": "bow", "material": "wreck_dark", "shape": "hull", "at": [2.6, 0.2, -0.2], "size": [4.2, 2.8, 1.5], "bottom": 0.45},
+      {"name": "keel", "material": "wreck_dark", "shape": "box", "at": [0.2, 0.0, -0.1], "size": [2.4, 0.3, 0.3]},
+      {"name": "deck", "material": "wreck_wood", "shape": "box", "at": [-2.3, 0.0, 1.7], "size": [3.6, 2.6, 0.12]},
+      {"name": "house_back", "material": "wreck_dark", "shape": "box", "at": [-3.2, 0.0, 1.8], "size": [0.12, 2.2, 1.5]},
+      {"name": "house_side", "material": "wreck_wood", "shape": "box", "at": [-2.2, 1.1, 1.8], "size": [2.0, 0.12, 1.2]},
+      {"name": "rib_0_-1", "material": "wreck_dark", "shape": "box", "at": [-0.2, -1.15, 0.1], "size": [0.14, 0.14, 1.5]},
+      {"name": "rib_0_1", "material": "wreck_dark", "shape": "box", "at": [-0.2, 1.15, 0.1], "size": [0.14, 0.14, 1.5]},
+      {"name": "rib_1_-1", "material": "wreck_dark", "shape": "box", "at": [0.55, -1.23, 0.1], "size": [0.14, 0.14, 1.35]},
+      {"name": "rib_1_1", "material": "wreck_dark", "shape": "box", "at": [0.55, 1.23, 0.1], "size": [0.14, 0.14, 1.35]},
+      {"name": "rib_2_-1", "material": "wreck_dark", "shape": "box", "at": [1.3, -1.31, 0.1], "size": [0.14, 0.14, 1.2]},
+      {"name": "rib_2_1", "material": "wreck_dark", "shape": "box", "at": [1.3, 1.31, 0.1], "size": [0.14, 0.14, 1.2]},
+      {"name": "mast", "material": "wreck_dark", "shape": "cylinder", "at": [-1.2, 0.1, 1.7], "radii": [0.17, 0.1], "height": 3.8, "sides": 6, "shear": {"dx": 0.9, "from": 1.7, "height": 3.8}, "yaw": 20.0},
+      {"name": "boom", "material": "wreck_wood", "shape": "cylinder", "at": [-0.9, 0.35, 3.0], "radii": [0.07, 0.06], "height": 2.4, "sides": 5, "shear": {"dx": 0.3, "from": 3.0, "height": 2.4}, "yaw": -60.0},
+      {"name": "bowsprit", "material": "wreck_wood", "shape": "cylinder", "at": [4.3, 0.2, 0.9], "radii": [0.1, 0.06], "height": 1.8, "sides": 5, "shear": {"dx": 1.8, "from": 0.9, "height": 1.8}}
+    ]},
+    {"id": "abbey_arch", "group": "village", "parts": [
+      {"name": "base_-1", "material": "ruin_stone", "shape": "box", "at": [-1.5, 0.0, 0.0], "size": [0.95, 0.95, 0.4]},
+      {"name": "pier_-1", "material": "ruin_stone", "shape": "cylinder", "at": [-1.5, 0.0, 0.4], "radii": [0.38, 0.34], "height": 3.7, "sides": 8},
+      {"name": "rib_-1", "material": "ruin_stone", "shape": "cylinder", "at": [-1.5, 0.0, 4.1], "radii": [0.3, 0.22], "height": 1.5, "sides": 6, "shear": {"dx": 1.0, "from": 4.1, "height": 1.5}},
+      {"name": "base_1", "material": "ruin_stone", "shape": "box", "at": [1.5, 0.0, 0.0], "size": [0.95, 0.95, 0.4]},
+      {"name": "pier_1", "material": "ruin_stone", "shape": "cylinder", "at": [1.5, 0.0, 0.4], "radii": [0.38, 0.34], "height": 3.7, "sides": 8},
+      {"name": "rib_1", "material": "ruin_stone", "shape": "cylinder", "at": [1.5, 0.0, 4.1], "radii": [0.3, 0.22], "height": 1.5, "sides": 6, "shear": {"dx": 1.0, "from": 4.1, "height": 1.5}, "yaw": 180.0},
+      {"name": "fallen_drum", "material": "ruin_moss", "shape": "cylinder", "at": [2.6, 1.3, 0.0], "radii": [0.4, 0.4], "height": 0.8, "sides": 8}
+    ]},
+    {"id": "abbey_wall", "group": "village", "parts": [
+      {"name": "foot", "material": "ruin_stone", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [5.2, 0.9, 0.5]},
+      {"name": "pier_0", "material": "ruin_stone", "shape": "box", "at": [-2.0, 0.0, 0.5], "size": [1.0, 0.62, 3.1]},
+      {"name": "pier_1", "material": "ruin_stone", "shape": "box", "at": [-1.0, 0.0, 0.5], "size": [1.0, 0.62, 1.9]},
+      {"name": "sill", "material": "ruin_stone", "shape": "box", "at": [0.0, 0.0, 0.5], "size": [1.0, 0.62, 1.1]},
+      {"name": "lintel_stub", "material": "ruin_stone", "shape": "box", "at": [-0.3, 0.0, 2.4], "size": [0.4, 0.62, 0.7]},
+      {"name": "pier_3", "material": "ruin_moss", "shape": "box", "at": [1.0, 0.0, 0.5], "size": [1.0, 0.62, 0.8]},
+      {"name": "pier_4", "material": "ruin_stone", "shape": "box", "at": [2.0, 0.0, 0.5], "size": [1.0, 0.62, 1.5]},
+      {"name": "rubble", "material": "ruin_moss", "shape": "cylinder", "at": [1.9, 0.55, 0.0], "radii": [0.5, 0.3], "height": 0.4, "sides": 6}
+    ]},
+    {"id": "abbey_pillar", "group": "village", "parts": [
+      {"name": "plinth", "material": "ruin_stone", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [1.3, 1.3, 0.35]},
+      {"name": "shaft", "material": "ruin_stone", "shape": "cylinder", "at": [0.0, 0.0, 0.35], "radii": [0.5, 0.42], "height": 2.6, "sides": 8},
+      {"name": "break", "material": "ruin_moss", "shape": "cylinder", "at": [0.0, 0.0, 2.95], "radii": [0.42, 0.3], "height": 0.3, "sides": 6},
+      {"name": "capital", "material": "ruin_stone", "shape": "cylinder", "at": [0.9, 0.5, 0.0], "radii": [0.5, 0.35], "height": 0.5, "sides": 8}
+    ]},
+    {"id": "marsh_pool", "group": "village", "parts": [
+      {"name": "mud", "material": "mud", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [3.0, 2.8], "height": 0.03, "sides": 10},
+      {"name": "water", "material": "water_dark", "shape": "cylinder", "at": [0.1, 0.0, 0.03], "radii": [2.5, 2.4], "height": 0.03, "sides": 10},
+      {"name": "islet", "material": "mud", "shape": "cylinder", "at": [-1.0, 0.7, 0.03], "radii": [0.5, 0.4], "height": 0.06, "sides": 6}
+    ]},
+    {"id": "path_stone", "group": "village", "parts": [
+      {"name": "slab", "material": "path_stone", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [0.95, 0.72, 0.06]},
+      {"name": "chip", "material": "ruin_stone", "shape": "box", "at": [0.28, 0.2, 0.0], "size": [0.42, 0.3, 0.09]}
     ]}
   ]
 }

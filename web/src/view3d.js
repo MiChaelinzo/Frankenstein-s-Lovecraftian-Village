@@ -3,6 +3,7 @@
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
 import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
 import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
 import { proceduralTexture } from './proc-textures.js';
@@ -138,17 +139,12 @@ export function buildCoast({ gridW, gridD, seed, cell = CELL, meshes = null }) {
   return new Float32Array(out);
 }
 
-const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_STEPS = 26, HILL_FOOT = -0.5;
+const HILL_STEPS = 26; // the rise itself (radii, plateau, foot and height function) is Core ruled: landmarks.js mirrors VillageLandmarks
 const GRASS = [0.13, 0.17, 0.11], GRASS_DRY = [0.2, 0.2, 0.13], HILL_ROCK = [0.24, 0.24, 0.25], HILL_PATH = [0.36, 0.33, 0.27];
-const hillStep = (t) => t * t * (3 - 2 * t);
-/** Height of the church rise at an offset (metres) from its centre: a flat summit, a smooth shoulder and gentle lumps, never below the foot. Deterministic, no randomness. */
-export function hillHeight(c, dx, dz) {
-  const rho = Math.hypot(dx / HILL_RX, dz / HILL_RZ), t = Math.max(0, Math.min(1, (rho - HILL_PLATEAU) / (1 - HILL_PLATEAU)));
-  const lumps = 0.9 * Math.sin(dx * 0.55 + dz * 0.2) * Math.cos(dz * 0.43) * t * (1 - t) * 4;
-  return Math.max(HILL_FOOT, c.hill * (1 - hillStep(t)) + lumps + HILL_FOOT * hillStep(t));
-}
+/** Height of the church rise at an offset (metres) from its centre c: the shared Core function of landmarks.js. */
+export const hillHeight = (c, dx, dz) => landmarkHillHeight(c.hill, dx, dz);
 /** A winding path climbs the village side of the rise: its lateral offset from the centre line at a given x offset. */
-const pathZ = (c, dx) => Math.sin(dx * 0.22) * 2.6;
+const pathZ = (c, dx) => hillPathZ(dx);
 /** The rise as a smooth heightmap: grass and dry turf by height, rock on steep slopes, and a pale path from the foot to the summit on the side that faces the village. */
 function pushHillSurface(out, c) {
   const n = HILL_STEPS, xs = [], at = (i, j) => {
@@ -293,6 +289,8 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
+  const landmarkItems = [...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)];
+  batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
@@ -306,7 +304,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
-  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
+  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes([...dressing, ...landmarkItems]) };
 }
 
 // ---------- shaders ----------
@@ -1026,7 +1024,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const inp = { ...raw, forward: smooth.forward, strafe: smooth.strafe }, mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
     const before = cam;
     cam = s.fly ? streetFly(s.fly) : stepCamera(cam, inp, dt, boxes, bounds, mouse);
-    if (!s.fly) cam = { ...cam, y: settings.eye }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset
+    if (!s.fly) cam = { ...cam, y: settings.eye + groundHeight(s.seed, s.gridW, s.gridD, cam.x, cam.z) }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset
     look = { dx: 0, dy: 0 }; pendingMouse = null;
     const moved = cam.x !== before.x || cam.z !== before.z || cam.yaw !== before.yaw || cam.pitch !== before.pitch;
     const speed = Math.min(1, Math.hypot(inp.forward, inp.strafe)), moving = speed > 0.01 || !!(raw.forward || raw.strafe);

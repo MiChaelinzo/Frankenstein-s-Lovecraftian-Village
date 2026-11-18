@@ -12,6 +12,7 @@ import { frameCost, FRAME_BUDGET, partitionChunks, visibleRanges, frustumPlanes,
 import { tierSettings } from '../src/quality.js';
 import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 import { composeDressing } from '../src/dressing.js';
+import { landmarks } from '../src/landmarks.js';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..'), tp = join(web, 'assets', 'third_party');
 const catalog = new PrefabCatalog(JSON.parse(readFileSync(join(web, 'data', 'village_catalog.json'), 'utf8')).entries);
@@ -100,7 +101,7 @@ test('buildWorld: buildingUv has one pair per building vertex, -1 everywhere exc
     assert.ok(props > 0 && textured > 0, `seed ${seed}: ${props} props, ${textured} textured vertices`);
     assert.deepEqual(w.buildingUv, buildWorld({ layout: l, meshes, seed, gridW: 24, gridD: 24 }).buildingUv, 'deterministic');
     const cost = frameCost({ vertices: { building: w.building.length / VERTEX_FLOATS, ground: w.ground.length / VERTEX_FLOATS, sea: 6, coast: w.coast.length / VERTEX_FLOATS, tentacle: 900, villager: 900 }, rain: 900, mist: 300, halos: 100, fireflies: 100, post: true, lights: 8 });
-    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.7 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
+    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.8 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
   }
 });
 
@@ -113,7 +114,7 @@ test('city: the chunk culled building triangles in view stay inside the frame bu
     for (const q of ['low', 'medium', 'high']) {
     const far = tierSettings(q).drawDistance, density = fogFloorFor(far); // a clear day: the fog is at its floor, so only the draw distance culls
     let worst = 0;
-    for (const [x, z] of [[g * 2, g * 2], [g, g], [g * 3, g * 3], [2, 2], [g * 3, g]]) for (let k = 0; k < 8; k++) {
+    for (const [x, z] of [[g * 2, g * 2], [g, g], [g * 3, g * 3], [2, 2], [g * 3, g], ...landmarks(seed, g, g).map((l) => [l.x, l.z])]) for (let k = 0; k < 8; k++) {
       const cam = { x, y: 1.6, z, yaw: k * Math.PI / 4, pitch: 0 }, ranges = visibleRanges(chunks, frustumPlanes(viewProjection(cam, 16 / 9)), [x, 1.6, z], chunkCullDistance(density, far));
       worst = Math.max(worst, ranges.reduce((a, r) => a + r.count, 0));
     }

@@ -60,27 +60,14 @@ namespace Frankenstein.Core
         private static readonly Candidate[] Churchyard = { C("fungus_shelf", 3.8, -6.6), C("tentacle_sapling", 5.2, 3.2), C("fungus_cluster", 6.6, -6.4), C("spire_horn", 7.0, 3.6), C("fungus_shelf", 7.4, -1.8), C("tentacle_sapling", 4.8, -7.2) };
         /// <summary>Grove: degrees about the grove centre and radius in metres.</summary>
         private static readonly Candidate[] Grove = { C("tentacle_tree", 0, 4.5), C("tentacle_tree", 72, 5.5), C("tentacle_tree", 144, 4.8), C("tentacle_tree", 216, 5.8), C("tentacle_tree", 288, 5.0), C("fungus_shelf", 36, 3.0), C("fungus_shelf", 180, 3.4), C("fungus_tall", 108, 2.6) };
-        /// <summary>Metres from the grid edge to the grove centre.</summary>
-        public const double GroveSetback = 13.0;
-
-        /// <summary>The centre of the cursed grove: behind the village, on the side away from the sea.</summary>
-        public static void GroveCentre(int seed, int gridW, int gridD, out double x, out double z)
-        {
-            int side = VillagerRules.CoastSide(seed);
-            if (side == 0) { x = gridW * VillageDressing.Cell + GroveSetback; z = gridD * VillageDressing.Cell * 0.85; }
-            else if (side == 1) { x = -GroveSetback; z = gridD * VillageDressing.Cell * 0.85; }
-            else { x = gridW * VillageDressing.Cell * 0.6; z = gridD * VillageDressing.Cell + GroveSetback; }
-        }
-
         /// <summary>Every candidate at full size, ranked: the first of each site, then the second of each, and so on. Always rolls three values per candidate in table order.</summary>
         public static List<DressingItem> Sites(int seed, int gridW, int gridD)
         {
             var rng = new SeededRandom(seed ^ RollStream);
-            double hi = VillageDressing.ShoreLength(seed, gridW, gridD), lightU = VillageDressing.LightU(seed, gridW, gridD);
-            int cliffDir = lightU < hi / 2 ? -1 : 1;
-            double cliffEnd = cliffDir < 0 ? 0.0 : hi, marshEnd = cliffDir < 0 ? hi : 0.0;
+            int cliffDir = VillageLandmarks.CliffDir(seed, gridW, gridD); // the anchors of the cliffs, marsh, churchyard and grove are the landmarks of VillageLandmarks
+            double cliffEnd = VillageLandmarks.CliffEndU(seed, gridW, gridD), marshEnd = VillageLandmarks.MarshEndU(seed, gridW, gridD);
             VillageDressing.ChurchSite(seed, gridW, gridD, out double chX, out double chZ, out int faceX, out double hill);
-            GroveCentre(seed, gridW, gridD, out double gx, out double gz);
+            VillageLandmarks.GroveCentre(seed, gridW, gridD, out double gx, out double gz);
 
             var sites = new List<DressingItem>[4];
             for (int s = 0; s < sites.Length; s++) sites[s] = new List<DressingItem>();

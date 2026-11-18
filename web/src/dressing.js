@@ -2,11 +2,12 @@
 // Core is the source of truth; keep the numbers and the order of rolls identical to the C# file.
 import { SeededRandom } from './core.js';
 import { OVERHANG_CLEARANCE } from './world-scale.js';
+import { WORLD_MARGIN, groveCentre, cliffDir as landmarkCliffDir, cliffEndU, marshEndU } from './landmarks.js'; // a cycle with landmarks.js, used only inside functions
 import { districtAt, districtPalette, paletteDensity } from './districts.js'; // a cycle with districts.js, used only inside functions
 import { streetsEnabled, isStreetCell, isSquareCell, isBuilding, facingYaw, laneLines } from './streets.js';
 
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
-export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
+export const SHORE_STAND_OFF = 0.6, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
 export const DOOR_WALL_CLEARANCE = 0.15; // metres between a house wall and the back of the door bench, which stands in the setback inside its own cell. Mirrors VillageDressing.DoorWallClearance Mirrors VillageDressing.DoorWallClearance
 export const DOOR_KINDS = ['', '', '', '', 'bench', '', '', '']; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget. Mirrors VillageDressing.DoorKinds
 export const ROCK_MIN_V = 0.9; // nearest a shore rock may stand to the coast road. Mirrors VillageDressing.RockMinV
@@ -30,6 +31,8 @@ const FOOTPRINTS = {
   picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
   tentacle_tree: [1.4, 1.62, 4.85, true], tentacle_sapling: [0.6, 0.75, 2.4, false], fungus_tall: [0.97, 0.78, 2.64, false], fungus_cluster: [0.58, 0.47, 0.58, false],
   fungus_shelf: [0.74, 0.61, 0.87, false], spire_horn: [1.01, 0.48, 4.85, true], spire_ribbed: [0.97, 0.7, 5.95, true],
+  cliff_rock: [5.0, 4.48, 8.0, true], shipwreck: [5.13, 1.6, 5.5, true], abbey_arch: [2.49, 1.085, 5.6, false], abbey_wall: [2.6, 0.715, 3.6, true], abbey_pillar: [1.025, 0.825, 3.25, true],
+  marsh_pool: [3.0, 2.85, 0.09, false], path_stone: [0.48, 0.36, 0.09, false], church_nave: [3.0, 5.9, 7.4, true], church_tower: [1.9, 1.9, 18.0, true],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
 export function footprintOf(kind) {
@@ -46,9 +49,9 @@ export function churchRise(seed, gridW, gridD) {
   const side = coastSideOf(seed), east = side === 0 ? true : side === 1 ? false : (((seed ^ 0x3c3c) & 1) === 0);
   return { x: east ? gridW * CELL_M + 30 : -30, z: gridD * CELL_M * 0.35, faceX: east ? -1 : 1, hill: 9 };
 }
-/** Where the player may stand: the grid plus a 2 m margin, and on the coast side out to the shore (less 0.6 m), so the coast road is walkable. Mirrors VillageDressing.WalkBounds. */
+/** Where the player may stand: the grid plus the 60 m world margin (out to the landmarks), and on the coast side out to the shore (less 0.6 m), so the coast road is walkable. Mirrors VillageDressing.WalkBounds. */
 export function walkBounds(seed, gridW, gridD) {
-  const b = { minX: -EDGE_WALK_MARGIN, maxX: gridW * CELL_M + EDGE_WALK_MARGIN, minZ: -EDGE_WALK_MARGIN, maxZ: gridD * CELL_M + EDGE_WALK_MARGIN };
+  const b = { minX: -WORLD_MARGIN, maxX: gridW * CELL_M + WORLD_MARGIN, minZ: -WORLD_MARGIN, maxZ: gridD * CELL_M + WORLD_MARGIN };
   const shore = SHORE_INSET - SHORE_STAND_OFF, side = coastSideOf(seed);
   if (side === 0) b.minX = -shore; else if (side === 1) b.maxX = gridW * CELL_M + shore; else b.minZ = -shore;
   return b;
@@ -60,7 +63,7 @@ export function coastToWorldAt(seed, gridW, u, v) {
   return { x: u, z: -SHORE_INSET - v };
 }
 const seawardYaw = (seed) => { const s = coastSideOf(seed); return s === 0 ? -Math.PI / 2 : s === 1 ? Math.PI / 2 : Math.PI; };
-const alongShoreYaw = (seed) => (coastSideOf(seed) === 2 ? 0 : Math.PI / 2);
+export const alongShoreYaw = (seed) => (coastSideOf(seed) === 2 ? 0 : Math.PI / 2);
 const cm = (rng, range) => rng.next(range) / 100;
 
 /** True when the item's footprint, swept by its yaw, comes within `clearance` metres of any layout piece. */
@@ -340,7 +343,7 @@ export function lightU(seed, gridW, gridD) { const hi = hiOf(seed, gridW, gridD)
 
 // ---------- Corruption growth: mirrors Core/CorruptionGrowth.cs (golden "corruption") ----------
 export const CORRUPTION_LEVELS = 6, CORRUPTION_DREAD_WEIGHT = 0.75, CORRUPTION_NIGHT_WEIGHT = 0.25, CORRUPTION_FULL_NIGHT = 10;
-export const CORRUPTION_FIRST_SCALE = 0.55, CORRUPTION_SCALE_STEP = 0.15, CORRUPTION_ROLL_STREAM = 0x7c0d, GROVE_SETBACK = 13;
+export const CORRUPTION_FIRST_SCALE = 0.55, CORRUPTION_SCALE_STEP = 0.15, CORRUPTION_ROLL_STREAM = 0x7c0d;
 const CLIFFS = [['spire_horn', 5, 0.3], ['spire_ribbed', 9, -0.4], ['spire_horn', 13, 0.9], ['tentacle_sapling', 7, -1.2], ['spire_ribbed', 16, 0.1]];
 const MARSH = [['fungus_cluster', 4, -2.0], ['fungus_tall', 7, -3.2], ['fungus_cluster', 10, -1.0], ['tentacle_sapling', 13, -2.6], ['fungus_tall', 16, -1.4], ['fungus_cluster', 19, -3.5]];
 const CHURCHYARD = [['fungus_shelf', 3.8, -6.6], ['tentacle_sapling', 5.2, 3.2], ['fungus_cluster', 6.6, -6.4], ['spire_horn', 7.0, 3.6], ['fungus_shelf', 7.4, -1.8], ['tentacle_sapling', 4.8, -7.2]];
@@ -356,17 +359,10 @@ export function corruptionScale(rank, total, level) {
   const appear = corruptionAppearLevel(rank, total);
   return level < appear ? 0 : Math.min(1, CORRUPTION_FIRST_SCALE + CORRUPTION_SCALE_STEP * (level - appear));
 }
-/** The cursed grove centre, behind the village on the side away from the sea. */
-export function groveCentre(seed, gridW, gridD) {
-  const side = coastSideOf(seed);
-  if (side === 0) return { x: gridW * CELL_M + GROVE_SETBACK, z: gridD * CELL_M * 0.85 };
-  if (side === 1) return { x: -GROVE_SETBACK, z: gridD * CELL_M * 0.85 };
-  return { x: gridW * CELL_M * 0.6, z: gridD * CELL_M + GROVE_SETBACK };
-}
 /** Every candidate at full size, ranked (first of each site, then second of each ...). Three rolls per candidate in table order. */
 export function corruptionSites(seed, gridW, gridD) {
-  const rng = new SeededRandom(seed ^ CORRUPTION_ROLL_STREAM), hi = hiOf(seed, gridW, gridD), cliffDir = lightU(seed, gridW, gridD) < hi / 2 ? -1 : 1;
-  const cliffEnd = cliffDir < 0 ? 0 : hi, marshEnd = cliffDir < 0 ? hi : 0, church = churchRise(seed, gridW, gridD), grove = groveCentre(seed, gridW, gridD);
+  const rng = new SeededRandom(seed ^ CORRUPTION_ROLL_STREAM), cliffDir = landmarkCliffDir(seed, gridW, gridD); // the anchors are the landmarks of landmarks.js
+  const cliffEnd = cliffEndU(seed, gridW, gridD), marshEnd = marshEndU(seed, gridW, gridD), church = churchRise(seed, gridW, gridD), grove = groveCentre(seed, gridW, gridD);
   const roll = () => ({ jx: (rng.next(100) - 50) / 100, jz: (rng.next(100) - 50) / 100, yaw: rng.next(628) / 100 });
   const sites = [[], [], [], []];
   for (const [kind, a, b] of CLIFFS) { const r = roll(), p = coastToWorldAt(seed, gridW, cliffEnd + cliffDir * a + r.jx, b + r.jz); sites[0].push({ kind, x: p.x, y: 0, z: p.z, yaw: r.yaw, scale: 1 }); }

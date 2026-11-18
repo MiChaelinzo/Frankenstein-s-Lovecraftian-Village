@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { COLLISION_ONLY_KINDS } from '../src/landmarks.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -57,6 +58,7 @@ test('collision boxes cover only solid kinds and lamp poles', () => {
 
 test('footprint table matches the committed meshes within 5 cm and heights within 10 cm', () => {
   for (const kind of DRESSING_KINDS) {
+    if (COLLISION_ONLY_KINDS.includes(kind)) continue; // the church boxes have no mesh: the renderer draws the church on its rise itself
     const b = readFileSync(join(here, '..', 'assets', 'meshes', `${kind}.glb`)), m = loadGlbBuffer(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)), f = footprintOf(kind);
     const { min, max } = m.bounds;
     assert.ok(Math.abs((max[0] - min[0]) / 2 - f.halfX) < 0.05, `${kind} halfX`);

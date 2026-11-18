@@ -380,7 +380,7 @@ export const coastSide = (seed) => new SeededRandom(((seed | 0) ^ 0x2f6b) | 0).n
 
 /** Ground and sea rectangles in metres. The ground stops short of the coast edge; the sea reaches the far fog. */
 export function terrainRects(gridW, gridD, seed, cell = CELL) {
-  const w = gridW * cell, d = gridD * cell, pad = 40, shore = 6;
+  const w = gridW * cell, d = gridD * cell, pad = 64, shore = 6; // pad: the ground reaches the landmarks of the wider world (VillageLandmarks.WorldMargin is 60)
   const g = { minX: -pad, maxX: w + pad, minZ: -pad, maxZ: d + pad };
   const side = coastSide(seed);
   if (side === 0) g.minX = -shore; else if (side === 1) g.maxX = w + shore; else g.minZ = -shore;

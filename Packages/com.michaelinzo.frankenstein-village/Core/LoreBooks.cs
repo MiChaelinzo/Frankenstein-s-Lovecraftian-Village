@@ -85,14 +85,14 @@ namespace Frankenstein.Core
 
     /// <summary>
     /// Engine-free lore book rules. Each village holds a seeded handful of books from the data file: some lie on the street in front of houses, the rest
-    /// by the chapel, the inn, the lighthouse, the dock and the churchyard graves. Same seed, grid, layout and library always give the same books and places.
+    /// by the chapel, the inn, the lighthouse, the dock and the churchyard graves, and one each at the cliffs, the wreck, the abbey ruins and the marsh. Same seed, grid, layout and library always give the same books and places.
     /// Reading is free of randomness: the first reading applies the data file's sanity cost and clue flag, later readings change nothing.
     /// </summary>
     public static class LoreBookRules
     {
-        public static readonly string[] Places = { "house", "chapel", "inn", "lighthouse", "harbour", "grave" };
+        public static readonly string[] Places = { "house", "chapel", "inn", "lighthouse", "harbour", "grave", "cliffs", "shipwreck", "abbey", "marsh" };
         /// <summary>Books placed per place, in <see cref="Places"/> order.</summary>
-        public static readonly int[] PerPlace = { 3, 1, 1, 1, 1, 1 };
+        public static readonly int[] PerPlace = { 3, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
         public static readonly string[] Languages = { "en", "fr" };
         public const int PlaceSaltBase = 0x10b0c;
         public const int PlaceSaltStep = 4099;
@@ -114,6 +114,8 @@ namespace Frankenstein.Core
             var result = new List<LoreBookPlacement>();
             if (library == null || gridW <= 0 || gridD <= 0) return result;
             var items = VillageDressing.Compose(seed, gridW, gridD, layout);
+            items.AddRange(VillageLandmarks.Dressing(seed, gridW, gridD)); // the wreck, the abbey ruins and the church box block books like any solid prop
+            items.AddRange(VillageLandmarks.PathDressing(seed, gridW, gridD));
             var blockers = new List<DressingItem>();
             foreach (var it in items) { double hx, hz; if (VillageDressing.TryCollisionHalfExtents(it, out hx, out hz)) blockers.Add(it); }
             var buildings = new List<PlacedPiece>();
@@ -182,6 +184,10 @@ namespace Frankenstein.Core
             else if (place == "harbour")
             {
                 spots.Add(onCoast(VillageDressing.DockU(seed, gridW, gridD) + DockBookU));
+            }
+            else if (place == "cliffs" || place == "shipwreck" || place == "abbey" || place == "marsh")
+            {
+                spots.AddRange(VillageLandmarks.BookSpots(place, seed, gridW, gridD));
             }
             else
             {

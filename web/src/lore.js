@@ -1,11 +1,12 @@
 // Mirror of Core/LoreBooks.cs (golden-checked, key "lore"): the lore book data file, seeded placement and the reading rules. Pure, no DOM.
 // The data file web/data/lore_books.json is a byte copy of Packages/.../Data/lore_books.json (tools/validate_repo.py and a test check it).
 import { SeededRandom } from './core.js';
+import { landmarkDressing, landmarkPathDressing, landmarkBookSpots } from './landmarks.js';
 import { composeDressing, dressingBoxes, footprintOf, dockU, walkBounds, coastToWorldAt, coastSideOf, CELL_M } from './dressing.js';
 import { isBuilding, facingYaw } from './streets.js';
 
-export const LORE_PLACES = ['house', 'chapel', 'inn', 'lighthouse', 'harbour', 'grave'];
-export const LORE_PER_PLACE = [3, 1, 1, 1, 1, 1];
+export const LORE_PLACES = ['house', 'chapel', 'inn', 'lighthouse', 'harbour', 'grave', 'cliffs', 'shipwreck', 'abbey', 'marsh'];
+export const LORE_PER_PLACE = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 export const LORE_LANGUAGES = ['en', 'fr'];
 export const PLACE_SALT_BASE = 0x10b0c, PLACE_SALT_STEP = 4099;
 export const HOUSE_BOOK_OFFSET = 0.6, COAST_BOOK_V = -1.2, DOCK_BOOK_U = 1.3, GRAVE_BOOK_OFFSET = 0.6, CLEARANCE = 0.3;
@@ -63,6 +64,8 @@ function spotsFor(place, seed, gridW, gridD, buildings, items, rng) {
     if (it) spots.push(onCoast(side === 2 ? it.x : it.z));
   } else if (place === 'harbour') {
     spots.push(onCoast(dockU(seed, gridW, gridD) + DOCK_BOOK_U));
+  } else if (place === 'cliffs' || place === 'shipwreck' || place === 'abbey' || place === 'marsh') {
+    spots.push(...landmarkBookSpots(place, seed, gridW, gridD, LATERAL));
   } else {
     const stones = items.filter((o) => (o.kind === 'gravestone' || o.kind === 'gravestone_cross') && o.y < 0.01);
     shuffle(stones, rng);
@@ -75,7 +78,7 @@ function spotsFor(place, seed, gridW, gridD, buildings, items, rng) {
 export function placeBooks(seed, gridW, gridD, layout, library) {
   const result = [];
   if (!library || gridW <= 0 || gridD <= 0) return result;
-  const items = composeDressing(seed, gridW, gridD, layout), boxes = dressingBoxes(items);
+  const items = [...composeDressing(seed, gridW, gridD, layout), ...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)], boxes = dressingBoxes(items);
   const buildings = (layout || []).filter((p) => isBuilding(p.sizeX, p.sizeZ));
   LORE_PLACES.forEach((place, pi) => {
     const rng = new SeededRandom(seed ^ (PLACE_SALT_BASE + pi * PLACE_SALT_STEP));
