@@ -289,7 +289,8 @@ async function main() {
     await nav('meshes.html');
     let mp = await text('summary');
     for (let i = 0; i < 20 && !/loaded/.test(mp); i++) { await sleep(500); mp = await text('summary'); }
-    rec('meshes: meshes.html loads every mesh', /^47 of 47 meshes loaded/.test(mp), { summary: mp });
+    const meshCount = /^(\d+) of (\d+) meshes loaded/.exec(mp); // every mesh in the folder loads, whatever the count is
+    rec('meshes: meshes.html loads every mesh', !!meshCount && meshCount[1] === meshCount[2] && Number(meshCount[1]) > 0, { summary: mp });
 
     // independence: with no pack and no query, 2D and 3D use only original assets (no local-pack or DLNK request)
     const packRequests = () => ev(`performance.getEntriesByType('resource').map((r)=>r.name).filter((n)=>/local-pack|_dlnk|[/]dlnk[/]/i.test(n))`);
