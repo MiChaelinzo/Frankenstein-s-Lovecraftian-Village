@@ -331,3 +331,9 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `2adea36` fix: lamp posts block walking at the pole and stand clear of lane walkers and the coast road (Core, golden, JS)
 - Test commit: walk-timing gate pinned to frames keep coming (`WALK_TIMING_MIN_FRAMES = 8`) in `tools/browser_check.mjs`.
 - Verified: validator, node 495, dotnet Core 182, UnityCompileCheck 0/0. Partially Verified: look changes (SwiftShader stills only). Unverified: real GPU, Unity runtime.
+
+## Round 23 part 9 commits (local Alien Terrain horror area, branch feat/round23c)
+- `60b94f3` feat: local-only Alien Terrain horror area under ?pack=1 (build_alien_pack.py, loader with silent fallback, sw v36)
+- `84d32a7` feat: optional CorruptionGrowthPlacer prefab slots for the Unity scene (compile checked)
+- Verified: offline tests (14 Python, 6 new node), node 538, dotnet Core 210, validator, UnityCompileCheck 0/0, `git status` clean of local-pack output. Partially Verified: SwiftShader stills of the grove (git-ignored). Unverified: real GPU, Unity runtime.
+
