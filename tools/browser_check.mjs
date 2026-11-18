@@ -73,14 +73,14 @@ async function main() {
   };
   // A hash-only change would be a same-document navigation, so callers that need a fresh load go through about:blank first.
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
-  /** Page.captureScreenshot, retried up to three times: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too. The CDP error is logged, never swallowed. */
+  /** Page.captureScreenshot, retried up to seven times 2.5 s apart: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too and twice in a row with the round 23 city (a bigger first 3D build), so the old 6 s window was too short. The CDP error is logged, never swallowed. */
   const capture = async (params = { format: 'png' }) => {
     for (let attempt = 0; ; attempt++) {
       const r = await send('Page.captureScreenshot', params);
       if (r.result && r.result.data) return r.result.data;
       console.log(`capture failed (attempt ${attempt + 1}): ${JSON.stringify(r.error || r).slice(0, 200)}`);
-      if (attempt >= 3) throw new Error('Page.captureScreenshot failed four times: ' + JSON.stringify(r.error || r).slice(0, 200));
-      await sleep(1500);
+      if (attempt >= 7) throw new Error('Page.captureScreenshot failed eight times: ' + JSON.stringify(r.error || r).slice(0, 200));
+      await sleep(2500);
     }
   };
   const shotHash = async () => { const s = await capture(); let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };

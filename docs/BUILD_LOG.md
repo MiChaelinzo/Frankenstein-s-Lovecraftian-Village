@@ -303,6 +303,13 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - Browser check (full run, SwiftShader): 99 of 101. One failure was a stale expected mesh count (`37 of 37`, now 47 after the round 22 props), fixed in `tools/browser_check.mjs`. The other was the real-time frame timing check (`frames > 30` in a 6 s walk), which is bimodal on this host: the same build alternates between about 37 frames at 150 ms and 14 frames at 450 ms mean; I first suspected the 2D mood fills, but reverting only the 2D file did not give a stable result (A/B alternation reproduced both modes with identical code). Partially Verified; run `TIMING_ONLY=1` again on a quiet machine. Main `d72a4fa` measured 45 frames at 136 ms, `f4cf0a1` 38 frames at 144 ms, `3c81de0` 48 frames at 127 ms.
 - Added after the docs commit: `26a67f4` fix: gentler foliage lift, sw cache v28.
 
+## Round 23 part 7 (the city with districts, task 123, branch feat/round23c)
+- `e458bd2` feat: city with districts, chunked layout and palettes in Core with JS parity, shore clearance fix, district HUD chip and minimap
+- `adb835b` docs: city districts changelog, audit, timing and stills
+- Verified: dotnet Core 202, node 523, validate_repo OK, tools tests OK, UnityCompileCheck 0/0. Browser runs: `DISTRICT_ONLY`, `QUALITY_ONLY`, `LOOK_ONLY` and `TIER_ONLY` pass.
+- Full `browser_check`: not green on this host. Three runs on the city build stopped at 14/15, 19/20 and 19/21. The failures were screenshot captures right after a fresh 3D navigation ("Not attached to an active page") and then the cinematic check. The same script against the base build (`344a2a1`) stopped at 13/14 with "Cannot take screenshot with 0 width", so the flakiness is already there on the base build. Capture now retries 8 times, 2.5 s apart. A load probe showed the same DOM ready times for both builds (0.4 to 8.6 s, noisy). Partially Verified.
+- Per-tier timing is in the CHANGELOG (round 23 part 7).
+
 ## Round 23 part 5 (silhouettes, lantern halos)
 - Blender needs `LD_LIBRARY_PATH=<pack-scratch/blender/libs/usr/lib64>`; only the six edited GLBs change, the other 41 regenerate byte-identical.
 - Triangle budget bit first: the full detail set raised seed 1818 to 37,577 (limit 36,000), so decoration was trimmed to 35,813. A regex that deleted `post_*` parts also removed posts from other meshes; restored from HEAD, check `git diff` on shape data.
