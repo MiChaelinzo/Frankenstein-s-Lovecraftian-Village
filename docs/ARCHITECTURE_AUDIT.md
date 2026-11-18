@@ -221,3 +221,10 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Corruption sites (FEAT-008) are placed relative to the grid edges and the church rise, so they move out with the bigger grid. Tests in both languages check that they stay outside the 36 grid.
 - Debt: lantern halos and fireflies are not culled by distance; Unity runtime does not show district names; `VillageCoreInspectorWindow` previews `Generate` only.
 - Status: Core and JS Verified (dotnet, node, golden); HUD and minimap Verified by `browser_check` (`districtRun`); the look is Partially Verified (SwiftShader stills); Unity runtime Unverified.
+
+## Round 23: the wider world (task 126)
+- Boundary kept: all placement (landmarks, paths, hill height, book spots, walk margin) is in Core `VillageLandmarks`; the web file mirrors it and the golden key `landmarks` pins both. The renderer only batches the items and follows `groundHeight`.
+- Duplication removed: the cliff, marsh and grove anchors were private to `CorruptionGrowth`; they now come from `VillageLandmarks`, and `hillHeight` (a render-only function in `view3d.js`) is the Core function. Residual duplication: `coastFeatures` (JS only) still places two flank cliffs, so Core cannot route a path around them; they were moved into the sea (v 8 to 11) so no Core path crosses them. Moving that into Core is the clean fix.
+- New debt, small: two kinds (`church_nave`, `church_tower`) are collision only and have no mesh (`COLLISION_ONLY_KINDS`). The Unity builder does not place landmarks yet (Unverified).
+- Perf: the halo and firefly cull is correct but showed no SwiftShader gain; do not claim a speed-up. Frame time is raster bound; profile on a real GPU before tuning further.
+

@@ -158,6 +158,19 @@ async function main() {
     rec('districts: the HUD chip names the quarter under the camera (en Market, fr Le Marche), another quarter at the corner, and the stats show the 36 by 36 city', out.en === 'Market' && out.fr === 'Le Marche' && !!out.corner && out.corner !== 'market' && /36/.test(out.stats || ''), out);
   };
 
+  /** Landmarks (round 23): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
+  const landmarkRun = async () => {
+    const spots = [['cliffs', '148.5,-6', 'Lighthouse Cliffs', 'Falaises du phare'], ['shipwreck', '148.5,172', 'Wreck of the Marguerite', 'Epave de la Marguerite'], ['abbey', '86.4,170', 'Abbey Ruins', "Ruines de l'abbaye"],
+      ['cemetery', '-12,49', 'The Cemetery', 'Le cimetiere'], ['marsh', '148.5,150', 'The Black Marsh', 'Le marais noir'], ['grove', '-4,122.4', 'The Cursed Grove', 'Le bosquet maudit']];
+    const out = {}; warns.length = 0;
+    for (const [id, cam, en, fr] of spots) for (const [lang, want] of [['en', en], ['fr', fr]]) {
+      await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${cam},0,0#seed=1818&sanity=80`);
+      out[`${id}.${lang}`] = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.getAttribute('data-landmark')==='${id}'&&c.textContent.trim()})()`), 20000).catch(() => null);
+      if (out[`${id}.${lang}`] !== want) out[`${id}.${lang}.want`] = want;
+    }
+    rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -166,6 +179,7 @@ async function main() {
     if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
+    if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -313,6 +327,7 @@ async function main() {
     await timingRun();
     await qualityRun();
     await districtRun();
+    await landmarkRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });

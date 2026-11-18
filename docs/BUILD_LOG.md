@@ -316,6 +316,13 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `/tmp` was cleared mid-session; keep scripts in the workspace.
 - Before/after stills viewed (street, square, harbour, dusk and night, Medium and High); the square cam3d stands against a house wall at night, so it is not used. TIER_ONLY=1: Low 269, Medium 324, High 357 ms (noisy, indicative).
 
+## Round 23 part 8: landmarks and lit paths (FEAT-005)
+- Landmarks, paths, hill, lore spots and the walk margin live in Core `VillageLandmarks`; `web/src/landmarks.js` mirrors it (golden key `landmarks`). New GLBs come from `tools/blender/author_landmark_shapes.py --apply` then `gen_meshes.py` (needs `LD_LIBRARY_PATH=pack-scratch/blender/libs/usr/lib64`; `/tmp` is cleared between shell calls, so write output under `pack-scratch/`).
+- Bugs found by looking at stills: the old flank cliffs (coastFeatures, v -2 to -5) stood on the coast path, so they moved to the sea; spires at v -0.4 to 0.9 stood in the same rock, so the cliff spires moved to v -3.2 to -4.2; the grove path ended inside its trees (stop at 9.5 m); a cemetery spire stood on the hill path on one coast side. A new C# test keeps path waypoints and lamps out of solid props and full-grown corruption.
+- Perf follow-up: halos and fireflies are not the mid-city cost (see CHANGELOG); the cull stays because it bounds the work for real GPUs and the larger world, not because it was measured to help on SwiftShader.
+- Stills (seed 1818, `night=10`, dusk `tick=980`, night `tick=1250`): `docs/media/round23-landmark-{cliffs,shipwreck,abbey,cemetery,marsh,grove,paths-night}.jpg`, each under 30 KB. The cemetery still is taken on the summit, standing among the graves beside the church wall.
+- Verified: dotnet 210, node 532, validator, tools tests, UnityCompileCheck 0/0, `LANDMARK_ONLY`, `DISTRICT_ONLY`, `QUALITY_ONLY`, `LOOK_ONLY`, `TIER_ONLY` browser runs, stills viewed. Partially Verified: full `browser_check` (not rerun end to end). Unverified: Unity runtime (the landmarks are not wired into `VillageBuilder`), real GPU timing.
+
 ## Round 23 part 1 commits (look and walking bug fixes, branch feat/round23)
 - `a716127` fix: held lantern glass burns at full strength, raised so the base is not cut off
 - `e9f4ac6` fix: wider explorer body, overhang clearance on solid props, door benches in the wall setback (Core, golden, JS)

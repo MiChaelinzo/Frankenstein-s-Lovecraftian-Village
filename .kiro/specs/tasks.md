@@ -147,7 +147,7 @@ Triage of look bugs seen in round 22 stills (none are regressions unless noted):
 - [x] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
 - [x] 124. `C` key chat with citizens: talk to the nearest villager to get clues about what to do next (Core line selection first, deterministic fallback, optional AI later in round 26)
 - [x] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
-- [ ] 126. Huge world: regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
+- [x] 126. Huge world (round 23 part 8: six landmarks, lit paths, walkable hill, lore; regions beyond are still open) : regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
 - [ ] 127. Inventory and items (previously Round 22 roadmap): find, store, use; sleep and food sanity recovery
 
 ## Roadmap

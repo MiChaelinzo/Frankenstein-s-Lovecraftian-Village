@@ -1,6 +1,6 @@
 # tools/blender
 
-Headless Blender scripts that build 54 ORIGINAL low-poly meshes (catalog kinds, coast props and village pieces). Shapes are data: `Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json`, read by `mesh_defs.py` (and by `web/src/shapes.js`); no pack asset is read. After editing the data, copy it to `web/data/village_shapes.json` and rerun `gen_meshes.py`.
+Headless Blender scripts that build 60 ORIGINAL low-poly meshes (catalog kinds, coast props and village pieces). Shapes are data: `Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json`, read by `mesh_defs.py` (and by `web/src/shapes.js`); no pack asset is read. After editing the data, copy it to `web/data/village_shapes.json` and rerun `gen_meshes.py`.
 
 | Script | Purpose |
 | --- | --- |
@@ -20,3 +20,5 @@ Use `--kinds well,lamp` to limit the set. Blender is GPL and is not vendored; do
 The seven committed GLBs in `web/assets/meshes/` are each under 200 KB (the validator enforces this and that `.glb` files live only there). Never commit pack-derived output.
 
 The seven corruption kinds (tentacle trees, fungi, organic spires) are authored by `author_corruption_shapes.py --apply`, which writes their parts into the shapes file and the web copy. On a bare Linux box Blender may need `LD_LIBRARY_PATH` pointing at extracted X11 libraries.
+
+The six landmark kinds (shipwreck, abbey arch, wall and pillar, marsh pool, path stone) are authored by `author_landmark_shapes.py --apply` the same way. Write the GLBs to `pack-scratch/` (it is git ignored), then copy them to `web/assets/meshes/`.
