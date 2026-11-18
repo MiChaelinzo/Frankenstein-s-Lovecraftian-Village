@@ -54,10 +54,10 @@ namespace Frankenstein.Core
 
         private static Candidate C(string kind, double a, double b) { return new Candidate { Kind = kind, A = a, B = b }; }
 
-        private static readonly Candidate[] Cliffs = { C("spire_horn", 5, 0.3), C("spire_ribbed", 9, -0.4), C("spire_horn", 13, 0.9), C("tentacle_sapling", 7, -1.2), C("spire_ribbed", 16, 0.1) };
+        private static readonly Candidate[] Cliffs = { C("spire_horn", 5, -3.4), C("spire_ribbed", 9, -3.8), C("spire_horn", 13, -3.2), C("tentacle_sapling", 7, -4.2), C("spire_ribbed", 16, -3.6) };
         private static readonly Candidate[] Marsh = { C("fungus_cluster", 4, -2.0), C("fungus_tall", 7, -3.2), C("fungus_cluster", 10, -1.0), C("tentacle_sapling", 13, -2.6), C("fungus_tall", 16, -1.4), C("fungus_cluster", 19, -3.5) };
         /// <summary>Churchyard edges: metres toward the village from the church centre, and along z. All lie on the flat summit of the rise.</summary>
-        private static readonly Candidate[] Churchyard = { C("fungus_shelf", 3.8, -6.6), C("tentacle_sapling", 5.2, 3.2), C("fungus_cluster", 6.6, -6.4), C("spire_horn", 7.0, 3.6), C("fungus_shelf", 7.4, -1.8), C("tentacle_sapling", 4.8, -7.2) };
+        private static readonly Candidate[] Churchyard = { C("fungus_shelf", 3.8, -6.6), C("tentacle_sapling", 5.2, 3.2), C("fungus_cluster", 6.6, -6.4), C("spire_horn", 7.0, 5.2), C("fungus_shelf", 7.4, -1.8), C("tentacle_sapling", 4.8, -7.2) };
         /// <summary>Grove: degrees about the grove centre and radius in metres.</summary>
         private static readonly Candidate[] Grove = { C("tentacle_tree", 0, 4.5), C("tentacle_tree", 72, 5.5), C("tentacle_tree", 144, 4.8), C("tentacle_tree", 216, 5.8), C("tentacle_tree", 288, 5.0), C("fungus_shelf", 36, 3.0), C("fungus_shelf", 180, 3.4), C("fungus_tall", 108, 2.6) };
         /// <summary>Every candidate at full size, ranked: the first of each site, then the second of each, and so on. Always rolls three values per candidate in table order.</summary>

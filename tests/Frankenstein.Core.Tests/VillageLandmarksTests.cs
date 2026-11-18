@@ -146,6 +146,25 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Lit_path_lamps_and_walkers_keep_clear_of_solid_props_and_full_grown_corruption()
+        {
+            foreach (int seed in Seeds)
+                foreach (int grid in Grids)
+                {
+                    var solids = VillageLandmarks.Dressing(seed, grid, grid).Concat(CorruptionGrowth.Grow(seed, grid, grid, CorruptionGrowth.Levels)).ToList();
+                    foreach (var lamp in VillageLandmarks.PathDressing(seed, grid, grid).Where(i => i.Kind == "lamp"))
+                        foreach (var it in solids)
+                            if (VillageDressing.TryCollisionHalfExtents(it, out double hx, out double hz))
+                                Assert.False(Math.Abs(lamp.X - it.X) < hx && Math.Abs(lamp.Z - it.Z) < hz, $"a path lamp stands inside a {it.Kind}, seed {seed} grid {grid}");
+                    foreach (var path in VillageLandmarks.Paths(seed, grid, grid))
+                        foreach (var pt in path.Points)
+                            foreach (var it in solids)
+                                if (VillageDressing.TryCollisionHalfExtents(it, out double hx, out double hz))
+                                    Assert.False(Math.Abs(pt[0] - it.X) < hx + WorldScale.BodyRadius && Math.Abs(pt[1] - it.Z) < hz + WorldScale.BodyRadius && it.Kind != "church_nave" && it.Kind != "church_tower", $"the {path.Target} path waypoint is blocked by a {it.Kind}, seed {seed} grid {grid}");
+                }
+        }
+
+        [Fact]
         public void The_church_rise_is_flat_on_top_never_below_the_ground_and_the_church_is_a_solid_box()
         {
             foreach (int seed in Seeds)

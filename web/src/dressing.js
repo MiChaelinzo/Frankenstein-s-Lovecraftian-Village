@@ -344,9 +344,9 @@ export function lightU(seed, gridW, gridD) { const hi = hiOf(seed, gridW, gridD)
 // ---------- Corruption growth: mirrors Core/CorruptionGrowth.cs (golden "corruption") ----------
 export const CORRUPTION_LEVELS = 6, CORRUPTION_DREAD_WEIGHT = 0.75, CORRUPTION_NIGHT_WEIGHT = 0.25, CORRUPTION_FULL_NIGHT = 10;
 export const CORRUPTION_FIRST_SCALE = 0.55, CORRUPTION_SCALE_STEP = 0.15, CORRUPTION_ROLL_STREAM = 0x7c0d;
-const CLIFFS = [['spire_horn', 5, 0.3], ['spire_ribbed', 9, -0.4], ['spire_horn', 13, 0.9], ['tentacle_sapling', 7, -1.2], ['spire_ribbed', 16, 0.1]];
+const CLIFFS = [['spire_horn', 5, -3.4], ['spire_ribbed', 9, -3.8], ['spire_horn', 13, -3.2], ['tentacle_sapling', 7, -4.2], ['spire_ribbed', 16, -3.6]];
 const MARSH = [['fungus_cluster', 4, -2.0], ['fungus_tall', 7, -3.2], ['fungus_cluster', 10, -1.0], ['tentacle_sapling', 13, -2.6], ['fungus_tall', 16, -1.4], ['fungus_cluster', 19, -3.5]];
-const CHURCHYARD = [['fungus_shelf', 3.8, -6.6], ['tentacle_sapling', 5.2, 3.2], ['fungus_cluster', 6.6, -6.4], ['spire_horn', 7.0, 3.6], ['fungus_shelf', 7.4, -1.8], ['tentacle_sapling', 4.8, -7.2]];
+const CHURCHYARD = [['fungus_shelf', 3.8, -6.6], ['tentacle_sapling', 5.2, 3.2], ['fungus_cluster', 6.6, -6.4], ['spire_horn', 7.0, 5.2], ['fungus_shelf', 7.4, -1.8], ['tentacle_sapling', 4.8, -7.2]];
 const GROVE = [['tentacle_tree', 0, 4.5], ['tentacle_tree', 72, 5.5], ['tentacle_tree', 144, 4.8], ['tentacle_tree', 216, 5.8], ['tentacle_tree', 288, 5.0], ['fungus_shelf', 36, 3.0], ['fungus_shelf', 180, 3.4], ['fungus_tall', 108, 2.6]];
 
 /** Growth level 0..6 from dread (0..1, NaN is 0) and the night number. Monotonic in both. */

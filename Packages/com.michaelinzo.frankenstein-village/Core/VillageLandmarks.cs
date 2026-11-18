@@ -31,7 +31,7 @@ namespace Frankenstein.Core
         public static readonly string[] Ids = { Cliffs, Shipwreck, Abbey, Cemetery, Marsh, Grove };
         private static readonly string[] NamesEn = { "Lighthouse Cliffs", "Wreck of the Marguerite", "Abbey Ruins", "The Cemetery", "The Black Marsh", "The Cursed Grove" };
         private static readonly string[] NamesFr = { "Falaises du phare", "Epave de la Marguerite", "Ruines de l'abbaye", "Le cimetiere", "Le marais noir", "Le bosquet maudit" };
-        private static readonly double[] Radii = { 14.0, 9.0, 12.0, 22.0, 12.0, 9.0 };
+        private static readonly double[] Radii = { 14.0, 9.0, 12.0, 22.0, 12.0, 11.0 };
 
         /// <summary>Metres the explorer may walk beyond the city grid on the inland sides and along the shore. The sea side stays at the shore.</summary>
         public const double WorldMargin = 60.0;
@@ -43,8 +43,10 @@ namespace Frankenstein.Core
         public const double CliffAnchorU = 10.5, MarshAnchorU = 11.5, WreckAnchorU = 34.0;
         public const double CliffAnchorV = -0.3, MarshAnchorV = -2.3, WreckAnchorV = 1.3;
         /// <summary>Local v of the lit coast path beyond the village and of the sea stacks off the cliffs.</summary>
-        public const double CoastPathV = -1.5, SeaStackV = 3.4;
+        public const double CoastPathV = -0.8, SeaStackV = 4.4;
         public const double GateInset = 1.5;
+        /// <summary>Metres from the grove centre at which its path stops, outside the ring of tentacle trees.</summary>
+        public const double GroveGateStop = 9.5;
         public const double StoneSpacing = 2.2, LampSpacing = 14.0, LampSide = 1.7, StoneLift = 0.04;
 
         /// <summary>The church rise: radii of its ellipse, the flat summit share and the foot height. The renderer draws the hill with the same function.</summary>
@@ -149,7 +151,7 @@ namespace Frankenstein.Core
 
         // ---------- props ----------
 
-        private static readonly double[] StackU = { 3, 9, 15, 21 };
+        private static readonly double[] StackU = { 17, 21, 25, 29 };
         private static readonly double[] StackV = { 0.0, 0.2, -0.2, 0.4 };
         private static readonly double[] StackScale = { 0.5, 0.6, 0.5, 0.45 };
         private static readonly double[] StackYaw = { 0.0, 2.1, 4.2, 6.3 };
@@ -209,7 +211,7 @@ namespace Frankenstein.Core
         {
             var path = new LandmarkPath { Target = target };
             double[] along = { 0.0, length * 0.7, length };
-            double[] v = { CoastPathV, CoastPathV, CoastPathV + 0.3 };
+            double[] v = { CoastPathV, CoastPathV, CoastPathV - 0.3 };
             for (int i = 0; i < along.Length; i++)
             {
                 VillageDressing.CoastToWorld(seed, gridW, gridD, fromU + toward * along[i], v[i], out double x, out double z);
@@ -235,7 +237,7 @@ namespace Frankenstein.Core
             int dir = CliffDir(seed, gridW, gridD);
             double w = gridW * VillageDressing.Cell, d = gridD * VillageDressing.Cell;
             var list = new List<LandmarkPath>();
-            list.Add(CoastPath(seed, gridW, gridD, Cliffs, CliffEndU(seed, gridW, gridD), dir, CliffAnchorU + 4.0));
+            list.Add(CoastPath(seed, gridW, gridD, Cliffs, CliffEndU(seed, gridW, gridD), dir, CliffAnchorU + 6.0));
             list.Add(CoastPath(seed, gridW, gridD, Shipwreck, MarshEndU(seed, gridW, gridD), -dir, WreckAnchorU - 4.0));
 
             AbbeySite(seed, gridW, gridD, out double ax, out double az, out double fx, out double fz);
@@ -257,9 +259,9 @@ namespace Frankenstein.Core
 
             GroveCentre(seed, gridW, gridD, out double grx, out double grz);
             int side = VillagerRules.CoastSide(seed);
-            if (side == 0) list.Add(Line(Grove, w + GateInset, grz, grx - 6.5, grz));
-            else if (side == 1) list.Add(Line(Grove, -GateInset, grz, grx + 6.5, grz));
-            else list.Add(Line(Grove, grx, d + GateInset, grx, grz - 6.5));
+            if (side == 0) list.Add(Line(Grove, w + GateInset, grz, grx - GroveGateStop, grz));
+            else if (side == 1) list.Add(Line(Grove, -GateInset, grz, grx + GroveGateStop, grz));
+            else list.Add(Line(Grove, grx, d + GateInset, grx, grz - GroveGateStop));
             return list;
         }
 
@@ -303,7 +305,7 @@ namespace Frankenstein.Core
             var spots = new List<List<double[]>>();
             int dir = CliffDir(seed, gridW, gridD);
             double cliffEnd = CliffEndU(seed, gridW, gridD), marshEnd = MarshEndU(seed, gridW, gridD);
-            if (place == "cliffs") spots.Add(OnCoast(seed, gridW, gridD, cliffEnd + dir * CliffAnchorU, -2.2));
+            if (place == "cliffs") spots.Add(OnCoast(seed, gridW, gridD, cliffEnd + dir * CliffAnchorU, -1.2));
             else if (place == "shipwreck") spots.Add(OnCoast(seed, gridW, gridD, marshEnd - dir * WreckAnchorU, -1.2));
             else if (place == "marsh") spots.Add(OnCoast(seed, gridW, gridD, marshEnd - dir * 6.0, -0.9));
             else if (place == "abbey")

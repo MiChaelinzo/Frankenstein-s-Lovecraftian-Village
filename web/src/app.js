@@ -4,6 +4,7 @@ import {
   SafeNarrationProvider, HttpNarrationProvider, encodeHash, decodeHash,
   detailLevel, doorOmen, generateRitual, ritualProgress, Investigator, InteractionRules, VIGIL_ENDING_IDS,
 } from './core.js';
+import { landmarkAt } from './landmarks.js';
 import { generateCityLayout, districtAtWorld, districtMap, districtMinimapLabels, DISTRICT_TINTS } from './districts.js';
 import {
   computeView, buildWalkers,
@@ -645,10 +646,12 @@ function renderDistrictChip() {
   const chip = $('districtChip'); if (!chip) return;
   const c = view3d.active ? view3d.camera : null, f = state.focus >= 0 ? state.landmarks?.[state.focus] : null;
   const id = c ? districtAtWorld(state.seed, GRID_W, GRID_D, c.x, c.z) : f ? districtAtWorld(state.seed, GRID_W, GRID_D, (f.x + 0.5) * CELL, (f.z + 0.5) * CELL) : null;
-  const text = id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
+  const lm = c ? landmarkAt(state.seed, GRID_W, GRID_D, c.x, c.z) : null; // a landmark of the wider world (cliffs, wreck, abbey, cemetery, marsh, grove) names the chip first
+  const text = lm ? tr(`landmark.${lm}`) : id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
   if ($('districtChipText').textContent !== text) $('districtChipText').textContent = text;
   if (chip.getAttribute?.('data-district') !== (id || '')) chip.setAttribute?.('data-district', id || '');
-  chip.hidden = !id;
+  if (chip.getAttribute?.('data-landmark') !== (lm || '')) chip.setAttribute?.('data-landmark', lm || '');
+  chip.hidden = !id && !lm;
 }
 renderClockChip(); renderDistrictChip();
 setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } }, 1000);

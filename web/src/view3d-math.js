@@ -705,6 +705,25 @@ export function lifeSeeds({ seed = 0, lights = [], chimneys = [], counts = {} } 
   return out;
 }
 
+// ---------- distance culling of the lantern halos and fireflies (round 23): lights lost in the fog are neither drawn nor sent ----------
+
+export const CULL_CELL_M = 8;      // the camera cell: the cull set is rebuilt only when the camera crosses into another 8 m cell, not every frame
+export const CULL_MARGIN_M = 10;   // metres added to the draw distance, so a light never pops inside the fog
+/** Key of the camera cell, and the centre of that cell. */
+export const cullCell = (x, z) => ({ key: `${Math.floor(x / CULL_CELL_M)},${Math.floor(z / CULL_CELL_M)}`, x: (Math.floor(x / CULL_CELL_M) + 0.5) * CULL_CELL_M, z: (Math.floor(z / CULL_CELL_M) + 0.5) * CULL_CELL_M });
+/** Radius in metres within which lights are kept: the tier draw distance plus margins and the half diagonal of the camera cell. Infinity without a draw distance. */
+export const lightCullRadius = (drawDistance) => (drawDistance > 0 && Number.isFinite(drawDistance) ? drawDistance + CULL_MARGIN_M + CULL_CELL_M * Math.SQRT1_2 : Infinity);
+/** Indices of the lights (with .pos [x, y, z]) within radius metres of (x, z) on the ground. Order is kept. */
+export const lightsWithin = (lights, x, z, radius) => lights.reduce((out, l, i) => { if (Math.hypot(l.pos[0] - x, l.pos[2] - z) <= radius) out.push(i); return out; }, []);
+/** A flat point array (stride floats per point, world x at 0 and z at 2) cut to the points within radius metres of (x, z). Order is kept. */
+export function pointsWithin(flat, stride, x, z, radius) {
+  const keep = [];
+  for (let i = 0; i + stride <= flat.length; i += stride) if (Math.hypot(flat[i] - x, flat[i + 2] - z) <= radius) keep.push(i);
+  const out = new Float32Array(keep.length * stride);
+  keep.forEach((i, k) => out.set(flat.subarray(i, i + stride), k * stride));
+  return out;
+}
+
 /** Halo size in world metres. Lamp posts glow wider than door lanterns. */
 export const haloSize = (light) => (light.post ? 3.4 : 2.4);
 export const HALO_FLOATS = 5;
@@ -751,8 +770,9 @@ export function coastFeatures(gridW, gridD, seed, cell = CELL) {
   const dockU = f.lo + span * (0.3 + rng.next(40) / 100), dockLen = 14 + rng.next(8);
   const dock = { u: dockU, length: dockLen, width: 2.4, deck: 0.45, posts: Math.floor(dockLen / 3) + 1 };
   const boats = [0, 1].map((i) => ({ u: dockU + (i ? 4.2 : -4.2) + (rng.next(10) - 5) / 10, v: 5 + rng.next(60) / 10 + i * 4, len: 3.4 + rng.next(20) / 10, wid: 1.4 + rng.next(6) / 10, tilt: i ? 1 : -1 }));
+  // the flank cliffs stand in the sea against the shore (v 8..11, round 23), so the lit coast path and the corruption on the land beside it are not inside the rock
   const cliffs = [f.lo - 8, f.hi + 8].map((u, i) => ({
-    u, v: -2 - rng.next(4), w: 9 + rng.next(6), d: 10 + rng.next(6), h: 7 + rng.next(6), step: i ? 1 : -1,
+    u, v: 8 + rng.next(4), w: 9 + rng.next(6), d: 10 + rng.next(6), h: 7 + rng.next(6), step: i ? 1 : -1,
   }));
   return { frame: f, dock, boats, cliffs };
 }

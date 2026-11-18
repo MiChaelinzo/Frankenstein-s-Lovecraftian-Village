@@ -5,11 +5,11 @@ import { CELL_M, coastSideOf, hiOf, lightU, churchRise, coastToWorldAt, alongSho
 export const LANDMARK_IDS = Object.freeze(['cliffs', 'shipwreck', 'abbey', 'cemetery', 'marsh', 'grove']);
 const NAMES_EN = ['Lighthouse Cliffs', 'Wreck of the Marguerite', 'Abbey Ruins', 'The Cemetery', 'The Black Marsh', 'The Cursed Grove'];
 const NAMES_FR = ['Falaises du phare', 'Epave de la Marguerite', "Ruines de l'abbaye", 'Le cimetiere', 'Le marais noir', 'Le bosquet maudit'];
-const RADII = [14, 9, 12, 22, 12, 9];
+const RADII = [14, 9, 12, 22, 12, 11];
 export const WORLD_MARGIN = 60, GROVE_SETBACK = 13, ABBEY_SETBACK = 36;
 export const CLIFF_ANCHOR_U = 10.5, MARSH_ANCHOR_U = 11.5, WRECK_ANCHOR_U = 34;
 export const CLIFF_ANCHOR_V = -0.3, MARSH_ANCHOR_V = -2.3, WRECK_ANCHOR_V = 1.3;
-export const COAST_PATH_V = -1.5, SEA_STACK_V = 3.4, GATE_INSET = 1.5;
+export const COAST_PATH_V = -0.8, SEA_STACK_V = 4.4, GATE_INSET = 1.5, GROVE_GATE_STOP = 9.5;
 export const STONE_SPACING = 2.2, LAMP_SPACING = 14, LAMP_SIDE = 1.7, STONE_LIFT = 0.04;
 export const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_FOOT = -0.5, CHURCH_TOWER_OFFSET = 7.1;
 /** Kinds that only exist as collision boxes: the renderer draws the church on its rise itself, so these have no mesh. */
@@ -75,7 +75,7 @@ export function groundHeight(seed, gridW, gridD, x, z) {
 export const hillPathZ = (dx) => Math.sin(dx * 0.22) * 2.6;
 
 // ---------- props ----------
-const STACK_U = [3, 9, 15, 21], STACK_V = [0, 0.2, -0.2, 0.4], STACK_SCALE = [0.5, 0.6, 0.5, 0.45], STACK_YAW = [0, 2.1, 4.2, 6.3];
+const STACK_U = [17, 21, 25, 29], STACK_V = [0, 0.2, -0.2, 0.4], STACK_SCALE = [0.5, 0.6, 0.5, 0.45], STACK_YAW = [0, 2.1, 4.2, 6.3];
 const MARSH_POOLS = [[5.5, -4.6, 1.0], [11.5, -5.4, 1.1], [17.0, -4.4, 0.9]];
 const MARSH_REEDS = [[4.0, -3.6], [7.2, -3.8], [9.0, -2.4], [13.6, -3.0], [15.2, -3.6], [19.0, -2.8]];
 /** Abbey props in the local frame (right, forward) with a yaw offset: kind, x, z, yaw. Forward is toward the city, so the arch is the entrance. */
@@ -104,13 +104,13 @@ export function landmarkDressing(seed, gridW, gridD) {
 
 // ---------- paths ----------
 function coastPath(seed, gridW, target, fromU, toward, length) {
-  const along = [0, length * 0.7, length], v = [COAST_PATH_V, COAST_PATH_V, COAST_PATH_V + 0.3];
+  const along = [0, length * 0.7, length], v = [COAST_PATH_V, COAST_PATH_V, COAST_PATH_V - 0.3];
   return { target, points: along.map((a, i) => { const p = coastToWorldAt(seed, gridW, fromU + toward * a, v[i]); return [p.x, p.z]; }) };
 }
 /** The lit paths in landmark order: the coast road on to the cliffs and to the wreck, then the city edge to the abbey, the cemetery and the grove. */
 export function landmarkPaths(seed, gridW, gridD) {
   const dir = cliffDir(seed, gridW, gridD), w = gridW * CELL_M, d = gridD * CELL_M, list = [];
-  list.push(coastPath(seed, gridW, 'cliffs', cliffEndU(seed, gridW, gridD), dir, CLIFF_ANCHOR_U + 4));
+  list.push(coastPath(seed, gridW, 'cliffs', cliffEndU(seed, gridW, gridD), dir, CLIFF_ANCHOR_U + 6));
   list.push(coastPath(seed, gridW, 'shipwreck', marshEndU(seed, gridW, gridD), -dir, WRECK_ANCHOR_U - 4));
   const abbey = abbeySite(seed, gridW, gridD), ex = abbey.x + abbey.faceX * 6.5, ez = abbey.z + abbey.faceZ * 6.5;
   const gx = abbey.faceX !== 0 ? (abbey.faceX > 0 ? -GATE_INSET : w + GATE_INSET) : abbey.x, gz = abbey.faceX !== 0 ? abbey.z : d + GATE_INSET;
@@ -122,9 +122,9 @@ export function landmarkPaths(seed, gridW, gridD) {
   }
   list.push({ target: 'cemetery', points: up });
   const g = groveCentre(seed, gridW, gridD), side = coastSideOf(seed);
-  if (side === 0) list.push({ target: 'grove', points: [[w + GATE_INSET, g.z], [g.x - 6.5, g.z]] });
-  else if (side === 1) list.push({ target: 'grove', points: [[-GATE_INSET, g.z], [g.x + 6.5, g.z]] });
-  else list.push({ target: 'grove', points: [[g.x, d + GATE_INSET], [g.x, g.z - 6.5]] });
+  if (side === 0) list.push({ target: 'grove', points: [[w + GATE_INSET, g.z], [g.x - GROVE_GATE_STOP, g.z]] });
+  else if (side === 1) list.push({ target: 'grove', points: [[-GATE_INSET, g.z], [g.x + GROVE_GATE_STOP, g.z]] });
+  else list.push({ target: 'grove', points: [[g.x, d + GATE_INSET], [g.x, g.z - GROVE_GATE_STOP]] });
   return list;
 }
 /** Path stones every STONE_SPACING m along each path and a lamp post every LAMP_SPACING m, alternating sides: the lit path network. */
@@ -156,7 +156,7 @@ export function landmarkPathDressing(seed, gridW, gridD) {
 export function landmarkBookSpots(place, seed, gridW, gridD, lateral) {
   const dir = cliffDir(seed, gridW, gridD), cliffEnd = cliffEndU(seed, gridW, gridD), marshEnd = marshEndU(seed, gridW, gridD);
   const onCoast = (u, v) => lateral.map((lat) => { const p = coastToWorldAt(seed, gridW, u + lat, v); return [p.x, p.z]; });
-  if (place === 'cliffs') return [onCoast(cliffEnd + dir * CLIFF_ANCHOR_U, -2.2)];
+  if (place === 'cliffs') return [onCoast(cliffEnd + dir * CLIFF_ANCHOR_U, -1.2)];
   if (place === 'shipwreck') return [onCoast(marshEnd - dir * WRECK_ANCHOR_U, -1.2)];
   if (place === 'marsh') return [onCoast(marshEnd - dir * 6, -0.9)];
   if (place === 'abbey') { const a = abbeySite(seed, gridW, gridD); return [lateral.map((lx) => [a.x + a.faceZ * lx + a.faceX * -2.8, a.z - a.faceX * lx + a.faceZ * -2.8])]; }

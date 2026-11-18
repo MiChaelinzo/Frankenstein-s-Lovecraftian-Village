@@ -10,7 +10,7 @@ import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
+  CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, cullCell, lightCullRadius, lightsWithin, pointsWithin, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
   viewProjection, windowLit, worldBounds, worldBoxes, postLampBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, fogFloorFor, chunkCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
@@ -1073,16 +1073,16 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
     const sk = flashSky(day.sky, flashState.flash); // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
-    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',') + '|' + tier.lampHalo;
+    const states = lights.map((l) => lanternState(l, s.lamps)), cc = cullCell(eye.x, eye.z), cullR = lightCullRadius(tier.drawDistance), haloKey = states.join(',') + '|' + tier.lampHalo + '|' + cc.key; // lights lost in the fog are not drawn: the set follows the camera cell
     const lifeNow = lifeParams({ tier, reduced, weather, dread: Math.round(s.dread * 4) / 4 }), fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}|${tier.fireflies}`;
     if (fliesKey !== lastFlies) {
       lastFlies = fliesKey;
       const warm = lights.filter((l, i) => states[i] !== 'unlit');
-      const fl = fireflySeeds(warm, s.seed, Math.round(fireflyCount({ lights: warm.length, reduced }) * tier.fireflies)), lf = lifeSeeds({ seed: s.seed, lights: warm, chimneys: world ? chimneySites(s.layout, world.heights) : [], counts: lifeNow }), all = new Float32Array(fl.length + lf.length);
+      const fl = pointsWithin(fireflySeeds(warm, s.seed, Math.round(fireflyCount({ lights: warm.length, reduced }) * tier.fireflies)), FIREFLY_FLOATS, cc.x, cc.z, cullR), lf = lifeSeeds({ seed: s.seed, lights: warm, chimneys: world ? chimneySites(s.layout, world.heights) : [], counts: lifeNow }), all = new Float32Array(fl.length + lf.length);
       all.set(fl); all.set(lf, fl.length); renderer.setFireflies(all);
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
-      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
+      lastHalos = haloKey; renderer.setHalos(haloSprites(lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
     }
     const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
