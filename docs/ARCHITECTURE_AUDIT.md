@@ -212,3 +212,12 @@ Status: design written before code. Core rules, C# property tests and golden par
   - (c) Grass tufts and reeds near black: **regression.** The tufts are new in `3c81de0` (moss 0.1, 0.17, 0.12) and the new wall base shadow (0.34 floor) in `5661c22` multiplied them down. Fixed in `5d41773` and `26a67f4` (foliage skips the base shadow, colour lift 1.35). They still read as thin cones with no ground contact: round 23 task.
   - (d) Windows flat brown: **not a regression** in kind (main also shows flat shutter quads); the new window mood adds more unlit ones on purpose. Round 23 task: glass, interior glow and curtains.
 - Verified: node 489, dotnet 178, UnityCompileCheck 0/0, per tier timing check. Partially Verified: all looks (SwiftShader stills). Unverified: Unity runtime, real GPU.
+
+## Round 23: the city with districts (task 123)
+- Rules in Core: `VillageDistricts` (district map, palettes, densities, piece taste, chunks) and `VillageLayoutGenerator.GenerateCity`; `VillageDressing.ComposeDistricts`. JS mirrors in `web/src/districts.js` and `dressing.js`, golden key `city`. `Generate` is unchanged, so the editor inspector and the old goldens still describe the 24 by 24 village.
+- Inputs: seed, grid width and depth, piece count. Outputs: a district per cell and the layout. Constraints: same guarantees as `Generate`, and a piece never crosses a chunk edge. Failure: an empty catalog or a non-positive size gives an empty layout.
+- Deterministic: each chunk has its own seeded stream (`seed ^ index * 0x2545`), and every pick rolls its district taste before the fit test. The district map depends only on the seed (coast side, dock) and the grid.
+- Presentation only, in the web: `quality.js` `drawDistance` and the matching fog floor (`view3d-math.js` `fogFloorFor`, `chunkCullDistance`), the HUD chip and the minimap tint.
+- Corruption sites (FEAT-008) are placed relative to the grid edges and the church rise, so they move out with the bigger grid. Tests in both languages check that they stay outside the 36 grid.
+- Debt: lantern halos and fireflies are not culled by distance; Unity runtime does not show district names; `VillageCoreInspectorWindow` previews `Generate` only.
+- Status: Core and JS Verified (dotnet, node, golden); HUD and minimap Verified by `browser_check` (`districtRun`); the look is Partially Verified (SwiftShader stills); Unity runtime Unverified.

@@ -213,7 +213,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 Round 12 additions: `tools/dlnk_scene.py` plus `?pack=1&scene=<name>` render real scene placements from the owner's local pack (git-ignored, EXR lightmaps not decoded); `tools/blender/` builds seven original low-poly GLB meshes headless with Blender 4.2 LTS (viewer: `web/meshes.html`, linked from About); `tests/UnityCompileCheck` is a stub-based compile check (0 errors, 1 warning, not a Unity run). MCP for Unity and Blender is documented in [docs/MCP.md](docs/MCP.md) but was never run here, and no `mcp.json` is shipped. No live URL exists yet.
 
-The web demo places 80 pieces. The Unity `VillageBuilder` default `pieceCount` is 40, so set it to 80 to get the same village for the same seed.
+The web demo is a 36 by 36 city with 180 pieces in five districts (Harbour, Old Town, Chapel Hill, Market, Fishers' Row), built by Core `VillageLayoutGenerator.GenerateCity`. In Unity, set `VillageBuilder` width and depth to 36, `pieceCount` to 180 and turn `city` on to get the same city for the same seed (Unverified in Unity).
 
 ## Downloads
 

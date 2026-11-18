@@ -144,7 +144,7 @@ Triage of look bugs seen in round 22 stills (none are regressions unless noted):
 - [x] 120. Walking collision: `BODY_RADIUS` 0.35 m lets the camera sit almost in a wall face and house meshes overhang their footprint; raise the radius and add overhang clearance, with tests. Dressing benches at doors sit against walls: add wall clearance in Core (C# test, golden, JS). Not a regression
 - [x] 121. Windows read as flat brown shutters: real glass, interior glow, curtains, per floor on and off (supersedes 107). Not a regression
 - [x] 122. Grass tufts and reeds are thin cones with no ground contact: wider crossed blades, a dark contact blot, colour from the ground palette. Tufts were a round 22 regression (fixed for black, shape remains)
-- [ ] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
+- [x] 123. Bigger city: more districts, more streets and more buildings per seed (larger grid with chunking, Core rules first, perf budget check)
 - [x] 124. `C` key chat with citizens: talk to the nearest villager to get clues about what to do next (Core line selection first, deterministic fallback, optional AI later in round 26)
 - [x] 125. Lore books and lorecrafts: findable books with short texts about life in the village (seeded, in Core, journal entries, codex)
 - [ ] 126. Huge world: regions beyond the village so an hour of play still has places to see (builds on round 28 regions; start with a bigger walkable area and landmarks)
