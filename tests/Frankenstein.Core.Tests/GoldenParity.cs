@@ -57,7 +57,7 @@ namespace Frankenstein.Core.Tests
             return dir.FullName;
         }
 
-        private static PrefabCatalog LoadCatalog(string root)
+        internal static PrefabCatalog LoadCatalog(string root)
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")));
             var list = new List<CatalogEntry>();
@@ -338,6 +338,9 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendLore(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
             AppendShapes(sb);
@@ -914,6 +917,33 @@ namespace Frankenstein.Core.Tests
                           .Append(Math.Round(placed[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(placed[i].Z, 3).ToString("0.###", inv)).Append(']');
                     sb.Append("] }");
                 }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "names": per city seed, the English and French name of every layout piece and of every landmark (round 24).</summary>
+        private static void AppendNames(StringBuilder sb, PrefabCatalog cat)
+        {
+            var lib = NameLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "names.json")));
+            sb.Append("  \"names\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var names = VillageNames.Assign(lib, seed, grid, grid, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"en\": [");
+                first = false;
+                for (int i = 0; i < names.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(names[i] == null ? "" : names[i].Get("en")).Append('"');
+                sb.Append("], \"fr\": [");
+                for (int i = 0; i < names.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(names[i] == null ? "" : names[i].Get("fr")).Append('"');
+                sb.Append("], \"landmarks\": [");
+                for (int i = 0; i < VillageLandmarks.Ids.Length; i++)
+                {
+                    var n = VillageNames.Landmark(lib, seed, VillageLandmarks.Ids[i]);
+                    sb.Append(i > 0 ? ", " : "").Append("[\"").Append(n.Get("en")).Append("\", \"").Append(n.Get("fr")).Append("\"]");
+                }
+                sb.Append("] }");
+            }
             sb.Append("\n    ]\n  }\n");
         }
 
