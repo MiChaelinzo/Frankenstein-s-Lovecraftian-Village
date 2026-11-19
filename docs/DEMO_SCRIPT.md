@@ -92,3 +92,9 @@ Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted musi
 - Grove growth: open `?view=3d&intro=0&caption=0&tick=1250#seed=1818&sanity=100&night=1&cam3d=-13,134,0,3`, then the same with `sanity=0&night=10`. Say: "Nothing is scripted. The grove changes with dread and night."
 - A district chip and a landmark chip (Old Town, the Abbey Ruins) while walking the lit path.
 - Do not show the local Alien pack area on the public recording; say that the public site uses original assets only.
+
+## Round 24 shots (optional, 10 s each)
+- Dusk in the Old Town square: `?view=3d&intro=0&caption=0&quality=high&tick=1070#seed=1818&sanity=100&cam3d=74,95,180,3`. Say: "Villagers walk to the market, the inn and the chapel on a schedule, then go indoors."
+- Names: open the door prompt of a house and switch `lang=fr`; the house has a seeded name in both languages. Open the Chronicle button for families, journals and missing persons.
+- Walking around a tree: `cam3d=40.5,64.5,0,-4` walk forward past the tree at 37.97, 60.00. Say: "Trunks are round now, so you slide around them."
+- Night on the shore: the lighthouse beam (needs `quality=high` or Medium; software GL may default to Low and hide it).

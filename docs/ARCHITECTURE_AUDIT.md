@@ -239,3 +239,9 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Facts (Verified by a node test and a script over 10 seeds): every `CorruptionGrowth` site stands on Core `groundHeight`; `fitModelInto` puts a fitted pack model on the floor of the original mesh. So pack models cannot hover by placement. A pack tree can look raised because only 0.5% of its vertices touch the floor (Partially Verified: still inspection).
 - Not a bug: stills from the hash alone use the dusk clock; pass `tick=1250` for night. `corruptionLevel` is 0.75 dread plus 0.25 night.
 - Residual risk: the pack upgrade is async, so a `capture=1` still can show originals. Unverified in a real browser with a GPU.
+
+## Round 24 closing audit (FEAT-007)
+- Boundary kept: schedules (`PresenceAt`), trunk radii (`WalkCollision`), names (`VillageNames`), the story (`VillageStory`), the beam (`LighthouseBeam`) and landmarks 7 to 10 are Core rules with JS mirrors and golden keys (`presence`, `names`, `story`, `lighthouseBeam`, `landmarks`). The web adds presentation only (pose, drawing, panels).
+- Debt, small: villager routes are axis-aligned and not snapped to `VillageStreets` lanes; the Unity scene builder places no lore books, so it cannot yet pass the story; landmark names still have a fallback copy in `VillageLandmarks`; the dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced.
+- Risk: the 80% frame triangle budget limits dressing of the new landmarks (the ritual site has one sapling and two fungi).
+- Status: Core and JS Verified (dotnet, node, golden, browser checks); look Partially Verified (SwiftShader); Unity Unverified.

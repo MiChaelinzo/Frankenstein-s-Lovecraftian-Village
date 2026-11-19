@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 24 (part 7): docs, stills, full verification (FEAT-007)
+- Stills (seed 1818, `quality=high`, 1280 by 900, under 700 KB): `docs/media/round24-villagers-dusk.jpg` (also the README hero `round24-hero.jpg`) and `round24-tree-walk-around.jpg` (beside the tree at 37.97, 60.00 after the fix). No before still exists for the tree; the `COLLISION_ONLY` check is the evidence. Partially Verified (SwiftShader).
+- Test fix: the browser check read `view3dPrompt` without a null guard and aborted the run with a driver error ("Cannot read properties of null (reading 'hidden')") right after the cinematic check. The element was missing while the page was still replacing the document; the four reads are now null safe. Cause of the missing element not isolated further.
+- Full `tools/browser_check.mjs` (foreground, SwiftShader): 105 of 105 passed, log `round24-browser-check.log` kept outside the repo. `TIER_ONLY` at `TIER_CAM=122,22,55,8` (17720 triangles in view): low 224.3 ms, medium 295.9 ms, high 346.8 ms mean per frame (indicative only). `?thirdparty=0` and `?pack=1` load non-blank with no console errors (probe shots).
+- Unity: the scene builder does not call `LoreBookRules.Place` at all, so there was nothing small to wire; documented in `docs/UNITY_SETUP.md` and spec task 136.
+- Docs: README (hero, round 24 section, four verification rows, Quaternius credit), ART_DIRECTION, UNITY_SETUP, ARCHITECTURE_AUDIT, DEMO_SCRIPT, DEVPOST checklist, spec tasks 135 to 139. `web/sw.js` cache `flv-shell-v44` (stitch data refreshed).
+- Verified: dotnet 244, node 568, validate_repo, tools/test_*.py, UnityCompileCheck 0 errors, browser check 105 of 105.
+
 ### Round 24 (part 6): larger world (FEAT-006)
 - Four new landmarks in Core `VillageLandmarks` (ten in all, appended so older indexes hold): `standing_stones` (ring of seven menhirs, inland), `hidden_cove` (boat, barrel, crates and two screening rocks past the cliffs), `ritual_site` (ash circle with red bars, five stumps, fungi, a sapling) and `catacombs` (a stone gate with steps below the churchyard; the landmark centre is the open ground at its foot). Placement is seed-driven and checked for 8 seeds on grids 24 and 36: outside the grid, inside the walk bounds, apart from every other landmark, centre walkable.
 - Three new original meshes via `tools/blender/author_wild_shapes.py` (63 meshes now): `standing_stone` (44 triangles), `ritual_circle` (152), `catacomb_gate` (156), each under 12 KB; footprints in `VillageDressing.FootprintOf` and `web/src/dressing.js` match the GLB bounds.

@@ -161,6 +161,13 @@ Done (Verified by C# and JS parity tests, golden `landmarks`/`names`/`story`, an
 - [ ] 133. Catacomb interior. Goal: a descending corridor behind the gate with three clue chambers. Inputs: `CatacombSite`. Outputs: an interior scene state, exit back to the gate, clues. Failure: falling out of bounds, no way back. Tests: enter and leave round trip, clue ids unique.
 - [ ] 134. Lit paths to the four new places (not drawn yet; they are reached over open ground).
 
+Round 24 leftovers (open, from FEAT-007):
+- [ ] 135. Villager routes snapped to `VillageStreets` lanes (routes are axis-aligned today).
+- [ ] 136. Unity: the scene builder places no lore books, so the story is not passed to `LoreBookRules.Place`; add lore and story libraries to the builder and wire them.
+- [ ] 137. Evaluate a CC0 rigged villager (for example a Quaternius character) against the CPU leg swing; not downloaded yet.
+- [ ] 138. Unity: names of the new landmarks and the lighthouse beam in the scene.
+- [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
+
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
 - Round 23: the look bug fixes, bigger city, `C` key citizen chat, lore books and a first larger world (tasks 119 to 127).
