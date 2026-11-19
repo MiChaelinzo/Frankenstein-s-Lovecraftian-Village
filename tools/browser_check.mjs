@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -161,8 +161,8 @@ async function main() {
 
   /** Landmarks (round 23): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
   const landmarkRun = async () => {
-    const spots = [['cliffs', '148.5,-6', 'Lighthouse Cliffs', 'Falaises du phare'], ['shipwreck', '148.5,172', 'Wreck of the Marguerite', 'Epave de la Marguerite'], ['abbey', '86.4,170', 'Abbey Ruins', "Ruines de l'abbaye"],
-      ['cemetery', '-12,49', 'The Cemetery', 'Le cimetiere'], ['marsh', '148.5,150', 'The Black Marsh', 'Le marais noir'], ['grove', '-4,122.4', 'The Cursed Grove', 'Le bosquet maudit']];
+    const spots = [['cliffs', '148.5,-6', 'Saltwind Heights', 'Les Hauteurs de Ventsel'], ['shipwreck', '148.5,172', 'Wreck of the Drowned Gull', 'Epave de la Mouette Noyee'], ['abbey', '86.4,170', 'Abbey of St. Velor', 'Abbaye de Saint-Velor'],
+      ['cemetery', '-12,49', "Harrow's Rest", 'Le Repos de Harrow'], ['marsh', '148.5,150', 'The Lantern Fen', 'Les Fanges de la Lanterne'], ['grove', '-4,122.4', 'Thornwick Grove', 'Bosquet de Ronceval']];
     const out = {}; warns.length = 0;
     for (const [id, cam, en, fr] of spots) for (const [lang, want] of [['en', en], ['fr', fr]]) {
       await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${cam},0,0#seed=1818&sanity=80`);
@@ -170,6 +170,30 @@ async function main() {
       if (out[`${id}.${lang}`] !== want) out[`${id}.${lang}.want`] = want;
     }
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
+  };
+
+  /** Names (round 24): the 3D door prompt shows the seeded name of the house in front of the explorer (seed 1818, en and fr) and never a raw id like house_a. NAMES_ONLY=1 runs only this; NAMES_SHOT=<file.png> also saves the English frame. */
+  const namesRun = async () => {
+    const { lanternLights } = await import('../web/src/view3d-math.js');
+    const { PrefabCatalog, SeededRandom } = await import('../web/src/core.js');
+    const { generateCityLayout } = await import('../web/src/districts.js');
+    const { parseNameLibrary, assignNames } = await import('../web/src/names.js');
+    const catalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
+    const lib = parseNameLibrary(readFileSync(new URL('../web/data/names.json', import.meta.url), 'utf8'));
+    const layout = generateCityLayout(catalog, 36, 36, 180, 1818), names = assignNames(lib, 1818, 36, 36, layout);
+    layout.forEach((p, i) => { const r = new SeededRandom(1818 * 31 + i * 7919 + 1); p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 }; });
+    const porch = (p) => lanternLights([{ ...p, detail: 3 }], 4).find((l) => !l.post);
+    const index = layout.findIndex((p) => (p.id === 'house_a' || p.id === 'house_b') && (p.facing | 0) === 0 && porch(p));
+    const light = porch(layout[index]), stand = `${light.pos[0].toFixed(2)},${(light.pos[2] + 2.5).toFixed(2)}`, out = { index, stand };
+    for (const [lang, head, name] of [['en', 'Try the door of ', names[index].en], ['fr', 'Essayer la porte de ', names[index].fr]]) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&view=3d&lang=${lang}#seed=1818&sanity=100&cam3d=${stand},0,0`);
+      await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
+      out[lang] = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`); if (!v) await hold('w', 'KeyW', 60); return v; }, 40000).catch(() => null);
+      out[`${lang}.want`] = head + name;
+      if (process.env.NAMES_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NAMES_SHOT, Buffer.from(await capture(), 'base64')); } // optional still of the named prompt
+    }
+    rec('names: the 3D door prompt shows the seeded building name in English and French, never a raw id', out.en === out['en.want'] && out.fr === out['fr.want'] && !/house_[ab]/.test(`${out.en}${out.fr}`), out);
   };
 
   /** Clock sky (round 23): the 3D sky by day, dusk and night from the open market square (pitched up so the sampled top rows are sky, not a house wall). SKY_ONLY=1 runs only this. */
@@ -237,6 +261,7 @@ async function main() {
     if (process.env.CINEMA_ONLY) { for (let i = 0; i < 2; i++) await cinemaRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
+    if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
@@ -396,6 +421,7 @@ async function main() {
     await qualityRun();
     await districtRun();
     await landmarkRun();
+    await namesRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });

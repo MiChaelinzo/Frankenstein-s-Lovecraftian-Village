@@ -33,5 +33,5 @@ test('round 19 browser_check covers the clock and the vigil watch', async () => 
 test('round 21 browser_check covers the quality tiers', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
-  for (const needle of ['quality: ?quality= picks the tier', 'QUALITY_ONLY', 'districts: the HUD chip names the quarter', 'DISTRICT_ONLY', 'landmarks: the HUD chip names each landmark', 'LANDMARK_ONLY']) assert.ok(src.includes(needle), needle);
+  for (const needle of ['quality: ?quality= picks the tier', 'QUALITY_ONLY', 'districts: the HUD chip names the quarter', 'DISTRICT_ONLY', 'landmarks: the HUD chip names each landmark', 'LANDMARK_ONLY', 'names: the 3D door prompt shows the seeded building name', 'NAMES_ONLY']) assert.ok(src.includes(needle), needle);
 });
