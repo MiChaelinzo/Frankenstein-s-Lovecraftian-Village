@@ -1057,6 +1057,13 @@ namespace Frankenstein.Core.Tests
             sb.Append("]\n  }\n");
         }
 
+        /// <summary>Three decimals without a negative zero, so the golden file never holds "-0".</summary>
+        private static string F3(double v)
+        {
+            var s = v.ToString("0.###", CultureInfo.InvariantCulture);
+            return s == "-0" ? "0" : s;
+        }
+
         /// <summary>Top level key "homestead" (round 25): the data digest, the plot per golden village (origin and first bed to 3 decimals, plot edge corruption at every level) and a scripted homestead scenario.</summary>
         private static void AppendHomestead(StringBuilder sb, PrefabCatalog cat)
         {
@@ -1080,14 +1087,14 @@ namespace Frankenstein.Core.Tests
                     var plot = HomesteadPlot.Create(seed, grid, grid, layout, ItemWorld.Create(seed, grid, grid, layout, items));
                     sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"exists\": ").Append(plot.Exists ? 1 : 0);
                     first = false;
-                    sb.Append(", \"origin\": [").Append(plot.OriginX.ToString("0.###", inv)).Append(", ").Append(plot.OriginZ.ToString("0.###", inv)).Append("], \"dir\": [").Append(plot.DirX.ToString("0.###", inv)).Append(", ").Append(plot.DirZ.ToString("0.###", inv)).Append("], \"bed5\": [");
-                    if (plot.Exists) sb.Append(plot.Beds[5][0].ToString("0.###", inv)).Append(", ").Append(plot.Beds[5][1].ToString("0.###", inv));
+                    sb.Append(", \"origin\": [").Append(F3(plot.OriginX)).Append(", ").Append(F3(plot.OriginZ)).Append("], \"dir\": [").Append(F3(plot.DirX)).Append(", ").Append(F3(plot.DirZ)).Append("], \"bed5\": [");
+                    if (plot.Exists) sb.Append(F3(plot.Beds[5][0])).Append(", ").Append(F3(plot.Beds[5][1]));
                     sb.Append("], \"edge\": [");
                     for (int level = 0; level <= CorruptionGrowth.Levels; level++)
                     {
                         var edge = CorruptionGrowth.GrowPlotEdge(plot.OriginX, plot.OriginZ, plot.SideX, plot.SideZ, plot.DirX, plot.DirZ, level);
                         sb.Append(level > 0 ? ", " : "").Append('"');
-                        for (int i = 0; i < edge.Count; i++) sb.Append(i > 0 ? ";" : "").Append(edge[i].Kind).Append(' ').Append(edge[i].X.ToString("0.###", inv)).Append(' ').Append(edge[i].Z.ToString("0.###", inv)).Append(' ').Append(edge[i].Yaw.ToString("0.###", inv)).Append(' ').Append(edge[i].Scale.ToString("0.###", inv));
+                        for (int i = 0; i < edge.Count; i++) sb.Append(i > 0 ? ";" : "").Append(edge[i].Kind).Append(' ').Append(F3(edge[i].X)).Append(' ').Append(F3(edge[i].Z)).Append(' ').Append(F3(edge[i].Yaw)).Append(' ').Append(F3(edge[i].Scale));
                         sb.Append('"');
                     }
                     sb.Append("] }");

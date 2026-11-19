@@ -217,7 +217,7 @@ export function createInventoryController(deps) {
 
   return {
     setCatalog, scene, render, open, close, toggle, isOpen, pickUpById, openChestById, interactById, gatherNext, chestNext, useItem, dropItem, storeItem, takeItem, sleep, burnCandle, grant,
-    get fuel() { ensure(); return player.fuel; }, get world() { ensure(); return world; }, get player() { ensure(); return player; },
+    get catalog() { return cat; }, get fuel() { ensure(); return player.fuel; }, get world() { ensure(); return world; }, get player() { ensure(); return player; },
     snapshot: () => { ensure(); return { inv: cat && world.chests.length + world.ground.length ? world.serialize(player) : '' }; },
     restore(s) { ensure(); if (cat && s && typeof s.inv === 'string' && s.inv) world.tryRestore(s.inv, player, cat); render(); },
   };

@@ -56,6 +56,12 @@
             <p id="loreEffect" class="stats"></p>
             <button id="loreClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
+          <div id="homePanel" class="inv-dialog" role="dialog" aria-labelledby="homeTitle" hidden>
+            <h2 id="homeTitle" data-i18n="home.title">Homestead</h2>
+            <div id="homeBody"></div>
+            <p id="homeNote" class="stats" role="status" aria-live="polite"></p>
+            <button id="homeClose" type="button" data-i18n="home.close">Close (Esc)</button>
+          </div>
           <div id="invPanel" class="inv-dialog" role="dialog" aria-labelledby="invTitle" hidden>
             <h2 id="invTitle" data-i18n="inv.title">Satchel</h2>
             <p id="invFuel" class="stats" role="status"></p>
@@ -158,6 +164,7 @@
             <button id="reroll" type="button" data-i18n="btn.reroll">Stitch a new village</button>
             <button id="share" type="button" data-i18n="btn.share">Copy share link</button>
             <button id="invBtn" type="button" aria-haspopup="dialog" data-i18n="btn.inventory">Satchel</button>
+            <button id="homeBtn" type="button" aria-haspopup="dialog" data-i18n="btn.homestead">Homestead</button>
             <button id="helpBtn" type="button" aria-haspopup="dialog" data-i18n="btn.help">Help (?)</button>
           </div>
           <div class="row">

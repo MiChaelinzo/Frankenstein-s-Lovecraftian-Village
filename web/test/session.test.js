@@ -12,13 +12,13 @@ import { parseStoryParam } from '../src/story.js';
 import { parseLang } from '../src/i18n.js';
 import { parseSession, serializeSession, saveSession, loadSession, safeStorage, sessionHash, buildShareLink, SESSION_KEY } from '../src/session.js';
 
-const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], lore: ['b03'], inv: 'inv1;60;bread:2;0;tea:1', vigil: '' };
+const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], lore: ['b03'], inv: 'inv1;60;bread:2;0;tea:1', hs: 'hs1;1;3;-,-,-,-,-,-;coop;chicken.10.2', vigil: '' };
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) }; };
 
 test('round trips and clamps', () => {
   assert.deepEqual(parseSession(serializeSession(good)), good);
   const c = parseSession({ seed: '7', sanity: 900, night: 99, beat: -4, theme: 'x y', cam: 'zzz', floor: 50 });
-  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], lore: [], inv: '', vigil: '' });
+  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], lore: [], inv: '', hs: '', vigil: '' });
 });
 test('rejects junk', () => {
   for (const bad of [null, undefined, 5, [], '{', '[]', {}, { seed: 'a', sanity: 1 }, { seed: 1 }, { seed: 1, sanity: NaN }, { seed: '', sanity: 1 }]) assert.equal(parseSession(bad), null);
@@ -98,5 +98,7 @@ test('vigil string is kept only when it has the vigil shape', () => {
 
 test('inv: only the compact satchel string shape is kept (round 25)', () => {
   assert.equal(parseSession({ seed: 1, sanity: 5, inv: 'inv1;60;bread:2;;tea:1' }).inv, 'inv1;60;bread:2;;tea:1');
+  assert.equal(parseSession({ seed: 1, sanity: 5, hs: 'hs1;1;3;turnip.2,-,-,-,-,-;fence;cat.9.2' }).hs, 'hs1;1;3;turnip.2,-,-,-,-,-;fence;cat.9.2');
+  for (const bad of ['<script>', 'hs2;1', 'hs1;' + 'a'.repeat(700), 5, null]) assert.equal(parseSession({ seed: 1, sanity: 5, hs: bad }).hs, '');
   for (const bad of ['<script>', 'inv2;1', 'inv1;' + 'a'.repeat(1300), 5, null]) assert.equal(parseSession({ seed: 1, sanity: 5, inv: bad }).inv, '');
 });

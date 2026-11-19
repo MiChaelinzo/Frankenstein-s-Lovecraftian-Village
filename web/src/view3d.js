@@ -403,7 +403,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0 }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [] }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -422,6 +422,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   const landmarkItems = [...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)];
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
+  if (homestead.length) batchProps(out, uv, homestead.map((h) => ({ y: 0, ...h })), meshes, cell); // the yard: beds, crops, structures, animals and pets, plus the plot edge corruption (all static between actions)
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   for (const q of pickups) pushPickup(out, q.pos[0], q.pos[2], q.id, !!q.chest, !!q.lodging);
   while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); // books come after the last textured prop; without this padding partitionChunks drops the uv reorder and every textured vertex samples the wrong texel
@@ -1092,10 +1093,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || ''].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number) });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])] });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);

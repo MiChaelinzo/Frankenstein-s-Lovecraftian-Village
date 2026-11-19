@@ -235,7 +235,23 @@ export function createRenderer(env) {
     else if (k === 'deep_one') { poly([{ x: s.x - 5 + sway, y: s.y }, { x: s.x + 5 + sway, y: s.y }, { x: s.x + 3 + sway, y: s.y - 15 }, { x: s.x - 3 + sway, y: s.y - 15 }], 'rgb(60,92,92)'); ctx.fillStyle = 'rgb(190,196,180)'; ctx.beginPath(); ctx.arc(s.x + sway, s.y - 17, 3.4, 0, 7); ctx.fill(); }
     else { poly([{ x: s.x - 9, y: s.y - lift - 2 }, { x: s.x, y: s.y - lift + 1 }, { x: s.x + 9, y: s.y - lift - 2 }, { x: s.x, y: s.y - lift - 4 }], 'rgb(20,22,26)'); }
   }
-  const drawActor = (a, dread, time) => (a.creature ? drawCreature(a, dread, time) : a.villager ? drawVillager(a, dread, time) : drawCultist(a, dread, time));
+  // A homestead mark on the map: soil mounds, crops by stage, fences, troughs, scarecrows, coops, animals and pets as small flat shapes. Static, so nothing moves under reduced motion either.
+  const HOME_CROPS = { hs_turnip: 'rgb(214,196,214)', hs_cabbage: 'rgb(118,160,96)', hs_glowcap: 'rgb(120,230,150)', hs_kelp: 'rgb(60,120,110)', hs_eyeroot: 'rgb(214,190,120)' };
+  function drawHomestead(pos, dread) {
+    const k = pos.home.kind, s = iso(pos.x, pos.z);
+    if (k === 'hs_mound') { ctx.fillStyle = 'rgb(52,38,28)'; ctx.beginPath(); ctx.ellipse(s.x, s.y - 1, 9, 4, 0, 0, 7); ctx.fill(); return; }
+    if (k === 'hs_sprout') { ctx.strokeStyle = 'rgb(120,170,90)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(s.x, s.y - 1); ctx.lineTo(s.x, s.y - 7); ctx.moveTo(s.x, s.y - 4); ctx.lineTo(s.x + 3, s.y - 7); ctx.stroke(); return; }
+    if (HOME_CROPS[k]) { if (k === 'hs_glowcap') glow(s.x, s.y - 5, 12, '120,230,150', 0.5); ctx.fillStyle = HOME_CROPS[k]; ctx.beginPath(); ctx.arc(s.x, s.y - 6, 4, 0, 7); ctx.fill(); if (k === 'hs_eyeroot') { ctx.fillStyle = 'rgb(20,14,10)'; ctx.fillRect(s.x - 1, s.y - 7, 2, 2); } return; }
+    glow(s.x, s.y, 9, '0,0,0', 0.3);
+    if (k === 'hs_fence') { ctx.strokeStyle = 'rgb(120,98,70)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x - 9, s.y - 4); ctx.lineTo(s.x + 9, s.y - 4); ctx.moveTo(s.x - 9, s.y - 9); ctx.lineTo(s.x + 9, s.y - 9); ctx.stroke(); ctx.fillStyle = 'rgb(120,98,70)'; for (const dx of [-9, 0, 9]) ctx.fillRect(s.x + dx - 1, s.y - 11, 2, 11); }
+    else if (k === 'hs_trough') { poly([{ x: s.x - 8, y: s.y - 5 }, { x: s.x + 8, y: s.y - 5 }, { x: s.x + 6, y: s.y }, { x: s.x - 6, y: s.y }], 'rgb(86,66,46)'); ctx.fillStyle = 'rgb(40,70,84)'; ctx.fillRect(s.x - 6, s.y - 5, 12, 2); }
+    else if (k === 'hs_scarecrow') { ctx.strokeStyle = 'rgb(110,90,64)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y - 20); ctx.moveTo(s.x - 8, s.y - 15); ctx.lineTo(s.x + 8, s.y - 15); ctx.stroke(); ctx.fillStyle = 'rgb(150,130,96)'; ctx.beginPath(); ctx.arc(s.x, s.y - 22, 3.4, 0, 7); ctx.fill(); }
+    else if (k === 'hs_coop') { poly([{ x: s.x - 8, y: s.y - 2 }, { x: s.x + 8, y: s.y - 2 }, { x: s.x + 8, y: s.y - 12 }, { x: s.x - 8, y: s.y - 12 }], 'rgb(70,56,44)'); poly([{ x: s.x - 10, y: s.y - 12 }, { x: s.x, y: s.y - 19 }, { x: s.x + 10, y: s.y - 12 }], 'rgb(40,32,28)'); }
+    else if (k === 'hs_lantern_moth') { glow(s.x, s.y - 12, 14, '255,214,140', 0.55); ctx.fillStyle = 'rgb(220,196,150)'; ctx.fillRect(s.x - 5, s.y - 13, 10, 2); ctx.fillRect(s.x - 1, s.y - 15, 2, 6); }
+    else if (k === 'hs_jar_tentacle') { ctx.fillStyle = 'rgba(120,170,170,.55)'; ctx.fillRect(s.x - 3, s.y - 9, 6, 9); ctx.strokeStyle = 'rgb(86,40,60)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(s.x, s.y - 1); ctx.quadraticCurveTo(s.x + 4, s.y - 5, s.x - 1, s.y - 9); ctx.stroke(); }
+    else { const body = k === 'hs_goat' ? 'rgb(190,184,170)' : k === 'hs_cat' ? 'rgb(90,90,96)' : k === 'hs_tide_hound' ? 'rgb(70,96,104)' : 'rgb(170,110,70)'; ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(s.x, s.y - 4, k === 'hs_chicken' ? 3.6 : 6, 3.2, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(s.x + 5, s.y - 7, 2.2, 0, 7); ctx.fill(); }
+  }
+  const drawActor = (a, dread, time) => (a.home ? drawHomestead(a, dread) : a.creature ? drawCreature(a, dread, time) : a.villager ? drawVillager(a, dread, time) : drawCultist(a, dread, time));
 
   const stars = Array.from({ length: 90 }, (_, i) => { const r = new SeededRandom(i + 99); return { x: r.next(960), y: r.next(260), s: 0.5 + r.next(100) / 100, ph: r.next(628) }; });
   const reeds = Array.from({ length: 70 }, (_, i) => { const r = new SeededRandom(i + 4242); return { x: GRID_W + 0.3 + r.next(80) / 10, z: 1 + r.next(GRID_D * 10) / 10, h: 8 + r.next(14), lean: (r.next(100) - 50) / 40 }; });
@@ -621,6 +637,7 @@ export function createRenderer(env) {
     }
     // villagers stand in the village at the current clock tick; vanished ones are not listed. They share the cultist depth ordering.
     for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone && !v.indoors) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
+    for (const h of state.dlnk || !state.homesteadMarks ? [] : state.homesteadMarks()) active.push({ x: h.x, z: h.z, depth: h.x + h.z + 0.4, home: h });
     for (const c of state.dlnk || !state.creatureMarks ? [] : state.creatureMarks()) active.push({ x: c.x, z: c.z, depth: c.x + c.z + 0.5, creature: c });
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
