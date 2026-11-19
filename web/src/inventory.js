@@ -1,6 +1,6 @@
 // Mirror of Core/Items.cs (golden-checked, key "items"): the item data file, inventory slots and stacking, use effects, seeded ground items and chests, save string. Pure, no DOM.
 // The data file web/data/items.json is a byte copy of Packages/.../Data/items.json (tools/validate_repo.py and a test check it).
-import { SeededRandom } from './core.js';
+import { SeededRandom, MAX_SANITY } from './core.js';
 import { landmarkDressing, landmarkPathDressing } from './landmarks.js';
 import { composeDressing, dressingBoxes } from './dressing.js';
 import { isBuilding } from './streets.js';
@@ -93,7 +93,7 @@ export class Inventory {
     if (this.count(id) <= 0) return refuse('missing');
     if (d.effect === 'ward' || d.effect === 'none') return refuse(d.effect);
     if (d.effect === 'sanity') {
-      if (!sanity || sanity.value >= 100) return refuse('full');
+      if (!sanity || sanity.value >= MAX_SANITY) return refuse('full');
       const before = sanity.value;
       sanity.apply(d.amount);
       this.remove(id, 1);

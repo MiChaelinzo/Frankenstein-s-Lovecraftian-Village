@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 25 review fixes
+- Sleeping now checks `sanity_keys` as well as `night_step`, refuses on a frozen `?tick=` clock, and clears its guard in a `finally` so a failed completion cannot disable sleep. `skipClock` refuses a second concurrent skip (Endure and sleep can no longer interleave). `Inventory.use` uses the exported `MAX_SANITY` instead of the literal 100 (Core already used `SanityModel.Max`). Verified: node 626 pass (4 new tests), dotnet 289 pass (Core unchanged), validate_repo OK; browser_check and Unity not re-run.
+
 ### Round 25 (FEAT-008): finalize
 - Help overlay and tour now cover the homestead (en and fr, new `keys.homestead` and tour step `homestead`); README round 25 controls table, verification counts, BUILD_LOG round 25 commits, ART_DIRECTION, UNITY_SETUP hooks, DEMO_SCRIPT and DEVPOST checklist, spec task 143 done. Forest and swamp (129, 130) stay deferred.
 

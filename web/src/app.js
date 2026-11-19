@@ -113,16 +113,22 @@ let clockSkip = 0;
 const clockTick = () => sessionTick(performance.now() - clockT0, frozenTick, clockSkip);
 const clockTickExact = () => sessionTickExact(performance.now() - clockT0, frozenTick, clockSkip);
 /** Runs the clock forward by minutes; instant under reduced motion. done() fires when the target is reached. */
+let clockSkipping = false;
+/** Returns false (and never calls done) when a skip is already running, so two animations cannot interleave. */
 function skipClock(minutes, done) {
+  if (clockSkipping) return false;
+  clockSkipping = true;
+  const finish = () => { clockSkipping = false; done(); };
   const from = clockSkip, t0 = performance.now(), ms = reduceMotion ? 0 : Math.min(3200, 600 + minutes * 4);
-  if (ms === 0) { clockSkip = from + minutes; renderClockChip(); done(); return; }
+  if (ms === 0) { clockSkip = from + minutes; renderClockChip(); finish(); return true; }
   const step = () => {
     const k = Math.min(1, (performance.now() - t0) / ms);
     clockSkip = from + minutes * (k * k * (3 - 2 * k));
     renderClockChip();
-    if (k < 1) { setTimeout(step, 33); mark(); } else { clockSkip = from + minutes; renderClockChip(); done(); }
+    if (k < 1) { setTimeout(step, 33); mark(); } else { clockSkip = from + minutes; renderClockChip(); finish(); }
   };
   step();
+  return true;
 }
 /** QA override: ?weather=storm (any clock.js weather name) replaces the night's weather in the 3D view and the soundtrack. Unknown names are ignored. */
 const weatherParam = optParam('weather');
@@ -623,7 +629,7 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const vigil = createVigilController({
-  tickNow: () => clockTick(), skipClock: (minutes, done) => skipClock(minutes, done),
+  tickNow: () => clockTick(), clockFrozen: () => frozenTick !== null, skipClock: (minutes, done) => skipClock(minutes, done),
   $, tr, state, progress, storage, announce, reduceMotion, gridW: GRID_W, gridD: GRID_D,
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),

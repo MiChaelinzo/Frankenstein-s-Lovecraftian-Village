@@ -367,3 +367,4 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - `61acdf2`, `9e6e926`: 24 villagers and lane routes
 - `619f511` docs: forest and swamp boardwalk (tasks 129, 130) deferred with reason
 - Closing run (FEAT-008): dotnet 289, node 622, browser check 105 of 105 on the last of three full runs (logs `/projects/sandbox/browser_check_r25_final*.log`, not committed). Earlier runs found two stale 2D villager checks (seven rows, seven markers, now 24) and a racy villager count read, fixed in `tools/browser_check.mjs`; one run also missed the `?meshes=1` GLB count within 12 s (timeout raised to 40 s, cause not isolated, likely load timing). SwiftShader only. Unverified: Unity runtime, real GPU.
+- Review fixes run: node 626 (4 new sleep tests), dotnet 289 re-run in the review-fix session, validate_repo OK. browser_check not re-run.

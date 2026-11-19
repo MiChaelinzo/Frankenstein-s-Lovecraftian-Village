@@ -14,15 +14,15 @@ const root = join(here, '..', '..');
 const itemsText = readFileSync(join(root, 'web', 'data', 'items.json'), 'utf8');
 const catalog = new PrefabCatalog(JSON.parse(readFileSync(join(root, 'web', 'data', 'village_catalog.json'), 'utf8')).entries);
 
-function make({ tick = phaseStart(3) + 50, locked = false, sanity = 50 } = {}) {
+function make({ tick = phaseStart(3) + 50, locked = false, sanity = 50, lockedActions = null, frozen = false, skip = null } = {}) {
   const els = new Map();
   const $ = (id) => { if (!els.has(id)) els.set(id, { id, hidden: true, textContent: '', innerHTML: '', focus() {}, addEventListener() {} }); return els.get(id); };
   const calls = { clues: [], journal: [], skipped: [], allows: [], sanity: [] };
   const san = new SanityModel(sanity), state = { seed: 1818, layout: generateLayout(catalog, 24, 24, 40, 1818) };
   const c = createInventoryController({
     $, tr: (k, p) => t(k, 'en', p), lang: 'en', state, gridW: 24, gridD: 24, sanity: () => san, onSanity: (d) => calls.sanity.push(d),
-    allows: (id) => { calls.allows.push(id); return !locked; }, clue: (id) => calls.clues.push(id), journal: (x) => calls.journal.push(x), announce: () => {},
-    houseName: (i) => `House ${i}`, tickNow: () => tick, skipClock: (m, done) => { calls.skipped.push(m); done(); }, in3d: () => false,
+    allows: (id) => { calls.allows.push(id); return lockedActions ? !lockedActions.includes(id) : !locked; }, clockFrozen: () => frozen, clue: (id) => calls.clues.push(id), journal: (x) => calls.journal.push(x), announce: () => {},
+    houseName: (i) => `House ${i}`, tickNow: () => tick, skipClock: skip || ((m, done) => { calls.skipped.push(m); done(); }), in3d: () => false,
   });
   c.setCatalog(itemsText);
   return { c, $, calls, san, state };
@@ -108,4 +108,42 @@ test('inventory strings exist in en and fr', () => {
     'view3d.prompt.item', 'view3d.prompt.chest', 'view3d.prompt.lodging', 'keys.inventory', 'touch.bag', 'btn.inventory', 'tour.satchel', 'tour.satchel.d'];
   for (const k of keys) assert.ok(STRINGS.en[k] && STRINGS.fr[k], k);
   assert.ok(ITEM_KINDS.length > 0);
+});
+
+const openBed = (x) => x.c.openChestById(`c${x.c.world.chests.findIndex((q) => q.lodging)}`);
+
+test('sleep is refused when only the sanity_keys action is locked', () => {
+  const x = make({ lockedActions: ['sanity_keys'] });
+  openBed(x);
+  assert.equal(x.c.sleep(), false);
+  assert.deepEqual(x.calls.skipped, []); assert.equal(x.san.value, 50);
+});
+
+test('sleep is refused on a frozen clock', () => {
+  const x = make({ frozen: true });
+  openBed(x);
+  assert.equal(x.c.sleep(), false);
+  assert.deepEqual(x.calls.skipped, []); assert.equal(x.san.value, 50);
+});
+
+test('a refused clock skip leaves sleep usable afterwards', () => {
+  let refuse = true, ran = 0;
+  const x = make({ skip: (m, done) => { if (refuse) return false; ran++; done(); return true; } });
+  openBed(x);
+  assert.equal(x.c.sleep(), false);
+  refuse = false;
+  assert.equal(x.c.sleep(), true);
+  assert.equal(ran, 1); assert.equal(x.san.value, 60);
+});
+
+test('a failure inside the sleep completion does not leave the sleep guard stuck', () => {
+  let boom = true, ran = 0;
+  const x = make({ skip: (m, done) => { ran++; if (boom) { try { done(); } catch { /* the app clock would surface this */ } } else done(); return true; } });
+  x.c.openChestById(`c${x.c.world.chests.findIndex((q) => q.lodging)}`);
+  const real = x.san.apply.bind(x.san);
+  x.san.apply = (d) => { if (boom) throw new Error('boom'); real(d); };
+  assert.equal(x.c.sleep(), true);
+  boom = false;
+  assert.equal(x.c.sleep(), true);
+  assert.equal(ran, 2); assert.equal(x.san.value, 60);
 });

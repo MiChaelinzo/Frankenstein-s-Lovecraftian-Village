@@ -8,7 +8,7 @@ export const PICKUP_ID_RE = /^[gc]\d{1,2}$/; // g: ground item, c: chest
 
 /**
  * deps: { $, tr, lang, state (seed, layout), gridW, gridD, sanity() -> SanityModel, onSanity(delta), allows(actionId) -> bool (the vigil sandbox rule), clue(id), journal(text), announce(text),
- *   houseName(layoutIndex, lang) -> string, tickNow(), skipClock(minutes, done), in3d() -> bool, exitPointerLock(), activeElement(), keyTarget, onChange() }
+ *   houseName(layoutIndex, lang) -> string, tickNow(), skipClock(minutes, done) -> false when refused, clockFrozen() -> bool, in3d() -> bool, exitPointerLock(), activeElement(), keyTarget, onChange() }
  */
 export function createInventoryController(deps) {
   const { $, tr, state } = deps;
@@ -180,17 +180,22 @@ export function createInventoryController(deps) {
     if (!chest || !chest.lodging || sleeping) return false;
     const tick = deps.tickNow();
     if (!canSleep(tick)) { const msg = note('inv.note.notired'); deps.announce?.(msg); return false; }
-    if (!deps.allows('night_step')) return false;
+    if (!deps.allows('night_step') || !deps.allows('sanity_keys')) return false;
+    if (deps.clockFrozen?.()) return false; // a frozen (?tick=) clock cannot run to dawn, so sleep would only restore sanity
     sleeping = true;
-    deps.skipClock(minutesToMorning(tick), () => {
-      sleeping = false;
-      const s = deps.sanity(), before = s.value;
-      s.apply(SLEEP_SANITY_RESTORE);
-      deps.onSanity?.(Math.round(s.value - before));
-      const msg = note('inv.note.slept');
-      deps.journal?.(msg); deps.announce?.(msg);
-      deps.onChange?.();
+    const started = deps.skipClock(minutesToMorning(tick), () => {
+      try {
+        const s = deps.sanity();
+        if (!s) return;
+        const before = s.value;
+        s.apply(SLEEP_SANITY_RESTORE);
+        deps.onSanity?.(Math.round(s.value - before));
+        const msg = note('inv.note.slept');
+        deps.journal?.(msg); deps.announce?.(msg);
+        deps.onChange?.();
+      } finally { sleeping = false; }
     });
+    if (started === false) { sleeping = false; return false; }
     return true;
   }
 
