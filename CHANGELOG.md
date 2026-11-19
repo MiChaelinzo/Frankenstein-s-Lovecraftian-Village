@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 24 (part 3): seeded names for buildings, wells and landmarks (FEAT-003)
+- Core `VillageNames` (new): building kind + district + seed gives a name no other building of the village has, for example Blackwater Cottage, Widow's Rest, Crowmere Hall, The Lantern's End, St. Velor Chapel, Hollowmere Well, Fisherman's Watch or The Drowned Gull Inn. Names are curated per district or composed from a prefix and a form, picked by a seeded stream per layout index, so a name depends only on the seed and the pieces before it. When a kind runs out, names get " 2", " 3". `VillageNames.Landmark` names the six landmarks per seed (the wreck carries a ship name, such as the Wreck of the Drowned Gull).
+- Data: `Packages/.../Data/names.json` with original English and French words, copied byte for byte to `web/data/names.json` (drift checked by C#, JS and `tools/validate_repo.py`). JS mirror `web/src/names.js`, golden key `names` (three city seeds, every piece and landmark in en and fr).
+- Player-facing text no longer shows raw ids: the 3D prompts ("Try the door of Wrackhill Hall"), the HUD landmark chip, the 2D focus label, the landmark list, the screen reader summary, narration and the journal (door entries now name the house) use the seeded name, and the minimap legend uses translated kind names. `VillageBuilder.NameAt(index)` and `piece.names` in the web demo expose the name per building index for the family narrative (FEAT-004).
+- Unity: `VillageBuilder.namesData` (set by the playable scene builder) fills `InteractionTarget.displayNameEn/Fr`, which the raycaster prompt and narration use.
+- Tests: C# `VillageNamesTests`, JS `names.test.js` and a minimap legend test. `tools/browser_check.mjs` section `NAMES_ONLY=1` reads the 3D door prompt for seed 1818 in en and fr (`NAMES_SHOT=<png>` saves the frame); the landmark section now expects the seeded names. Service worker cache bumped to v39 (precaches `names.js` and `names.json`). Still: `docs/media/round24-named-door-prompt.jpg`.
+- Status: C#, JS and browser check (NAMES_ONLY, LANDMARK_ONLY on SwiftShader) Verified. Unity: compile checked only, Unverified.
+
 ### Round 24 (part 2): walking around trees (FEAT-002)
 - Root cause of "blocked at the tree": a tree's collision box was its whole canopy footprint (about 1 m half width) plus clearance, a square 2.5 m wide wall with flat faces. Walking straight at a flat face is pure normal motion, so the push-out cancelled all of it and the explorer stopped.
 - Core `VillageDressing.TryTrunkRadius` (tree 0.35 m, tentacle tree 0.7 m): only the trunk collides, plus the 0.15 m overhang clearance. Core `WalkCollision.Resolve` (new, mirrors `resolveCollisions`) treats trunks as circles, so a walker is pushed radially and keeps its tangential motion: it slides around. JS mirror `TRUNK_RADIUS` and `round` boxes in `dressingBoxes`.
