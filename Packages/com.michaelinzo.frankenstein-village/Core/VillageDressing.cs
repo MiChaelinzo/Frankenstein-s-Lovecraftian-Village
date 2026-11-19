@@ -133,6 +133,9 @@ namespace Frankenstein.Core
                 case "abbey_wall": return new Footprint { HalfX = 2.6, HalfZ = 0.715, Height = 3.6, Solid = true };
                 case "abbey_pillar": return new Footprint { HalfX = 1.025, HalfZ = 0.825, Height = 3.25, Solid = true };
                 case "marsh_pool": return new Footprint { HalfX = 3.0, HalfZ = 2.85, Height = 0.09, Solid = false };
+                case "standing_stone": return new Footprint { HalfX = 0.65, HalfZ = 0.59, Height = 3.58, Solid = true };
+                case "ritual_circle": return new Footprint { HalfX = 3.2, HalfZ = 3.2, Height = 0.11, Solid = false };
+                case "catacomb_gate": return new Footprint { HalfX = 2.6, HalfZ = 1.81, Height = 2.9, Solid = true };
                 case "path_stone": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.09, Solid = false };
                 case "church_nave": return new Footprint { HalfX = 3.0, HalfZ = 5.9, Height = 7.4, Solid = true };
                 case "church_tower": return new Footprint { HalfX = 1.9, HalfZ = 1.9, Height = 18.0, Solid = true };

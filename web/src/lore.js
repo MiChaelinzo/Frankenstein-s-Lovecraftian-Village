@@ -6,8 +6,8 @@ import { composeDressing, dressingBoxes, footprintOf, dockU, walkBounds, coastTo
 import { isBuilding, facingYaw } from './streets.js';
 import { ROLE_IDS } from './villagers.js';
 
-export const LORE_PLACES = ['house', 'chapel', 'inn', 'lighthouse', 'harbour', 'grave', 'cliffs', 'shipwreck', 'abbey', 'marsh', 'journal'];
-export const LORE_PER_PLACE = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7];
+export const LORE_PLACES = ['house', 'chapel', 'inn', 'lighthouse', 'harbour', 'grave', 'cliffs', 'shipwreck', 'abbey', 'marsh', 'journal', 'standing_stones', 'hidden_cove', 'ritual_site', 'catacombs'];
+export const LORE_PER_PLACE = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 1, 1, 1, 1];
 export const LORE_LANGUAGES = ['en', 'fr'];
 export const PLACE_SALT_BASE = 0x10b0c, PLACE_SALT_STEP = 4099;
 export const HOUSE_BOOK_OFFSET = 0.6, COAST_BOOK_V = -1.2, DOCK_BOOK_U = 1.3, GRAVE_BOOK_OFFSET = 0.6, CLEARANCE = 0.3;
@@ -72,7 +72,7 @@ function spotsFor(place, seed, gridW, gridD, buildings, items, rng) {
     if (it) spots.push(onCoast(side === 2 ? it.x : it.z));
   } else if (place === 'harbour') {
     spots.push(onCoast(dockU(seed, gridW, gridD) + DOCK_BOOK_U));
-  } else if (place === 'cliffs' || place === 'shipwreck' || place === 'abbey' || place === 'marsh') {
+  } else if (place === 'cliffs' || place === 'shipwreck' || place === 'abbey' || place === 'marsh' || place === 'standing_stones' || place === 'hidden_cove' || place === 'ritual_site' || place === 'catacombs') {
     spots.push(...landmarkBookSpots(place, seed, gridW, gridD, LATERAL));
   } else {
     const stones = items.filter((o) => (o.kind === 'gravestone' || o.kind === 'gravestone_cross') && o.y < 0.01);

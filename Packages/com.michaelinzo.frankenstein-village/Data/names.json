@@ -350,6 +350,34 @@
       {"en": "The Listening Grove", "fr": "Le Bosquet qui Ecoute"},
       {"en": "Crowmere Wood", "fr": "Bois de Corbeaumare"},
       {"en": "The Hollow Orchard", "fr": "Le Verger Creux"}
+    ],
+    "standing_stones": [
+      {"en": "The Standing Stones", "fr": "Les pierres dressees"},
+      {"en": "The Seven Sisters", "fr": "Les Sept Soeurs"},
+      {"en": "Hallowmere Stones", "fr": "Les Pierres de Hallowmere"},
+      {"en": "The Waiting Ring", "fr": "Le Cercle qui Attend"},
+      {"en": "Greywether Circle", "fr": "Le Cercle de Grisemouton"}
+    ],
+    "hidden_cove": [
+      {"en": "The Hidden Cove", "fr": "La crique cachee"},
+      {"en": "Smugglers' Rest", "fr": "Le Repos des Contrebandiers"},
+      {"en": "Pelham's Cove", "fr": "La Crique de Pelham"},
+      {"en": "The Quiet Water", "fr": "L'Eau Tranquille"},
+      {"en": "Gullet Cove", "fr": "La Crique du Goulet"}
+    ],
+    "ritual_site": [
+      {"en": "The Ritual Site", "fr": "Le lieu du rituel"},
+      {"en": "The Sixth Place", "fr": "La Sixieme Place"},
+      {"en": "Ashring Hollow", "fr": "Le Creux de la Couronne de Cendre"},
+      {"en": "The Red Circle", "fr": "Le Cercle Rouge"},
+      {"en": "Cinder Ring", "fr": "L'Anneau de Cendres"}
+    ],
+    "catacombs": [
+      {"en": "The Catacombs", "fr": "Les catacombes"},
+      {"en": "The Sexton's Stair", "fr": "L'Escalier du Fossoyeur"},
+      {"en": "Undercroft of Harrow", "fr": "La Crypte de Harrow"},
+      {"en": "The Warm Gate", "fr": "La Porte Tiede"},
+      {"en": "The Forty Fourth Door", "fr": "La Quarante-Quatrieme Porte"}
     ]
   }
 }

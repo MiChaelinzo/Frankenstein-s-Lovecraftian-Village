@@ -150,6 +150,50 @@
     "en": "The trees in the grove are all the same age, and it is the age of the village, to the year. Hang a lantern there and the leaves turn toward it, as people turn toward a speaker they have heard before.",
     "fr": "Les arbres du bosquet ont tous le meme age, qui est celui du village, a l'annee pres. Accrochez-y une lanterne et les feuilles se tournent vers elle, comme on se tourne vers une voix deja entendue."
    }
+  },
+  {
+   "id": "standing_stones",
+   "title": {
+    "en": "The Ring That Counts Back",
+    "fr": "Le Cercle qui Compte en Retour"
+   },
+   "text": {
+    "en": "Count the stones from the north and you reach seven. Count them from the south and you reach eight. Shepherds say the extra stone stands only where somebody is looking away, and that it has been getting closer to the village by one pace each generation.",
+    "fr": "Comptez les pierres en partant du nord et vous en trouvez sept. Comptez-les en partant du sud et vous en trouvez huit. Les bergers disent que la pierre en trop se tient la ou l'on ne regarde pas, et qu'elle se rapproche du village d'un pas a chaque generation."
+   }
+  },
+  {
+   "id": "hidden_cove",
+   "title": {
+    "en": "The Cove That Is Not on the Coast",
+    "fr": "La Crique qui N'Est pas sur la Cote"
+   },
+   "text": {
+    "en": "Smugglers kept their casks in a cove no chart shows, reached only by a gap in the cliffs that closes at high water. The harbour master has lived forty years within a mile of it and has never once found the gap. The smugglers say it finds you.",
+    "fr": "Les contrebandiers cachaient leurs tonneaux dans une crique qu'aucune carte ne montre, atteinte par une breche des falaises qui se referme a maree haute. Le maitre de port vit depuis quarante ans a moins d'un mille et n'a jamais trouve la breche. Les contrebandiers disent que c'est elle qui vous trouve."
+   }
+  },
+  {
+   "id": "ritual_site",
+   "title": {
+    "en": "The Sixth Place",
+    "fr": "La Sixieme Place"
+   },
+   "text": {
+    "en": "Five stumps and a bare circle of ash that no rain has ever touched. Whoever sat there once left the sixth place empty on purpose. Every child in the village has been told not to sit in it, and every child has been told in the same words, by a parent who does not remember learning them.",
+    "fr": "Cinq souches et un cercle de cendres nues que nulle pluie n'a jamais touche. Ceux qui s'y assirent jadis laisserent la sixieme place vide a dessein. On a dit a tous les enfants du village de ne pas s'y asseoir, et on le leur a dit avec les memes mots, par un parent qui ne se souvient pas de les avoir appris."
+   }
+  },
+  {
+   "id": "catacombs",
+   "title": {
+    "en": "The Forty Fourth Door",
+    "fr": "La Quarante-Quatrieme Porte"
+   },
+   "text": {
+    "en": "The catacombs hold forty three burials by the parish count. The sexton's stair is worn by forty four sets of feet climbing, none descending. On the night of the corrupted tide the lowest bars were found open, and the dust on the stair held prints going up, all of them barefoot, all of them dry.",
+    "fr": "Les catacombes abritent quarante-trois sepultures selon le compte de la paroisse. L'escalier du fossoyeur est use par quarante-quatre paires de pieds qui montent, aucune qui descend. La nuit de la maree corrompue, on trouva les barreaux du bas ouverts, et la poussiere de l'escalier portait des traces montantes, toutes pieds nus, toutes seches."
+   }
   }
  ],
  "missing": [

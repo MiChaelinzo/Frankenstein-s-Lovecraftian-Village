@@ -478,6 +478,118 @@
    }
   },
   {
+   "id": "b35",
+   "place": "standing_stones",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Surveyor's Field Note",
+    "text": "Seven stones, and I paced the ring four times. Four times it held seven. The fifth time I stood in the middle and counted eight, and the eighth was breathing out when I breathed in. The ring is not a boundary. It is a table laid for someone."
+   },
+   "fr": {
+    "title": "Note d'arpenteur",
+    "text": "Sept pierres, et j'ai fait le tour quatre fois. Quatre fois, il y en avait sept. La cinquieme fois, je me suis tenu au milieu et j'en ai compte huit, et la huitieme expirait quand j'inspirais. Ce cercle n'est pas une limite. C'est une table dressee pour quelqu'un."
+   }
+  },
+  {
+   "id": "b36",
+   "place": "standing_stones",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "A Shepherd's Rule",
+    "text": "Never graze the flock inside the stones. Sheep that have stood in the ring all face the same way afterward, toward the sea, and none will eat until the tide has turned twice."
+   },
+   "fr": {
+    "title": "La regle du berger",
+    "text": "Ne faites jamais paitre le troupeau dans les pierres. Les moutons qui sont restes dans le cercle regardent ensuite tous du meme cote, vers la mer, et aucun ne mange avant que la maree ait tourne deux fois."
+   }
+  },
+  {
+   "id": "b37",
+   "place": "hidden_cove",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Smuggler's Tally",
+    "text": "Eleven casks landed at the cove, nine sold. The two left over are not in the boat and not in the cave. The boat is hauled up high and dry, and the rope is wet. Do not light a lamp here. The cove keeps its own count, and it does not like ours."
+   },
+   "fr": {
+    "title": "Compte du contrebandier",
+    "text": "Onze tonneaux debarques a la crique, neuf vendus. Les deux restants ne sont ni dans la barque ni dans la grotte. La barque est tiree au sec, tres haut, et la corde est mouillee. N'allumez pas de lampe ici. La crique tient son propre compte, et le notre lui deplait."
+   }
+  },
+  {
+   "id": "b38",
+   "place": "hidden_cove",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Tide Table, Pencilled",
+    "text": "High water at the cove comes an hour before the harbour's, and low water an hour after. Somebody has pencilled in the margin: 'Between the two, the cove is not on the coast.'"
+   },
+   "fr": {
+    "title": "Table des marees, au crayon",
+    "text": "A la crique, la pleine mer vient une heure avant celle du port, et la basse mer une heure apres. Quelqu'un a note au crayon en marge : 'Entre les deux, la crique n'est pas sur la cote.'"
+   }
+  },
+  {
+   "id": "b39",
+   "place": "ritual_site",
+   "sanity": -2,
+   "clue": true,
+   "en": {
+    "title": "Burnt Page of a Rite",
+    "text": "...the red bars are drawn from the eye outward, never toward it, or the thing in the ground will take the drawing for an invitation. Five stumps for the five who sat, and a sixth place left bare. The page ends where the fire took it, at the words 'whoever fills the sixth place keeps the village'."
+   },
+   "fr": {
+    "title": "Page brulee d'un rite",
+    "text": "...les barres rouges se tracent depuis l'oeil vers l'exterieur, jamais vers lui, sans quoi la chose du sol prendra le dessin pour une invitation. Cinq souches pour les cinq qui etaient assis, et une sixieme place laissee vide. La page s'arrete la ou le feu l'a prise, aux mots 'celui qui occupe la sixieme place garde le village'."
+   }
+  },
+  {
+   "id": "b40",
+   "place": "ritual_site",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "A Child's Counting Rhyme",
+    "text": "One for the stump and two for the stone, three for the lantern that burns alone. Four for the fungus, five for the tree, and six for the one who is counting me. The children skip the last line. The ring does not."
+   },
+   "fr": {
+    "title": "Une comptine d'enfant",
+    "text": "Une pour la souche et deux pour la pierre, trois pour la lanterne qui brule solitaire. Quatre pour le champignon, cinq pour l'arbre, et six pour celui qui me compte. Les enfants sautent le dernier vers. Le cercle, non."
+   }
+  },
+  {
+   "id": "b41",
+   "place": "catacombs",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Sexton's Key Ring",
+    "text": "Four keys, and the fourth opens nothing above ground. The gate below the churchyard has no lock, only bars, and the bars are warm in winter. A body goes down by the stair on the day of burial. Nobody has ever been seen coming up it, yet the stair is worn on the way up."
+   },
+   "fr": {
+    "title": "Le trousseau du fossoyeur",
+    "text": "Quatre cles, et la quatrieme n'ouvre rien a la surface. La grille sous le cimetiere n'a pas de serrure, seulement des barreaux, et les barreaux sont chauds en hiver. On descend un corps par l'escalier le jour de l'enterrement. Personne n'a jamais ete vu en remontant, et pourtant l'escalier est use dans le sens de la montee."
+   }
+  },
+  {
+   "id": "b42",
+   "place": "catacombs",
+   "sanity": -2,
+   "clue": true,
+   "en": {
+    "title": "Parish Register, Bottom Page",
+    "text": "Beneath the last entry for the year, in a hand that is nobody's: 'Admitted below, forty three. Present, forty four.' The sexton struck it out. The next morning it was written again, and a name followed that the whole parish knows and nobody had yet buried."
+   },
+   "fr": {
+    "title": "Registre paroissial, derniere page",
+    "text": "Sous la derniere inscription de l'annee, d'une main qui n'est celle de personne : 'Admis en bas, quarante trois. Presents, quarante quatre.' Le fossoyeur l'a barre. Le lendemain matin, la ligne etait de nouveau ecrite, suivie d'un nom que toute la paroisse connait et que personne n'avait encore enterre."
+   }
+  },
+  {
    "id": "j01",
    "place": "journal",
    "role": "fisher",

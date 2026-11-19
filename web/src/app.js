@@ -670,7 +670,7 @@ function renderDistrictChip() {
   const chip = $('districtChip'); if (!chip) return;
   const c = view3d.active ? view3d.camera : null, f = state.focus >= 0 ? state.landmarks?.[state.focus] : null;
   const id = c ? districtAtWorld(state.seed, GRID_W, GRID_D, c.x, c.z) : f ? districtAtWorld(state.seed, GRID_W, GRID_D, (f.x + 0.5) * CELL, (f.z + 0.5) * CELL) : null;
-  const lm = c ? landmarkAt(state.seed, GRID_W, GRID_D, c.x, c.z) : null; // a landmark of the wider world (cliffs, wreck, abbey, cemetery, marsh, grove) names the chip first
+  const lm = c ? landmarkAt(state.seed, GRID_W, GRID_D, c.x, c.z) : null; // a landmark of the wider world (cliffs, wreck, abbey, cemetery, marsh, grove, standing stones, hidden cove, ritual site, catacombs) names the chip first
   if (c) chip.setAttribute?.('data-cam', `${c.x.toFixed(2)},${c.z.toFixed(2)}`); // the explorer's metres, read by tools/browser_check.mjs
   const text = lm ? (nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, lm), lang) || tr(`landmark.${lm}`)) : id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
   if ($('districtChipText').textContent !== text) $('districtChipText').textContent = text;

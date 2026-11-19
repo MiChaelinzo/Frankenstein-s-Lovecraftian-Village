@@ -113,7 +113,7 @@ test('chronicle model counts what the player learned of each missing person and 
   const none = chronicleModel(story, 'en', base);
   assert.deepEqual(none.missing.map((m) => m.told), [0, 0, 0]);
   assert.equal(none.families.length, story.families.length);
-  assert.equal(none.histories.length, 5); assert.equal(none.legends.length, 6);
+  assert.equal(none.histories.length, 5); assert.equal(none.legends.length, 10);
   assert.ok(none.rumor.length > 20);
   const page = lore.books.find((b) => b.missing === m0.id);
   const some = chronicleModel(story, 'fr', { ...base, readIds: new Set([page.id]), heard: new Map([[m0.id, 1]]) });

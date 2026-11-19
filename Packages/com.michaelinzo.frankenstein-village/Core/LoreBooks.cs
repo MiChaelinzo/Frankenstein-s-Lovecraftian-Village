@@ -93,14 +93,14 @@ namespace Frankenstein.Core
 
     /// <summary>
     /// Engine-free lore book rules. Each village holds a seeded handful of books from the data file: some lie on the street in front of houses, the rest
-    /// by the chapel, the inn, the lighthouse, the dock and the churchyard graves, and one each at the cliffs, the wreck, the abbey ruins and the marsh. Same seed, grid, layout and library always give the same books and places.
+    /// by the chapel, the inn, the lighthouse, the dock and the churchyard graves, and one each at the cliffs, the wreck, the abbey ruins, the marsh, the standing stones, the hidden cove, the ritual site and the catacombs. Same seed, grid, layout and library always give the same books and places.
     /// Reading is free of randomness: the first reading applies the data file's sanity cost and clue flag, later readings change nothing.
     /// </summary>
     public static class LoreBookRules
     {
-        public static readonly string[] Places = { "house", "chapel", "inn", "lighthouse", "harbour", "grave", "cliffs", "shipwreck", "abbey", "marsh", "journal" };
+        public static readonly string[] Places = { "house", "chapel", "inn", "lighthouse", "harbour", "grave", "cliffs", "shipwreck", "abbey", "marsh", "journal", "standing_stones", "hidden_cove", "ritual_site", "catacombs" };
         /// <summary>Books placed per place, in <see cref="Places"/> order.</summary>
-        public static readonly int[] PerPlace = { 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7 };
+        public static readonly int[] PerPlace = { 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 1, 1, 1, 1 };
         public static readonly string[] Languages = { "en", "fr" };
         public const int PlaceSaltBase = 0x10b0c;
         public const int PlaceSaltStep = 4099;
@@ -240,7 +240,7 @@ namespace Frankenstein.Core
             {
                 spots.Add(onCoast(VillageDressing.DockU(seed, gridW, gridD) + DockBookU));
             }
-            else if (place == "cliffs" || place == "shipwreck" || place == "abbey" || place == "marsh")
+            else if (place == "cliffs" || place == "shipwreck" || place == "abbey" || place == "marsh" || place == VillageLandmarks.StandingStones || place == VillageLandmarks.HiddenCove || place == VillageLandmarks.RitualSite || place == VillageLandmarks.Catacombs)
             {
                 spots.AddRange(VillageLandmarks.BookSpots(place, seed, gridW, gridD));
             }

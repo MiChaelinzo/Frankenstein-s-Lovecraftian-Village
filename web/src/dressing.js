@@ -32,6 +32,7 @@ const FOOTPRINTS = {
   tentacle_tree: [1.4, 1.62, 4.85, true], tentacle_sapling: [0.6, 0.75, 2.4, false], fungus_tall: [0.97, 0.78, 2.64, false], fungus_cluster: [0.58, 0.47, 0.58, false],
   fungus_shelf: [0.74, 0.61, 0.87, false], spire_horn: [1.01, 0.48, 4.85, true], spire_ribbed: [0.97, 0.7, 5.95, true],
   cliff_rock: [5.0, 4.48, 8.0, true], shipwreck: [5.13, 1.6, 5.5, true], abbey_arch: [2.49, 1.085, 5.6, false], abbey_wall: [2.6, 0.715, 3.6, true], abbey_pillar: [1.025, 0.825, 3.25, true],
+  standing_stone: [0.65, 0.59, 3.58, true], ritual_circle: [3.2, 3.2, 0.11, false], catacomb_gate: [2.6, 1.81, 2.9, true],
   marsh_pool: [3.0, 2.85, 0.09, false], path_stone: [0.48, 0.36, 0.09, false], church_nave: [3.0, 5.9, 7.4, true], church_tower: [1.9, 1.9, 18.0, true],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
