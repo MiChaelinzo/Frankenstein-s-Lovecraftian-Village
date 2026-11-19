@@ -1,9 +1,11 @@
 import test from 'node:test';
+import { COLLISION_ONLY_KINDS } from '../src/landmarks.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
+import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 import { composeDressing, dressingBoxes, dockU, footprintOf, DRESSING_KINDS, overlapsLayout, CELL_M, hiOf, coastToWorldAt, COAST_ROAD_V, RUT_LIFT, INN_SCALE, CHAPEL_SCALE } from '../src/dressing.js';
 import { facingYaw } from '../src/streets.js';
 import { OVERHANG_CLEARANCE, BODY_RADIUS } from '../src/world-scale.js';
@@ -16,7 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).dressing;
 const entries = JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries;
 const catalog = new PrefabCatalog(entries);
-const layoutFor = (seed, grid) => generateLayout(catalog, grid, grid, grid === 24 ? 40 : 20, seed);
+const layoutFor = (seed, grid) => (grid === CITY_GRID ? generateCityLayout(catalog, grid, grid, CITY_PIECES, seed) : generateLayout(catalog, grid, grid, grid === 24 ? 40 : 20, seed));
 
 test('dressing matches the C# golden items', () => {
   assert.ok(golden.length >= 10);
@@ -56,6 +58,7 @@ test('collision boxes cover only solid kinds and lamp poles', () => {
 
 test('footprint table matches the committed meshes within 5 cm and heights within 10 cm', () => {
   for (const kind of DRESSING_KINDS) {
+    if (COLLISION_ONLY_KINDS.includes(kind)) continue; // the church boxes have no mesh: the renderer draws the church on its rise itself
     const b = readFileSync(join(here, '..', 'assets', 'meshes', `${kind}.glb`)), m = loadGlbBuffer(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)), f = footprintOf(kind);
     const { min, max } = m.bounds;
     assert.ok(Math.abs((max[0] - min[0]) / 2 - f.halfX) < 0.05, `${kind} halfX`);
@@ -141,4 +144,51 @@ test('solid collision boxes carry the overhang clearance and the body radius is 
   assert.ok(Math.abs(box.maxX - box.minX - 2 * (f.halfX + OVERHANG_CLEARANCE)) < 1e-9);
   assert.ok(Math.abs(box.maxZ - box.minZ - 2 * (f.halfZ + OVERHANG_CLEARANCE)) < 1e-9);
   assert.equal(BODY_RADIUS, 0.45);
+});
+
+// ---------- round 23: corruption growth (tentacle trees, fungi, spires) ----------
+import { corruptionLevel, corruptionSites, corruptionScale, growCorruption, CORRUPTION_LEVELS, CORRUPTION_FIRST_SCALE } from '../src/dressing.js';
+const corruptionGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).corruption;
+
+test('corruption growth levels match the C# golden, including NaN, negative and huge inputs', () => {
+  assert.ok(corruptionGolden.levels.length >= 60);
+  for (const [dread, night, level] of corruptionGolden.levels) assert.equal(corruptionLevel(dread === null ? NaN : dread, night), level, `${dread}/${night}`);
+});
+
+test('corruption sites and per-level scales match the C# golden', () => {
+  assert.equal(corruptionGolden.worlds.length, 15); // five seeds on the 24, 16 and 36 (city) grids
+  for (const w of corruptionGolden.worlds) {
+    const sites = corruptionSites(w.seed, w.grid, w.grid);
+    assert.equal(sites.length, w.sites.length);
+    sites.forEach((it, i) => {
+      assert.equal(it.kind, w.sites[i][0]);
+      [it.x, it.y, it.z, it.yaw, it.scale].forEach((v, j) => assert.ok(Math.abs(v - w.sites[i][j + 1]) < 1e-9, `${w.seed}/${w.grid} site ${i}.${j}`));
+    });
+    w.scales.forEach((row, level) => row.forEach((s, rank) => assert.ok(Math.abs(corruptionScale(rank, sites.length, level) - s) < 1e-12, `${w.seed} level ${level} rank ${rank}`)));
+  }
+});
+
+test('corruption is empty when calm, complete at the top level, and only ever grows', () => {
+  for (const seed of [1, 42, 1818]) {
+    assert.equal(growCorruption(seed, 24, 24, 0).length, 0);
+    assert.equal(growCorruption(seed, 24, 24, CORRUPTION_LEVELS).length, corruptionSites(seed, 24, 24).length);
+    let prev = 0;
+    for (let level = 0; level <= CORRUPTION_LEVELS; level++) {
+      const grown = growCorruption(seed, 24, 24, level);
+      assert.ok(grown.length >= prev); prev = grown.length;
+      for (const it of grown) assert.ok(it.scale >= CORRUPTION_FIRST_SCALE && it.scale <= 1, `${it.kind} scale ${it.scale}`);
+    }
+  }
+  assert.equal(corruptionLevel(0, 1), 0);
+  assert.equal(corruptionLevel(1, 10), CORRUPTION_LEVELS);
+  let last = 0;
+  for (let d = 0; d <= 100; d++) { const l = corruptionLevel(d / 100, 3); assert.ok(l >= last); last = l; }
+});
+
+test('corruption kinds have meshes and their stand sites lie outside the village grid', async () => {
+  for (const grid of [24, CITY_GRID]) for (const seed of [1, 42, 1818, 7, 2024]) for (const it of corruptionSites(seed, grid, grid)) {
+    const w = grid * CELL_M;
+    assert.ok(DRESSING_KINDS.includes(it.kind));
+    assert.ok(!(it.x > 0 && it.x < w && it.z > 0 && it.z < w), `${it.kind} inside the ${grid} grid`);
+  }
 });

@@ -2,14 +2,20 @@
 // Core is the source of truth; keep the numbers and the order of rolls identical to the C# file.
 import { SeededRandom } from './core.js';
 import { OVERHANG_CLEARANCE } from './world-scale.js';
+import { WORLD_MARGIN, groveCentre, cliffDir as landmarkCliffDir, cliffEndU, marshEndU } from './landmarks.js'; // a cycle with landmarks.js, used only inside functions
+import { districtAt, districtPalette, paletteDensity } from './districts.js'; // a cycle with districts.js, used only inside functions
 import { streetsEnabled, isStreetCell, isSquareCell, isBuilding, facingYaw, laneLines } from './streets.js';
 
 export const CELL_M = 4, SHORE_INSET = 6, STRIP_DEPTH = 6;
-export const SHORE_STAND_OFF = 0.6, EDGE_WALK_MARGIN = 2, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
+export const SHORE_STAND_OFF = 0.6, HOUSE_SETBACK = 0.7, WALL_LANTERN_LIFT = 2.2, SQUARE_BENCH = 3.8, SQUARE_STALL = 3.4, SCATTER_PER_CELLS = 16;
 export const DOOR_WALL_CLEARANCE = 0.15; // metres between a house wall and the back of the door bench, which stands in the setback inside its own cell. Mirrors VillageDressing.DoorWallClearance Mirrors VillageDressing.DoorWallClearance
 export const DOOR_KINDS = ['', '', '', '', 'bench', '', '', '']; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget. Mirrors VillageDressing.DoorKinds
 export const ROCK_MIN_V = 0.9; // nearest a shore rock may stand to the coast road. Mirrors VillageDressing.RockMinV
-export const COAST_ROAD_V = -1, COTTAGE_V = -4.3, LAMP_V = -0.2, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 7, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 5.5, HILL_GRAVE_ROWS = 4;
+/** Metres from the inn centre to its barrel: the inn half length (4.36 * INN_SCALE, 3.27) plus the barrel swept half length (0.96) plus the 0.3 m prop clearance. Mirrors VillageDressing.InnBarrelOffset. */
+export const INN_BARREL_OFFSET = 4.7;
+/** Metres a cottage keeps from the inn along the shore: inn half length (3.27) plus a cottage swept half length (2.5) plus a margin. Mirrors VillageDressing.InnClearance. */
+export const INN_CLEARANCE = 6.4;
+export const COAST_ROAD_V = -1, COTTAGE_V = -4.3, LAMP_V = -0.2, LAMP_SPACING = 9, MIN_SLOT_SPACING = 6, DOCK_CLEARANCE = 8.6, LIGHTHOUSE_CLEARANCE = 6.5, INN_SCALE = 0.75, CHAPEL_OFFSET = 8, CHAPEL_SCALE = 0.9, CHAPEL_CLEARANCE = 6.5, HILL_GRAVE_ROWS = 4;
 export const RUT_LIFT = 0.07, LANE_POST_CELLS = 7, BOLLARD_SPACING = 8, BOLLARD_V = -0.2, FOREGROUND_ROLL_STREAM = 0x6f1c;
 export const DRESSING_LAMP_KINDS = ['lamp', 'lamp_tall', 'lamp_double'];
 export const LAMP_POLE_HALF = 0.12, LANE_POST_INSET = 0.2; // a lamp blocks walking only at its pole; lane posts stand this far inside the lane edge. Mirror VillageDressing
@@ -23,6 +29,10 @@ const FOOTPRINTS = {
   tree: [0.95, 0.97, 6.0, true], bush: [1.07, 0.68, 0.8, false], reeds: [0.33, 0.34, 1.78, false], rock: [0.97, 0.73, 0.7, true], laundry_line: [2.05, 0.05, 2.3, false],
   grass_tuft: [0.19, 0.17, 0.52, false], stump: [0.48, 0.36, 0.48, true], log: [1.0, 0.27, 0.34, false], woodpile: [0.95, 0.6, 0.9, true], hedge: [1.4, 0.35, 1.45, true],
   picket_fence: [1.5, 0.06, 1.0, true], bollard: [0.15, 0.16, 0.78, true], rope_coil: [0.48, 0.36, 0.13, false], crop_row: [1.2, 0.78, 0.58, false], wheel_ruts: [1.6, 0.63, 0.02, false],
+  tentacle_tree: [1.4, 1.62, 4.85, true], tentacle_sapling: [0.6, 0.75, 2.4, false], fungus_tall: [0.97, 0.78, 2.64, false], fungus_cluster: [0.58, 0.47, 0.58, false],
+  fungus_shelf: [0.74, 0.61, 0.87, false], spire_horn: [1.01, 0.48, 4.85, true], spire_ribbed: [0.97, 0.7, 5.95, true],
+  cliff_rock: [5.0, 4.48, 8.0, true], shipwreck: [5.13, 1.6, 5.5, true], abbey_arch: [2.49, 1.085, 5.6, false], abbey_wall: [2.6, 0.715, 3.6, true], abbey_pillar: [1.025, 0.825, 3.25, true],
+  marsh_pool: [3.0, 2.85, 0.09, false], path_stone: [0.48, 0.36, 0.09, false], church_nave: [3.0, 5.9, 7.4, true], church_tower: [1.9, 1.9, 18.0, true],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
 export function footprintOf(kind) {
@@ -39,9 +49,9 @@ export function churchRise(seed, gridW, gridD) {
   const side = coastSideOf(seed), east = side === 0 ? true : side === 1 ? false : (((seed ^ 0x3c3c) & 1) === 0);
   return { x: east ? gridW * CELL_M + 30 : -30, z: gridD * CELL_M * 0.35, faceX: east ? -1 : 1, hill: 9 };
 }
-/** Where the player may stand: the grid plus a 2 m margin, and on the coast side out to the shore (less 0.6 m), so the coast road is walkable. Mirrors VillageDressing.WalkBounds. */
+/** Where the player may stand: the grid plus the 60 m world margin (out to the landmarks), and on the coast side out to the shore (less 0.6 m), so the coast road is walkable. Mirrors VillageDressing.WalkBounds. */
 export function walkBounds(seed, gridW, gridD) {
-  const b = { minX: -EDGE_WALK_MARGIN, maxX: gridW * CELL_M + EDGE_WALK_MARGIN, minZ: -EDGE_WALK_MARGIN, maxZ: gridD * CELL_M + EDGE_WALK_MARGIN };
+  const b = { minX: -WORLD_MARGIN, maxX: gridW * CELL_M + WORLD_MARGIN, minZ: -WORLD_MARGIN, maxZ: gridD * CELL_M + WORLD_MARGIN };
   const shore = SHORE_INSET - SHORE_STAND_OFF, side = coastSideOf(seed);
   if (side === 0) b.minX = -shore; else if (side === 1) b.maxX = gridW * CELL_M + shore; else b.minZ = -shore;
   return b;
@@ -53,7 +63,7 @@ export function coastToWorldAt(seed, gridW, u, v) {
   return { x: u, z: -SHORE_INSET - v };
 }
 const seawardYaw = (seed) => { const s = coastSideOf(seed); return s === 0 ? -Math.PI / 2 : s === 1 ? Math.PI / 2 : Math.PI; };
-const alongShoreYaw = (seed) => (coastSideOf(seed) === 2 ? 0 : Math.PI / 2);
+export const alongShoreYaw = (seed) => (coastSideOf(seed) === 2 ? 0 : Math.PI / 2);
 const cm = (rng, range) => rng.next(range) / 100;
 
 /** True when the item's footprint, swept by its yaw, comes within `clearance` metres of any layout piece. */
@@ -132,11 +142,15 @@ export function composeDressing(seed, gridW, gridD, layout) {
   const blocked = (u) => Math.abs(u - dU) < DOCK_CLEARANCE || Math.abs(u - lightU) < LIGHTHOUSE_CLEARANCE || Math.abs(u - chapelU) < CHAPEL_CLEARANCE;
   slots.forEach((s, i) => { if (blocked(s[0])) return; const d = Math.abs(s[0] - (dU + innSide * 11)); if (d < best) { best = d; innSlot = i; } });
   slots.forEach((s, i) => {
-    if (blocked(s[0])) return;
+    if (blocked(s[0]) || (innSlot >= 0 && i !== innSlot && Math.abs(s[0] - slots[innSlot][0]) < INN_CLEARANCE)) return;
     const kind = i === innSlot ? 'inn' : s[1] === 0 ? 'cottage_tall' : 'cottage_thatch';
     addShore(kind, s[0], i === innSlot ? -4.4 : COTTAGE_V + s[2], seaward + s[3], i === innSlot ? INN_SCALE : 1);
-    if (i === innSlot) addShore('barrel', s[0] - 3.1, -3.4, along + 0.2, 1);
   });
+  // The inn's barrel stands at one gable end, outside the inn's own footprint (round 23: the inn grew and the old offset put the barrel inside it): the first side that is free.
+  if (innSlot >= 0) for (const side of [-1, 1]) {
+    const w = coastToWorldAt(seed, gridW, slots[innSlot][0] + side * INN_BARREL_OFFSET, -3.4), barrel = { kind: 'barrel', x: w.x, y: 0, z: w.z, yaw: along + 0.2, scale: 1 };
+    if (!overlapsItems(barrel, items, 0.3)) { items.push(barrel); break; }
+  }
 
   addShore('crate_stack', dU - 2.7, -3 + cm(rng, 30) - 0.15, along, 1);
   addShore('barrel', dU + 2.6, -2.8, along + 0.4, 1);
@@ -205,8 +219,29 @@ export function composeDressing(seed, gridW, gridD, layout) {
     const ru = lo + rng.next(Math.trunc(Math.max(1, hi - lo))), rv = 0.6 + rng.next(80) / 100, rr = rng.next(100);
     if (Math.abs(ru - dU) > 3) addShore(rr < 70 ? 'reeds' : 'rock', ru, rr < 70 ? rv : Math.max(rv, ROCK_MIN_V), rr / 10, 1);
   }
+  composeDistricts(items, seed, gridW, gridD, layout);
   composeForeground(items, seed, gridW, gridD, layout, streets, dU, lightU, chapelU);
   return items;
+}
+
+/** Seed salt of the district palette's own roll stream. Mirrors VillageDressing.DistrictRollStream. */
+export const DISTRICT_ROLL_STREAM = 0x4453;
+
+/**
+ * District palettes (mirrors VillageDressing.ComposeDistricts): every free yard cell may hold one prop from the palette of its district. Runs before the foreground
+ * fill (the quarter's own props get the free yards first) with its own roll stream. Every cell rolls first, so the stream never depends on what is skipped.
+ */
+function composeDistricts(items, seed, gridW, gridD, layout) {
+  const rng = new SeededRandom(seed ^ DISTRICT_ROLL_STREAM);
+  for (let cx = 0; cx < gridW; cx++) for (let cz = 0; cz < gridD; cz++) {
+    const chance = rng.next(100), pick = rng.next(100), yawRoll = rng.next(628), ox = 0.8 + rng.next(240) / 100, oz = 0.8 + rng.next(240) / 100;
+    if (isStreetCell(gridW, gridD, cx, cz)) continue;
+    const district = districtAt(seed, gridW, gridD, cx, cz);
+    if (chance >= paletteDensity(district)) continue;
+    const palette = districtPalette(district), kind = palette[Math.floor(pick * palette.length / 100)], f = footprintOf(kind);
+    const yaw = f.halfX > 1.2 && f.halfZ < 0.4 ? (yawRoll % 2) * Math.PI / 2 : yawRoll / 100;
+    tryAdd(items, { kind, x: cx * CELL_M + ox, y: 0, z: cz * CELL_M + oz, yaw, scale: 1 }, layout, gridW, gridD, false);
+  }
 }
 
 /**
@@ -300,5 +335,47 @@ export function dressingBoxes(items) {
     const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     out.push({ minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz, height: f.height * it.scale });
   }
+  return out;
+}
+
+/** Metres of the lighthouse along the shore: the end of the shore farther from the dock. Mirrors VillageDressing.LightU. */
+export function lightU(seed, gridW, gridD) { const hi = hiOf(seed, gridW, gridD); return dockU(seed, gridW, gridD) > hi - dockU(seed, gridW, gridD) ? 6 : hi - 6; }
+
+// ---------- Corruption growth: mirrors Core/CorruptionGrowth.cs (golden "corruption") ----------
+export const CORRUPTION_LEVELS = 6, CORRUPTION_DREAD_WEIGHT = 0.75, CORRUPTION_NIGHT_WEIGHT = 0.25, CORRUPTION_FULL_NIGHT = 10;
+export const CORRUPTION_FIRST_SCALE = 0.55, CORRUPTION_SCALE_STEP = 0.15, CORRUPTION_ROLL_STREAM = 0x7c0d;
+const CLIFFS = [['spire_horn', 5, -3.4], ['spire_ribbed', 9, -3.8], ['spire_horn', 13, -3.2], ['tentacle_sapling', 7, -4.2], ['spire_ribbed', 16, -3.6]];
+const MARSH = [['fungus_cluster', 4, -2.0], ['fungus_tall', 7, -3.2], ['fungus_cluster', 10, -1.0], ['tentacle_sapling', 13, -2.6], ['fungus_tall', 16, -1.4], ['fungus_cluster', 19, -3.5]];
+const CHURCHYARD = [['fungus_shelf', 3.8, -6.6], ['tentacle_sapling', 5.2, 3.2], ['fungus_cluster', 6.6, -6.4], ['spire_horn', 7.0, 5.2], ['fungus_shelf', 7.4, -1.8], ['tentacle_sapling', 4.8, -7.2]];
+const GROVE = [['tentacle_tree', 0, 4.5], ['tentacle_tree', 72, 5.5], ['tentacle_tree', 144, 4.8], ['tentacle_tree', 216, 5.8], ['tentacle_tree', 288, 5.0], ['fungus_shelf', 36, 3.0], ['fungus_shelf', 180, 3.4], ['fungus_tall', 108, 2.6]];
+
+/** Growth level 0..6 from dread (0..1, NaN is 0) and the night number. Monotonic in both. */
+export function corruptionLevel(dread, night) {
+  const d = Number.isNaN(dread) ? 0 : Math.max(0, Math.min(1, dread)), n = Math.max(0, Math.min(1, (night - 1) / (CORRUPTION_FULL_NIGHT - 1)));
+  return Math.min(CORRUPTION_LEVELS, Math.floor((CORRUPTION_DREAD_WEIGHT * d + CORRUPTION_NIGHT_WEIGHT * n) * CORRUPTION_LEVELS));
+}
+export const corruptionAppearLevel = (rank, total) => 1 + Math.floor((rank * CORRUPTION_LEVELS) / total);
+export function corruptionScale(rank, total, level) {
+  const appear = corruptionAppearLevel(rank, total);
+  return level < appear ? 0 : Math.min(1, CORRUPTION_FIRST_SCALE + CORRUPTION_SCALE_STEP * (level - appear));
+}
+/** Every candidate at full size, ranked (first of each site, then second of each ...). Three rolls per candidate in table order. */
+export function corruptionSites(seed, gridW, gridD) {
+  const rng = new SeededRandom(seed ^ CORRUPTION_ROLL_STREAM), cliffDir = landmarkCliffDir(seed, gridW, gridD); // the anchors are the landmarks of landmarks.js
+  const cliffEnd = cliffEndU(seed, gridW, gridD), marshEnd = marshEndU(seed, gridW, gridD), church = churchRise(seed, gridW, gridD), grove = groveCentre(seed, gridW, gridD);
+  const roll = () => ({ jx: (rng.next(100) - 50) / 100, jz: (rng.next(100) - 50) / 100, yaw: rng.next(628) / 100 });
+  const sites = [[], [], [], []];
+  for (const [kind, a, b] of CLIFFS) { const r = roll(), p = coastToWorldAt(seed, gridW, cliffEnd + cliffDir * a + r.jx, b + r.jz); sites[0].push({ kind, x: p.x, y: 0, z: p.z, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of MARSH) { const r = roll(), p = coastToWorldAt(seed, gridW, marshEnd - cliffDir * a + r.jx, b + r.jz); sites[1].push({ kind, x: p.x, y: 0, z: p.z, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of CHURCHYARD) { const r = roll(); sites[2].push({ kind, x: church.x + church.faceX * a + r.jx * 0.5, y: church.hill, z: church.z + b + r.jz * 0.5, yaw: r.yaw, scale: 1 }); }
+  for (const [kind, a, b] of GROVE) { const r = roll(), ang = (a * Math.PI) / 180; sites[3].push({ kind, x: grove.x + Math.cos(ang) * b + r.jx, y: 0, z: grove.z + Math.sin(ang) * b + r.jz, yaw: r.yaw, scale: 1 }); }
+  const ranked = [];
+  for (let i = 0; sites.some((l) => i < l.length); i++) for (const l of sites) if (i < l.length) ranked.push(l[i]);
+  return ranked;
+}
+/** The corruption standing at a growth level: the ranked candidates that have appeared, each scaled (never above 1). */
+export function growCorruption(seed, gridW, gridD, level) {
+  const all = corruptionSites(seed, gridW, gridD), out = [];
+  all.forEach((it, rank) => { const scale = corruptionScale(rank, all.length, level); if (scale > 0) out.push({ ...it, scale }); });
   return out;
 }

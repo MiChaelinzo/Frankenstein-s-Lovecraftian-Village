@@ -11,12 +11,13 @@ export const QUALITY_CHOICES = Object.freeze(['auto', 'low', 'medium', 'high']);
  * shadows, 2 adds a third wave train, an extra cloud octave and moon glints on wet stone). particles, fireflies, birds: count multipliers.
  * fogDense: distance fog multiplier (denser also culls sooner, saving frames). groundDense: low mist multiplier. godRays: moon shaft strength (High only).
  * lampHalo: lantern halo size multiplier; lampCore: brightness of a small warm core inside each halo (0 Low keeps the plain soft disc). Both are display only.
+ * drawDistance: metres beyond which building chunks are not drawn (round 23, the 144 m city); view3d raises the fog so it is near opaque there, so nothing pops.
  * life: moth, leaf and chimney smoke point multiplier (0 Low, display only). fogSheets: drifting noise in the ground mist. sky2d: layered dusk sky and window glow on the 2D canvas.
  */
 export const QUALITY_TIERS = Object.freeze({
-  low: Object.freeze({ maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, bloomTaps: 1, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false, fogDense: 1.3, groundDense: 1, godRays: 0, life: 0, lampHalo: 1, lampCore: 0 }),
-  medium: Object.freeze({ maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, bloomTaps: 5, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.2, groundDense: 1.35, godRays: 0, life: 0.5, lampHalo: 1.25, lampCore: 0.35 }),
-  high: Object.freeze({ maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, bloomTaps: 10, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.12, groundDense: 1.6, godRays: 1, life: 1, lampHalo: 1.5, lampCore: 0.6 }),
+  low: Object.freeze({ drawDistance: 80, maxPixels: 960 * 540, minScale: 0.5, post: false, bloom: 0, bloomTaps: 1, fxaa: false, detail: 0, particles: 0.5, fireflies: 0.5, birds: 0.5, fogSheets: false, sky2d: false, fogDense: 1.3, groundDense: 1, godRays: 0, life: 0, lampHalo: 1, lampCore: 0 }),
+  medium: Object.freeze({ drawDistance: 90, maxPixels: 1280 * 720, minScale: 0.5, post: true, bloom: 0.45, bloomTaps: 5, fxaa: false, detail: 1, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.2, groundDense: 1.35, godRays: 0, life: 0.5, lampHalo: 1.25, lampCore: 0.35 }),
+  high: Object.freeze({ drawDistance: 100, maxPixels: 1920 * 1080, minScale: 0.5, post: true, bloom: 0.55, bloomTaps: 10, fxaa: true, detail: 2, particles: 1, fireflies: 1, birds: 1, fogSheets: true, sky2d: true, fogDense: 1.12, groundDense: 1.6, godRays: 1, life: 1, lampHalo: 1.5, lampCore: 0.6 }),
 });
 
 /** A tier or choice name from free text (URL, storage, select), lower-cased; null when it is not one of QUALITY_CHOICES. */

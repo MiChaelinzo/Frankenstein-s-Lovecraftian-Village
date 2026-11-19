@@ -2,17 +2,19 @@
 // core.js, meshes from glb.js and the interaction rules from InteractionRules in core.js. This file only owns GL objects, shaders,
 // input listeners and the frame loop. Original shaders and geometry only: no DLNK assets or footage are used.
 import { InteractionRules } from './core.js';
-import { composeDressing, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
+import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
-import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
 import { createPerf } from './perf.js';
 import {
-  CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
+  CELL, EYE_HEIGHT, FAR, INV_TILE, resolveCollisions, BODY_RADIUS, sanitizeViewSettings, fovRadians, HALO_FLOATS, MAX_LIGHTS, cullCell, lightCullRadius, lightsWithin, pointsWithin, DOCK_SEGMENT, FENCE_SEGMENT, LAMP_KINDS, coastProps, lampKind, carriedLantern, cameraBasis, coldFill, contactRings, lanternPool, lanternState, moonBoost, churchSite, coastFeatures, blendCamera, coastToWorld, eyeParams, fogLayers, fireflyCount, fireflySeeds, fireflyStyle, seaParams, smoothDrive, footfall, surfaceAt, coastCloseness, FIREFLY_FLOATS,
   forwardVector, frameCost, hazedSky, headBob, haloSprites, lanternColor, lanternFlicker, lanternLights, moonParams, nearestLights, postParams, nextScale, omenBlendWeight, omenFraming,
   particleCounts, particleSeeds, windState, precipitationStyle, flashSky, decayFlash, weatherLook, parseCamParam, pickBox, pickLamp, renderSize, screenRay, spawnPoint, stepCamera, tentacleBases, terrainRects,
-  viewProjection, windowLit, worldBounds, worldBoxes, postLampBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
+  viewProjection, windowLit, worldBounds, worldBoxes, postLampBoxes, partitionChunks, frustumPlanes, visibleRanges, fogCullDistance, fogFloorFor, chunkCullDistance, gradeParams, closeFog, windowMood, rimLight, projectToScreen, godRayAmount, shoreLine, wetness, blobShadows, MAX_BLOBS,
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
@@ -79,7 +81,7 @@ function pushCoastBlock(out, f, u0, u1, v0, v1, y0, y1, color, taper = 1) {
 
 /** Added to the phase of foliage vertices (trees, bushes, reeds): the scene vertex shader bends them with the wind and removes the marker again. */
 export const FOLIAGE_PHASE = 1000;
-const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row']);
+const FOLIAGE_KINDS = new Set(['tree', 'bush', 'reeds', 'grass_tuft', 'crop_row', 'tentacle_tree', 'tentacle_sapling']);
 /** Added on top of FOLIAGE_PHASE for plants that grow from the ground: the scene shader colours them from the ground palette under them. */
 export const GROUND_PLANT_PHASE = 300;
 const GROUND_PLANT_KINDS = new Set(['reeds', 'grass_tuft']);
@@ -138,17 +140,12 @@ export function buildCoast({ gridW, gridD, seed, cell = CELL, meshes = null }) {
   return new Float32Array(out);
 }
 
-const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_STEPS = 26, HILL_FOOT = -0.5;
+const HILL_STEPS = 26; // the rise itself (radii, plateau, foot and height function) is Core ruled: landmarks.js mirrors VillageLandmarks
 const GRASS = [0.13, 0.17, 0.11], GRASS_DRY = [0.2, 0.2, 0.13], HILL_ROCK = [0.24, 0.24, 0.25], HILL_PATH = [0.36, 0.33, 0.27];
-const hillStep = (t) => t * t * (3 - 2 * t);
-/** Height of the church rise at an offset (metres) from its centre: a flat summit, a smooth shoulder and gentle lumps, never below the foot. Deterministic, no randomness. */
-export function hillHeight(c, dx, dz) {
-  const rho = Math.hypot(dx / HILL_RX, dz / HILL_RZ), t = Math.max(0, Math.min(1, (rho - HILL_PLATEAU) / (1 - HILL_PLATEAU)));
-  const lumps = 0.9 * Math.sin(dx * 0.55 + dz * 0.2) * Math.cos(dz * 0.43) * t * (1 - t) * 4;
-  return Math.max(HILL_FOOT, c.hill * (1 - hillStep(t)) + lumps + HILL_FOOT * hillStep(t));
-}
+/** Height of the church rise at an offset (metres) from its centre c: the shared Core function of landmarks.js. */
+export const hillHeight = (c, dx, dz) => landmarkHillHeight(c.hill, dx, dz);
 /** A winding path climbs the village side of the rise: its lateral offset from the centre line at a given x offset. */
-const pathZ = (c, dx) => Math.sin(dx * 0.22) * 2.6;
+const pathZ = (c, dx) => hillPathZ(dx);
 /** The rise as a smooth heightmap: grass and dry turf by height, rock on steep slopes, and a pale path from the foot to the summit on the side that faces the village. */
 function pushHillSurface(out, c) {
   const n = HILL_STEPS, xs = [], at = (i, j) => {
@@ -277,7 +274,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [] }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], corruption = 0 }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -293,6 +290,9 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   const dressing = composeDressing(seed, gridW, gridD, layout);
   batchProps(out, uv, dressing, meshes, cell);
+  const landmarkItems = [...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)];
+  batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
+  if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
@@ -305,7 +305,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
-  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes(dressing) };
+  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes([...dressing, ...landmarkItems]) };
 }
 
 // ---------- shaders ----------
@@ -774,7 +774,7 @@ export function createGlRenderer(gl) {
         if (name === 'building' && uvCount === counts.building) { gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.enableVertexAttribArray(uvLoc); gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 8, 0); }
         else { gl.disableVertexAttribArray(uvLoc); gl.vertexAttrib2f(uvLoc, -1, -1); }
         if (name === 'building') { // static props and houses: only the chunks in the frustum and not yet lost in the fog
-          const ranges = visibleRanges(buildingChunks, planes, f.camPos, fogCullDistance(f.fog));
+          const ranges = visibleRanges(buildingChunks, planes, f.camPos, chunkCullDistance(f.fog, f.drawDistance));
           buildingDrawn = 0; buildingRanges = ranges.length;
           for (const r of ranges) { gl.drawArrays(gl.TRIANGLES, r.first, r.count); buildingDrawn += r.count; }
         } else gl.drawArrays(gl.TRIANGLES, 0, counts[name]);
@@ -862,19 +862,53 @@ async function fetchImage(url) {
  * ground, stone, roof and cobble, and the props in THIRD_PARTY_MODELS replace their original meshes in `meshes`. Every failure is a
  * console.warn and leaves the original in place. Resolves the number of props upgraded.
  */
-async function loadThirdParty(renderer, meshes) {
-  const names = Object.keys(THIRD_PARTY_TEXTURES), imgs = await Promise.all(names.map((n) => fetchImage(THIRD_PARTY_BASE + THIRD_PARTY_TEXTURES[n])));
-  renderer.setMaterialTextures(Object.fromEntries(names.map((n, i) => [n, imgs[i]])));
-  const props = await loadThirdPartyModels(fetch.bind(globalThis), THIRD_PARTY_BASE + 'models/', meshes);
-  const bitmaps = await Promise.all(props.map((p) => decodeImage(p.texture.bytes, p.texture.mimeType, p.kind)));
+async function loadThirdParty(renderer, meshes, { cc0 = true, wantAlien = false } = {}) {
+  let props = [], bitmaps = [];
+  if (cc0) {
+    const names = Object.keys(THIRD_PARTY_TEXTURES), imgs = await Promise.all(names.map((n) => fetchImage(THIRD_PARTY_BASE + THIRD_PARTY_TEXTURES[n])));
+    renderer.setMaterialTextures(Object.fromEntries(names.map((n, i) => [n, imgs[i]])));
+    props = await loadThirdPartyModels(fetch.bind(globalThis), THIRD_PARTY_BASE + 'models/', meshes);
+    bitmaps = await Promise.all(props.map((p) => decodeImage(p.texture.bytes, p.texture.mimeType, p.kind)));
+  }
   const ok = props.filter((_, i) => bitmaps[i]);
-  if (!ok.length) return 0;
-  const slotPx = 512, atlas = document.createElement('canvas'); atlas.width = atlas.height = slotPx * ATLAS_GRID;
+  const alien = wantAlien ? await loadAlienPack(meshes) : [];
+  if (!ok.length && !alien.length) return 0;
+  const slotPx = 512, grid = alien.length ? ATLAS_GRID * 2 : ATLAS_GRID, atlas = document.createElement('canvas'); atlas.width = atlas.height = slotPx * grid;
   const ctx = atlas.getContext('2d');
+  // with the Alien pack the 2 x 2 CC0 atlas stays as the top left quarter of a 4 x 4 atlas; the Alien models take the other slots
+  const taken = (s) => s % grid < ATLAS_GRID && Math.floor(s / grid) < ATLAS_GRID, freeSlots = Array.from({ length: grid * grid }, (_, s) => s).filter((s) => !taken(s));
   props.forEach((p, i) => { if (bitmaps[i]) ctx.drawImage(bitmaps[i], (p.slot % ATLAS_GRID) * slotPx, Math.floor(p.slot / ATLAS_GRID) * slotPx, slotPx, slotPx); });
+  for (const p of ok) meshes.set(p.kind, alien.length ? shrinkUv(p.model, ATLAS_GRID / grid) : p.model);
+  let placed = ok.length;
+  for (const a of alien) {
+    let model = a.model;
+    if (a.texture) {
+      const bmp = await decodeImage(a.texture.bytes, a.texture.mimeType, a.kind), slot = freeSlots.shift();
+      if (bmp && slot !== undefined) { ctx.drawImage(bmp, (slot % grid) * slotPx, Math.floor(slot / grid) * slotPx, slotPx, slotPx); model = atlasModel(model, slot, grid); }
+      else model = { ...model, texture: null, triangles: model.triangles.map(({ uv, ...flat }) => flat) }; // no room or no bitmap: flat colour
+    }
+    meshes.set(a.kind, model);
+    placed++;
+  }
   renderer.setPropAtlas(atlas);
-  for (const p of ok) meshes.set(p.kind, p.model);
-  return ok.length;
+  return placed;
+}
+
+/**
+ * Local horror area, only under ?pack=1: the Alien Terrain Pack look-alikes of the corruption kinds from the git-ignored local-pack/alien/.
+ * No manifest (the usual case on any other machine) or a bad one logs one console warning and leaves every original mesh in place.
+ */
+async function loadAlienPack(meshes) {
+  try {
+    const res = await fetch('local-pack/alien/manifest.json');
+    if (!res.ok) throw new Error(`no local-pack/alien/manifest.json (HTTP ${res.status}); run python3 tools/build_alien_pack.py`);
+    const v = validateAlienManifest(await res.json());
+    if (!v.ok) throw new Error('bad manifest: ' + v.errors.join('; '));
+    return await loadAlienModels(fetch.bind(globalThis), 'local-pack/alien/', v.models, meshes);
+  } catch (err) {
+    console.warn(`[alien-pack] ${err.message}; keeping the original meshes`);
+    return [];
+  }
 }
 
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
@@ -886,10 +920,11 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
  *   fly: camera {x,y,z,yaw,pitch} while the ?cinematic=1 fly-through runs (it replaces walking), else null }
  * packTextures(): null, or { wall, ground } image URLs (only under ?pack=1, served from the git-ignored web/local-pack).
+ * alienPack(): true only under ?pack=1, then the local Alien models replace the corruption look-alikes when local-pack/alien/ exists.
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
@@ -904,10 +939,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(',')].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [] });
+    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1025,7 +1060,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const inp = { ...raw, forward: smooth.forward, strafe: smooth.strafe }, mouse = look.dx || look.dy || pendingMouse ? { dx: look.dx + (pendingMouse ? pendingMouse.dx : 0), dy: look.dy + (pendingMouse ? pendingMouse.dy : 0) } : null;
     const before = cam;
     cam = s.fly ? streetFly(s.fly) : stepCamera(cam, inp, dt, boxes, bounds, mouse);
-    if (!s.fly) cam = { ...cam, y: settings.eye }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset
+    if (!s.fly) cam = { ...cam, y: settings.eye + groundHeight(s.seed, s.gridW, s.gridD, cam.x, cam.z) }; // the walking eye height setting; the ground is flat inside the walkable bounds, so there is no terrain offset
     look = { dx: 0, dy: 0 }; pendingMouse = null;
     const moved = cam.x !== before.x || cam.z !== before.z || cam.yaw !== before.yaw || cam.pitch !== before.pitch;
     const speed = Math.min(1, Math.hypot(inp.forward, inp.strafe)), moving = speed > 0.01 || !!(raw.forward || raw.strafe);
@@ -1074,16 +1109,16 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     }
     const sk = flashSky(day.sky, flashState.flash); // the clock blends the night look toward day; full night is unchanged
     const lc = lanternColor(s.dread), carried = carriedLantern(s.dread), fwd = forwardVector(view.yaw, view.pitch);
-    const states = lights.map((l) => lanternState(l, s.lamps)), haloKey = states.join(',') + '|' + tier.lampHalo;
+    const states = lights.map((l) => lanternState(l, s.lamps)), cc = cullCell(eye.x, eye.z), cullR = lightCullRadius(tier.drawDistance), haloKey = states.join(',') + '|' + tier.lampHalo + '|' + cc.key; // lights lost in the fog are not drawn: the set follows the camera cell
     const lifeNow = lifeParams({ tier, reduced, weather, dread: Math.round(s.dread * 4) / 4 }), fliesStyle = fireflyStyle(s.dread, reduced), fliesKey = `${haloKey}|${fliesStyle.kind}|${reduced}|${tier.fireflies}`;
     if (fliesKey !== lastFlies) {
       lastFlies = fliesKey;
       const warm = lights.filter((l, i) => states[i] !== 'unlit');
-      const fl = fireflySeeds(warm, s.seed, Math.round(fireflyCount({ lights: warm.length, reduced }) * tier.fireflies)), lf = lifeSeeds({ seed: s.seed, lights: warm, chimneys: world ? chimneySites(s.layout, world.heights) : [], counts: lifeNow }), all = new Float32Array(fl.length + lf.length);
+      const fl = pointsWithin(fireflySeeds(warm, s.seed, Math.round(fireflyCount({ lights: warm.length, reduced }) * tier.fireflies)), FIREFLY_FLOATS, cc.x, cc.z, cullR), lf = lifeSeeds({ seed: s.seed, lights: warm, chimneys: world ? chimneySites(s.layout, world.heights) : [], counts: lifeNow }), all = new Float32Array(fl.length + lf.length);
       all.set(fl); all.set(lf, fl.length); renderer.setFireflies(all);
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
-      lastHalos = haloKey; renderer.setHalos(haloSprites(lights.map((l, i) => ({ ...l, haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
+      lastHalos = haloKey; renderer.setHalos(haloSprites(lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
     }
     const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
@@ -1093,6 +1128,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     const hc = !!highContrast(), cf = closeFog({ fog: sk.fog, dread: s.dread, tier, w: day.w }); // Silent Hill style close fog: denser by tier, colour from the sky
     fogs.density *= cf.density; fogs.ground *= cf.ground; fogs.groundHeight *= cf.groundHeight;
+    fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
     const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
@@ -1115,7 +1151,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (hc) { postP.grain = 0; postP.chroma = 0; } postP.vignette = Math.max(0, postP.vignette + grade.vignetteBoost); if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
     renderer.draw({
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
-      fog: fogs.density, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, lampCore: tier.lampCore, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
+      fog: fogs.density, drawDistance: tier.drawDistance, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, lampCore: tier.lampCore, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
     });
   }
 
@@ -1194,9 +1230,9 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       for (const [target_, type, fn] of listeners) target_.addEventListener(type, fn);
       loadMeshesOnce().then((set) => {
         meshes = set; worldKey = ''; wake();
-        if (!thirdParty || thirdPartyStarted) return;
+        if ((!thirdParty && !alienPack()) || thirdPartyStarted) return;
         thirdPartyStarted = true;
-        loadThirdParty(renderer, set).then((n) => { upgraded = n; worldKey = ''; wake(); }, (err) => console.warn('[third-party] upgrade failed: ' + err.message));
+        loadThirdParty(renderer, set, { cc0: thirdParty, wantAlien: alienPack() }).then((n) => { upgraded = n; worldKey = ''; wake(); }, (err) => console.warn('[third-party] upgrade failed: ' + err.message));
       });
       const plan = packLoaded ? null : packTextures();
       if (plan) {

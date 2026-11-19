@@ -110,10 +110,11 @@ namespace Frankenstein.Core.Tests
                 VillageDressing.WalkBounds(seed, 24, 24, out double minX, out double maxX, out double minZ, out double maxZ);
                 int side = VillagerRules.CoastSide(seed);
                 double shore = VillageDressing.ShoreInset - VillageDressing.ShoreStandOff;
-                Assert.Equal(side == 0 ? -shore : -VillageDressing.EdgeWalkMargin, minX);
-                Assert.Equal(side == 1 ? 96 + shore : 96 + VillageDressing.EdgeWalkMargin, maxX);
-                Assert.Equal(side == 2 ? -shore : -VillageDressing.EdgeWalkMargin, minZ);
-                Assert.Equal(96 + VillageDressing.EdgeWalkMargin, maxZ);
+                double m = VillageLandmarks.WorldMargin;
+                Assert.Equal(side == 0 ? -shore : -m, minX);
+                Assert.Equal(side == 1 ? 96 + shore : 96 + m, maxX);
+                Assert.Equal(side == 2 ? -shore : -m, minZ);
+                Assert.Equal(96 + m, maxZ);
             }
         }
 

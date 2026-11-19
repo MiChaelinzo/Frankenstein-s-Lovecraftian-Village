@@ -9,6 +9,7 @@ namespace UnityEngine
         public string name { get; set; }
         public static T Instantiate<T>(T original, Vector3 position, Quaternion rotation, Transform parent) where T : Object { return original; }
         public static void DestroyImmediate(Object obj) { }
+        public static void Destroy(Object obj) { }
         public static T FindFirstObjectByType<T>() where T : Object { return null; }
         public static implicit operator bool(Object o) { return o != null; }
     }

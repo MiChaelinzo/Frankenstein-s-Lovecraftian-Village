@@ -76,6 +76,7 @@
         </section>
         <section class="objective" aria-label="Vigil objective" data-i18n-aria="vigil.aria">
           <p id="clockChip" class="clock-chip" role="timer" aria-live="off" data-phase="dusk"><span id="clockChipText"></span> <span id="clockLanterns" class="clock-lanterns" data-i18n="clock.lanterns" hidden>Lanterns lit</span></p>
+          <p id="districtChip" class="clock-chip district-chip" role="status" aria-live="polite" aria-label="Quarter of the city you stand in" data-i18n-aria="district.aria" hidden><span id="districtChipText"></span></p>
           <p id="clockHint" class="stats clock-hint" role="note" hidden><span data-i18n="clock.hint">The village keeps time.</span> <button id="clockHintClose" type="button" data-i18n="clock.hint.close">Understood</button></p>
           <p id="objective" class="objective-line" role="status"><span id="objectiveText"></span></p>
           <p id="vigilNote" class="stats" role="status"></p>
@@ -214,7 +215,7 @@
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
           <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
-          <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds" data-i18n-aria="aria.minimap"></canvas>
+          <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds and city quarters" data-i18n-aria="aria.minimap"></canvas>
           <ul id="legend" class="legend" aria-label="Legend"></ul>
         </section>
         <section id="codexPanel" class="panel codex" aria-labelledby="codexTitle" hidden>

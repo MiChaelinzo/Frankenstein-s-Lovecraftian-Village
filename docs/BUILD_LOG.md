@@ -303,11 +303,25 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - Browser check (full run, SwiftShader): 99 of 101. One failure was a stale expected mesh count (`37 of 37`, now 47 after the round 22 props), fixed in `tools/browser_check.mjs`. The other was the real-time frame timing check (`frames > 30` in a 6 s walk), which is bimodal on this host: the same build alternates between about 37 frames at 150 ms and 14 frames at 450 ms mean; I first suspected the 2D mood fills, but reverting only the 2D file did not give a stable result (A/B alternation reproduced both modes with identical code). Partially Verified; run `TIMING_ONLY=1` again on a quiet machine. Main `d72a4fa` measured 45 frames at 136 ms, `f4cf0a1` 38 frames at 144 ms, `3c81de0` 48 frames at 127 ms.
 - Added after the docs commit: `26a67f4` fix: gentler foliage lift, sw cache v28.
 
+## Round 23 part 7 (the city with districts, task 123, branch feat/round23c)
+- `e458bd2` feat: city with districts, chunked layout and palettes in Core with JS parity, shore clearance fix, district HUD chip and minimap
+- `adb835b` docs: city districts changelog, audit, timing and stills
+- Verified: dotnet Core 202, node 523, validate_repo OK, tools tests OK, UnityCompileCheck 0/0. Browser runs: `DISTRICT_ONLY`, `QUALITY_ONLY`, `LOOK_ONLY` and `TIER_ONLY` pass.
+- Full `browser_check`: not green on this host. Three runs on the city build stopped at 14/15, 19/20 and 19/21. The failures were screenshot captures right after a fresh 3D navigation ("Not attached to an active page") and then the cinematic check. The same script against the base build (`344a2a1`) stopped at 13/14 with "Cannot take screenshot with 0 width", so the flakiness is already there on the base build. Capture now retries 8 times, 2.5 s apart. A load probe showed the same DOM ready times for both builds (0.4 to 8.6 s, noisy). Partially Verified.
+- Per-tier timing is in the CHANGELOG (round 23 part 7).
+
 ## Round 23 part 5 (silhouettes, lantern halos)
 - Blender needs `LD_LIBRARY_PATH=<pack-scratch/blender/libs/usr/lib64>`; only the six edited GLBs change, the other 41 regenerate byte-identical.
 - Triangle budget bit first: the full detail set raised seed 1818 to 37,577 (limit 36,000), so decoration was trimmed to 35,813. A regex that deleted `post_*` parts also removed posts from other meshes; restored from HEAD, check `git diff` on shape data.
 - `/tmp` was cleared mid-session; keep scripts in the workspace.
 - Before/after stills viewed (street, square, harbour, dusk and night, Medium and High); the square cam3d stands against a house wall at night, so it is not used. TIER_ONLY=1: Low 269, Medium 324, High 357 ms (noisy, indicative).
+
+## Round 23 part 8: landmarks and lit paths (FEAT-005)
+- Landmarks, paths, hill, lore spots and the walk margin live in Core `VillageLandmarks`; `web/src/landmarks.js` mirrors it (golden key `landmarks`). New GLBs come from `tools/blender/author_landmark_shapes.py --apply` then `gen_meshes.py` (needs `LD_LIBRARY_PATH=pack-scratch/blender/libs/usr/lib64`; `/tmp` is cleared between shell calls, so write output under `pack-scratch/`).
+- Bugs found by looking at stills: the old flank cliffs (coastFeatures, v -2 to -5) stood on the coast path, so they moved to the sea; spires at v -0.4 to 0.9 stood in the same rock, so the cliff spires moved to v -3.2 to -4.2; the grove path ended inside its trees (stop at 9.5 m); a cemetery spire stood on the hill path on one coast side. A new C# test keeps path waypoints and lamps out of solid props and full-grown corruption.
+- Perf follow-up: halos and fireflies are not the mid-city cost (see CHANGELOG); the cull stays because it bounds the work for real GPUs and the larger world, not because it was measured to help on SwiftShader.
+- Stills (seed 1818, `night=10`, dusk `tick=980`, night `tick=1250`): `docs/media/round23-landmark-{cliffs,shipwreck,abbey,cemetery,marsh,grove,paths-night}.jpg`, each under 30 KB. The cemetery still is taken on the summit, standing among the graves beside the church wall.
+- Verified: dotnet 210, node 532, validator, tools tests, UnityCompileCheck 0/0, `LANDMARK_ONLY`, `DISTRICT_ONLY`, `QUALITY_ONLY`, `LOOK_ONLY`, `TIER_ONLY` browser runs, stills viewed. Partially Verified: full `browser_check` (not rerun end to end). Unverified: Unity runtime (the landmarks are not wired into `VillageBuilder`), real GPU timing.
 
 ## Round 23 part 1 commits (look and walking bug fixes, branch feat/round23)
 - `a716127` fix: held lantern glass burns at full strength, raised so the base is not cut off
@@ -317,3 +331,17 @@ Full commit list from `git log --reverse ae4f588..HEAD` taken before this entry 
 - `2adea36` fix: lamp posts block walking at the pole and stand clear of lane walkers and the coast road (Core, golden, JS)
 - Test commit: walk-timing gate pinned to frames keep coming (`WALK_TIMING_MIN_FRAMES = 8`) in `tools/browser_check.mjs`.
 - Verified: validator, node 495, dotnet Core 182, UnityCompileCheck 0/0. Partially Verified: look changes (SwiftShader stills only). Unverified: real GPU, Unity runtime.
+
+## Round 23 part 9 commits (local Alien Terrain horror area, branch feat/round23c)
+- `60b94f3` feat: local-only Alien Terrain horror area under ?pack=1 (build_alien_pack.py, loader with silent fallback, sw v36)
+- `84d32a7` feat: optional CorruptionGrowthPlacer prefab slots for the Unity scene (compile checked)
+- Verified: offline tests (14 Python, 6 new node), node 538, dotnet Core 210, validator, UnityCompileCheck 0/0, `git status` clean of local-pack output. Partially Verified: SwiftShader stills of the grove (git-ignored). Unverified: real GPU, Unity runtime.
+
+
+## Round 23 part 10 (grove investigation and docs, FEAT-006, branch feat/round23c)
+Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: Core CorruptionGrowth, `344a2a1` docs, `e458bd2` city and districts, `adb835b` docs, `2d1d357` test, `b029687` landmarks, `5d38558` landmark chip and culling, `9cb6ba9` docs, `60b94f3` Alien area, `84d32a7` Unity placer slots, `50c4c88` docs, plus the test and docs commits of this part.
+- Investigation: the hash does not set the clock (sessions start at dusk; add `tick=1250`), `sanity=0&night=10` is level 6 and `sanity=100&night=1` level 0, pack models stand on the original floor (min y 0 for all seven kinds) and all sites sit on Core `groundHeight`. A pack tree looks like it hovers because its roots are 0.5% of its vertices. The earlier no-pack still faced away from the grove. A node test pins the grounding.
+- A pack still taken with `capture=1` right after load may show the originals, because the alien upgrade finishes after the first frame; use a longer `SHOT_TIMEOUT` or look in a real browser. Partially Verified.
+- Timings (SwiftShader, indicative): see CHANGELOG parts 7 and 8. Before the city, camera 84,96: 268/330/353 ms (Low/Medium/High). After, same camera inside the city: 410/480/516 ms; city edge: 269/311/354 ms. The halo and firefly cull gave no speedup.
+- Full `tools/browser_check.mjs` (foreground, SwiftShader, about 20 min): ran to the end for the first time on the city build, 93 of 103 passed (log `/projects/sandbox/browser_check_r23_final.log`, not committed). The 10 failures: meshes.html count (stale `47 of 47`, the page loads 60 of 60, check now accepts any all-loaded count, fixed), the 3D door prompt and door lantern checks, the four villager 3D and 2D checks (prompt, dialogue, Escape, minimap markers), the cinematic frame change, and the two clock sky checks. Those checks use fixed camera positions and villager spots chosen for the old 24 by 24 grid, so they are likely stale after the city and the wider world, but I did not confirm each one, and the sky check at `cam3d=34,75` might also see the church rise. Partially Verified; these 9 remaining failures are open work for the next round.
+- Gotcha: the image viewer failed the first read of a fresh PNG ("ENOENT"); reading it again worked.

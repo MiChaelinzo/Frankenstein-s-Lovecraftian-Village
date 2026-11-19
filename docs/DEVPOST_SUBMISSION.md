@@ -69,6 +69,8 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [x] `docs/media/r21-held-lantern.png` recompressed (242 KB)
 - [x] Round 22 stills (`docs/media/r22-*.png`) are original content, each under 700 KB; no pack data in the repo
 - [x] Round 23 stills (`docs/media/r23-*.png`, `r23b-*.png`) are original content, each under 700 KB (largest 524 KB); no pack data in the repo
+- [x] Round 23 world depth stills (`docs/media/round23-*`, grove growth, districts, landmarks) are original content, each under 700 KB; no Alien Terrain Pack data is committed (the local `?pack=1` area is git-ignored and author only)
+- [ ] In the write-up, say the city, landmarks and corruption growth are original assets with Core rules and tests (Verified), and that the look is SwiftShader stills only (Partially Verified)
 - [ ] Say in the write-up that the 3D look is WebGL1 on software GL checks only, and that the held lantern, windows and wall clearance are known round 23 bugs
 - [ ] Show the Graphics quality menu (Help > First-person view) and the `?perf=1` HUD in the video, and say the look was checked on software GL only unless you recorded on a real GPU
 - [ ] Category selected: Frankenstein

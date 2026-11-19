@@ -73,14 +73,14 @@ async function main() {
   };
   // A hash-only change would be a same-document navigation, so callers that need a fresh load go through about:blank first.
   const nav = async (q) => { await send('Page.navigate', { url: base + q }); await sleep(2500); };
-  /** Page.captureScreenshot, retried up to three times: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too. The CDP error is logged, never swallowed. */
+  /** Page.captureScreenshot, retried up to seven times 2.5 s apart: under heavy host load a navigation can still be committing ("Not attached to an active page"), seen on the pre-round-21 build too and twice in a row with the round 23 city (a bigger first 3D build), so the old 6 s window was too short. The CDP error is logged, never swallowed. */
   const capture = async (params = { format: 'png' }) => {
     for (let attempt = 0; ; attempt++) {
       const r = await send('Page.captureScreenshot', params);
       if (r.result && r.result.data) return r.result.data;
       console.log(`capture failed (attempt ${attempt + 1}): ${JSON.stringify(r.error || r).slice(0, 200)}`);
-      if (attempt >= 3) throw new Error('Page.captureScreenshot failed four times: ' + JSON.stringify(r.error || r).slice(0, 200));
-      await sleep(1500);
+      if (attempt >= 7) throw new Error('Page.captureScreenshot failed eight times: ' + JSON.stringify(r.error || r).slice(0, 200));
+      await sleep(2500);
     }
   };
   const shotHash = async () => { const s = await capture(); let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
@@ -103,12 +103,12 @@ async function main() {
     // threshold failed at random. This check proves frames keep coming while walking; the numbers in the record are the indicative timing.
     rec('3d: real-time frame timing, SwiftShader software GL (indicative only, frames keep coming while walking)', stats.frames >= WALK_TIMING_MIN_FRAMES, { ...stats, renderer, hud, minFrames: WALK_TIMING_MIN_FRAMES });
   };
-  /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. */
+  /** Per-tier frame time at a fixed render scale (?fixscale=1 turns the dynamic resolution governor off so tiers compare like for like). SwiftShader, indicative only; the JavaScript ms per frame is the steadier number. TIER_ONLY=1 runs only this. TIER_CAM=x,z,yaw,pitch moves the camera (round 23: 126,144,40,14 is the same relative spot in the 36 by 36 city as the default is in the old 24 by 24 village). */
   const tierTimingRun = async () => {
     const out = {};
     for (const q of ['low', 'medium', 'high']) {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=${q}&cam3d=84,96,40,14&tick=1250${process.env.TIER_QUERY || ""}#seed=1818&sanity=60`);
+      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=${q}&cam3d=${process.env.TIER_CAM || '84,96,40,14'}&tick=1250${process.env.TIER_QUERY || ""}#seed=1818&sanity=60`);
       await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000);
       await sleep(Number(process.env.TIER_WARMUP || 6000)); // shader compile, texture and chunk uploads settle before sampling
       await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<${process.env.TIER_FRAMES || 80})requestAnimationFrame(t)})(performance.now())`);
@@ -145,6 +145,32 @@ async function main() {
       / low x/.test(seen.low.hud || '') && / high x/.test(seen.high.hud || '') && / low x/.test(seen.auto.hud || '') && seen.low.select === 'low' && seen.auto.select === 'auto' && seen.low.canvas <= 960 * 540 + 960 && seen.low.canvas < seen.high.canvas && warns.length === 0, { ...seen, warns: warns.slice(0, 2) });
   };
 
+  /** City districts (round 23): the HUD chip names the quarter under the 3D camera in English and French, the city is the 36 by 36 grid with 180 pieces and the minimap paints. DISTRICT_ONLY=1 runs only this. */
+  const districtRun = async () => {
+    const out = {};
+    for (const [lang, want] of [['en', 'Market'], ['fr', 'Le Marche']]) {
+      await nav(`?intro=0&view=3d&lang=${lang}&cam3d=74.5,74.5,0,0#seed=1818&sanity=80`);
+      out[lang] = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.textContent.trim()})()`), 20000).catch(() => null);
+    }
+    await nav(`?intro=0&view=3d&cam3d=4,4,0,0#seed=1818&sanity=80`);
+    out.corner = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.getAttribute('data-district')})()`), 20000).catch(() => null);
+    out.stats = await text('stats');
+    rec('districts: the HUD chip names the quarter under the camera (en Market, fr Le Marche), another quarter at the corner, and the stats show the 36 by 36 city', out.en === 'Market' && out.fr === 'Le Marche' && !!out.corner && out.corner !== 'market' && /36/.test(out.stats || ''), out);
+  };
+
+  /** Landmarks (round 23): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
+  const landmarkRun = async () => {
+    const spots = [['cliffs', '148.5,-6', 'Lighthouse Cliffs', 'Falaises du phare'], ['shipwreck', '148.5,172', 'Wreck of the Marguerite', 'Epave de la Marguerite'], ['abbey', '86.4,170', 'Abbey Ruins', "Ruines de l'abbaye"],
+      ['cemetery', '-12,49', 'The Cemetery', 'Le cimetiere'], ['marsh', '148.5,150', 'The Black Marsh', 'Le marais noir'], ['grove', '-4,122.4', 'The Cursed Grove', 'Le bosquet maudit']];
+    const out = {}; warns.length = 0;
+    for (const [id, cam, en, fr] of spots) for (const [lang, want] of [['en', en], ['fr', fr]]) {
+      await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${cam},0,0#seed=1818&sanity=80`);
+      out[`${id}.${lang}`] = await until(() => ev(`(()=>{const c=document.getElementById('districtChip');return c&&!c.hidden&&c.getAttribute('data-landmark')==='${id}'&&c.textContent.trim()})()`), 20000).catch(() => null);
+      if (out[`${id}.${lang}`] !== want) out[`${id}.${lang}.want`] = want;
+    }
+    rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -152,6 +178,8 @@ async function main() {
     if (process.env.TIER_ONLY) { await tierTimingRun(); break suite; }
     if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
+    if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
+    if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -261,7 +289,8 @@ async function main() {
     await nav('meshes.html');
     let mp = await text('summary');
     for (let i = 0; i < 20 && !/loaded/.test(mp); i++) { await sleep(500); mp = await text('summary'); }
-    rec('meshes: meshes.html loads every mesh', /^47 of 47 meshes loaded/.test(mp), { summary: mp });
+    const meshCount = /^(\d+) of (\d+) meshes loaded/.exec(mp); // every mesh in the folder loads, whatever the count is
+    rec('meshes: meshes.html loads every mesh', !!meshCount && meshCount[1] === meshCount[2] && Number(meshCount[1]) > 0, { summary: mp });
 
     // independence: with no pack and no query, 2D and 3D use only original assets (no local-pack or DLNK request)
     const packRequests = () => ev(`performance.getEntriesByType('resource').map((r)=>r.name).filter((n)=>/local-pack|_dlnk|[/]dlnk[/]/i.test(n))`);
@@ -298,6 +327,8 @@ async function main() {
 
     await timingRun();
     await qualityRun();
+    await districtRun();
+    await landmarkRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });

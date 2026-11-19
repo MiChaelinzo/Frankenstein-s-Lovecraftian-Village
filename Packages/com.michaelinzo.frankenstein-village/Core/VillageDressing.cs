@@ -41,10 +41,14 @@ namespace Frankenstein.Core
         public const double RockMinV = 0.9;
         public const double LampSpacing = 9.0;
         public const double MinSlotSpacing = 6.0;
-        public const double DockClearance = 7.0;
+        public const double DockClearance = 8.6;
         public const double LighthouseClearance = 6.5;
-        public const double ChapelClearance = 5.5;
+        public const double ChapelClearance = 6.5;
         public const double InnScale = 0.75;
+        /// <summary>Metres a cottage keeps from the inn along the shore: inn half length (3.27) plus a cottage swept half length (2.5) plus a margin.</summary>
+        public const double InnClearance = 6.4;
+        /// <summary>Metres from the inn centre to its barrel: inn half length (4.36 * <see cref="InnScale"/>, 3.27) plus the barrel swept half length (0.96) plus the 0.3 m prop clearance. Before round 23 the barrel stood 3.1 m off, inside the inn.</summary>
+        public const double InnBarrelOffset = 4.7;
         public const double ChapelOffset = 8.0;
         public const double ChapelScale = 0.9;
         public const int HillGraveRows = 4;
@@ -66,8 +70,6 @@ namespace Frankenstein.Core
         public static readonly string[] DoorKinds = { "", "", "", "", "bench", "", "", "" }; // a door prop stands in the setback between the wall and the cell edge, so only a bench is shallow enough; one house in eight keeps the CC0 bench triangles inside the frame budget
         /// <summary>Metres left between the player and the foam on the coast side, so the coast road is walkable up to the shore but not into the sea.</summary>
         public const double ShoreStandOff = 0.6;
-        /// <summary>Metres of walkable margin past the grid edge on every side that is not the coast.</summary>
-        public const double EdgeWalkMargin = 2.0;
 
         /// <summary>Footprint half extents (x, z at yaw 0) and height in metres per kind, measured from the committed meshes at scale 1. Kinds that do not block walking have Solid false.</summary>
         public struct Footprint
@@ -118,6 +120,22 @@ namespace Frankenstein.Core
                 case "rope_coil": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.13, Solid = false };
                 case "crop_row": return new Footprint { HalfX = 1.2, HalfZ = 0.78, Height = 0.58, Solid = false };
                 case "wheel_ruts": return new Footprint { HalfX = 1.6, HalfZ = 0.63, Height = 0.02, Solid = false };
+                case "tentacle_tree": return new Footprint { HalfX = 1.4, HalfZ = 1.62, Height = 4.85, Solid = true };
+                case "tentacle_sapling": return new Footprint { HalfX = 0.6, HalfZ = 0.75, Height = 2.4, Solid = false };
+                case "fungus_tall": return new Footprint { HalfX = 0.97, HalfZ = 0.78, Height = 2.64, Solid = false };
+                case "fungus_cluster": return new Footprint { HalfX = 0.58, HalfZ = 0.47, Height = 0.58, Solid = false };
+                case "fungus_shelf": return new Footprint { HalfX = 0.74, HalfZ = 0.61, Height = 0.87, Solid = false };
+                case "spire_horn": return new Footprint { HalfX = 1.01, HalfZ = 0.48, Height = 4.85, Solid = true };
+                case "spire_ribbed": return new Footprint { HalfX = 0.97, HalfZ = 0.7, Height = 5.95, Solid = true };
+                case "cliff_rock": return new Footprint { HalfX = 5.0, HalfZ = 4.48, Height = 8.0, Solid = true };
+                case "shipwreck": return new Footprint { HalfX = 5.13, HalfZ = 1.6, Height = 5.5, Solid = true };
+                case "abbey_arch": return new Footprint { HalfX = 2.49, HalfZ = 1.085, Height = 5.6, Solid = false };
+                case "abbey_wall": return new Footprint { HalfX = 2.6, HalfZ = 0.715, Height = 3.6, Solid = true };
+                case "abbey_pillar": return new Footprint { HalfX = 1.025, HalfZ = 0.825, Height = 3.25, Solid = true };
+                case "marsh_pool": return new Footprint { HalfX = 3.0, HalfZ = 2.85, Height = 0.09, Solid = false };
+                case "path_stone": return new Footprint { HalfX = 0.48, HalfZ = 0.36, Height = 0.09, Solid = false };
+                case "church_nave": return new Footprint { HalfX = 3.0, HalfZ = 5.9, Height = 7.4, Solid = true };
+                case "church_tower": return new Footprint { HalfX = 1.9, HalfZ = 1.9, Height = 18.0, Solid = true };
                 default: return new Footprint { HalfX = 0.5, HalfZ = 0.26, Height = 3.45, Solid = false }; // lamps
             }
         }
@@ -146,6 +164,15 @@ namespace Frankenstein.Core
             return lo + span * (0.3 + new SeededRandom(seed ^ 0x51ed).Next(40) / 100.0);
         }
 
+        /// <summary>Metres of the lighthouse along the shore: the end of the shore farther from the dock.</summary>
+        public static double LightU(int seed, int gridW, int gridD)
+        {
+            double hi = HiOf(seed, gridW, gridD), dockU = DockU(seed, gridW, gridD);
+            return dockU > hi - dockU ? 6 : hi - 6;
+        }
+
+        public static double ShoreLength(int seed, int gridW, int gridD) { return HiOf(seed, gridW, gridD); }
+
         private static double HiOf(int seed, int gridW, int gridD)
         {
             return VillagerRules.CoastSide(seed) == 2 ? gridW * Cell : gridD * Cell;
@@ -172,12 +199,13 @@ namespace Frankenstein.Core
         }
 
         /// <summary>
-        /// Where the player may stand (metres): the grid plus <see cref="EdgeWalkMargin"/> on every side, and on the coast side out to the shore
+        /// Where the player may stand (metres): the grid plus <see cref="VillageLandmarks.WorldMargin"/> on every side (out to the landmarks), and on the coast side out to the shore
         /// (ShoreInset from the grid edge, less <see cref="ShoreStandOff"/>), so the coast road along the harbour quarter is walkable.
         /// </summary>
         public static void WalkBounds(int seed, int gridW, int gridD, out double minX, out double maxX, out double minZ, out double maxZ)
         {
-            minX = -EdgeWalkMargin; minZ = -EdgeWalkMargin; maxX = gridW * Cell + EdgeWalkMargin; maxZ = gridD * Cell + EdgeWalkMargin;
+            double m = VillageLandmarks.WorldMargin;
+            minX = -m; minZ = -m; maxX = gridW * Cell + m; maxZ = gridD * Cell + m;
             double shore = ShoreInset - ShoreStandOff;
             int side = VillagerRules.CoastSide(seed);
             if (side == 0) minX = -shore;
@@ -209,7 +237,7 @@ namespace Frankenstein.Core
             double seaward = SeawardYaw(seed), along = AlongShoreYaw(seed);
 
             // The lighthouse stands at the end of the shore farther from the dock.
-            double lightU = dockU - lo > hi - dockU ? lo + 6 : hi - 6;
+            double lightU = LightU(seed, gridW, gridD);
             AddShore(items, seed, gridW, gridD, "lighthouse", lightU, -4.2, seaward, 1.0);
             // A small seamen's chapel stands a little inland of the light, toward the middle of the shore.
             double chapelU = lightU < (lo + hi) / 2 ? lightU + ChapelOffset : lightU - ChapelOffset;
@@ -232,11 +260,19 @@ namespace Frankenstein.Core
             {
                 double u = slots[i][0];
                 if (Math.Abs(u - dockU) < DockClearance || Math.Abs(u - lightU) < LighthouseClearance || Math.Abs(u - chapelU) < ChapelClearance) continue;
+                if (innSlot >= 0 && i != innSlot && Math.Abs(u - slots[innSlot][0]) < InnClearance) continue;
                 string kind = i == innSlot ? "inn" : slots[i][1] == 0 ? "cottage_tall" : "cottage_thatch";
                 double v = i == innSlot ? -4.4 : CottageV + slots[i][2];
                 AddShore(items, seed, gridW, gridD, kind, u, v, seaward + slots[i][3], i == innSlot ? InnScale : 1.0);
-                if (i == innSlot) AddShore(items, seed, gridW, gridD, "barrel", u - 3.1, -3.4, along + 0.2, 1.0);
             }
+            // The inn's barrel stands at one gable end, outside the inn's own footprint: the first side that is free.
+            if (innSlot >= 0)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    CoastToWorld(seed, gridW, gridD, slots[innSlot][0] + side * InnBarrelOffset, -3.4, out double bx, out double bz);
+                    var barrel = new DressingItem { Kind = "barrel", X = bx, Z = bz, Yaw = along + 0.2, Scale = 1.0 };
+                    if (!OverlapsItems(barrel, items, 0.3)) { items.Add(barrel); break; }
+                }
 
             // Harbour yard at the dock root, inside the fence runs that flank the dock.
             AddShore(items, seed, gridW, gridD, "crate_stack", dockU - 2.7, -3.0 + Cm(rng, 30) - 0.15, along, 1.0);
@@ -345,8 +381,36 @@ namespace Frankenstein.Core
                 double ru = lo + rng.Next((int)Math.Max(1, hi - lo)), rv = 0.6 + rng.Next(80) / 100.0, rr = rng.Next(100);
                 if (Math.Abs(ru - dockU) > 3.0) AddShore(items, seed, gridW, gridD, rr < 70 ? "reeds" : "rock", ru, rr < 70 ? rv : Math.Max(rv, RockMinV), rr / 10.0, 1.0);
             }
+            ComposeDistricts(items, seed, gridW, gridD, layout);
             ComposeForeground(items, seed, gridW, gridD, layout, streets, dockU, lightU, chapelU);
             return items;
+        }
+
+        /// <summary>Seed salt of the district palette's own roll stream.</summary>
+        public const int DistrictRollStream = 0x4453;
+
+        /// <summary>
+        /// District palettes: every free yard cell may hold one prop from the palette of its district (<see cref="VillageDistricts.Palette"/>): crates and rope at the harbour,
+        /// stalls and carts in the market, nets and laundry on Fishers' Row, gravestones on Chapel Hill, benches and hedges in the old town. Runs before the foreground fill
+        /// (so the quarter's own props get the free yards first) with its own roll stream. Every cell rolls first, so the stream never depends on what is skipped.
+        /// </summary>
+        private static void ComposeDistricts(List<DressingItem> items, int seed, int gridW, int gridD, IList<PlacedPiece> layout)
+        {
+            var rng = new SeededRandom(seed ^ DistrictRollStream);
+            for (int cx = 0; cx < gridW; cx++)
+                for (int cz = 0; cz < gridD; cz++)
+                {
+                    int chance = rng.Next(100), pick = rng.Next(100), yawRoll = rng.Next(628);
+                    double ox = 0.8 + rng.Next(240) / 100.0, oz = 0.8 + rng.Next(240) / 100.0;
+                    if (VillageStreets.IsStreetCell(gridW, gridD, cx, cz)) continue;
+                    int district = VillageDistricts.At(seed, gridW, gridD, cx, cz);
+                    if (chance >= VillageDistricts.PaletteDensity(district)) continue;
+                    var palette = VillageDistricts.Palette(district);
+                    string kind = palette[pick * palette.Length / 100];
+                    var f = FootprintOf(kind);
+                    double yaw = f.HalfX > 1.2 && f.HalfZ < 0.4 ? (yawRoll % 2) * Math.PI / 2 : yawRoll / 100.0;
+                    TryAdd(items, new DressingItem { Kind = kind, X = cx * Cell + ox, Z = cz * Cell + oz, Yaw = yaw, Scale = 1.0 }, layout, gridW, gridD, false);
+                }
         }
 
         /// <summary>Metres above the ground at which wheel ruts lie: just over the cobbled street surface so they never fight with it.</summary>

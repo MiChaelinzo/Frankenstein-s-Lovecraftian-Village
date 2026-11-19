@@ -5,7 +5,7 @@ import { buildShapeModel } from './shapes.js';
 import { MAX_PLACE_SCALE } from './world-scale.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
-export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager', 'cart', 'sack', 'wall_low', 'net', 'bench', 'sign', 'wall_lantern', 'tree', 'bush', 'reeds', 'rock', 'laundry_line', 'grass_tuft', 'stump', 'log', 'woodpile', 'hedge', 'picket_fence', 'bollard', 'rope_coil', 'crop_row', 'wheel_ruts'];
+export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager', 'cart', 'sack', 'wall_low', 'net', 'bench', 'sign', 'wall_lantern', 'tree', 'bush', 'reeds', 'rock', 'laundry_line', 'grass_tuft', 'stump', 'log', 'woodpile', 'hedge', 'picket_fence', 'bollard', 'rope_coil', 'crop_row', 'wheel_ruts', 'tentacle_tree', 'tentacle_sapling', 'fungus_tall', 'fungus_cluster', 'fungus_shelf', 'spire_horn', 'spire_ribbed', 'shipwreck', 'abbey_arch', 'abbey_wall', 'abbey_pillar', 'marsh_pool', 'path_stone'];
 export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS, ...VILLAGE_KINDS]; // a test keeps this list equal to data/village_shapes.json
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
@@ -175,6 +175,35 @@ export async function loadThirdPartyModels(fetchFn, base, originals, warn = cons
     }
   }
   return out;
+}
+
+// ---- local Alien Terrain horror area (?pack=1 only, models from the git-ignored local-pack/alien/) ----
+
+/**
+ * Loads the local Alien models of `entries` ({kind: {file}}) through the injected fetch and fits each into the bounding box of the original mesh of
+ * the same kind (same footprint, collision and Core growth scale). Returns [{ kind, model, texture }] (texture null when the model is flat coloured).
+ * A model that fails is logged once and left out, so the original look-alike stays.
+ */
+export async function loadAlienModels(fetchFn, base, entries, originals, warn = console.warn) {
+  const out = [];
+  for (const [kind, entry] of Object.entries(entries)) {
+    const reference = originals && originals.get(kind);
+    if (!reference) continue;
+    try {
+      const res = await fetchFn(base + entry.file);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const model = loadGlbBuffer(await res.arrayBuffer());
+      out.push({ kind, model: fitModelInto(model, reference), texture: model.texture });
+    } catch (e) {
+      warn(`[alien-pack] ${entry.file} failed (${e.message}); keeping the original ${kind} mesh`);
+    }
+  }
+  return out;
+}
+
+/** Moves the uv of an already atlased model into the first `fraction` of each axis, for when its atlas becomes the corner of a bigger one. */
+export function shrinkUv(model, fraction) {
+  return { ...model, triangles: model.triangles.map((t) => (t.uv ? { ...t, uv: t.uv.map(([u, v]) => [u * fraction, v * fraction]) } : t)) };
 }
 
 const lin2srgb = (v) => Math.round(255 * Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2));

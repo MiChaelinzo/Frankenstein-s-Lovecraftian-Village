@@ -420,6 +420,62 @@
     "title": "Un nom sans date",
     "text": "Seul un nom est grave ici, et c'est celui du lecteur. Le tailleur jure en avoir grave un autre. Qui reste assez longtemps voit les lettres se changer en les siennes, une a une, comme le givre."
    }
+  },
+  {
+   "id": "b31",
+   "place": "cliffs",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "The Keeper's Last Log",
+    "text": "Third night without a ship. The lamp turns and the cliff turns with it, a little behind. The sea below has stopped breaking on the rocks and simply leans against them, listening."
+   },
+   "fr": {
+    "title": "Journal du dernier gardien",
+    "text": "Troisieme nuit sans navire. La lampe tourne et la falaise tourne avec elle, un peu en retard. En bas, la mer ne se brise plus sur les rochers, elle s'appuie contre eux et ecoute."
+   }
+  },
+  {
+   "id": "b32",
+   "place": "shipwreck",
+   "sanity": -2,
+   "clue": false,
+   "en": {
+    "title": "The Marguerite's Manifest",
+    "text": "Cargo: salt, nets, one passenger who paid in advance and never came aboard. We sailed with him anyway. The hold was full of him by the second day. The ship ran herself aground, and she chose the spot."
+   },
+   "fr": {
+    "title": "Le manifeste de la Marguerite",
+    "text": "Cargaison : sel, filets, un passager qui avait paye d'avance et n'est jamais monte a bord. Nous avons appareille avec lui quand meme. La cale etait pleine de lui des le deuxieme jour. Le navire s'est echoue seul, et il a choisi l'endroit."
+   }
+  },
+  {
+   "id": "b33",
+   "place": "abbey",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Choir Book, Torn",
+    "text": "The brothers sang the office until the roof fell in, and then they sang it to the sky, which answered in the same key. We stopped singing the night the answer came a half beat early."
+   },
+   "fr": {
+    "title": "Livre de choeur dechire",
+    "text": "Les freres chantaient l'office jusqu'a l'effondrement du toit, puis ils l'ont chante au ciel, qui repondait sur le meme ton. Nous avons cesse de chanter la nuit ou la reponse est venue un demi-temps trop tot."
+   }
+  },
+  {
+   "id": "b34",
+   "place": "marsh",
+   "sanity": -2,
+   "clue": true,
+   "en": {
+    "title": "Peat Cutter's Tally",
+    "text": "Forty blocks cut, forty-one stacked. I cut again to find the extra and the pit filled behind me, black and level, with a block floating in it that bore my initials. I count from the road now."
+   },
+   "fr": {
+    "title": "Le compte du tourbier",
+    "text": "Quarante briques coupees, quarante et une empilees. J'ai recoupe pour trouver la brique en trop et la fosse s'est remplie derriere moi, noire et lisse, avec une brique qui flottait, a mes initiales. Je compte depuis la route maintenant."
+   }
   }
  ]
 }

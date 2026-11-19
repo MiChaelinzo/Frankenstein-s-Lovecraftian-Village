@@ -212,3 +212,24 @@ Status: design written before code. Core rules, C# property tests and golden par
   - (c) Grass tufts and reeds near black: **regression.** The tufts are new in `3c81de0` (moss 0.1, 0.17, 0.12) and the new wall base shadow (0.34 floor) in `5661c22` multiplied them down. Fixed in `5d41773` and `26a67f4` (foliage skips the base shadow, colour lift 1.35). They still read as thin cones with no ground contact: round 23 task.
   - (d) Windows flat brown: **not a regression** in kind (main also shows flat shutter quads); the new window mood adds more unlit ones on purpose. Round 23 task: glass, interior glow and curtains.
 - Verified: node 489, dotnet 178, UnityCompileCheck 0/0, per tier timing check. Partially Verified: all looks (SwiftShader stills). Unverified: Unity runtime, real GPU.
+
+## Round 23: the city with districts (task 123)
+- Rules in Core: `VillageDistricts` (district map, palettes, densities, piece taste, chunks) and `VillageLayoutGenerator.GenerateCity`; `VillageDressing.ComposeDistricts`. JS mirrors in `web/src/districts.js` and `dressing.js`, golden key `city`. `Generate` is unchanged, so the editor inspector and the old goldens still describe the 24 by 24 village.
+- Inputs: seed, grid width and depth, piece count. Outputs: a district per cell and the layout. Constraints: same guarantees as `Generate`, and a piece never crosses a chunk edge. Failure: an empty catalog or a non-positive size gives an empty layout.
+- Deterministic: each chunk has its own seeded stream (`seed ^ index * 0x2545`), and every pick rolls its district taste before the fit test. The district map depends only on the seed (coast side, dock) and the grid.
+- Presentation only, in the web: `quality.js` `drawDistance` and the matching fog floor (`view3d-math.js` `fogFloorFor`, `chunkCullDistance`), the HUD chip and the minimap tint.
+- Corruption sites (FEAT-008) are placed relative to the grid edges and the church rise, so they move out with the bigger grid. Tests in both languages check that they stay outside the 36 grid.
+- Debt: lantern halos and fireflies are not culled by distance; Unity runtime does not show district names; `VillageCoreInspectorWindow` previews `Generate` only.
+- Status: Core and JS Verified (dotnet, node, golden); HUD and minimap Verified by `browser_check` (`districtRun`); the look is Partially Verified (SwiftShader stills); Unity runtime Unverified.
+
+## Round 23: the wider world (task 126)
+- Boundary kept: all placement (landmarks, paths, hill height, book spots, walk margin) is in Core `VillageLandmarks`; the web file mirrors it and the golden key `landmarks` pins both. The renderer only batches the items and follows `groundHeight`.
+- Duplication removed: the cliff, marsh and grove anchors were private to `CorruptionGrowth`; they now come from `VillageLandmarks`, and `hillHeight` (a render-only function in `view3d.js`) is the Core function. Residual duplication: `coastFeatures` (JS only) still places two flank cliffs, so Core cannot route a path around them; they were moved into the sea (v 8 to 11) so no Core path crosses them. Moving that into Core is the clean fix.
+- New debt, small: two kinds (`church_nave`, `church_tower`) are collision only and have no mesh (`COLLISION_ONLY_KINDS`). The Unity builder does not place landmarks yet (Unverified).
+- Perf: the halo and firefly cull is correct but showed no SwiftShader gain; do not claim a speed-up. Frame time is raster bound; profile on a real GPU before tuning further.
+
+
+## Round 23 part 10: grove investigation (FEAT-006)
+- Facts (Verified by a node test and a script over 10 seeds): every `CorruptionGrowth` site stands on Core `groundHeight`; `fitModelInto` puts a fitted pack model on the floor of the original mesh. So pack models cannot hover by placement. A pack tree can look raised because only 0.5% of its vertices touch the floor (Partially Verified: still inspection).
+- Not a bug: stills from the hash alone use the dusk clock; pass `tick=1250` for night. `corruptionLevel` is 0.75 dread plus 0.25 night.
+- Residual risk: the pack upgrade is async, so a `capture=1` still can show originals. Unverified in a real browser with a GPU.

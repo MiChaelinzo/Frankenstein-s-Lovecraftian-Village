@@ -57,3 +57,26 @@ export function texturePlan(roles, base = 'local-pack/') {
   const wall = pickRole(roles, 'wall_plaster', 'wall_wood', 'wall_brick', 'wall_stone'), ground = pickRole(roles, 'ground', 'ground_stones');
   return { wall: wall ? base + roles[wall].texture : null, ground: ground ? base + roles[ground].texture : null };
 }
+
+// ---- Alien horror area (?pack=1, local-pack/alien/manifest.json from tools/build_alien_pack.py) ----
+
+/** The corruption kinds the local Alien pack may replace; the same kinds Core CorruptionGrowth places. */
+export const ALIEN_KINDS = ['tentacle_tree', 'tentacle_sapling', 'fungus_tall', 'fungus_cluster', 'fungus_shelf', 'spire_horn', 'spire_ribbed'];
+const ALIEN_FILE = /^[a-z_]+\.glb$/;
+
+/** Returns { ok, errors, models: {kind: {file, textured}} } keeping only well-formed entries of known kinds. */
+export function validateAlienManifest(json) {
+  const errors = [], models = {};
+  if (!json || typeof json !== 'object') return { ok: false, errors: ['alien manifest is not an object'], models };
+  if (json.version !== 1) errors.push('unsupported alien manifest version');
+  const given = json.models && typeof json.models === 'object' ? json.models : null;
+  if (!given) errors.push('missing models');
+  else for (const kind of ALIEN_KINDS) {
+    const m = given[kind];
+    if (!m) continue;
+    if (typeof m.file !== 'string' || !ALIEN_FILE.test(m.file)) { errors.push(`${kind}: bad file name`); continue; }
+    models[kind] = { file: m.file, textured: m.textured === true };
+  }
+  if (given && !Object.keys(models).length) errors.push('no usable models');
+  return { ok: json.version === 1 && Object.keys(models).length > 0, errors, models };
+}

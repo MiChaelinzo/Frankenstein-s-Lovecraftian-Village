@@ -95,7 +95,7 @@ test('walkers are deterministic, thin out with dread and carry lanterns only aft
   for (const w of day) assert.ok(w.x > 0 && w.x < 96 && w.z > 0 && w.z < 96);
 });
 
-test('a dense street village with every committed mesh stays within the triangle budget (counts, not timings)', async () => {
+test('a dense street village with every committed mesh stays within the triangle budget (counts, not timings; the whole buffer incl. the landmarks of the wider world, most of which a frame culls: the city test counts what a frame draws)', async () => {
   const { buildWorld } = await import('../src/view3d.js');
   const { loadGlbBuffer, KINDS } = await import('../src/glb.js');
   const { frameCost, FRAME_BUDGET } = await import('../src/view3d-math.js');
@@ -104,7 +104,7 @@ test('a dense street village with every committed mesh stays within the triangle
     const layout = generateLayout(catalog, 24, 24, 80, seed).map((p) => ({ ...p, vis: { lit: 1, lit2: 1, phase: 0 }, detail: 3 }));
     const w = buildWorld({ layout, meshes, seed, gridW: 24, gridD: 24 }), n = (a) => a.length / 11;
     const cost = frameCost({ vertices: { building: n(w.building), ground: n(w.ground), sea: 6, coast: n(w.coast), tentacle: 900, villager: 900 }, rain: 900, halos: 100, fireflies: 100, post: true, lights: 8 });
-    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.6 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
+    assert.ok(cost.triangles <= FRAME_BUDGET.triangles * 0.8 && cost.drawCalls <= FRAME_BUDGET.drawCalls, JSON.stringify(cost));
   }
 });
 
