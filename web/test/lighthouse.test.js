@@ -29,3 +29,31 @@ test('one full turn per period, deterministic, direction is a unit vector', () =
     const d = beamDirection(beamYaw(seed, 2)); assert.ok(Math.abs(Math.hypot(d[0], d[1]) - 1) < 1e-12);
   }
 });
+
+import { buildBeam, BEAM_FLOATS } from '../src/view3d.js';
+import { beamStrengthFor, BEAM_COLOR } from '../src/lighthouse.js';
+
+test('buildBeam: 24 triangles from the lamp along the Core yaw, deterministic, fading to nothing at the far end', () => {
+  const pos = [145.8, 8.7, 6], yaw = beamYaw(1818, 3.7), a = buildBeam({ pos, yaw });
+  assert.equal(a.length, 4 * 18 * BEAM_FLOATS); // 4 sheets, 6 triangles each, 3 vertices each
+  assert.deepEqual(buildBeam({ pos, yaw }), a);
+  const [dx, dz] = beamDirection(yaw);
+  let far = 0;
+  for (let i = 0; i < a.length; i += BEAM_FLOATS) {
+    const along = (a[i] - pos[0]) * dx + (a[i + 2] - pos[2]) * dz;
+    assert.ok(along > -1e-3 && along <= BEAM_LENGTH + 1e-3, 'every vertex lies on the beam side of the lamp');
+    assert.ok(a[i + 3] >= 0 && a[i + 3] <= 1);
+    far = Math.max(far, along);
+  }
+  assert.ok(Math.abs(far - BEAM_LENGTH) < 1e-3);
+  const turned = buildBeam({ pos, yaw: beamYaw(1818, 7.7) });
+  assert.notDeepEqual(turned, a, 'the beam turns with time');
+});
+
+test('beam strength: dark by day, off on Low and with reduced motion, stronger in fog', () => {
+  assert.equal(beamStrengthFor({ sunWeight: 1, fog: 0.02, quality: 2 }), 0);
+  assert.equal(beamStrengthFor({ sunWeight: 0, fog: 0.02, quality: 0 }), 0);
+  assert.equal(beamStrengthFor({ sunWeight: 0, fog: 0.02, quality: 2, reduced: true }), 0);
+  assert.ok(beamStrengthFor({ sunWeight: 0, fog: 0.03, quality: 1 }) > beamStrengthFor({ sunWeight: 0, fog: 0.002, quality: 1 }));
+  assert.ok(beamStrengthFor({ sunWeight: 0, fog: 1, quality: 2 }) <= 0.4 && BEAM_COLOR.every((v) => v > 0 && v <= 1));
+});

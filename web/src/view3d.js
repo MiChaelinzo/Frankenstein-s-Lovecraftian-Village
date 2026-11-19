@@ -5,6 +5,7 @@ import { InteractionRules } from './core.js';
 import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
 import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
+import { beamYaw, beamDirection, lighthouseSite, beamStrengthFor, BEAM_COLOR, LIGHTHOUSE_HALO_SCALE, HALF_ANGLE as BEAM_HALF_ANGLE, LAMP_HEIGHT as BEAM_LAMP_HEIGHT, BEAM_LENGTH } from './lighthouse.js';
 import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
 import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
@@ -241,6 +242,35 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
   return new Float32Array(out);
 }
 
+
+// ---------- the lighthouse beam: crossed soft sheets turning with the Core clock ----------
+
+/** Floats per beam vertex: x, y, z and the alpha of the sheet there (bright on the axis, zero at the edges and the far end). */
+export const BEAM_FLOATS = 4;
+const BEAM_SHEETS = 4, BEAM_STATIONS = [[0.45, 0.4], [1, 0.06]]; // [distance as a fraction of the length, centre alpha]
+
+/**
+ * Four soft sheets that cross along the beam axis (so the cone reads from every side), each a fan from the lamp. pos is the lamp [x, y, z], yaw the Core beam yaw.
+ * Pure and deterministic: 24 triangles. The renderer draws them additively, so a sheet seen edge on adds almost nothing.
+ */
+export function buildBeam({ pos, yaw, halfAngle = BEAM_HALF_ANGLE, length = BEAM_LENGTH }) {
+  const [dx, dz] = beamDirection(yaw), side = [-dz, 0, dx], up = [0, 1, 0], out = [];
+  const vert = (a, d, w, across, alpha) => out.push(pos[0] + dx * d + a[0] * w * across, pos[1] + a[1] * w * across, pos[2] + dz * d + a[2] * w * across, alpha);
+  for (let k = 0; k < BEAM_SHEETS; k++) {
+    const t = (k / BEAM_SHEETS) * Math.PI, c = Math.cos(t), sn = Math.sin(t);
+    const axis = [side[0] * c + up[0] * sn, side[1] * c + up[1] * sn, side[2] * c + up[2] * sn];
+    const apex = () => out.push(pos[0], pos[1], pos[2], 0.6);
+    const rows = BEAM_STATIONS.map(([f, a]) => ({ d: f * length, w: f * length * Math.tan(halfAngle), a }));
+    const at = (r, across) => (across === 0 ? [r.d, r.w, 0, r.a] : [r.d, r.w, across, 0]);
+    const [r1, r2] = rows;
+    for (const [aL, aR] of [[-1, 0], [0, 1]]) { apex(); vert(axis, ...at(r1, aL)); vert(axis, ...at(r1, aR)); }
+    for (const [aL, aR] of [[-1, 0], [0, 1]]) {
+      vert(axis, ...at(r1, aL)); vert(axis, ...at(r2, aL)); vert(axis, ...at(r1, aR));
+      vert(axis, ...at(r1, aR)); vert(axis, ...at(r2, aL)); vert(axis, ...at(r2, aR));
+    }
+  }
+  return new Float32Array(out);
+}
 
 // ---------- the explorer's own lantern, held low at the right of the view ----------
 
@@ -552,6 +582,10 @@ void main(){
 const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; uniform float uCore; varying float vFlick; varying float vDist;
 void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float k = clamp(1.0 - r, 0.0, 1.0); float a = (pow(k, 2.2) * 0.85 + pow(k, 7.0) * uCore) * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
   gl_FragColor = vec4(mix(uColor, vec3(1.0, 0.82, 0.5), clamp(pow(k, 5.0) * uCore, 0.0, 1.0)), min(a, 1.0)); }`;
+const BEAM_VS = `attribute vec4 aBeam; uniform mat4 uVP; uniform vec3 uCam; varying float vA; varying float vDist;
+void main(){ gl_Position = uVP * vec4(aBeam.xyz, 1.0); vA = aBeam.w; vDist = length(aBeam.xyz - uCam); }`;
+const BEAM_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uStrength; uniform float uFog; varying float vA; varying float vDist;
+void main(){ float seen = 1.0 - clamp(1.0 - exp(-pow(vDist * uFog * 0.5, 2.0)), 0.0, 0.8); gl_FragColor = vec4(uColor, clamp(vA, 0.0, 1.0) * uStrength * seen); }`;
 const PART_VS = `attribute vec3 aSeed; uniform mat4 uVP; uniform vec3 uCam; uniform vec3 uBox; uniform vec3 uVel; uniform float uTime; uniform float uSize; uniform float uScale;
 varying float vFade;
 void main(){
@@ -662,7 +696,7 @@ export const THIRD_PARTY_BASE = 'assets/third_party/';
 
 /** Owns the GL programs and buffers. frame = the per-frame values computed by the controller; nothing here decides gameplay. */
 export function createGlRenderer(gl) {
-  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS), fly = program(gl, FLY_VS, FLY_FS);
+  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS), beam = program(gl, BEAM_VS, BEAM_FS), fly = program(gl, FLY_VS, FLY_FS);
   const post = (() => { try { return program(gl, POST_VS, POST_FS); } catch (err) { console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return null; } })();
   let fbo = null, fboTex = null, fboDepth = null, fboSize = '', postBroken = !post;
   // Offscreen target for the post pass. Any failure (incomplete framebuffer, allocation error) disables post for good and warns once.
@@ -688,8 +722,8 @@ export function createGlRenderer(gl) {
   }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const uvBuf = gl.createBuffer(); let uvCount = 0, buildingChunks = [], buildingDrawn = 0, buildingRanges = 0;
-  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), held: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
-  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, held: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
+  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), held: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), beam: gl.createBuffer(), fly: gl.createBuffer() };
+  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, held: 0, rain: 0, mist: 0, halo: 0, beam: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
     const t = gl.createTexture(), px = proceduralTexture(kind, { size: 128 });
@@ -712,7 +746,7 @@ export function createGlRenderer(gl) {
   let packed = 0;
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
   let size = [1, 1];
-  const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
+  const FLOATS = { rain: 3, mist: 3, beam: BEAM_FLOATS, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
   const upload = (name, data, usage = gl.STATIC_DRAW) => { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]); gl.bufferData(gl.ARRAY_BUFFER, data, usage); counts[name] = data.length / (FLOATS[name] || VERTEX_FLOATS); };
   const attrs = [['aPos', 3, 0], ['aNormal', 3, 3], ['aColor', 3, 6], ['aGlow', 1, 9], ['aPhase', 1, 10]];
   function bindScene(buf) {
@@ -736,6 +770,8 @@ export function createGlRenderer(gl) {
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
     setFireflies(data) { upload('fly', data); },
     setHalos(data) { upload('halo', data); },
+    /** The lighthouse beam turns, so it is rebuilt every frame it is drawn (24 triangles). An empty array hides it. */
+    setBeam(data) { upload('beam', data, gl.DYNAMIC_DRAW); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
     setVillagers(data) { upload('villager', data, gl.DYNAMIC_DRAW); },
     /** The held lantern moves with the camera, so it is rebuilt every drawn frame (under 100 triangles). */
@@ -833,6 +869,14 @@ export function createGlRenderer(gl) {
         gl.uniformMatrix4fv(halo.u('uVP'), false, f.vp); gl.uniform3fv(halo.u('uCam'), f.camPos); gl.uniform1f(halo.u('uScale'), f.pointScale);
         gl.uniform1f(halo.u('uTime'), f.time); gl.uniform1f(halo.u('uReduced'), f.reduced ? 1 : 0); gl.uniform1f(halo.u('uFog'), f.fog); gl.uniform3fv(halo.u('uColor'), f.glowColor); gl.uniform1f(halo.u('uCore'), f.lampCore);
         gl.drawArrays(gl.POINTS, 0, counts.halo);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      // lighthouse beam: additive soft sheets, depth tested so a house hides it
+      if (counts.beam && f.beam) {
+        gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.useProgram(beam.p); gl.bindBuffer(gl.ARRAY_BUFFER, bufs.beam);
+        const bl = gl.getAttribLocation(beam.p, 'aBeam'); gl.enableVertexAttribArray(bl); gl.vertexAttribPointer(bl, 4, gl.FLOAT, false, BEAM_FLOATS * 4, 0);
+        gl.uniformMatrix4fv(beam.u('uVP'), false, f.vp); gl.uniform3fv(beam.u('uCam'), f.camPos); gl.uniform3fv(beam.u('uColor'), f.beam.color); gl.uniform1f(beam.u('uStrength'), f.beam.strength); gl.uniform1f(beam.u('uFog'), f.fog);
+        gl.drawArrays(gl.TRIANGLES, 0, counts.beam);
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
       // fireflies near warm lanterns (embers at high dread): additive glow points
@@ -957,6 +1001,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  */
 export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
+  let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
   let tierName = quality, tier = tierSettings(quality); // graphics quality tier (quality.js), set by the app
@@ -973,7 +1018,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1149,7 +1194,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       all.set(fl); all.set(lf, fl.length); renderer.setFireflies(all);
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
-      lastHalos = haloKey; renderer.setHalos(haloSprites(lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
+      lastHalos = haloKey; const near = lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }));
+      renderer.setHalos(haloSprites([...near, { pos: [lighthouse.x, BEAM_LAMP_HEIGHT, lighthouse.z], phase: 0.5, post: true, haloScale: LIGHTHOUSE_HALO_SCALE }])); // the lamp room glows even where the beam is off (Low tier, reduced motion, day)
     }
     const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
@@ -1180,7 +1226,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (hc) { postP.grain = 0; postP.chroma = 0; } postP.vignette = Math.max(0, postP.vignette + grade.vignetteBoost); if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
+    // the beam turns with the Core clock; Low tier and reduced motion keep only the static glow, daylight hides it
+    const beamStrength = beamStrengthFor({ sunWeight: day.sunWeight, fog: fogs.density, quality: tier.detail, reduced });
+    renderer.setBeam(beamStrength > 0 ? buildBeam({ pos: [lighthouse.x, BEAM_LAMP_HEIGHT, lighthouse.z], yaw: beamYaw(s.seed, time) }) : new Float32Array(0));
     renderer.draw({
+      beam: { color: BEAM_COLOR, strength: beamStrength },
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
       fog: fogs.density, drawDistance: tier.drawDistance, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, lampCore: tier.lampCore, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
     });

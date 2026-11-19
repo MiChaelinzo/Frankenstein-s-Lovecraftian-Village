@@ -257,14 +257,24 @@
       {"name": "side_window_r", "material": "glow", "shape": "box", "at": [2.22, 0.19, 1.4], "size": [0.096, 0.475, 1.0]}
     ]},
     {"id": "lighthouse", "group": "village", "parts": [
-      {"name": "plinth", "material": "stone", "shape": "cylinder", "at": [0, 0, 0], "radii": [2.2, 1.8], "height": 1.0, "sides": 8},
-      {"name": "tower_low", "material": "lime", "shape": "cylinder", "at": [0, 0, 1.0], "radii": [1.6, 1.3], "height": 3.0, "sides": 8},
-      {"name": "band", "material": "red", "shape": "cylinder", "at": [0, 0, 4.0], "radii": [1.3, 1.2], "height": 1.6, "sides": 8},
-      {"name": "tower_high", "material": "lime", "shape": "cylinder", "at": [0, 0, 5.6], "radii": [1.2, 1.0], "height": 2.4, "sides": 8},
-      {"name": "gallery", "material": "iron", "shape": "cylinder", "at": [0, 0, 8.0], "radii": [1.5, 1.5], "height": 0.2, "sides": 8},
-      {"name": "lamp_room", "material": "glow", "shape": "cylinder", "at": [0, 0, 8.2], "radii": [0.8, 0.8], "height": 1.1, "sides": 8},
-      {"name": "cap", "material": "iron", "shape": "cone", "at": [0, 0, 9.3], "radius": 1.0, "height": 0.9, "sides": 8},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.92, 1.0], "size": [0.8, 0.12, 2.0]}
+      {"name": "plinth", "material": "stone", "shape": "cylinder", "at": [0, 0, 0], "radii": [2.2, 1.95], "height": 0.9, "sides": 8},
+      {"name": "batter", "material": "rock", "shape": "cylinder", "at": [0, 0, 0.9], "radii": [1.95, 1.55], "height": 1.6, "sides": 8},
+      {"name": "tower_a", "material": "ruin_stone", "shape": "cylinder", "at": [0, 0, 2.5], "radii": [1.55, 1.3], "height": 2.2, "sides": 8},
+      {"name": "string_course", "material": "stone", "shape": "cylinder", "at": [0, 0, 4.7], "radii": [1.42, 1.42], "height": 0.22, "sides": 8},
+      {"name": "tower_b", "material": "rock", "shape": "cylinder", "at": [0, 0, 4.92], "radii": [1.3, 1.05], "height": 2.7, "sides": 8},
+      {"name": "corbel", "material": "stone", "shape": "cylinder", "at": [0, 0, 7.6], "radii": [1.05, 1.8], "height": 0.45, "sides": 8},
+      {"name": "gallery", "material": "iron", "shape": "cylinder", "at": [0, 0, 8.05], "radii": [1.8, 1.8], "height": 0.1, "sides": 8},
+      {"name": "rail_0", "material": "iron", "shape": "box", "at": [1.7, 0.0, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_2", "material": "iron", "shape": "box", "at": [0.0, 1.7, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_4", "material": "iron", "shape": "box", "at": [-1.7, 0.0, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_6", "material": "iron", "shape": "box", "at": [-0.0, -1.7, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "lamp_room", "material": "glow", "shape": "cylinder", "at": [0, 0, 8.15], "radii": [0.85, 0.8], "height": 1.0, "sides": 8},
+      {"name": "lamp_cap", "material": "iron", "shape": "cone", "at": [0, 0, 9.15], "radius": 1.1, "height": 1.05, "sides": 8},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.6, 0.9], "size": [0.9, 0.6, 2.0]},
+      {"name": "door_lintel", "material": "stone", "shape": "box", "at": [0, -1.62, 2.9], "size": [1.3, 0.7, 0.25]},
+      {"name": "slit_low", "material": "iron", "shape": "box", "at": [0, -1.4, 3.5], "size": [0.2, 0.15, 0.6]},
+      {"name": "slit_keeper", "material": "glow", "shape": "box", "at": [0, -1.2, 5.9], "size": [0.28, 0.15, 0.5]},
+      {"name": "slit_high", "material": "iron", "shape": "box", "at": [0, -1.1, 6.8], "size": [0.2, 0.15, 0.5]}
     ]},
     {"id": "market_stall", "group": "village", "parts": [
       {"name": "post_a", "material": "wood", "shape": "box", "at": [-1.1, -0.7, 0], "size": [0.12, 0.12, 2.2]},
