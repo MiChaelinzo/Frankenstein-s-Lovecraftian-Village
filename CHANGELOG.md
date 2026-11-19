@@ -4,8 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 24 review fixes
+- Parity: new golden keys `collision` (WalkCollision against resolveCollisions, trunk, flat box and mixed scenes) and `cityPresence` (PresenceAt on the 36 by 36 city, seeds 1 and 1818). The JS test that claimed to mirror C# numbers is renamed to what it checks.
+- Cache `flv-shell-v45` (stitch data refreshed).
+- Docs: removed the duplicate still, moved the `fetch_third_party.py` note below its summary line, tree walk-around stays Partially Verified (no before still), spec task 140 covers villager routes that cross props.
+
 ### Round 24 (part 7): docs, stills, full verification (FEAT-007)
-- Stills (seed 1818, `quality=high`, 1280 by 900, under 700 KB): `docs/media/round24-villagers-dusk.jpg` (also the README hero `round24-hero.jpg`) and `round24-tree-walk-around.jpg` (beside the tree at 37.97, 60.00 after the fix). No before still exists for the tree; the `COLLISION_ONLY` check is the evidence. Partially Verified (SwiftShader).
+- Stills (seed 1818, `quality=high`, 1280 by 900, under 700 KB): `docs/media/round24-hero.jpg` (the README hero; the duplicate `round24-villagers-dusk.jpg` was removed) and `round24-tree-walk-around.jpg` (beside the tree at 37.97, 60.00 after the fix). No before still exists for the tree; the `COLLISION_ONLY` check is the evidence. Partially Verified (SwiftShader).
 - Test fix: the browser check read `view3dPrompt` without a null guard and aborted the run with a driver error ("Cannot read properties of null (reading 'hidden')") right after the cinematic check. The element was missing while the page was still replacing the document; the four reads are now null safe. Cause of the missing element not isolated further.
 - Full `tools/browser_check.mjs` (foreground, SwiftShader): 105 of 105 passed, log `round24-browser-check.log` kept outside the repo. `TIER_ONLY` at `TIER_CAM=122,22,55,8` (17720 triangles in view): low 224.3 ms, medium 295.9 ms, high 346.8 ms mean per frame (indicative only). `?thirdparty=0` and `?pack=1` load non-blank with no console errors (probe shots).
 - Unity: the scene builder does not call `LoreBookRules.Place` at all, so there was nothing small to wire; documented in `docs/UNITY_SETUP.md` and spec task 136.

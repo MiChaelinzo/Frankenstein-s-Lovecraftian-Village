@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""(The Quaternius kit houses are built by tools/build_quaternius_models.py instead.)
-Fetch the CC0 Poly Haven assets listed in THIRD_PARTY_ASSETS.md into web/assets/third_party/ and downsize them.
+"""Fetch the CC0 Poly Haven assets listed in THIRD_PARTY_ASSETS.md into web/assets/third_party/ and downsize them.
 
 Reproducible on demand (needs network and Pillow: pip install pillow); the validator and tests never run it.
 Textures: the 1K diffuse JPEG, resized to 512 px and scaled to a mean brightness of 0.6 so the 3D shader's x1.6 keeps
 colours steady (the same convention as web/src/proc-textures.js). Models: the 1K glTF, repacked as one GLB with only
 POSITION, NORMAL, TEXCOORD_0, indices and the base colour texture (512 px JPEG); normal and ARM maps are dropped.
 Poly Haven publishes every asset under CC0 (https://polyhaven.com/license); the info API is queried per asset so the
-recorded authors match the source.
+recorded authors match the source. The Quaternius kit houses are built by tools/build_quaternius_models.py instead.
 """
 import io, json, os, struct, subprocess, sys, urllib.request
 

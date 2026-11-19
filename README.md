@@ -33,7 +33,7 @@ Round 24 living village (seed 1818, `quality=high`, SwiftShader stills): village
 
 | Villagers at dusk, the Old Town square | Walking past a tree (it no longer blocks) |
 |---|---|
-| ![Dusk in the square, lit windows, a villager far down the lane](docs/media/round24-villagers-dusk.jpg) | ![The explorer beside a tree trunk it has just walked around](docs/media/round24-tree-walk-around.jpg) |
+| ![Dusk in the square, lit windows, a villager far down the lane](docs/media/round24-hero.jpg) | ![The explorer beside a tree trunk it has just walked around](docs/media/round24-tree-walk-around.jpg) |
 
 Round 24 controls: unchanged (WASD and mouse, `E` interacts, `C` talks to a villager, `?chronicle=1` or the Chronicle button opens the village chronicle). Trees, wells and tentacle trees have round trunks (0.35 m and 0.7 m radius) and you slide along them. Add `?thirdparty=0` to see the original Blender houses instead of the Quaternius kit houses.
 

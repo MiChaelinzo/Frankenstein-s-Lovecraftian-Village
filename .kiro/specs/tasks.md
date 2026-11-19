@@ -167,6 +167,7 @@ Round 24 leftovers (open, from FEAT-007):
 - [ ] 137. Evaluate a CC0 rigged villager (for example a Quaternius character) against the CPU leg swing; not downloaded yet.
 - [ ] 138. Unity: names of the new landmarks and the lighthouse beam in the scene.
 - [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
+- [ ] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
 
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
