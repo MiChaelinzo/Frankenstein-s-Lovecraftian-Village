@@ -33,7 +33,7 @@ class MeshDefs(unittest.TestCase):
     def test_shape_data_file(self):
         data = mesh_defs.load_shapes()
         self.assertEqual(mesh_defs.validate_shapes(data), [])
-        self.assertEqual(len(mesh_defs.KINDS), 67)
+        self.assertEqual(len(mesh_defs.KINDS), 84)
         self.assertEqual(mesh_defs.KINDS, mesh_defs.CATALOG_KINDS + mesh_defs.PROP_KINDS + mesh_defs.VILLAGE_KINDS)
         for k in ("cottage_thatch", "cottage_tall", "inn", "chapel", "lighthouse", "market_stall", "crate_stack", "barrel",
                   "gravestone", "gravestone_cross", "fence_iron", "villager"):

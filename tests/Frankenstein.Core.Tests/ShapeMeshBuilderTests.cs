@@ -20,7 +20,7 @@ namespace Frankenstein.Core.Tests
         public void Every_entry_builds_a_non_empty_valid_mesh()
         {
             var lib = ShapeLibrary.Parse(ShapesJson());
-            Assert.Equal(67, lib.MeshIds.Count);
+            Assert.Equal(84, lib.MeshIds.Count);
             foreach (var id in lib.MeshIds)
             {
                 var m = lib.Build(id);
