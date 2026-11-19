@@ -343,6 +343,9 @@ namespace Frankenstein.Core.Tests
             AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendLighthouseBeam(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendStory(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -945,6 +948,30 @@ namespace Frankenstein.Core.Tests
                     var n = VillageNames.Landmark(lib, seed, VillageLandmarks.Ids[i]);
                     sb.Append(i > 0 ? ", " : "").Append("[\"").Append(n.Get("en")).Append("\", \"").Append(n.Get("fr")).Append("\"]");
                 }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "lighthouseBeam" (round 24): the constants, and per seed the lighthouse site on the 36 by 36 city and the beam yaw at fixed times.</summary>
+        private static void AppendLighthouseBeam(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string R(double v) { return v.ToString("R", inv); }
+            double[] times = { 0, 1.5, 4, 8, 15.99, 16, 33.3, 1000.25 };
+            sb.Append("  \"lighthouseBeam\": {\n    \"period\": ").Append(R(LighthouseBeam.PeriodSeconds)).Append(", \"halfAngle\": ").Append(R(LighthouseBeam.HalfAngle))
+              .Append(", \"lampHeight\": ").Append(R(LighthouseBeam.LampHeight)).Append(", \"length\": ").Append(R(LighthouseBeam.Length)).Append(",\n    \"times\": [");
+            for (int i = 0; i < times.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(times[i]));
+            sb.Append("],\n    \"seeds\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818, 99999 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                LighthouseBeam.Site(seed, grid, grid, out double sx, out double sz);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"phase\": ").Append(R(LighthouseBeam.Phase(seed)))
+                  .Append(", \"site\": [").Append(R(sx)).Append(", ").Append(R(sz)).Append("], \"yaw\": [");
+                first = false;
+                for (int i = 0; i < times.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(LighthouseBeam.Yaw(seed, times[i])));
                 sb.Append("] }");
             }
             sb.Append("\n    ]\n  }\n");

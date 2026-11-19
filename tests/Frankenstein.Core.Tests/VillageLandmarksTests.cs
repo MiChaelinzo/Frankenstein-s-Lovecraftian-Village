@@ -204,5 +204,24 @@ namespace Frankenstein.Core.Tests
                     }
                 }
         }
+
+        [Fact]
+        public void Lighthouse_beam_turns_once_per_period_and_is_deterministic()
+        {
+            foreach (int seed in Seeds)
+            {
+                Assert.Equal(LighthouseBeam.Yaw(seed, 3.7), LighthouseBeam.Yaw(seed, 3.7));
+                Assert.Equal(LighthouseBeam.Yaw(seed, 0), LighthouseBeam.Phase(seed), 12);
+                Assert.Equal(LighthouseBeam.Yaw(seed, 5.0), LighthouseBeam.Yaw(seed, 5.0 + LighthouseBeam.PeriodSeconds), 9);
+                Assert.Equal(Math.PI, (LighthouseBeam.Yaw(seed, LighthouseBeam.PeriodSeconds / 2) - LighthouseBeam.Yaw(seed, 0) + 2 * Math.PI) % (2 * Math.PI), 9);
+                foreach (double t in new[] { 0, 1.25, 7.5, 16, 123.4, 99999.9 }) Assert.InRange(LighthouseBeam.Yaw(seed, t), 0, 2 * Math.PI);
+                foreach (int grid in Grids)
+                {
+                    LighthouseBeam.Site(seed, grid, grid, out double x, out double z);
+                    VillageDressing.WalkBounds(seed, grid, grid, out double minX, out double maxX, out double minZ, out double maxZ);
+                    Assert.True(x > minX - 20 && x < maxX + 20 && z > minZ - 20 && z < maxZ + 20, $"lighthouse near the village, seed {seed} grid {grid}");
+                }
+            }
+        }
     }
 }
