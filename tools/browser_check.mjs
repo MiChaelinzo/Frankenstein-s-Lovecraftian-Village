@@ -159,10 +159,11 @@ async function main() {
     rec('districts: the HUD chip names the quarter under the camera (en Market, fr Le Marche), another quarter at the corner, and the stats show the 36 by 36 city', out.en === 'Market' && out.fr === 'Le Marche' && !!out.corner && out.corner !== 'market' && /36/.test(out.stats || ''), out);
   };
 
-  /** Landmarks (round 23): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
+  /** Landmarks (rounds 23 and 24: ten places, including the standing stones, the hidden cove, the ritual site and the catacombs): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
   const landmarkRun = async () => {
     const spots = [['cliffs', '148.5,-6', 'Saltwind Heights', 'Les Hauteurs de Ventsel'], ['shipwreck', '148.5,172', 'Wreck of the Drowned Gull', 'Epave de la Mouette Noyee'], ['abbey', '86.4,170', 'Abbey of St. Velor', 'Abbaye de Saint-Velor'],
-      ['cemetery', '-12,49', "Harrow's Rest", 'Le Repos de Harrow'], ['marsh', '148.5,150', 'The Lantern Fen', 'Les Fanges de la Lanterne'], ['grove', '-4,122.4', 'Thornwick Grove', 'Bosquet de Ronceval']];
+      ['cemetery', '-12,49', "Harrow's Rest", 'Le Repos de Harrow'], ['marsh', '148.5,150', 'The Lantern Fen', 'Les Fanges de la Lanterne'], ['grove', '-4,122.4', 'Thornwick Grove', 'Bosquet de Ronceval'],
+      ['standing_stones', '-52,93.6', 'The Standing Stones', 'Les pierres dressees'], ['hidden_cove', '148,-44', 'The Hidden Cove', 'La crique cachee'], ['ritual_site', '-52,14.4', 'The Ritual Site', 'Le lieu du rituel'], ['catacombs', '-27,83.4', 'The Forty Fourth Door', 'La Quarante-Quatrieme Porte']];
     const out = {}; warns.length = 0;
     for (const [id, cam, en, fr] of spots) for (const [lang, want] of [['en', en], ['fr', fr]]) {
       await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${cam},0,0#seed=1818&sanity=80`);
@@ -204,7 +205,7 @@ async function main() {
     rec('names: the 3D door prompt shows the seeded building name in English and French, never a raw id', out.en === out['en.want'] && out.fr === out['fr.want'] && !/house_[ab]/.test(`${out.en}${out.fr}`), out);
   };
 
-  /** Narrative (round 24): ?chronicle=1 opens the Village chronicle with families and their houses, three missing persons, five district histories and six legends in English and French, and the lore list holds seven locked journals at the villagers' houses. NARRATIVE_ONLY=1 runs only this; NARRATIVE_SHOT=<file.png> saves the English frame. */
+  /** Narrative (round 24): ?chronicle=1 opens the Village chronicle with families and their houses, three missing persons, five district histories and ten legends in English and French, and the lore list holds seven locked journals at the villagers' houses. NARRATIVE_ONLY=1 runs only this; NARRATIVE_SHOT=<file.png> saves the English frame. */
   const narrativeRun = async () => {
     const out = {};
     for (const lang of ['en', 'fr']) {
@@ -213,8 +214,8 @@ async function main() {
       out[lang] = await until(async () => { const v = await ev(`(()=>{const b=document.getElementById('chronicleBody');if(!b||document.getElementById('chroniclePanel').hidden)return null;const n=(q)=>b.querySelectorAll(q).length;return {missing:n('[data-missing]'),families:n('[data-family]'),districts:n('[data-district]'),legends:n('[data-legend]'),rumor:(b.querySelector('.chronicle-rumor')||{}).textContent||'',raw:b.textContent.includes('{'),journals:document.querySelectorAll('#loreList li.locked').length,journalLocked:[...document.querySelectorAll('#loreList li.locked')].filter((li)=>/${lang === 'en' ? 'journal waits at' : 'journal attend a'}/.test(li.textContent)).length}})()`); return v && v.missing ? v : null; }, 40000).catch(() => null);
       if (process.env.NARRATIVE_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NARRATIVE_SHOT, Buffer.from(await capture(), 'base64')); }
     }
-    const ok = (o) => o && o.missing === 3 && o.families >= 5 && o.districts === 5 && o.legends === 6 && o.rumor.length > 20 && !/  /.test(o.rumor) && !o.raw && o.journalLocked === 7;
-    rec('narrative: the chronicle lists families, 3 missing persons, 5 district histories, 6 legends and a rumor, and the lore list has 7 journals, in English and French', ok(out.en) && ok(out.fr) && out.en.rumor !== out.fr.rumor, out);
+    const ok = (o) => o && o.missing === 3 && o.families >= 5 && o.districts === 5 && o.legends === 10 && o.rumor.length > 20 && !/  /.test(o.rumor) && !o.raw && o.journalLocked === 7;
+    rec('narrative: the chronicle lists families, 3 missing persons, 5 district histories, 10 legends and a rumor, and the lore list has 7 journals, in English and French', ok(out.en) && ok(out.fr) && out.en.rumor !== out.fr.rumor, out);
   };
 
   /** Clock sky (round 23): the 3D sky by day, dusk and night from the open market square (pitched up so the sampled top rows are sky, not a house wall). SKY_ONLY=1 runs only this. */
