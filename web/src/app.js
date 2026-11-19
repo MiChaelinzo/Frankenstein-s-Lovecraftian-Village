@@ -628,8 +628,8 @@ const vigil = createVigilController({
 let storyKey = '', storyCache = null, storyRoster = () => [];
 function currentStory() {
   if (!state.storyLib || !state.layout.length) return null;
-  const roster = storyRoster(), key = `${state.seed}|${state.layout.length}|${roster.length}|${state.nameLib ? 1 : 0}`;
-  if (key !== storyKey && roster.length) { storyKey = key; storyCache = buildStory(state.storyLib, state.seed, state.layout, roster, state.layout.map((p) => p.names || null), state.campaign ? state.campaign.villageName : ''); }
+  const roster = storyRoster(), village = state.campaign ? state.campaign.villageName : '', key = `${state.seed}|${state.layout.length}|${roster.length}|${state.nameLib ? 1 : 0}|${village}`;
+  if (key !== storyKey && roster.length) { storyKey = key; storyCache = buildStory(state.storyLib, state.seed, state.layout, roster, state.layout.map((p) => p.names || null), village); }
   return roster.length ? storyCache : null;
 }
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.

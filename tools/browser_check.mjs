@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -196,6 +196,19 @@ async function main() {
     rec('names: the 3D door prompt shows the seeded building name in English and French, never a raw id', out.en === out['en.want'] && out.fr === out['fr.want'] && !/house_[ab]/.test(`${out.en}${out.fr}`), out);
   };
 
+  /** Narrative (round 24): ?chronicle=1 opens the Village chronicle with families and their houses, three missing persons, five district histories and six legends in English and French, and the lore list holds seven locked journals at the villagers' houses. NARRATIVE_ONLY=1 runs only this; NARRATIVE_SHOT=<file.png> saves the English frame. */
+  const narrativeRun = async () => {
+    const out = {};
+    for (const lang of ['en', 'fr']) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&chronicle=1&lang=${lang}&capture=1&tick=1100#seed=1818&sanity=60`);
+      out[lang] = await until(async () => { const v = await ev(`(()=>{const b=document.getElementById('chronicleBody');if(!b||document.getElementById('chroniclePanel').hidden)return null;const n=(q)=>b.querySelectorAll(q).length;return {missing:n('[data-missing]'),families:n('[data-family]'),districts:n('[data-district]'),legends:n('[data-legend]'),rumor:(b.querySelector('.chronicle-rumor')||{}).textContent||'',raw:b.textContent.includes('{'),journals:document.querySelectorAll('#loreList li.locked').length,journalLocked:[...document.querySelectorAll('#loreList li.locked')].filter((li)=>/${lang === 'en' ? 'journal waits at' : 'journal attend a'}/.test(li.textContent)).length}})()`); return v && v.missing ? v : null; }, 40000).catch(() => null);
+      if (process.env.NARRATIVE_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NARRATIVE_SHOT, Buffer.from(await capture(), 'base64')); }
+    }
+    const ok = (o) => o && o.missing === 3 && o.families >= 5 && o.districts === 5 && o.legends === 6 && o.rumor.length > 20 && !/  /.test(o.rumor) && !o.raw && o.journalLocked === 7;
+    rec('narrative: the chronicle lists families, 3 missing persons, 5 district histories, 6 legends and a rumor, and the lore list has 7 journals, in English and French', ok(out.en) && ok(out.fr) && out.en.rumor !== out.fr.rumor, out);
+  };
+
   /** Clock sky (round 23): the 3D sky by day, dusk and night from the open market square (pitched up so the sampled top rows are sky, not a house wall). SKY_ONLY=1 runs only this. */
   const skyRun = async () => {
     const skyAt = async (tick) => {
@@ -262,6 +275,7 @@ async function main() {
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
     if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
+    if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
@@ -422,6 +436,7 @@ async function main() {
     await districtRun();
     await landmarkRun();
     await namesRun();
+    await narrativeRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });
