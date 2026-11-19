@@ -25,6 +25,8 @@ import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTI
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
+import { parseStoryLibrary, buildStory } from './village-story.js';
+import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
@@ -196,6 +198,7 @@ async function loadCatalog() {
   const json = await res.json();
   state.catalog = new PrefabCatalog(json.entries);
   try { state.nameLib = parseNameLibrary(await (await fetch('data/names.json')).json()); } catch (err) { state.nameLib = null; console.warn(`[names] could not load data/names.json, buildings keep their kind names this session: ${err.message}`); }
+  try { state.storyLib = parseStoryLibrary(await (await fetch('data/story.json')).json()); } catch (err) { state.storyLib = null; console.warn(`[story] could not load data/story.json, no families, journals or missing persons this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -621,10 +624,18 @@ const vigil = createVigilController({
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
 });
+// The village story (Core VillageStory mirror): families, house owners, missing persons. Rebuilt only when the seed, layout or roster changes; null without data/story.json.
+let storyKey = '', storyCache = null, storyRoster = () => [];
+function currentStory() {
+  if (!state.storyLib || !state.layout.length) return null;
+  const roster = storyRoster(), key = `${state.seed}|${state.layout.length}|${roster.length}|${state.nameLib ? 1 : 0}`;
+  if (key !== storyKey && roster.length) { storyKey = key; storyCache = buildStory(state.storyLib, state.seed, state.layout, roster, state.layout.map((p) => p.names || null), state.campaign ? state.campaign.villageName : ''); }
+  return roster.length ? storyCache : null;
+}
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
-  onChange: () => { drawMinimap(); mark(); }, journal: (text) => log('lore', text),
+  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
 });
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
@@ -632,8 +643,14 @@ const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
-  onChange: () => { drawMinimap(); mark(); },
+  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
+});
+storyRoster = () => villagers.roster;
+// Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
+const chronicle = createChronicleController({
+  $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
+  landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
 });
 // HUD clock chip and the first-play hint (dismissal is kept for the browser session; stills with ?capture=1 never show it).
 function renderClockChip() {
@@ -662,7 +679,7 @@ function renderDistrictChip() {
   chip.hidden = !id && !lm;
 }
 renderClockChip(); renderDistrictChip();
-setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } }, 1000);
+setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } chronicle.refresh(); }, 1000);
 // Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
 // map with a slow CSS drift. Both stop the moment the player chooses a view.
 let backdropKind = null, backdropT0 = 0;
@@ -1010,6 +1027,7 @@ function foldGroupsOnNarrow() {
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
   if (optParam('villagers') === '1') villagers.setPanel(true);
+  if (optParam('chronicle') === '1') chronicle.setPanel(true);
   if (optParam('lore') === '1') lore.readNext(); // QA: opens the first lore book page (stills)
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);

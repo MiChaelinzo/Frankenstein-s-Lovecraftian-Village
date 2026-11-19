@@ -125,7 +125,9 @@ test('every role and behavior has a line in en and fr, and en and fr define the 
 test('chat is deterministic, wraps topics and only lucid villagers hint', () => {
   const v = generateRoster(7, generateLayout(catalog, 24, 24, 40, 7))[0];
   assert.deepEqual(chat(7, v, 1000, 0.1, 2, 4, 1, 1, 10), chat(7, v, 1000, 0.1, 2, 4, 1, 1, 10));
-  assert.equal(chat(7, v, 1000, 0.1, 2, -2, 1, 1, 10).topic, 1);
+  assert.equal(chat(7, v, 1000, 0.1, 2, -2, 1, 1, 10).topic, 2);
+  assert.equal(chat(7, v, 1000, 0.1, 2, 3, 1, 1, 10).hintId, 'village');
+  assert.equal(chat(7, v, 1000, 0.1, 2, 7, 1, 1, 10).topic, 3);
   assert.equal(chat(7, v, 1000, 0.1, 2, 0, 0, 1, 10).hintId, 'clues_done');
   assert.equal(chat(7, v, 1000, 0.1, 2, 2, 0, 0, 10).hintId, 'sanity_low');
   assert.equal(chat(7, v, 1000, 0.6, 2, 0, 1, 1, 10).hintId, '', 'a restless villager gives no hint');

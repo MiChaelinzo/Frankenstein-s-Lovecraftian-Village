@@ -145,11 +145,11 @@ export function lineKey(v, behavior, lineVariant) {
 /** A villager's carried lantern burns from dusk until dawn; the lamplighter (role 3) always carries a lit one. Mirror of VillagerRules.CarriesLitLantern. */
 export const carriesLitLantern = (v, tick) => lanternsLit(tick) || v.role === 3;
 
-export const CHAT_TOPICS = 3;
+export const CHAT_TOPICS = 4; // clues, lanterns, sanity, village story (village-story.js gossipFor)
 const CHAT_SEEKING = ['clues_seek', 'lamps_light', 'sanity_low'], CHAT_DONE = ['clues_done', 'lamps_done', 'sanity_steady'];
 
 /**
- * Chat (the C key), mirror of VillagerRules.Chat: topic 0 clues, 1 lanterns, 2 sanity. Availability and behavior come from talk();
+ * Chat (the C key), mirror of VillagerRules.Chat: topic 0 clues, 1 lanterns, 2 sanity, 3 village story. Availability and behavior come from talk();
  * only a lucid (Normal) villager gives a hint, otherwise hintId is '' and the UI shows the usual talk line. No state changes.
  */
 export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity) {
@@ -158,6 +158,7 @@ export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, s
   if (!base.available) return result;
   result.lineVariant = new SeededRandom(seed ^ (v.index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).next(LINE_VARIANTS);
   if (base.behavior !== 0) return result;
+  if (t === 3) { result.hintId = 'village'; return result; }
   const needs = t === 0 ? cluesLeft > 0 : t === 1 ? lampsLeft > 0 : sanity < VIGIL_STEADY_SANITY;
   result.hintId = (needs ? CHAT_SEEKING : CHAT_DONE)[t];
   return result;
