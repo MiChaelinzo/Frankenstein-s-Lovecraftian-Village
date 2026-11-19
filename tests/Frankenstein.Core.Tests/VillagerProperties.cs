@@ -196,6 +196,7 @@ namespace Frankenstein.Core.Tests
                             Assert.InRange(a.Topic, 0, VillagerRules.ChatTopics - 1);
                             if (!a.Available || a.Behavior != VillagerBehavior.Normal) { Assert.Equal("", a.HintId); continue; }
                             Assert.InRange(a.LineVariant, 0, VillagerRules.LineVariants - 1);
+                            if (a.Topic == VillagerRules.ChatTopics - 1) { Assert.Equal("village", a.HintId); continue; } // the village topic is told by VillageStory, whatever the vigil needs
                             string[] seeking = { "clues_seek", "lamps_light", "sanity_low" };
                             string[] done = { "clues_done", "lamps_done", "sanity_steady" };
                             Assert.Equal(seeking[a.Topic], a.HintId);

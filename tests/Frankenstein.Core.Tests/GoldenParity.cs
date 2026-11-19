@@ -343,6 +343,9 @@ namespace Frankenstein.Core.Tests
             AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendStory(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -943,6 +946,56 @@ namespace Frankenstein.Core.Tests
                     sb.Append(i > 0 ? ", " : "").Append("[\"").Append(n.Get("en")).Append("\", \"").Append(n.Get("fr")).Append("\"]");
                 }
                 sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static string Q(string s) { return JsonSerializer.Serialize(s); }
+
+        /// <summary>Top level key "story" (round 24): per city seed the families, house owners, missing persons, journal and page texts, gossip, rumors and the lore placement with the story.</summary>
+        private static void AppendStory(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            sb.Append("  \"story\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var campaign = CampaignGenerator.Generate(seed, 5);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), campaign.VillageName);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"village\": ").Append(Q(campaign.VillageName));
+                first = false;
+                sb.Append(", \"stages\": [").Append(string.Join(", ", campaign.Nights.Select(n => n.Stage.ToString(inv)))).Append(']');
+                sb.Append(", \"families\": [").Append(string.Join(", ", story.Families.Select(f => "[" + Q(f.Surname) + ", [" + string.Join(", ", f.Members) + "], " + f.HomePiece + "]"))).Append(']');
+                sb.Append(", \"owners\": [").Append(string.Join(", ", story.Owners)).Append(']');
+                sb.Append(", \"missing\": [").Append(string.Join(", ", story.Missing.Select(m => "[" + Q(m.Id) + ", " + m.FamilyIndex + ", " + m.KinIndex + ", " + m.WitnessIndex + "]"))).Append(']');
+                var texts = new List<string>();
+                foreach (var b in lore.Books)
+                    if (b.Role.Length > 0 || (b.Missing.Length > 0 && story.HasMissing(b.Missing)))
+                        texts.Add("[" + Q(b.Id) + ", " + story.JournalOwner(b) + ", " + Q(story.BookTitle(b, "en")) + ", " + Q(story.BookText(b, "en")) + ", " + Q(story.BookTitle(b, "fr")) + ", " + Q(story.BookText(b, "fr")) + "]");
+                sb.Append(", \"books\": [").Append(string.Join(", ", texts)).Append(']');
+                var gossip = new List<string>();
+                foreach (var v in roster)
+                    for (int night = 1; night <= 5; night++)
+                    {
+                        int stage = VillageStory.StageOfNight(night, 5), tier = (v.Index + night) % VillageStory.Tiers;
+                        var g = story.GossipFor(v, night, stage);
+                        gossip.Add("[" + v.Index + ", " + night + ", " + tier + ", " + g.Kind + ", " + g.Subject + ", " + g.Stage + ", " + g.Variant + ", " + Q(story.GossipText(g, v, night, tier, "en")) + ", " + Q(story.GossipText(g, v, night, tier, "fr")) + "]");
+                    }
+                sb.Append(", \"gossip\": [").Append(string.Join(", ", gossip)).Append(']');
+                var rumors = new List<string>();
+                for (int night = 1; night <= 5; night++)
+                    for (int tier = 0; tier < VillageStory.Tiers; tier++)
+                        rumors.Add("[" + night + ", " + tier + ", " + Q(story.RumorText(night, VillageStory.StageOfNight(night, 5), tier, "en")) + ", " + Q(story.RumorText(night, VillageStory.StageOfNight(night, 5), tier, "fr")) + "]");
+                sb.Append(", \"rumors\": [").Append(string.Join(", ", rumors)).Append(']');
+                var placed = LoreBookRules.Place(seed, grid, grid, layout, lore, story);
+                sb.Append(", \"placed\": [").Append(string.Join(", ", placed.Select(p => "[" + Q(p.BookId) + ", " + Q(p.Place) + ", " + Math.Round(p.X, 3).ToString("0.###", inv) + ", " + Math.Round(p.Z, 3).ToString("0.###", inv) + "]"))).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

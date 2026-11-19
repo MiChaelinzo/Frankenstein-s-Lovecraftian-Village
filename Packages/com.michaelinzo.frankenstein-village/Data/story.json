@@ -1,0 +1,470 @@
+{
+ "version": 1,
+ "families": [
+  {
+   "surname": "Marsh",
+   "en": "The Marshes came with the first boats. The house deeds list them as tenants of the water, not of the land.",
+   "fr": "Les Marsh sont venus avec les premieres barques. Les actes de la maison les disent locataires de l'eau, non de la terre."
+  },
+  {
+   "surname": "Thorne",
+   "en": "The Thornes keep the hedgerows and have never once been seen pruning them. The hedges grow toward the sea regardless.",
+   "fr": "Les Thorne soignent les haies et on ne les a jamais vus les tailler. Les haies poussent vers la mer malgre tout."
+  },
+  {
+   "surname": "Grimsby",
+   "en": "The Grimsbys salted the village's fish for four generations and will not say what the brine was for before that.",
+   "fr": "Les Grimsby ont sale le poisson du village durant quatre generations et ne disent pas a quoi servait la saumure avant."
+  },
+  {
+   "surname": "Wickham",
+   "en": "The Wickhams made every candle burned in the nave. Their wax is grey and the flame it gives does not flicker.",
+   "fr": "Les Wickham ont fait chaque cierge brule dans la nef. Leur cire est grise et la flamme qu'elle donne ne vacille pas."
+  },
+  {
+   "surname": "Salter",
+   "en": "The Salters gather what the tide leaves. They claim the tide has begun to leave things on purpose.",
+   "fr": "Les Salter ramassent ce que la maree laisse. Ils pretendent que la maree se met a laisser des choses expres."
+  },
+  {
+   "surname": "Pike",
+   "en": "The Pikes are ferrymen, though the river has been dry since before their grandfathers. They still keep the fare in a jar.",
+   "fr": "Les Pike sont passeurs, bien que la riviere soit seche depuis avant leurs grands-peres. Ils gardent encore le prix du passage dans un pot."
+  },
+  {
+   "surname": "Ashby",
+   "en": "The Ashbys tend the graves. Every stone they set faces the water, and none of them remembers being asked to.",
+   "fr": "Les Ashby entretiennent les tombes. Chaque pierre qu'ils posent regarde l'eau, et nul ne se souvient de l'avoir demande."
+  },
+  {
+   "surname": "Crowe",
+   "en": "The Crowes keep the bell ropes. They say the ropes are warm in the mornings, as if recently held.",
+   "fr": "Les Crowe gardent les cordes de la cloche. Ils disent que les cordes sont tiedes au matin, comme tenues depuis peu."
+  },
+  {
+   "surname": "Dunmore",
+   "en": "The Dunmores mended nets until the nets began to mend themselves. They have not touched a needle since.",
+   "fr": "Les Dunmore ont repare des filets jusqu'a ce que les filets se reparent seuls. Ils n'ont plus touche une aiguille depuis."
+  },
+  {
+   "surname": "Hallow",
+   "en": "The Hallows were here before the chapel and will tell you the chapel was built around them. Nobody has contradicted this.",
+   "fr": "Les Hallow etaient la avant la chapelle et vous diront que la chapelle fut batie autour d'eux. Nul ne les a contredits."
+  },
+  {
+   "surname": "Reeve",
+   "en": "The Reeves once kept the village accounts. The last ledger balances perfectly, which is the problem, since it counts one household too many.",
+   "fr": "Les Reeve tenaient jadis les comptes du village. Le dernier registre est parfaitement juste, ce qui pose probleme, car il compte un foyer de trop."
+  },
+  {
+   "surname": "Tallow",
+   "en": "The Tallows keep the lamps. They trim the wicks by touch alone and swear the flames lean when someone is near.",
+   "fr": "Les Tallow entretiennent les lampes. Ils coupent les meches au toucher et jurent que les flammes se penchent quand quelqu'un approche."
+  }
+ ],
+ "districts": {
+  "harbour": {
+   "en": "The harbour is the oldest quarter. The first piers were laid on a tide that came in twice that day, and the second tide left no wet marks.",
+   "fr": "Le port est le plus ancien quartier. Les premiers pontons furent poses sur une maree qui monta deux fois ce jour-la, et la seconde ne laissa aucune trace d'eau."
+  },
+  "old_town": {
+   "en": "The old town grew from one hearth carried up from the shore in a jar. Its lanes still bend toward that spot, though nobody can say where it was.",
+   "fr": "La vieille ville est nee d'un seul foyer monte du rivage dans un pot. Ses ruelles se courbent encore vers cet endroit, que nul ne sait situer."
+  },
+  "chapel_hill": {
+   "en": "Chapel hill was raised by hand, and the hand was larger than any in the parish records. The graves here are dug shallow because the earth gives them back politely.",
+   "fr": "La colline de la chapelle fut elevee a la main, et cette main etait plus grande que toutes celles des registres. Les tombes y sont peu profondes, car la terre les rend poliment."
+  },
+  "market": {
+   "en": "The market square has never held a market on a full moon. The stalls are left standing, laid with goods, and in the morning the goods are counted again by no one.",
+   "fr": "La place du marche n'a jamais tenu marche les soirs de pleine lune. Les etals restent dresses, garnis, et au matin les marchandises ont ete recomptees par personne."
+  },
+  "fishers_row": {
+   "en": "Fishers' Row was built from the timbers of boats that came home without crews. Every door in it opens inward, toward the sea, which is not the way the doors were hung.",
+   "fr": "La Rangee des Pecheurs fut batie avec les bois de barques rentrees sans equipage. Chaque porte s'y ouvre vers l'interieur, du cote de la mer, ce qui n'est pas la facon dont on les a pendues."
+  }
+ },
+ "legends": [
+  {
+   "id": "cliffs",
+   "title": {
+    "en": "The Listening Edge",
+    "fr": "Le Bord qui Ecoute"
+   },
+   "text": {
+    "en": "They say the cliffs once leaned out to hear the sea, and stayed that way. Anyone who stands at the lip at night will hear their own name said softly, from below, in a voice that is trying very hard to be kind.",
+    "fr": "On dit que les falaises se penchaient jadis pour ecouter la mer, et qu'elles sont restees ainsi. Celui qui se tient au bord la nuit entend son nom dit doucement, d'en bas, par une voix qui s'efforce d'etre aimable."
+   }
+  },
+  {
+   "id": "shipwreck",
+   "title": {
+    "en": "The Ship That Arrived Twice",
+    "fr": "Le Navire Arrive Deux Fois"
+   },
+   "text": {
+    "en": "The wreck came ashore in the great storm, and again the following winter, in the same place, with the same broken mast. The harbour log lists one arrival. The sailors who walk her deck count two.",
+    "fr": "L'epave s'est echouee lors de la grande tempete, puis de nouveau l'hiver suivant, au meme endroit, avec le meme mat brise. Le journal du port note une seule arrivee. Les marins qui marchent sur son pont en comptent deux."
+   }
+  },
+  {
+   "id": "abbey",
+   "title": {
+    "en": "The Abbey That Faced Away",
+    "fr": "L'Abbaye Tournee Ailleurs"
+   },
+   "text": {
+    "en": "The brothers built their abbey with its altar to the west, against every rule, and would never explain it. When the roof fell, the congregation was found kneeling in rows, all facing the same empty wall, and the wall was warm.",
+    "fr": "Les freres batirent leur abbaye avec l'autel a l'ouest, contre toute regle, et ne l'expliquerent jamais. Quand le toit s'est effondre, on trouva la communaute agenouillee en rangs, tous face au meme mur vide, et le mur etait tiede."
+   }
+  },
+  {
+   "id": "cemetery",
+   "title": {
+    "en": "The Counted Dead",
+    "fr": "Les Morts Comptes"
+   },
+   "text": {
+    "en": "The churchyard has one more grave than the parish has ever buried. The extra stone is unmarked and always the one with fresh flowers. The Ashbys tend it without being told to, and cannot remember starting.",
+    "fr": "Le cimetiere compte une tombe de plus que la paroisse n'a jamais enterre. La pierre en trop n'a pas de nom et c'est toujours celle qui porte des fleurs fraiches. Les Ashby l'entretiennent sans qu'on le leur dise, et ne se souviennent pas d'avoir commence."
+   }
+  },
+  {
+   "id": "marsh",
+   "title": {
+    "en": "The Lantern Fen",
+    "fr": "Le Marais aux Lanternes"
+   },
+   "text": {
+    "en": "Lights move across the marsh in the shapes of a procession. Travellers who follow them find a path that is dry exactly where they step and drowned everywhere else, and a procession that is always one figure short.",
+    "fr": "Des lueurs traversent le marais en forme de procession. Les voyageurs qui les suivent trouvent un chemin sec la ou ils posent le pied et noye partout ailleurs, et un cortege auquel il manque toujours une silhouette."
+   }
+  },
+  {
+   "id": "grove",
+   "title": {
+    "en": "The Grove That Keeps Time",
+    "fr": "Le Bosquet qui Garde le Temps"
+   },
+   "text": {
+    "en": "The trees in the grove are all the same age, and it is the age of the village, to the year. Hang a lantern there and the leaves turn toward it, as people turn toward a speaker they have heard before.",
+    "fr": "Les arbres du bosquet ont tous le meme age, qui est celui du village, a l'annee pres. Accrochez-y une lanterne et les feuilles se tournent vers elle, comme on se tourne vers une voix deja entendue."
+   }
+  }
+ ],
+ "missing": [
+  {
+   "id": "m1",
+   "given": {
+    "en": "Tamsin",
+    "fr": "Tamsin"
+   },
+   "chat": [
+    {
+     "en": "{given} {surname} went out for the evening lamp-oil and never came back. Her mother still sets a place at {home}. The oil was found by the cliffs, with the cork in.",
+     "fr": "On dit que {given} {surname} est sortie chercher l'huile de la lampe et n'est jamais revenue. Sa mere met encore son couvert a {home}. L'huile fut trouvee aux falaises, bouchon en place."
+    },
+    {
+     "en": "Fishers swear they saw {given} on the cliffs after dark, holding a lantern that gave no heat. She was facing the water, as if answering someone.",
+     "fr": "Des pecheurs jurent avoir vu {given} sur les falaises apres la nuit, tenant une lanterne sans chaleur. Elle faisait face a l'eau, comme pour repondre a quelqu'un."
+    },
+    {
+     "en": "They say {given} did not fall. She was asked, and she went, and the cliffs have kept very quiet about it since. The lantern at the edge still leans toward {home}.",
+     "fr": "On dit que {given} n'est pas tombee. On le lui a demande, et elle est partie, et les falaises se taisent depuis. La lanterne du bord se penche encore vers {home}."
+    }
+   ],
+   "witness": {
+    "en": "I saw {missing} that last evening, walking toward the cliffs with a lamp. I called out. She did not turn, but she lifted the lamp, as if to show me it was lit.",
+    "fr": "Je l'ai vue ce dernier soir, {missing}, marchant vers les falaises avec une lampe. J'ai appele. Elle ne s'est pas retournee, mais elle a leve la lampe, comme pour me montrer qu'elle brulait."
+   },
+   "kin": {
+    "en": "{given}'s bed is made each morning and each morning it has been slept in. I have stopped asking which of those is the lie.",
+    "fr": "Le lit de {given} est fait chaque matin et chaque matin il a ete occupe. J'ai cesse de demander lequel des deux est le mensonge."
+   }
+  },
+  {
+   "id": "m2",
+   "given": {
+    "en": "Eliot",
+    "fr": "Eliot"
+   },
+   "chat": [
+    {
+     "en": "{given} {surname} took a skiff out at slack tide, alone, and the skiff came back by itself with the oars shipped neatly. The Pikes say a boat does not do that.",
+     "fr": "{given} {surname} a pris une barque a l'etale, seul, et la barque est revenue sans lui, rames rangees avec soin. Les Pike disent qu'une barque ne fait pas cela."
+    },
+    {
+     "en": "A boy on the quay swears {given} was seen standing at the old wreck, ankle-deep in water that was not there at low tide, waving as one waves from a far shore.",
+     "fr": "Un garcon du quai jure avoir vu {given} sur la vieille epave, de l'eau aux chevilles alors que la maree etait basse, faisant signe comme on salue depuis un rivage lointain."
+    },
+    {
+     "en": "The wreck keeps a passenger it never carried. {given} is aboard, and counted twice, and the harbour log has stopped trying to correct it.",
+     "fr": "L'epave garde un passager qu'elle n'a jamais porte. {given} est a bord, compte deux fois, et le journal du port a cesse de vouloir corriger."
+    }
+   ],
+   "witness": {
+    "en": "I kept the quay lamp lit for {missing} three nights, as is the custom. On the fourth the lamp was already burning when I came, and the wick was dry.",
+    "fr": "J'ai garde la lampe du quai allumee trois nuits pour {missing}, comme le veut l'usage. La quatrieme, elle brulait deja quand je suis arrive, et la meche etait seche."
+   },
+   "kin": {
+    "en": "{given} wrote home once a month. The letters still arrive, in his hand, on a paper that smells of low tide. I no longer open them at the table.",
+    "fr": "{given} ecrivait une fois par mois. Les lettres arrivent encore, de sa main, sur un papier qui sent la maree basse. Je ne les ouvre plus a table."
+   }
+  },
+  {
+   "id": "m3",
+   "given": {
+    "en": "Odile",
+    "fr": "Odile"
+   },
+   "chat": [
+    {
+     "en": "{given} {surname} took the veil at the abbey ruins long after the abbey had no order to receive her. She walked up there to pray, and the prayer is still going on, say the shepherds.",
+     "fr": "{given} {surname} a pris le voile aux ruines de l'abbaye bien apres que l'abbaye n'avait plus d'ordre pour la recevoir. Elle y est montee prier, et la priere dure encore, disent les bergers."
+    },
+    {
+     "en": "Travellers on the abbey road hear a woman's voice reading the offices, and the voice answers itself in the responses, a half-beat before it should.",
+     "fr": "Les voyageurs de la route de l'abbaye entendent une femme lire les offices, et la voix se repond a elle-meme dans les reponses, un battement avant le moment."
+    },
+    {
+     "en": "{given} did not leave the abbey. The abbey took her in, as it was built to, and the wall that faces away is warm because she is leaning on the other side.",
+     "fr": "{given} n'a pas quitte l'abbaye. L'abbaye l'a recueillie, comme elle fut batie pour le faire, et le mur tourne ailleurs est tiede parce qu'elle s'y adosse de l'autre cote."
+    }
+   ],
+   "witness": {
+    "en": "{missing} asked me to bring her the evening bread to the abbey stair. I left it on the third step. In the morning the bread was gone and the step was warm, like a seat just left.",
+    "fr": "{missing} m'avait demande de lui porter le pain du soir au pied de l'abbaye. Je l'ai pose sur la troisieme marche. Au matin le pain avait disparu et la marche etait tiede, comme un siege qu'on vient de quitter."
+   },
+   "kin": {
+    "en": "{given} always said the abbey would call her home. I told her it had no home to call her to. I am no longer certain which of us was right, or what home means.",
+    "fr": "{given} disait toujours que l'abbaye l'appellerait chez elle. Je lui repondais qu'elle n'avait pas de chez-soi a offrir. Je ne sais plus lequel de nous avait raison, ni ce que veut dire chez-soi."
+   }
+  },
+  {
+   "id": "m4",
+   "given": {
+    "en": "Wren",
+    "fr": "Wren"
+   },
+   "chat": [
+    {
+     "en": "{given} {surname} went to the marsh to look for the lights, as the children dare each other to do. The other children came back with mud to the knee. {given} came back with none, and then did not come back.",
+     "fr": "{given} {surname} est alle au marais chercher les lueurs, comme les enfants se le defient. Les autres sont revenus boue jusqu'aux genoux. {given} est revenu sans une trace, puis n'est plus revenu."
+    },
+    {
+     "en": "The lights on the fen have shifted into a procession again. The shepherds say {given} walks near the end of it, carrying nothing and looking pleased.",
+     "fr": "Les lueurs du marais se sont de nouveau mises en procession. Les bergers disent que {given} marche vers la fin du cortege, sans rien porter, l'air content."
+    },
+    {
+     "en": "The procession was always one short. It is not now. The lights are keeping {given} among them, and the path is dry exactly where a small footprint would fall.",
+     "fr": "Le cortege avait toujours une silhouette de moins. Plus maintenant. Les lueurs gardent {given} parmi elles, et le chemin est sec exactement la ou tomberait la trace d'un petit pied."
+    }
+   ],
+   "witness": {
+    "en": "I told the children never to follow the lights. {missing} was the only one who nodded and meant it. That is the one the lights wanted.",
+    "fr": "J'ai dit aux enfants de ne jamais suivre les lueurs. {missing} fut le seul a acquiescer pour de bon. C'est celui que voulaient les lueurs."
+   },
+   "kin": {
+    "en": "{given}'s boots are by the door, clean. I have cleaned them every day for a month. They are no cleaner, and no dirtier.",
+    "fr": "Les bottes de {given} sont pres de la porte, propres. Je les nettoie chaque jour depuis un mois. Elles ne sont ni plus propres ni plus sales."
+   }
+  },
+  {
+   "id": "m5",
+   "given": {
+    "en": "Silas",
+    "fr": "Silas"
+   },
+   "chat": [
+    {
+     "en": "{given} {surname} dug graves for the parish until the parish ran short of ground. The last grave he dug is the one with fresh flowers and no name, and he has not been home since.",
+     "fr": "{given} {surname} creusait les tombes de la paroisse jusqu'a ce que la paroisse manque de terre. La derniere qu'il a creusee est celle aux fleurs fraiches et sans nom, et il n'est pas rentre depuis."
+    },
+    {
+     "en": "The sexton's tools are found each morning laid out neatly beside the extra grave. Somebody has been digging it deeper, and the soil is dry.",
+     "fr": "Les outils du fossoyeur sont retrouves chaque matin alignes pres de la tombe en trop. Quelqu'un la creuse plus profond, et la terre est seche."
+    },
+    {
+     "en": "The extra grave was for {given}. It was dug long before he went missing, and he knew, and he dug it well. The flowers are from the household of {home}, who cannot remember planting them.",
+     "fr": "La tombe en trop etait pour {given}. Elle fut creusee bien avant sa disparition, il le savait, et il l'a bien creusee. Les fleurs viennent du foyer de {home}, qui ne se souvient pas de les avoir plantees."
+    }
+   ],
+   "witness": {
+    "en": "I held the lantern while {missing} dug that last grave. He asked me not to look at the stone. I did not. I wish I could say that the stone did not look at me.",
+    "fr": "J'ai tenu la lanterne pendant que {missing} creusait cette derniere tombe. Il m'a prie de ne pas regarder la pierre. Je ne l'ai pas fait. Je voudrais pouvoir dire que la pierre ne m'a pas regarde."
+   },
+   "kin": {
+    "en": "{given} said the ground was getting shallow and the dead were getting restless. He is the only man I know who could say that and make me feel better.",
+    "fr": "{given} disait que la terre devenait peu profonde et que les morts devenaient agites. C'est le seul homme qui pouvait dire cela et m'apaiser."
+   }
+  }
+ ],
+ "gossip": {
+  "neighbour": [
+   {
+    "en": "{neighbour} lives at {neighbourHome}. Keep a little distance, if you can. {neighbour} has been counting the windows at night, and does not like to be interrupted.",
+    "fr": "{neighbour} habite {neighbourHome}. Gardez un peu de distance, si vous pouvez. {neighbour} compte les fenetres la nuit et n'aime pas qu'on l'interrompe."
+   },
+   {
+    "en": "Do you know {neighbour} of {neighbourHome}? Folk say the lamps there burn a shade greener each week. I say that is only what the night does to a lamp.",
+    "fr": "Connaissez-vous {neighbour} de {neighbourHome} ? On dit que les lampes y brulent plus vertes chaque semaine. Je dis que c'est ce que la nuit fait a une lampe."
+   },
+   {
+    "en": "{neighbour} at {neighbourHome} asked me yesterday if I had heard the tide counting. I said no. {neighbour} said that was a pity, and did not say why.",
+    "fr": "{neighbour} de {neighbourHome} m'a demande hier si j'avais entendu la maree compter. J'ai dit non. {neighbour} a dit que c'etait dommage, sans dire pourquoi."
+   }
+  ],
+  "family": [
+   {
+    "en": "My family, the {surname}s, have held {home} since before the chapel bell. There is a room in it we do not light, and we keep it clean for someone.",
+    "fr": "Ma famille, les {surname}, tient {home} depuis avant la cloche de la chapelle. Il y a une piece que nous n'eclairons pas, et nous la gardons propre pour quelqu'un."
+   }
+  ]
+ },
+ "rumors": [
+  {
+   "band": 0,
+   "tier": 0,
+   "en": "{village} has a good name for a quiet harbour, and the quiet is the thing people mention first.",
+   "fr": "{village} a bonne reputation de port tranquille, et le calme est ce que l'on cite en premier."
+  },
+  {
+   "band": 0,
+   "tier": 0,
+   "en": "They say the tide at {village} is unusually punctual. Nobody has remarked what it is punctual for.",
+   "fr": "On dit que la maree de {village} est d'une ponctualite rare. Nul n'a precise pour quoi elle est ponctuelle."
+  },
+  {
+   "band": 0,
+   "tier": 1,
+   "en": "Gulls at {village} have started leaving the roofs before dusk, all at once, as if told.",
+   "fr": "Les mouettes de {village} quittent les toits avant le soir, toutes ensemble, comme sur ordre."
+  },
+  {
+   "band": 0,
+   "tier": 1,
+   "en": "The well in {village} has been humming at evening. A small sound, a single held note.",
+   "fr": "Le puits de {village} bourdonne au crepuscule. Un son mince, une seule note tenue."
+  },
+  {
+   "band": 0,
+   "tier": 2,
+   "en": "The lantern route in {village} has been walked by more people than live here. The extra footsteps are said to be careful.",
+   "fr": "La route des lanternes de {village} est parcourue par plus de monde qu'il n'y a d'habitants. Les pas en trop sont dits soigneux."
+  },
+  {
+   "band": 0,
+   "tier": 2,
+   "en": "A stranger asked at the inn for a room, and was shown one, and no one remembers who showed him.",
+   "fr": "Un etranger a demande une chambre a l'auberge, on la lui a montree, et nul ne se souvient de qui l'a fait."
+  },
+  {
+   "band": 0,
+   "tier": 3,
+   "en": "Every window in {village} was found facing the sea this morning. The houses did not seem to have moved.",
+   "fr": "Toutes les fenetres de {village} regardaient la mer ce matin. Les maisons n'avaient pas l'air d'avoir bouge."
+  },
+  {
+   "band": 0,
+   "tier": 3,
+   "en": "They say the dusk at {village} no longer ends. It only gets quieter, and quieter, and then it listens.",
+   "fr": "On dit que le crepuscule de {village} ne finit plus. Il devient seulement plus silencieux, et plus silencieux, puis il ecoute."
+  },
+  {
+   "band": 1,
+   "tier": 0,
+   "en": "The Reeves' ledger counts one household too many, and the bell has stopped ringing on the hour to avoid saying which.",
+   "fr": "Le registre des Reeve compte un foyer de trop, et la cloche a cesse de sonner l'heure pour eviter de dire lequel."
+  },
+  {
+   "band": 1,
+   "tier": 0,
+   "en": "Candles bought in {village} burn longer than they should. The shopkeeper charges the same and looks relieved.",
+   "fr": "Les bougies achetees a {village} durent plus qu'elles ne devraient. Le marchand les fait payer pareil et semble soulage."
+  },
+  {
+   "band": 1,
+   "tier": 1,
+   "en": "Folk in {village} say the stairs in the chapel have one more step on the way down than on the way up.",
+   "fr": "On dit a {village} que l'escalier de la chapelle compte une marche de plus a la descente qu'a la montee."
+  },
+  {
+   "band": 1,
+   "tier": 1,
+   "en": "A child at the market asked for the name of the man in the well. The women told her the well had no man, and the child was not persuaded.",
+   "fr": "Une enfant du marche a demande le nom de l'homme du puits. Les femmes ont repondu que le puits n'avait pas d'homme, et l'enfant n'etait pas convaincue."
+  },
+  {
+   "band": 1,
+   "tier": 2,
+   "en": "Doors in {village} open inward at night, whichever way they were hung. The Dunmores have given up oiling the hinges.",
+   "fr": "Les portes de {village} s'ouvrent vers l'interieur la nuit, quel que soit leur sens de pose. Les Dunmore ont renonce a huiler les gonds."
+  },
+  {
+   "band": 1,
+   "tier": 2,
+   "en": "The night watch no longer finishes the round. They stop at the same corner, nod, and turn back.",
+   "fr": "Le guet ne termine plus sa ronde. Il s'arrete au meme coin, hoche la tete, et revient."
+  },
+  {
+   "band": 1,
+   "tier": 3,
+   "en": "The streets of {village} do not quite meet the same way twice. The ferryman keeps a ball of twine and will not say what he ties it to.",
+   "fr": "Les rues de {village} ne se rejoignent pas deux fois de la meme facon. Le passeur garde une pelote de ficelle et ne dit pas a quoi il l'attache."
+  },
+  {
+   "band": 1,
+   "tier": 3,
+   "en": "Whatever sleeps beneath the chapel has begun to turn over. The candles lean, politely, the same way.",
+   "fr": "Ce qui dort sous la chapelle a commence a se retourner. Les bougies se penchent, poliment, du meme cote."
+  },
+  {
+   "band": 2,
+   "tier": 0,
+   "en": "It is said that on the last night {village} will finally agree with its own reflection. People are being polite about it so far.",
+   "fr": "On dit que la derniere nuit {village} sera enfin d'accord avec son reflet. Pour l'instant, on est poli."
+  },
+  {
+   "band": 2,
+   "tier": 0,
+   "en": "The sea has been seen to stand very still, in the manner of a person waiting to be asked something.",
+   "fr": "On a vu la mer rester tres immobile, a la maniere de quelqu'un qui attend qu'on lui pose une question."
+  },
+  {
+   "band": 2,
+   "tier": 1,
+   "en": "The bell tolls at the end of every hour in {village}, and the ropes are never moving. The Crowes have taken to sleeping beside them.",
+   "fr": "La cloche sonne chaque heure a {village}, et les cordes ne bougent jamais. Les Crowe dorment desormais a leur cote."
+  },
+  {
+   "band": 2,
+   "tier": 1,
+   "en": "The path to the cliffs is shorter than it was, and no one has measured it, since no one wants to be the one who does.",
+   "fr": "Le chemin des falaises est plus court qu'avant, et nul ne l'a mesure, car nul ne veut etre celui qui le fait."
+  },
+  {
+   "band": 2,
+   "tier": 2,
+   "en": "The marsh lights have formed a ring around {village} and the ring is closing a step each night. They look, folks say, like a congregation.",
+   "fr": "Les lueurs du marais forment un anneau autour de {village} et l'anneau se resserre d'un pas chaque nuit. On dirait, dit-on, une assemblee."
+  },
+  {
+   "band": 2,
+   "tier": 2,
+   "en": "The shipwreck has been heard laying out places at table, one for every house.",
+   "fr": "On a entendu l'epave dresser des couverts, un pour chaque maison."
+  },
+  {
+   "band": 2,
+   "tier": 3,
+   "en": "There is nothing outside {village} now. The road goes out and arrives back at the harbour, and the harbour is ready.",
+   "fr": "Il n'y a plus rien hors de {village}. La route sort et revient au port, et le port est pret."
+  },
+  {
+   "band": 2,
+   "tier": 3,
+   "en": "Everything the village has counted is awake. The sea, patient, has stopped waiting for the end of its sentence.",
+   "fr": "Tout ce que le village a compte est eveille. La mer, patiente, a cesse d'attendre la fin de sa phrase."
+  }
+ ]
+}

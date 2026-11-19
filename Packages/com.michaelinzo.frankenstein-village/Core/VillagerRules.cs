@@ -65,7 +65,7 @@ namespace Frankenstein.Core
     {
         public bool Available;
         public VillagerBehavior Behavior;
-        /// <summary>0 clues, 1 lanterns, 2 sanity (<see cref="VillagerRules.ChatTopics"/>).</summary>
+        /// <summary>0 clues, 1 lanterns, 2 sanity, 3 village story (<see cref="VillagerRules.ChatTopics"/>).</summary>
         public int Topic;
         /// <summary>Stable hint id such as "clues_seek"; clients map it to wording. Empty when none.</summary>
         public string HintId;
@@ -493,8 +493,8 @@ namespace Frankenstein.Core
             return result;
         }
 
-        /// <summary>Number of chat topics: clues, lanterns, sanity.</summary>
-        public const int ChatTopics = 3;
+        /// <summary>Number of chat topics: clues, lanterns, sanity, village story (see <see cref="VillageStory.GossipFor"/>).</summary>
+        public const int ChatTopics = 4;
 
         /// <summary>
         /// Chatting with a villager (C key). Availability and behavior come from <see cref="Talk"/>; the hint comes from what the vigil still
@@ -512,7 +512,8 @@ namespace Frankenstein.Core
             if (talk.Behavior != VillagerBehavior.Normal) return result;
             result.HintId = t == 0 ? (cluesLeft > 0 ? "clues_seek" : "clues_done")
                           : t == 1 ? (lampsLeft > 0 ? "lamps_light" : "lamps_done")
-                          : (sanity < VigilRules.SteadySanity ? "sanity_low" : "sanity_steady");
+                          : t == 2 ? (sanity < VigilRules.SteadySanity ? "sanity_low" : "sanity_steady")
+                          : "village";
             return result;
         }
     }
