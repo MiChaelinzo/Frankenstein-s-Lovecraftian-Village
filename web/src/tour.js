@@ -11,6 +11,7 @@ export const TOUR_STEPS = [
   { id: 'cinematic', target: 'cinemaToggle', ms: 5000 },
   { id: 'codex', target: 'codexToggle', ms: 6000 },
   { id: 'satchel', target: 'invBtn', ms: 5000 },
+  { id: 'homestead', target: 'homeBtn', ms: 5000 },
   { id: 'stitch', target: 'stitchToggle', ms: 6000 },
   { id: 'contrast', target: 'contrastToggle', ms: 5000 },
   { id: 'daily', target: 'dailyBtn', ms: 5000 },
