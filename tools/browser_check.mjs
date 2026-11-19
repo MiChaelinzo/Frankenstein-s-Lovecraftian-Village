@@ -198,7 +198,7 @@ async function main() {
       await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
       await nav(`?intro=0&view=3d&lang=${lang}#seed=1818&sanity=100&cam3d=${stand},0,0`);
       await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
-      out[lang] = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`); if (!v) await hold('w', 'KeyW', 60); return v; }, 40000).catch(() => null);
+      out[lang] = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`); if (!v) await hold('w', 'KeyW', 60); return v; }, 40000).catch(() => null);
       out[`${lang}.want`] = head + name;
       if (process.env.NAMES_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NAMES_SHOT, Buffer.from(await capture(), 'base64')); } // optional still of the named prompt
     }
@@ -375,7 +375,7 @@ async function main() {
     const stand = `${doorX.toFixed(2)},${(doorZ + 2.5).toFixed(2)}`;
     await nav(`?intro=0&view=3d#seed=1818&sanity=100&cam3d=${stand},0,0`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
-    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`);
     const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
@@ -384,7 +384,7 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
     await nav(`?intro=0&view=3d#seed=1818&sanity=70&cam3d=${stand},0,14`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
-    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`);
     const ls0 = Number(await text('sanityOut'));
     await key('e'); await sleep(900);
     const ls1 = Number(await text('sanityOut')), lobj = await text('objectiveText');
@@ -689,7 +689,7 @@ async function main() {
     await nav(`?intro=0&view=3d&tick=${VTICK}#seed=1818&sanity=100&cam3d=${vx.toFixed(2)},${(vz + 2).toFixed(2)},0,-8`);
     await sleep(600); await hold('w', 'KeyW', 60); await sleep(300);
     await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<120)requestAnimationFrame(t)})(performance.now())`);
-    const vPrompt = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`); if (!v) await hold('s', 'KeyS', 40); return v; });
+    const vPrompt = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`); if (!v) await hold('s', 'KeyS', 40); return v; });
     rec('villagers 3D: a villager stands in front of the camera and shows a Talk prompt', /^Talk to /.test(vPrompt), { vPrompt, at: [vx, vz], who: vFront.name });
     const sv0 = Number(await text('sanityOut'));
     await key('e'); await sleep(500);
