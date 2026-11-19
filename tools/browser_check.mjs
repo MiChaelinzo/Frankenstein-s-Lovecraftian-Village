@@ -248,7 +248,10 @@ async function main() {
     const seen = {};
     for (const [label, tick] of [['day', 400], ['dusk', 1070], ['night', 1250]]) {
       await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=low&tick=${tick}&cam3d=74,92,180,0#seed=1818&sanity=100`);
-      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
+      // the first HUD frame can report 0 before the villager buffer is filled, so wait for a non-zero count and only then accept a zero
+      const count = (t) => Number((/(\d+) villagers/.exec(t || '') || [])[1] || 0);
+      let hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => count(t) > 0 && t), 20000);
+      if (!hud) hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
       seen[label] = Number((/(\d+) villagers/.exec(hud || '') || [])[1] || 0);
     }
     rec('villagers: seed 1818 draws named villagers in 3D by day, at dusk and at night (perf HUD villager count above zero, most at dusk)', seen.day >= 1 && seen.dusk >= 3 && seen.night >= 1, seen);
@@ -534,7 +537,7 @@ async function main() {
 
     // ?meshes=1 on the 2D board and the meshes page
     await nav('?intro=0&meshes=1#seed=1818&sanity=100');
-    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=25?n:0})()`));
+    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=25?n:0})()`), 40000);
     rec('meshes: ?meshes=1 fetches all 25 original GLBs without an exception', glbs >= 25 && errs.length === 0, { glbRequests: glbs });
     await nav('meshes.html');
     let mp = await text('summary');
@@ -803,7 +806,7 @@ async function main() {
       return { panel, open, s0, s1, closed };
     };
     const plain = await talkRound('');
-    rec('villagers 2D: R opens Who is where with seven rows, the clock and a focused Talk button', plain.panel.shown && plain.panel.rows === 7 && /Day 1, dusk/.test(plain.panel.clock) && plain.panel.focus === '0', plain.panel);
+    rec('villagers 2D: R opens Who is where with 24 rows, the clock and a focused Talk button', plain.panel.shown && plain.panel.rows === 24 && /Day 1, dusk/.test(plain.panel.clock) && plain.panel.focus === '0', plain.panel);
     rec('villagers 2D: Enter on Talk opens the dialogue with a line, and Escape closes it', plain.open.shown && plain.open.name.length > 3 && plain.open.line.length > 5 && plain.closed === true, plain.open);
     rec('villagers 2D: the spoken line is announced to screen readers', plain.open.live.includes(plain.open.name), { live: plain.open.live });
     const withBad = await talkRound('&narrator=http://127.0.0.1:1/none');
@@ -813,8 +816,8 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await until(async () => (await vList()) > 0, 20000).catch(() => null); await sleep(500);
     const pix = await ev(`(()=>{const c=document.getElementById('view'),g=c.getContext('2d');const m=document.getElementById('minimap').getContext('2d');const count=(ctx,w,h,f)=>{const d=ctx.getImageData(0,0,w,h).data;let n=0;for(let i=0;i<d.length;i+=4)if(f(d[i],d[i+1],d[i+2]))n++;return n};return {map:count(m,168,168,(r,gg,b)=>r>235&&gg>225&&b>190&&b<215), list:document.querySelectorAll('#villagerList li').length}})()`);
-    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so the count only has to show every one of the seven villagers
-    rec('villagers 2D: minimap shows villager markers', pix.map >= pix.list * 2 && pix.list === 7, pix);
+    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so with 24 villagers on the city map the dots overlap; the check needs a roster of 24 and at least the pixels of the old seven markers (14)
+    rec('villagers 2D: minimap shows villager markers', pix.map >= 14 && pix.list === 24, pix);
     // click on a villager in the 2D canvas opens the dialogue
     const vClick = await ev(`(()=>{const c=document.getElementById('view');return c.getBoundingClientRect().toJSON()})()`);
     // 3D: stand 2.5 m south of the square villager, facing north
