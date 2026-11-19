@@ -648,7 +648,7 @@ const inventory = createInventoryController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   sanity: () => state.sanity, onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); }, allows: (id) => vigil.allows(id), clue: (id) => { progress.arm(); vigil.clue(id); },
   journal: (text) => log('lore', text), houseName: (i, l) => { const piece = state.layout[i]; return piece ? placeName(piece, l) || kindName(piece.id, l) : ''; },
-  tickNow: clockTick, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => mark(),
+  tickNow: clockTick, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => { mark(); autosave(); },
 });
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({

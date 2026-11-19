@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 25 (FEAT-003): inventory, items and chests
+- Core `Items.cs` (`ItemCatalog`, `Inventory`, `ItemWorld`, `ItemRules`) and `Data/items.json` (14 items, en and fr): lantern oil, salt, candles, bread, dried fish, tea, herbs, sigil chalk, two keys, two letters, two trinkets. Slots stack, `Add`/`Remove`/`Move` report what really moved, food and tea restore sanity through `SanityModel`, oil refills lantern fuel (a lit candle burns `CandleFuelCost`), salt and chalk are kept for the monsters feature (use is refused with reason `ward`), the lodging bed sleeps from dusk or night to the next dawn (`CanSleep`, `MinutesToMorning`, `SleepSanityRestore`).
+- Seeded `ItemWorld.Create`: 10 items on street fronts (unique keys, letters and trinkets once per village), one lodging chest at a named house (bread, tea, oil) and up to 3 found chests. Spots reuse `LoreBookRules.FrontSpots` and `IsBlocked` (`AllDressing` and `SolidProps` were extracted from `Place`, same results). Save string `inv1;fuel;slots;picked;chests` round trips and a refused restore changes nothing.
+- Tests: `ItemTests.cs` (14), golden key `items` (defs, villages, scripted scenario), `web/test/inventory.test.js` (parity), `web/test/inventory-ui.test.js`, session `inv` field.
+- Web: `inventory.js` (mirror), `inventory-ui.js` (satchel panel), items and chests drawn and picked in the 3D view. Key conflict: in 3D `E` (and Interact, pad A) acts on what the view ray hits, so the nearest of book, item, chest, door, villager or lamp wins; in 2D `E` still endures. `I` opens the satchel in 3D; in 2D `I` keeps sending the investigator, so 2D uses the Satchel button. Touch has a Bag button, the pad has left stick press (satchel) and right stick press (gather next, 2D). Help (en, fr) and the tour (new satchel step) updated.
+- Vigil rules kept: a sanity item needs the `sanity_keys` rule and sleeping the `night_step` rule, so both are refused once the vigil has begun (a key or letter pickup is a clue and begins it). Picking up, dropping, storing and taking never lock. Dropping discards the item.
+- `tools/browser_check.mjs` section `INVENTORY_ONLY=1` (4 checks). Cache `flv-shell-v47`. Still: `docs/media/inventory_panel.png`.
+- Not done: no Unity wrapper (like lore books, the scene builder places none; compile checked Core only), the lantern fuel has no visual or gameplay effect yet, the pad cannot press the panel buttons.
+
 ### Round 24 review fixes
 - Parity: new golden keys `collision` (WalkCollision against resolveCollisions, trunk, flat box and mixed scenes) and `cityPresence` (PresenceAt on the 36 by 36 city, seeds 1 and 1818). The JS test that claimed to mirror C# numbers is renamed to what it checks.
 - Cache `flv-shell-v45` (stitch data refreshed).

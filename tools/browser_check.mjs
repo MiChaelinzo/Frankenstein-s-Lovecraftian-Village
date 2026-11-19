@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -267,6 +267,49 @@ async function main() {
     rec('collision: walking straight at a tree trunk slides around it and ends past it (not stopped at the trunk)', Number.isFinite(end.z) && passed && clearOfTrunk, { tree: TREE, start, end });
   };
 
+  /** Inventory (round 25): gather an item, open the lodging chest, take and eat bread (sanity rises), store, drop, sleep to dawn, save and reload, and the 3D view opens the satchel on I and shows the Satchel button. INVENTORY_ONLY=1 runs only this; INVENTORY_SHOT=<file.png> saves the satchel frame. */
+  const inventoryRun = async () => {
+    const q = (sel) => `document.querySelector('${sel}')`, click2 = async (sel) => { try { await ev(`${q(sel)}.click()`); } catch (e) { throw new Error(sel + ': ' + e.message); } }, count = (sel) => ev(`document.querySelectorAll('${sel}').length`), sanity = async () => Number(await text('sanityOut'));
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=40');
+    await until(() => ev(`!!document.querySelector('#invBtn') && document.readyState === 'complete'`), 30000);
+    await click2('#invBtn'); await sleep(300);
+    const opened = !(await hidden('invPanel'));
+    await click2('#invChestNext'); await sleep(200);
+    const chestRows = await count('#invChestList li');
+    await click2('#invChestList button[data-act="take"][data-id="bread"]'); await sleep(150);
+    await click2('#invChestList button[data-act="take"][data-id="tea"]'); await sleep(150);
+    const before = await sanity();
+    await click2('#invList button[data-act="use"][data-id="bread"]'); await sleep(300);
+    const after = await sanity();
+    await click2('#invList button[data-act="store"][data-id="tea"]'); await sleep(150);
+    const stored = await count('#invChestList button[data-act="take"][data-id="tea"]');
+    await click2('#invChestList button[data-act="take"][data-id="lantern_oil"]'); await sleep(150);
+    await click2('#invList button[data-act="drop"][data-id="lantern_oil"]'); await sleep(150);
+    const dropped = await count('#invList button[data-id="lantern_oil"]');
+    if (process.env.INVENTORY_SHOT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.INVENTORY_SHOT, Buffer.from(await capture(), 'base64')); }
+    const phaseBefore = await ev(`document.getElementById('clockChip').getAttribute('data-phase')`);
+    await click2('#invSleep');
+    const phaseAfter = await until(async () => { const p = await ev(`document.getElementById('clockChip').getAttribute('data-phase')`); return p === 'dawn' && p; }, 15000);
+    // gathering comes last: a clue item (a key or letter) begins the vigil, and its sandbox lock then refuses food and sleep by design
+    await click2('#invGather'); await sleep(200);
+    const gathered = await count('#invList li:not(.inv-empty)');
+    rec('inventory: gather, chest take, eat (sanity rises), store, drop and sleep to dawn', opened && gathered >= 1 && chestRows >= 3 && after > before && stored === 1 && dropped === 0 && phaseBefore === 'night' && phaseAfter === 'dawn', { opened, gathered, chestRows, before, after, stored, dropped, phaseBefore, phaseAfter });
+    const saved = await ev(`(JSON.parse(localStorage.getItem('flv.session.v1')||'{}').inv||'')`);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=40'); await sleep(500);
+    await click2('#invBtn'); await sleep(300);
+    const restored = await count('#invList li:not(.inv-empty)');
+    rec('inventory: the satchel is saved with the session and restored after a reload', /^inv1;/.test(saved) && restored >= 1, { saved: saved.slice(0, 80), restored });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d&capture=1&quality=low&tick=1300#seed=1818&sanity=60');
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    await key('i'); await sleep(300);
+    const open3d = !(await hidden('invPanel')), gatherHidden = await hidden('invGather');
+    await key('i'); await sleep(300);
+    const closed3d = await hidden('invPanel');
+    rec('inventory: in 3D the I key opens and closes the satchel (2D keeps I for the investigator) and the 2D-only buttons are hidden', open3d && closed3d && gatherHidden === true, { open3d, closed3d, gatherHidden });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -287,6 +330,7 @@ async function main() {
     if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
     if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
+    if (process.env.INVENTORY_ONLY) { await inventoryRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
