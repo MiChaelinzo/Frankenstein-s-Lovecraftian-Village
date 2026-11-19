@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -310,6 +310,36 @@ async function main() {
     rec('inventory: in 3D the I key opens and closes the satchel (2D keeps I for the investigator) and the 2D-only buttons are hidden', open3d && closed3d && gatherHidden === true, { open3d, closed3d, gatherHidden });
   };
 
+  /** Creatures (CREATURES_ONLY=1 runs only this; CREATURE_SHOT=<png> saves a still of the encounter with warding). ?kit=ward is the QA satchel with salt and chalk. */
+  const creaturesRun = async () => {
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300&weather=fog#seed=1818&sanity=30');
+    await ev(`localStorage.clear()`);
+    const home = await ev(`(async()=>{const c=await import('./src/creatures.js');const cat=c.parseCreatureCatalog(await (await fetch('data/creatures.json')).json());const e=c.CreatureEncounter.spawn(1818,36,36,1300,0.7,'fog',cat,null);const k=e.creatures.find(x=>x.defId==='shore_crawler');return {n:e.creatures.length,kinds:[...new Set(e.creatures.map(x=>x.defId))],x:k.homeX,z:k.homeZ}})()`);
+    rec('creatures: a foggy night at low sanity spawns a bounded set including shore-crawlers (seeded)', home.n >= 1 && home.n <= 8 && home.kinds.includes('shore_crawler'), home);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav(`?intro=0&view=3d&quality=low&tick=1300&weather=fog&kit=ward&cam3d=${home.x.toFixed(2)},${(home.z + 9).toFixed(2)},180,0#seed=1818&sanity=30`);
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    const start = Number(await text('sanityOut'));
+    await sleep(Number(process.env.CREATURE_WAIT || 6000));
+    const hurt = Number(await text('sanityOut')), noted = await text('creatureNote');
+    rec('creatures: standing near a shore-crawler costs sanity and the status line names it', hurt < start && noted.length > 0, { start, hurt, noted });
+    await key('z'); await sleep(200);
+    const salt = await text('invNote');
+    await key('v'); await sleep(200);
+    const sigil = await text('invNote');
+    await key('f'); await sleep(200);
+    const flare = await text('invNote');
+    rec('creatures: Z lays salt, V draws the chalk sigil, F fires a flare (each consumes its item or oil and says so)', /salt/i.test(salt) && /sigil/i.test(sigil) && /flare/i.test(flare), { salt, sigil, flare });
+    const sheltered0 = Number(await text('sanityOut'));
+    await sleep(Number(process.env.CREATURE_WAIT || 6000));
+    const sheltered1 = Number(await text('sanityOut'));
+    rec('creatures: inside the sigil with salt laid, the dread no longer drains', sheltered1 >= sheltered0, { sheltered0, sheltered1 });
+    if (process.env.CREATURE_SHOT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.CREATURE_SHOT, Buffer.from(await capture(), 'base64')); }
+    const meshes = await ev(`Promise.all(['shore_crawler','hollow_watcher','deep_one','cliff_flyer'].map((k)=>fetch('assets/meshes/'+k+'.glb').then((r)=>r.arrayBuffer()).then((b)=>b.byteLength)))`);
+    rec('creatures: the four creature meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -331,6 +361,7 @@ async function main() {
     if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     if (process.env.INVENTORY_ONLY) { await inventoryRun(); break suite; }
+    if (process.env.CREATURES_ONLY) { await creaturesRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');

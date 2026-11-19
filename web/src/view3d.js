@@ -286,6 +286,31 @@ export function buildCreatures({ creatures, models, timeSec = 0, reduced = false
   return new Float32Array(out);
 }
 
+export const WARD_LIFT_M = 0.04, SALT_WIDTH_M = 0.2, SIGIL_LINE_M = 0.16, SIGIL_SEGMENTS = 20, WARD_GLOW = 0.25, WARD_COLOR = [0.86, 0.85, 0.8];
+/**
+ * Flat chalk and salt on the ground (metres): a salt line is a strip along its segment, a sigil is a ring with four spokes. entries: { kind: 'salt' | 'sigil', ax, az, bx, bz, radius }.
+ * Pure, static, no motion (so nothing to reduce). Same 11 floats per vertex as the meshes.
+ */
+export function buildWards(wards) {
+  const out = [], y = WARD_LIFT_M;
+  const strip = (x0, z0, x1, z1, w) => {
+    const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz) || 1, nx = -dz / len * w / 2, nz = dx / len * w / 2;
+    const q = [[x0 - nx, z0 - nz], [x1 - nx, z1 - nz], [x1 + nx, z1 + nz], [x0 + nx, z0 + nz]];
+    for (const i of [0, 1, 2, 0, 2, 3]) out.push(q[i][0], y, q[i][1], 0, 1, 0, WARD_COLOR[0], WARD_COLOR[1], WARD_COLOR[2], WARD_GLOW, 0);
+  };
+  for (const w of wards || []) {
+    if (w.kind === 'salt') strip(w.ax, w.az, w.bx, w.bz, SALT_WIDTH_M);
+    else {
+      for (let i = 0; i < SIGIL_SEGMENTS; i++) {
+        const a0 = i / SIGIL_SEGMENTS * Math.PI * 2, a1 = (i + 1) / SIGIL_SEGMENTS * Math.PI * 2;
+        strip(w.ax + Math.cos(a0) * w.radius, w.az + Math.sin(a0) * w.radius, w.ax + Math.cos(a1) * w.radius, w.az + Math.sin(a1) * w.radius, SIGIL_LINE_M);
+      }
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; strip(w.ax, w.az, w.ax + Math.cos(a) * w.radius, w.az + Math.sin(a) * w.radius, SIGIL_LINE_M); }
+    }
+  }
+  return new Float32Array(out);
+}
+
 // ---------- the lighthouse beam: crossed soft sheets turning with the Core clock ----------
 
 /** Floats per beam vertex: x, y, z and the alpha of the sheet there (bright on the axis, zero at the edges and the far end). */
@@ -1270,8 +1295,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), cr = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), all = new Float32Array(v3.length + cr.length + birds.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd = buildWards(s.wards), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);

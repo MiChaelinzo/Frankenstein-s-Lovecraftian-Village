@@ -145,3 +145,12 @@ test('creature strings exist in en and fr and have no em dash', () => {
   for (const k of Object.keys(STRINGS.en).filter((x) => x.startsWith('creature.'))) { assert.ok(STRINGS.fr[k], k); assert.ok(!STRINGS.en[k].includes('\u2014') && !STRINGS.fr[k].includes('\u2014')); }
   for (const k of ['creature.near', 'creature.ward.salt', 'creature.ward.sigil', 'creature.flare.lit', 'creature.flare.fuel', 'creature.flare.cooldown', 'creature.btn.salt', 'creature.btn.sigil', 'creature.btn.flare']) assert.ok(STRINGS.en[k], k);
 });
+
+import { buildWards, WARD_LIFT_M } from '../src/view3d.js';
+test('wards render as flat static chalk and salt on the ground', () => {
+  const v = buildWards([{ kind: 'salt', ax: 0, az: 0, bx: 6, bz: 0, radius: 4 }, { kind: 'sigil', ax: 10, az: 10, bx: 10, bz: 10, radius: 4 }]);
+  assert.ok(v.length > 0 && v.length % 33 === 0);
+  for (let i = 1; i < v.length; i += 11) assert.equal(v[i], Math.fround(WARD_LIFT_M));
+  assert.equal(buildWards([]).length, 0);
+  assert.deepEqual(Array.from(v), Array.from(buildWards([{ kind: 'salt', ax: 0, az: 0, bx: 6, bz: 0, radius: 4 }, { kind: 'sigil', ax: 10, az: 10, bx: 10, bz: 10, radius: 4 }])));
+});

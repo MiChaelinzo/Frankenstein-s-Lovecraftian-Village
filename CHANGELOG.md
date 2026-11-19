@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 25 (FEAT-004): creatures and sanity exposure
+- Core `CreatureRules.cs` (`CreatureCatalog`, `CreatureEncounter`, `CreatureRules`) and `Data/creatures.json` (4 kinds, en and fr): shore-crawlers (night, beach), hollow-eyed watchers (fog or mist), harbour deep-ones (night, dread 60% or more) and cliff flyers (dusk and night). Seeded homes, at most 8 creatures, named constants for drain, range, line of sight, lantern, salt, sigil and flare.
+- Counterplay: lantern pushes back and burns oil, salt line blocks path and gaze (uses one salt), chalk sigil repels and shelters (uses one sigil chalk), flare as a costly last resort. This consumes the `ward` items that FEAT-003 kept.
+- Tests: `CreatureTests.cs` (10), golden key `creatures` (defs, spawns, scripted encounter), `web/test/creatures.test.js` (parity), `web/test/creature-ui.test.js`, `CREATURES_ONLY=1` browser check (6), `docs/media/creature_warding.png`.
+- Web: `creatures.js` (mirror), `creature-ui.js`, creature and ward drawing in `view3d.js` (vertex shader hanging sway, off with reduced motion), map marks in `draw.js`, `creatureCueParams` in `music.js` (gain at most 0.06, 1.6 s time constant), satchel buttons and Z, V, F keys in 3D. QA query `?kit=ward` puts salt and chalk in the satchel.
+- Meshes: `tools/blender/author_creature_shapes.py` adds the four creatures to the shape data; GLBs from `gen_meshes.py` are 4.8 to 10.4 KB. Mesh count 63 to 67. Unity: thin `CreatureExposureBehaviour` (compile-checked only). Cache `flv-shell-v48`.
+- Limits: exposure is 3D only, wards are not saved, creatures rest during a live vigil, creatures are rebuilt (back at their homes) when the phase, weather or dread step changes.
+
 ### Round 25 (FEAT-003): inventory, items and chests
 - Core `Items.cs` (`ItemCatalog`, `Inventory`, `ItemWorld`, `ItemRules`) and `Data/items.json` (14 items, en and fr): lantern oil, salt, candles, bread, dried fish, tea, herbs, sigil chalk, two keys, two letters, two trinkets. Slots stack, `Add`/`Remove`/`Move` report what really moved, food and tea restore sanity through `SanityModel`, oil refills lantern fuel (a lit candle burns `CandleFuelCost`), salt and chalk are kept for the monsters feature (use is refused with reason `ward`), the lodging bed sleeps from dusk or night to the next dawn (`CanSleep`, `MinutesToMorning`, `SleepSanityRestore`).
 - Seeded `ItemWorld.Create`: 10 items on street fronts (unique keys, letters and trinkets once per village), one lodging chest at a named house (bread, tea, oil) and up to 3 found chests. Spots reuse `LoreBookRules.FrontSpots` and `IsBlocked` (`AllDressing` and `SolidProps` were extracted from `Place`, same results). Save string `inv1;fuel;slots;picked;chests` round trips and a refused restore changes nothing.

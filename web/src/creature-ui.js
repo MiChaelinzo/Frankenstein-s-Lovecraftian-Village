@@ -1,7 +1,7 @@
 // Creature controller: owns the seeded encounter for the current phase, weather and dread (creatures.js, the Core mirror), feeds it the 3D player position each frame,
 // applies the sanity drain and the lantern fuel it returns, and lays wards (salt line, chalk sigil) and the flare. No DOM beyond the status line.
 // The rules live in creatures.js; this file only wires them to the app. Creature names and texts are written through textContent or esc() only.
-import { parseCreatureCatalog, CreatureEncounter, creatureName, creatureText } from './creatures.js';
+import { parseCreatureCatalog, CreatureEncounter, SIGIL_RADIUS, creatureName, creatureText } from './creatures.js';
 import { landmarkDressing, landmarkPathDressing } from './landmarks.js';
 import { composeDressing, dressingBoxes } from './dressing.js';
 import { isBlocked } from './lore.js';
@@ -67,6 +67,9 @@ export function createCreatureController(deps) {
     return enc.creatures.map((c, i) => ({ id: `k${i}`, kind: c.defId, pos: [c.x, 0, c.z], height: cat.find(c.defId).height, phase: i * 1.3 }));
   }
 
+  /** Wards on the ground for the renderer: salt lines and sigils with their radius (metres). */
+  const wards = () => { ensure(); return enc.wards.map((w) => ({ kind: w.kind, ax: w.ax, az: w.az, bx: w.bx, bz: w.bz, radius: SIGIL_RADIUS })); };
+
   /** 2D map marks: the creatures as world positions (metres) with their kind, for the map view. */
   const marks = () => { ensure(); return enc.creatures.map((c) => ({ kind: c.defId, x: c.x, z: c.z })); };
 
@@ -107,7 +110,7 @@ export function createCreatureController(deps) {
   function layNow(kind) { return () => ward(kind); }
 
   return {
-    setCatalog, update, scene, marks, ward, layNow,
+    setCatalog, update, scene, wards, marks, ward, layNow,
     get level() { return level; }, get nearestKind() { return nearestKind; }, get encounter() { ensure(); return enc; }, get catalog() { return cat; },
   };
 }
