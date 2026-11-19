@@ -4,7 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-### Round 25 (FEAT-004): creatures and sanity exposure
+### Round 25 (FEAT-005): homestead, farming, animals and pets
+- Core `HomesteadRules.cs` (`HomesteadCatalog`, `HomesteadPlot`, `Homestead`, `HomesteadRules`) and `Data/homestead.json` (en and fr): five crops (turnips and cabbages, plus the eldritch glowcap mushrooms, weeping kelp and eyeroot), four structures (fence, trough, scarecrow, coop, paid in timber), three animals (chickens, goat, cat) and three pets (lantern moth, tide hound, tentacle in a jar).
+- The plot is found beside the lodging chest's house (in front, then behind), with every bed, slot and resident spot kept clear by `LoreBookRules.IsBlocked`. Crops grow by `GameClock.DayNumber` (planted, sprouting, ripe), never by frame time. Once the corruption level reaches 3 (`CorruptionGrowth.Level`), eldritch crops give one more and plain crops one less unless a scarecrow stands.
+- Animals and pets are adopted by feeding them once. Needs: food (fed percent falls over their fed days, one day longer with a trough) and their shelter structure. Mood (content, uneasy, distressed) moves sanity once per village day by each resident's weight, capped at 6 either way, through `SanityModel`. Chickens lay eggs and the goat gives milk only when housed and fed. Harvest, eggs and milk go into the player's `Inventory`; nothing changes when the satchel is full.
+- `CorruptionGrowth` gained a plot edge site (`GrowPlotEdge`, three candidates) that reuses its appear and scale rules, so the yard grows stranger with dread and night without a second growth rule.
+- `Data/items.json` gained timber, five seed items (new kind `seed`), the five harvests, eggs and goat milk (27 items).
+- Save string `hs1;claimed;lastSanityDay;beds;built;residents` in the session field `hs`; a refused restore changes nothing.
+- Tests: `HomesteadTests.cs` (15), golden key `homestead` (defs, plots for 10 villages, plot edge per level, scripted scenario), `web/test/homestead.test.js` (parity), `web/test/homestead-ui.test.js`, session tests, `HOMESTEAD_ONLY=1` browser check (9), stills `docs/media/homestead_yard.png` and `docs/media/homestead_pet.png`.
+- Web: `homestead.js` (mirror), `homestead-ui.js` (Homestead panel and button, actions only within 12 m of the plot in 3D), yard meshes in `view3d.js` (static, rebuilt only when an action, the day or the corruption level changes), map marks in `draw.js`. QA query `?kit=farm` claims the yard and fills the satchel.
+- Meshes: `tools/blender/author_homestead_shapes.py` adds 17 kinds (`hs_*`); GLBs are 2.3 to 10.9 KB. Mesh count 67 to 84. Unity: thin `HomesteadBehaviour` (compile-checked only). Cache `flv-shell-v49`.
+- Limits: the daily mood sanity waits while a vigil is live (the vigil lock owns sanity). Animals stand still at their spots. The Unity hook reads corruption at night 1.
+
 - Core `CreatureRules.cs` (`CreatureCatalog`, `CreatureEncounter`, `CreatureRules`) and `Data/creatures.json` (4 kinds, en and fr): shore-crawlers (night, beach), hollow-eyed watchers (fog or mist), harbour deep-ones (night, dread 60% or more) and cliff flyers (dusk and night). Seeded homes, at most 8 creatures, named constants for drain, range, line of sight, lantern, salt, sigil and flare.
 - Counterplay: lantern pushes back and burns oil, salt line blocks path and gaze (uses one salt), chalk sigil repels and shelters (uses one sigil chalk), flare as a costly last resort. This consumes the `ward` items that FEAT-003 kept.
 - Tests: `CreatureTests.cs` (10), golden key `creatures` (defs, spawns, scripted encounter), `web/test/creatures.test.js` (parity), `web/test/creature-ui.test.js`, `CREATURES_ONLY=1` browser check (6), `docs/media/creature_warding.png`.

@@ -88,6 +88,24 @@ Pale things walk the village after dark. They are seeded (same seed, phase, weat
 - The warning comes slowly: the fog thickens, the held lantern gutters (it only dims steadily with reduced motion) and a very quiet low swell rises. Nothing sudden, nothing loud.
 - Creatures act in the 3D view only (the 2D map shows pale marks; it has no player position). While a vigil is live the creatures rest, because the vigil lock owns sanity changes. Wards are not saved with the session. The rules live in Core `CreatureRules.cs` and `Data/creatures.json` (en and fr); `web/src/creatures.js` mirrors them.
 
+### Homestead, farming, animals and pets (round 25)
+The yard beside your lodging house can be claimed from the Homestead button. Claiming it hands you seeds and timber.
+
+| Part | What it does |
+|------|--------------|
+| Beds (6) | Plant a seed; it sprouts the next village day and ripens after 2 to 4 days. Harvest puts the crop and one seed back in the satchel. |
+| Crops | Turnips and cabbages; glowcap mushrooms, weeping kelp and eyeroot are eldritch: they give one more when the village is afraid (corruption level 3 or more), while plain crops give one less unless a scarecrow stands. |
+| Structures | Fence, trough, scarecrow and coop, paid in timber. A trough keeps animals fed a day longer. |
+| Animals | Chickens (eggs, need a coop), goat (milk, needs a fence), cat (company). |
+| Pets | Lantern moth (eats glowcaps, coop), tide hound (dried fish, fence), tentacle in a jar (weeping kelp, trough). |
+
+- Feeding an animal its food adopts it. Each resident has two needs, food and its shelter. Its mood is content, uneasy or distressed. Once a village day the moods move sanity, content ones up and distressed ones down, at most 6 points either way. While a vigil is live this waits, because the vigil lock owns sanity.
+- The yard edge grows fungi and a tentacle sapling with dread and night, using the same Core `CorruptionGrowth` rules as the rest of the village.
+- In 3D the yard answers only within 12 m. The 2D map shows small marks. Everything is saved with the session. Rules: Core `HomesteadRules.cs` and `Data/homestead.json` (en and fr), mirrored by `web/src/homestead.js`.
+
+![The homestead yard with crops, a coop, chickens and a tide hound](docs/media/homestead_yard.png)
+![A lantern moth pet in the yard](docs/media/homestead_pet.png)
+
 ### Honest quality bar
 **WebGL1 limits (round 22):** the 3D view is WebGL1 only, with no extensions required. That means no `dFdx` derivatives (bump is two albedo taps), no float render targets (so no real HDR bloom, the post pass works on 8 bit), no instancing (props are merged into chunked buffers), no shadow maps, at most 8 lantern lights per pixel, and a fixed texture unit budget. The Dredge and Silent Hill look is created with fog, a curve grade, rim light and window mood inside those limits, so it is a mood study, not a copy of those games. Measured only on SwiftShader (software GL); real GPU frame times are Unverified.
 
@@ -219,6 +237,9 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 159 passing property tests (including the Vigil rules, sandbox lock and `VigilStrings` drift test) |
 | Creatures: seeded spawns, bounded count, exposure by range and line of sight, lantern, salt line, chalk sigil and flare (`CreatureRules.cs`, `creatures.js`) | Verified | `CreatureTests.cs` (10 tests), golden key `creatures` checked by `web/test/creatures.test.js`, `creature-ui.test.js`, and `CREATURES_ONLY=1 node tools/browser_check.mjs` (6 checks, SwiftShader Chrome) |
 | Creature look and feel: the four meshes, fog and lantern telegraph, quiet audio cue, ground wards | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/creature_warding.png` is one still; the sound has only been checked as parameters, nobody has listened to it; a real GPU was not used |
+| Homestead: plot, crops by village day, structures, needs, mood and daily sanity, harvest and produce into the inventory, save string (`HomesteadRules.cs`, `homestead.js`) | Verified | `HomesteadTests.cs` (15 tests), golden key `homestead` checked by `web/test/homestead.test.js`, `homestead-ui.test.js`, and `HOMESTEAD_ONLY=1 node tools/browser_check.mjs` (9 checks, SwiftShader Chrome) |
+| Homestead look: 17 meshes, yard rendering, 2D marks | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/homestead_yard.png` and `homestead_pet.png` were viewed and show the beds, crops, coop, fence, trough, chickens, tide hound and lantern moth; 2D marks only checked for no errors; a real GPU was not used |
+| Unity hook `HomesteadBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
 | Unity hook `CreatureExposureBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
 | JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 408 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
