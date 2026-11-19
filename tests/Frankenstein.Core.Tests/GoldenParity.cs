@@ -343,6 +343,9 @@ namespace Frankenstein.Core.Tests
             AppendItems(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendCreatures(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -988,6 +991,67 @@ namespace Frankenstein.Core.Tests
         private static string UseText(ItemUseResult r)
         {
             return (r.Used ? "used" : "refused " + r.Reason) + " s" + r.SanityDelta + " f" + r.FuelDelta;
+        }
+
+        /// <summary>Top level key "creatures" (round 25): the data digest, seeded spawns per village and condition, and a scripted encounter with every counter.</summary>
+        private static void AppendCreatures(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = CreatureCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "creatures.json")));
+            var items = ItemCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "items.json")));
+            int night = GameClock.PhaseStart(DayPhase.Night) + 60, dusk = GameClock.PhaseStart(DayPhase.Dusk) + 5, day = GameClock.PhaseStart(DayPhase.Day) + 10;
+            sb.Append("  \"creatures\": {\n    \"defs\": [");
+            for (int i = 0; i < lib.Defs.Count; i++)
+            {
+                var d = lib.Defs[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(d.Id).Append("\", \"").Append(d.Habitat).Append("\", \"").Append(d.Phase).Append("\", \"").Append(d.Weather).Append("\", ").Append(d.MinDread).Append(", ").Append(d.Max).Append(", ")
+                  .Append(d.Drain.ToString("0.###", inv)).Append(", ").Append(d.Range.ToString("0.###", inv)).Append(", ").Append(d.NeedsLos ? 1 : 0).Append(", ").Append(d.Speed.ToString("0.###", inv)).Append(", ")
+                  .Append(d.Hunt.ToString("0.###", inv)).Append(", ").Append(d.Height.ToString("0.###", inv)).Append(']');
+            }
+            sb.Append("],\n    \"spawns\": [");
+            var conditions = new[] { new object[] { night, 1.0, "fog" }, new object[] { night, 0.0, "clear" }, new object[] { dusk, 0.5, "clear" }, new object[] { day, 0.5, "mist" } };
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var solids = LoreBookRules.SolidProps(LoreBookRules.AllDressing(seed, grid, grid, layout));
+                    Func<double, double, bool> blocked = (x, z) => LoreBookRules.IsBlocked(x, z, layout, solids, seed, grid, grid);
+                    foreach (var c in conditions)
+                    {
+                        var enc = CreatureEncounter.Spawn(seed, grid, grid, (int)c[0], (double)c[1], (string)c[2], lib, blocked);
+                        sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"tick\": ").Append((int)c[0]).Append(", \"dread\": ").Append(((double)c[1]).ToString("0.###", inv))
+                          .Append(", \"weather\": \"").Append((string)c[2]).Append("\", \"creatures\": [");
+                        first = false;
+                        for (int i = 0; i < enc.Creatures.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(enc.Describe(enc.Creatures[i])).Append('"');
+                        sb.Append("] }");
+                    }
+                }
+            sb.Append("\n    ],\n    \"scenario\": [");
+            var scene = CreatureEncounter.Spawn(1818, 24, 24, night, 1.0, "fog", lib, null);
+            var player = new Inventory(12);
+            player.Add(items, "salt", 2);
+            player.Add(items, "sigil_chalk", 1);
+            Func<double, double, bool> wall = (x, z) => x > 20 && x < 22 && z > 0 && z < 40;
+            var log = new List<string>();
+            var target = scene.Creatures[0];
+            double px = target.X + 9.0, pz = target.Z;
+            log.Add("spawned " + string.Join(";", scene.Creatures.Select(scene.Describe)));
+            Action<string, CreatureStep> note = (label, r) => log.Add(label + " drain " + r.Drain.ToString("0.####", inv) + " burn " + r.FuelBurn + " tele " + r.Telegraph.ToString("0.####", inv) + " near " + r.Nearest + " pushed " + (r.Pushed ? 1 : 0) + " blocked " + (r.Blocked ? 1 : 0) + " at " + scene.Describe(target));
+            int tick = night;
+            for (int i = 0; i < 4; i++) note("walk" + i, scene.Step(0.5, px, pz, tick, 0, wall));
+            for (int i = 0; i < 3; i++) note("lantern" + i, scene.Step(1.0, target.X + 5.0, target.Z, tick, player.Fuel, wall));
+            log.Add("salt " + (scene.PlaceSalt(player, target.X + 8.0, target.Z, -1, 0, tick) == "" ? "ok" : "no") + " left " + player.Count("salt"));
+            for (int i = 0; i < 3; i++) note("salted" + i, scene.Step(0.5, target.X + 8.0, target.Z, tick, 0, wall));
+            log.Add("sigil " + (scene.PlaceSigil(player, target.X + 12.0, target.Z, tick) == "" ? "ok" : "no") + " again " + scene.PlaceSigil(player, target.X, target.Z, tick));
+            for (int i = 0; i < 3; i++) note("sigil" + i, scene.Step(0.5, target.X + 12.0, target.Z, tick, 0, wall));
+            log.Add("flare " + scene.UseFlare(player, tick) + " fuel " + player.Fuel + " again " + scene.UseFlare(player, tick + 1));
+            note("flared", scene.Step(1.0, target.X + 6.0, target.Z, tick + 1, 0, wall));
+            tick += CreatureRules.SaltMinutes;
+            note("later", scene.Step(0.5, target.X + 8.0, target.Z, tick, 0, wall));
+            log.Add("wards " + scene.Wards.Count + " fuelDebt " + scene.FuelDebt.ToString("0.####", inv));
+            for (int i = 0; i < log.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(log[i]));
+            sb.Append("]\n  }\n");
         }
 
         /// <summary>Top level key "names": per city seed, the English and French name of every layout piece and of every landmark (round 24).</summary>
