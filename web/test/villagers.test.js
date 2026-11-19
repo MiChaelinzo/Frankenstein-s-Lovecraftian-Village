@@ -12,9 +12,10 @@ import {
 import { standingPoint, presenceAt } from '../src/villager-view.js';
 import { villagerTalkCountsAsClue } from '../src/core.js';
 import { STRINGS } from '../src/i18n.js';
+import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).villagers;
+const fullGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')), golden = fullGolden.villagers;
 const catalog = new PrefabCatalog(JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries);
 const PRESENCE_TICKS = [0, 3, 130.5, 300.25, 700, 845, 1085.5, 1100, 1270.5, 1380, 1439.5, 1445], PRESENCE_DREADS = [0, 0.2, 0.67, 1];
 const num = (d) => (typeof d === 'string' ? Number(d) : d);
@@ -132,4 +133,17 @@ test('chat is deterministic, wraps topics and only lucid villagers hint', () => 
   assert.equal(chat(7, v, 1000, 0.1, 2, 2, 0, 0, 10).hintId, 'sanity_low');
   assert.equal(chat(7, v, 1000, 0.6, 2, 0, 1, 1, 10).hintId, '', 'a restless villager gives no hint');
   assert.equal(chat(7, v, 1000, 1, 2, 0, 1, 1, 10).available, false);
+});
+
+test('presence on the 36 by 36 city matches C# (the scale where villagers used to vanish)', () => {
+  const cat = new PrefabCatalog(JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries);
+  for (const c of fullGolden.cityPresence.cases) {
+    const layout = generateCityLayout(cat, CITY_GRID, CITY_GRID, CITY_PIECES, c.seed), roster = generateRoster(c.seed, layout), rows = [];
+    for (const v of roster) for (const t of PRESENCE_TICKS) for (const d of PRESENCE_DREADS) {
+      const r = presenceAt(roster, v, t, d, layout, CITY_GRID, CITY_GRID, c.seed);
+      rows.push([r.gone ? 1 : 0, r.walking ? 1 : 0, r.indoors ? 1 : 0, r.stop, r.placeKind, r.x, r.z, r.faceDx, r.faceDz, r.stride, r.fade]);
+    }
+    assert.equal(rows.length, c.presence.length, `city rows ${c.seed}`);
+    rows.forEach((row, i) => row.forEach((x, j) => assert.ok(Math.abs(x - c.presence[i][j]) < 1e-9, `city ${c.seed} row ${i} col ${j}: ${x} vs ${c.presence[i][j]}`)));
+  }
 });

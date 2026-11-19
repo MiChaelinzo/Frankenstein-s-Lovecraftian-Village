@@ -205,7 +205,7 @@ test('a tree blocks only its trunk (round, 0.5 m with clearance) and the explore
   assert.ok(z <= 7, `stuck at z=${z}`);
 });
 
-test('trunk collision mirrors the C# numbers: a walker never ends inside the trunk circle', () => {
+test('a walker started anywhere near a trunk never ends inside the trunk circle', () => {
   const [b] = dressingBoxes([{ kind: 'tentacle_tree', x: 0, y: 0, z: 0, yaw: 0, scale: 1 }]);
   for (const [sx, sz] of [[0, 0], [0.2, 0.1], [-0.5, 0.3]]) {
     const p = resolveCollisions(sx, sz, BODY_RADIUS, [b]);

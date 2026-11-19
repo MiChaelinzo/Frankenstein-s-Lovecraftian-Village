@@ -346,6 +346,12 @@ namespace Frankenstein.Core.Tests
             AppendLighthouseBeam(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendCollision(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendCityPresence(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendStory(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -972,6 +978,67 @@ namespace Frankenstein.Core.Tests
                   .Append(", \"site\": [").Append(R(sx)).Append(", ").Append(R(sz)).Append("], \"yaw\": [");
                 first = false;
                 for (int i = 0; i < times.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(LighthouseBeam.Yaw(seed, times[i])));
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static readonly double[][] CollisionStarts =
+        {
+            new[] { 5.0, 5.0 }, new[] { 10.1, 11.2 }, new[] { 10.0, 10.0 }, new[] { 9.0, 10.4 }, new[] { 12.3, 8.9 }, new[] { -0.2, 4.0 }, new[] { 4.9, 0.1 }, new[] { 20.0, 20.0 },
+        };
+
+        /// <summary>Top level key "collision" (round 24): resolved positions for a trunk, a flat box and both together, so WalkCollision and the JS resolveCollisions are compared on numbers.</summary>
+        private static void AppendCollision(StringBuilder sb)
+        {
+            string R(double v) { return v.ToString("R", CultureInfo.InvariantCulture); }
+            var scenes = new[]
+            {
+                new[] { new WalkBox { MinX = 9.5, MaxX = 10.5, MinZ = 9.5, MaxZ = 10.5, Round = true } },
+                new[] { new WalkBox { MinX = 0, MaxX = 10, MinZ = 0, MaxZ = 5 } },
+                new[] { new WalkBox { MinX = 0, MaxX = 10, MinZ = 0, MaxZ = 5 }, new WalkBox { MinX = 9.5, MaxX = 10.5, MinZ = 5.2, MaxZ = 6.2, Round = true }, new WalkBox { MinX = 11, MaxX = 13, MinZ = 8, MaxZ = 10 } },
+            };
+            sb.Append("  \"collision\": {\n    \"radius\": 0.35, \"starts\": [");
+            sb.Append(string.Join(", ", CollisionStarts.Select(p => "[" + R(p[0]) + ", " + R(p[1]) + "]"))).Append("],\n    \"scenes\": [");
+            for (int i = 0; i < scenes.Length; i++)
+            {
+                sb.Append(i > 0 ? ",\n      " : "\n      ").Append("{ \"boxes\": [")
+                  .Append(string.Join(", ", scenes[i].Select(b => "[" + R(b.MinX) + ", " + R(b.MaxX) + ", " + R(b.MinZ) + ", " + R(b.MaxZ) + ", " + (b.Round ? 1 : 0) + "]"))).Append("], \"resolved\": [");
+                for (int j = 0; j < CollisionStarts.Length; j++)
+                {
+                    double x = CollisionStarts[j][0], z = CollisionStarts[j][1];
+                    WalkCollision.Resolve(ref x, ref z, 0.35, scenes[i]);
+                    sb.Append(j > 0 ? ", " : "").Append('[').Append(R(x)).Append(", ").Append(R(z)).Append(']');
+                }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "cityPresence" (round 24): PresenceAt on the 36 by 36 city, where the vanishing villagers bug was found. Rows as in villagers.presence.</summary>
+        private static void AppendCityPresence(StringBuilder sb, PrefabCatalog cat)
+        {
+            string R(double v) { return v.ToString("R", CultureInfo.InvariantCulture); }
+            int grid = VillageDistricts.CityGrid;
+            sb.Append("  \"cityPresence\": {\n    \"cases\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 1818 })
+            {
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"presence\": [");
+                first = false;
+                bool firstRow = true;
+                foreach (var v in roster)
+                    foreach (var t in PresenceTicks)
+                        foreach (var d in PresenceDreads)
+                        {
+                            var pr = VillagerRules.PresenceAt(roster, v, t, d, layout, grid, grid, seed);
+                            sb.Append(firstRow ? "" : ", ").Append('[').Append(pr.Gone ? 1 : 0).Append(", ").Append(pr.Walking ? 1 : 0).Append(", ").Append(pr.Indoors ? 1 : 0).Append(", ")
+                              .Append((int)pr.Stop).Append(", ").Append((int)pr.Place).Append(", ").Append(R(pr.X)).Append(", ").Append(R(pr.Z)).Append(", ").Append(R(pr.FaceDx)).Append(", ")
+                              .Append(R(pr.FaceDz)).Append(", ").Append(R(pr.Stride)).Append(", ").Append(R(pr.Fade)).Append(']');
+                            firstRow = false;
+                        }
                 sb.Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
