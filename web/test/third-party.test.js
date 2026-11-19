@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { loadGlbBuffer, fitModelInto, atlasModel, loadThirdPartyModels, THIRD_PARTY_MODELS, ATLAS_GRID, KINDS, VERTEX_FLOATS } from '../src/glb.js';
+import { loadGlbBuffer, fitModelInto, atlasModel, loadThirdPartyModels, THIRD_PARTY_MODELS, THIRD_PARTY_SLOTS, ATLAS_GRID, KINDS, VERTEX_FLOATS } from '../src/glb.js';
 import { buildWorld, createGlRenderer, THIRD_PARTY_TEXTURES, THIRD_PARTY_BASE } from '../src/view3d.js';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
 import { frameCost, FRAME_BUDGET, partitionChunks, visibleRanges, frustumPlanes, viewProjection, fogFloorFor, chunkCullDistance } from '../src/view3d-math.js';
@@ -28,9 +28,12 @@ test('every committed CC0 prop has an embedded JPEG base colour, uv on every tri
     assert.ok(KINDS.includes(kind), kind);
     const m = prop(file);
     assert.equal(m.texture.mimeType, 'image/jpeg'); assert.deepEqual([...m.texture.bytes.slice(0, 2)], [0xff, 0xd8], 'JPEG magic');
-    assert.ok(m.triangles.every((t) => t.uv && t.uv.every(([u, v]) => u >= 0 && u <= 1 && v >= 0 && v <= 1)), file);
+    assert.ok(m.triangles.some((t) => t.uv), file);
+    assert.ok(m.triangles.every((t) => !t.uv || t.uv.every(([u, v]) => u >= 0 && u <= 1 && v >= 0 && v <= 1)), file); // untextured triangles are the emissive window glass
+    assert.ok(m.triangles.every((t) => t.uv || t.emissive), file);
   }
-  assert.ok(Object.keys(THIRD_PARTY_MODELS).length <= ATLAS_GRID * ATLAS_GRID, 'one atlas slot per prop');
+  assert.deepEqual(Object.keys(THIRD_PARTY_SLOTS), Object.keys(THIRD_PARTY_MODELS));
+  assert.ok(Object.values(THIRD_PARTY_SLOTS).every((s) => s >= 0 && s < ATLAS_GRID * ATLAS_GRID), 'every slot is inside the atlas');
 });
 
 test('node transforms are applied (translation, rotation, scale, children) and the original Blender meshes stay untextured', () => {
@@ -71,11 +74,11 @@ test('loadThirdPartyModels: fits, places in fixed slots, skips kinds without an 
   const base = 'assets/third_party/models/', files = Object.fromEntries(Object.values(THIRD_PARTY_MODELS).map((f) => [base + f, read(join(tp, 'models', f))]));
   const originals = new Map(Object.keys(THIRD_PARTY_MODELS).map((k) => [k, original(k)]));
   const warns = [], all = await loadThirdPartyModels(okFetch(files), base, originals, (m) => warns.push(m));
-  assert.equal(warns.length, 0); assert.deepEqual(all.map((p) => [p.kind, p.slot]), Object.keys(THIRD_PARTY_MODELS).map((k, i) => [k, i]));
+  assert.equal(warns.length, 0); assert.deepEqual(all.map((p) => [p.kind, p.slot]), Object.keys(THIRD_PARTY_MODELS).map((k) => [k, THIRD_PARTY_SLOTS[k]]));
   const w2 = [], some = await loadThirdPartyModels(okFetch({ ...files, [base + 'barrel.glb']: new ArrayBuffer(8) }), base, originals, (m) => w2.push(m));
-  assert.deepEqual(some.map((p) => [p.kind, p.slot]), [['bench', 1]], 'a broken file keeps its slot reserved'); assert.equal(w2.length, 1);
+  assert.deepEqual(some.map((p) => p.kind), Object.keys(THIRD_PARTY_MODELS).filter((k) => k !== 'barrel'), 'a broken file is left out, the others stay in their slots'); assert.equal(w2.length, 1);
   const w3 = [], none = await loadThirdPartyModels(okFetch({}), base, originals, (m) => w3.push(m));
-  assert.equal(none.length, 0); assert.equal(w3.length, 2, 'missing files: one warning each');
+  assert.equal(none.length, 0); assert.equal(w3.length, Object.keys(THIRD_PARTY_MODELS).length, 'missing files: one warning each');
   w2.push(...w3);
   assert.ok(w2.every((m) => /^\[third-party\] .*keeping the original/.test(m)), w2.join('\n'));
   assert.deepEqual(await loadThirdPartyModels(okFetch(files), base, new Map([['bench', original('bench')]]), () => {}).then((r) => r.map((p) => p.kind)), ['bench']);
@@ -159,4 +162,14 @@ test('third party budget: each file at most 5 MB, all together at most 40 MB, on
   assert.ok(files.length >= Object.keys(THIRD_PARTY_MODELS).length + Object.keys(THIRD_PARTY_TEXTURES).length);
   assert.ok(sizes.every((s) => s <= 5 * 1024 * 1024)); assert.ok(sizes.reduce((a, b) => a + b, 0) <= 40 * 1024 * 1024);
   assert.ok(files.every((f) => /\.(glb|jpg|png)$/.test(f)), files.join(','));
+});
+
+test('buildWorld keeps one uv pair per vertex when lore books lie in the village (partitionChunks reorders uv only when the counts match)', async () => {
+  const meshes = await upgradedSet(), l = layout(1818);
+  const books = [{ id: 'b1', pos: [20, 0, 20], read: false }, { id: 'b2', pos: [40, 0, 30], read: true }];
+  const w = buildWorld({ layout: l, meshes, seed: 1818, gridW: 24, gridD: 24, books });
+  assert.equal(w.buildingUv.length, (w.building.length / VERTEX_FLOATS) * 2);
+  const chunked = partitionChunks(w.building, w.buildingUv, VERTEX_FLOATS);
+  assert.equal(chunked.uv.length, chunked.vertices.length / VERTEX_FLOATS * 2);
+  assert.notEqual(chunked.uv, w.buildingUv, 'the uv were reordered together with the vertices');
 });

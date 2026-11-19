@@ -355,6 +355,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
+  while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); // books come after the last textured prop; without this padding partitionChunks drops the uv reorder and every textured vertex samples the wrong texel
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);

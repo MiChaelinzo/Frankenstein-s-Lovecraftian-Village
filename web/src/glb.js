@@ -142,8 +142,10 @@ export const loadGlbBuffer = (buf) => extractTriangles(parseGlb(buf));
 
 // ---- CC0 third party props (assets/third_party/models, see THIRD_PARTY_ASSETS.md) ----
 
-/** Kind -> GLB file of the CC0 prop that replaces the original Blender mesh in the 3D view. Order fixes each prop's atlas slot. */
-export const THIRD_PARTY_MODELS = Object.freeze({ barrel: 'barrel.glb', bench: 'bench.glb' });
+/** Kind -> GLB file of the CC0 model that replaces the original Blender mesh in the 3D view (props from Poly Haven, houses assembled from the Quaternius Medieval Village MegaKit). */
+export const THIRD_PARTY_MODELS = Object.freeze({ barrel: 'barrel.glb', bench: 'bench.glb', house_a: 'house_a.glb', house_b: 'house_b.glb', cottage_tall: 'cottage_tall.glb' });
+/** Kind -> atlas slot of its base colour image. The kit's houses share one 3 x 3 trim mosaic, so they share slot 2 (the same image is drawn again, harmlessly). */
+export const THIRD_PARTY_SLOTS = Object.freeze({ barrel: 0, bench: 1, house_a: 2, house_b: 2, cottage_tall: 2 });
 /** The props' base colour images share one texture: a ATLAS_GRID x ATLAS_GRID atlas of equal square slots. */
 export const ATLAS_GRID = 2;
 
@@ -161,7 +163,8 @@ export function atlasModel(model, slot, grid = ATLAS_GRID) {
  */
 export async function loadThirdPartyModels(fetchFn, base, originals, warn = console.warn) {
   const out = [];
-  for (const [slot, [kind, file]] of Object.entries(THIRD_PARTY_MODELS).entries()) {
+  for (const [kind, file] of Object.entries(THIRD_PARTY_MODELS)) {
+    const slot = THIRD_PARTY_SLOTS[kind];
     const reference = originals && originals.get(kind);
     if (!reference) continue;
     try {

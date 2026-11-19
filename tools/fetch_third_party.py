@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fetch the CC0 Poly Haven assets listed in THIRD_PARTY_ASSETS.md into web/assets/third_party/ and downsize them.
+"""(The Quaternius kit houses are built by tools/build_quaternius_models.py instead.)
+Fetch the CC0 Poly Haven assets listed in THIRD_PARTY_ASSETS.md into web/assets/third_party/ and downsize them.
 
 Reproducible on demand (needs network and Pillow: pip install pillow); the validator and tests never run it.
 Textures: the 1K diffuse JPEG, resized to 512 px and scaled to a mean brightness of 0.6 so the 3D shader's x1.6 keeps
