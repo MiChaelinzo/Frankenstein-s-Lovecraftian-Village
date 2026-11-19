@@ -24,6 +24,8 @@ namespace Frankenstein.Runtime
         public bool primitiveFallback = true;
         [Tooltip("Build automatically on Start. The scene builder turns this off and calls Build in the editor.")]
         public bool buildOnStart = true;
+        [Tooltip("Optional Data/names.json. When set, every building gets its seeded name (Core VillageNames) in prompts and narration.")]
+        public TextAsset namesData;
 
         private List<PlacedPiece> _layout;
 
@@ -42,6 +44,22 @@ namespace Frankenstein.Runtime
             return city ? VillageLayoutGenerator.GenerateCity(pieces, width, depth, pieceCount, seed) : VillageLayoutGenerator.Generate(pieces, width, depth, pieceCount, seed);
         }
 
+        /// <summary>The seeded name of the layout piece at an index (the same name the web demo shows), or null without names data or for a kind with no words.</summary>
+        public LocalizedName NameAt(int index)
+        {
+            var names = Names();
+            return names != null && Layout != null && index >= 0 && index < names.Count ? names[index] : null;
+        }
+
+        private List<LocalizedName> _names;
+
+        private List<LocalizedName> Names()
+        {
+            if (_names == null && namesData != null && Layout != null)
+                _names = VillageNames.Assign(NameLibrary.Parse(namesData.text), seed, width, depth, Layout);
+            return _names;
+        }
+
         /// <summary>World position of a cell coordinate (fractional cells allowed), on the ground.</summary>
         public Vector3 CellToWorld(double x, double z) { return transform.position + new Vector3((float)x * cellSize, 0f, (float)z * cellSize); }
 
@@ -53,8 +71,11 @@ namespace Frankenstein.Runtime
             if (catalog == null) { Debug.LogWarning("VillageBuilder: no catalog assigned."); return; }
             var pieces = catalog.ToCatalog();
             var layout = _layout = Generate(pieces);
-            foreach (var p in layout)
+            _names = null;
+            var names = Names();
+            for (int i = 0; i < layout.Count; i++)
             {
+                var p = layout[i];
                 CatalogEntry entry;
                 pieces.TryGet(p.Id, out entry);
                 var pos = transform.position + new Vector3(p.X * cellSize, 0f, p.Z * cellSize);
@@ -70,7 +91,7 @@ namespace Frankenstein.Runtime
                     instance = BuildBlock(p, entry, pos);
                 }
                 else continue;
-                Tag(instance, p.Id, entry);
+                Tag(instance, p.Id, entry, names != null ? names[i] : null);
             }
         }
 
@@ -94,10 +115,11 @@ namespace Frankenstein.Runtime
             }
         }
 
-        private static void Tag(GameObject instance, string id, CatalogEntry entry)
+        private static void Tag(GameObject instance, string id, CatalogEntry entry, LocalizedName name)
         {
             var target = instance.AddComponent<InteractionTarget>();
             target.locationId = id;
+            if (name != null) { target.displayNameEn = name.Get("en"); target.displayNameFr = name.Get("fr"); instance.name = name.Get("en"); }
             target.kind = InteractionRules.KindForCategory(entry != null ? entry.category : null);
             if (target.kind != InteractionKind.Door) return;
             var door = instance.AddComponent<DlnkDoorOmenBridge>();

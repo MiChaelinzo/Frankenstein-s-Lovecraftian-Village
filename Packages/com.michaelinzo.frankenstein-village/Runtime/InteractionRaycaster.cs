@@ -44,7 +44,7 @@ namespace Frankenstein.Runtime
             Focus = FocusVillager != null ? null : Probe();
             if (hud == null) return;
             if (FocusVillager != null) hud.SetPrompt("E  " + FocusVillager.Prompt());
-            else hud.SetPrompt(Focus != null ? "E  " + PromptStrings.PromptFor(language, Focus.kind, Focus.locationId) : "");
+            else hud.SetPrompt(Focus != null ? "E  " + PromptStrings.Prompt(language, Focus.kind, Focus.DisplayName(language)) : "");
         }
 
         /// <summary>Returns the in-range villager in front of the eye who is present (not vanished), or null.</summary>
@@ -91,7 +91,7 @@ namespace Frankenstein.Runtime
             }
             else
             {
-                text = director.Describe(target.locationId);
+                text = director.Describe(target.DisplayName(language));
             }
             if (SanityGate == null || SanityGate(target)) director.Sanity.Apply(InteractionRules.SanityDelta(target.kind));
             if (hud != null) hud.ShowMessage(text);

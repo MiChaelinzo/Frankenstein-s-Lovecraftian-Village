@@ -95,3 +95,6 @@ export function landmarkTitle(lib, seed, id) {
 
 /** The name text in a language; falls back to English for an unknown language. */
 export const nameText = (name, lang) => (name ? name[lang] || name.en : '');
+
+/** The name of a layout piece in a language (names are attached to pieces as piece.names by app.js), or '' when the piece has none. */
+export const placeName = (piece, lang) => nameText(piece && piece.names, lang);

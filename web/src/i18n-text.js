@@ -92,7 +92,7 @@ export function storyMetaL({ n, total, b, c, kind, sky, weather, pct }, lang) {
   return t('story.meta', lang, { n, total, b, c, kind, sky, weather: weatherNameL(weather, lang), pct });
 }
 
-const kindName = (id, lang) => (`kind.${id}` in STRINGS.en ? t(`kind.${id}`, lang) : String(id).replace(/_/g, ' '));
+export const kindName = (id, lang) => (`kind.${id}` in STRINGS.en ? t(`kind.${id}`, lang) : String(id).replace(/_/g, ' '));
 
 /** Screen reader summary of what stands in the village, e.g. " The village holds 2 church, 3 house." (counts sorted by id). */
 export function describeVillageL(layout, lang) {

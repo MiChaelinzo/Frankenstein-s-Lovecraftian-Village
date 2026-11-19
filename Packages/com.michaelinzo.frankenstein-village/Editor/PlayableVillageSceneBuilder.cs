@@ -21,6 +21,7 @@ namespace Frankenstein.Editor
     public static class PlayableVillageSceneBuilder
     {
         public const string CatalogJsonPath = "Packages/com.michaelinzo.frankenstein-village/Data/village_catalog.json";
+        public const string NamesJsonPath = "Packages/com.michaelinzo.frankenstein-village/Data/names.json";
         public const string OutputFolder = "Assets/Frankenstein";
         public const string ScenePath = OutputFolder + "/PlayableVillage.unity";
         private const string HdrpNamespace = "UnityEngine.Rendering.HighDefinition";
@@ -45,6 +46,8 @@ namespace Frankenstein.Editor
             var builder = village.AddComponent<VillageBuilder>();
             builder.catalog = catalog;
             builder.buildOnStart = false;
+            builder.namesData = AssetDatabase.LoadAssetAtPath<TextAsset>(NamesJsonPath); // seeded building names in prompts (Core VillageNames)
+            if (builder.namesData == null) Debug.LogWarning("[Frankenstein] " + NamesJsonPath + " not found; prompts name building kinds instead of seeded names.");
             builder.Build();
             AddDressing(builder);
 
