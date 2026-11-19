@@ -3,6 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
+// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -171,6 +172,31 @@ async function main() {
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
   };
 
+  /** Clock sky (round 23): the 3D sky by day, dusk and night from the open market square (pitched up so the sampled top rows are sky, not a house wall). SKY_ONLY=1 runs only this. */
+  const skyRun = async () => {
+    const skyAt = async (tick) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&view=3d&capture=1&grain=0&weather=clear&tick=${tick}#seed=1818&sanity=100&cam3d=74.5,74.5,180,40`); await sleep(1500);
+      return ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,Math.max(1,Math.floor(c.height*0.3))).data;let r=0,gg=0,b=0,n=0;for(let i=0;i<d.length;i+=4*13){r+=d[i];gg+=d[i+1];b+=d[i+2];n++}n=Math.max(1,n);return {r:Math.round(r/n),g:Math.round(gg/n),b:Math.round(b/n),chip:document.getElementById('clockChipText').textContent,phase:document.getElementById('clockChip').getAttribute('data-phase'),lanterns:!document.getElementById('clockLanterns').hidden,hint:!document.getElementById('clockHint').hidden}})()`);
+    };
+    const skyDay = await skyAt(540), skyDusk = await skyAt(960), skyNight = await skyAt(1200);
+    const L = (p) => 0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
+    rec('clock: the 3D sky is measurably brighter by day than at night (sampled pixels)', L(skyDay) > L(skyNight) + 30, { day: skyDay, night: skyNight });
+    rec('clock: the dusk sky is warmer than the day and the night sky', (skyDusk.r - skyDusk.b) > (skyDay.r - skyDay.b) && (skyDusk.r - skyDusk.b) > (skyNight.r - skyNight.b), { dusk: skyDusk });
+    rec('clock: the HUD chip shows day, time and phase, lanterns only after dusk, and no hint in captures', skyDay.chip === 'Day 1, 13:00, day' && skyDay.phase === 'day' && !skyDay.lanterns && skyNight.chip === 'Day 1, 00:00, night' && skyNight.phase === 'night' && skyNight.lanterns && !skyDay.hint, { day: skyDay.chip, night: skyNight.chip });
+  };
+
+  /** 3D cinematic: the flythrough changes frames over 2.5 s with a caption. CINEMA_ONLY=1 runs only this. */
+  const cinemaRun = async () => {
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
+    await until(() => ev(`!!document.getElementById('cinemaCaption') && !document.getElementById('cinemaCaption').hidden`), 20000); // the 36 by 36 city can take longer than the 2.5 s nav wait to build under load
+    // the caption and view are read before the screenshots: on SwiftShader a full page capture of the 36 by 36 city takes about 14 s, so the whole night 1 timeline can end (and hide the caption, as designed) before the second shot returns
+    const capShown = !(await hidden('cinemaCaption')), viewShown = !(await hidden('view3d')), capText = (await text('cinemaCaption')).slice(0, 80);
+    const tc0 = Date.now(); const ca = await shotHash(); await sleep(2500); const cb = await shotHash(); const cineMs = Date.now() - tc0;
+    rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && capShown && viewShown && capText.length > 5, { before: ca, after: cb, elapsedMs: cineMs, capShown, viewShown, caption: capText });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -178,6 +204,13 @@ async function main() {
     if (process.env.TIER_ONLY) { await tierTimingRun(); break suite; }
     if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
+    if (process.env.PROBE_URLS) { // PROBE_URLS="q1|q2" saves a screenshot of each query to $PROBE_DIR/probe_N.png (default the system temp dir) for visual diagnosis
+      const { writeFileSync } = await import('node:fs');
+      let n = 0; for (const q of process.env.PROBE_URLS.split('|')) { await send('Page.navigate', { url: 'about:blank' }); await sleep(200); await nav(q); await sleep(1500); writeFileSync(join(process.env.PROBE_DIR || tmpdir(), `probe_${n++}.png`), Buffer.from(await capture(), 'base64')); }
+      break suite;
+    }
+    if (process.env.SKY_ONLY) { await skyRun(); break suite; }
+    if (process.env.CINEMA_ONLY) { for (let i = 0; i < 2; i++) await cinemaRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
     // keyboard and panels on the 2D view
@@ -250,14 +283,22 @@ async function main() {
     await special('Escape', 27, undefined); await sleep(400);
     rec('3d: second Escape returns to the 2D view', await hidden('view3d'), {});
 
-    // 3D cinematic
-    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
-    const ca = await shotHash(); await sleep(2500); const cb = await shotHash();
-    rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
+    await cinemaRun();
     await special('Escape', 27, undefined); await sleep(400);
 
-    // 3D: stand 2.5 m south of the house_b at layout cell (7, 16) of seed 1818 (two storey, door faces south) facing it, then interact with the door (E; a click would first take the pointer lock)
-    await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=34,75,0,0');
+    // 3D: stand 2.5 m in front of a south facing house door of the 36 by 36 city (seed 1818, derived from the city layout and the Core lantern positions) facing it, then interact with the door (E; a click would first take the pointer lock)
+    const { generateCityLayout } = await import('../web/src/districts.js');
+    const { lanternLights } = await import('../web/src/view3d-math.js');
+    const { SeededRandom, PrefabCatalog } = await import('../web/src/core.js');
+    const cityCatalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
+    const cityLayout = generateCityLayout(cityCatalog, 36, 36, 180, 1818);
+    cityLayout.forEach((p, i) => { const r = new SeededRandom(1818 * 31 + i * 7919 + 1); p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 }; });
+    const doorHouses = cityLayout.filter((p) => (p.id === 'house_a' || p.id === 'house_b') && (p.facing | 0) === 0);
+    const porch = (p) => lanternLights([{ ...p, detail: 3 }], 4).find((l) => !l.post);
+    const doorHouse = doorHouses.find((p) => porch(p)) || doorHouses[0];
+    const doorX = porch(doorHouse).pos[0], doorZ = porch(doorHouse).pos[2]; // porch light hangs 0.5 m in front of the door wall
+    const stand = `${doorX.toFixed(2)},${(doorZ + 2.5).toFixed(2)}`;
+    await nav(`?intro=0&view=3d#seed=1818&sanity=100&cam3d=${stand},0,0`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
     const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
     const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
@@ -266,7 +307,7 @@ async function main() {
     const j1 = await ev(`document.getElementById('whispers').children.length`);
     // 3D vigil: the same spot looking up at the door lantern; E lights it once, restoring sanity and counting the lamp
     await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
-    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=86,75,0,14');
+    await nav(`?intro=0&view=3d#seed=1818&sanity=70&cam3d=${stand},0,14`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
     const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
     const ls0 = Number(await text('sanityOut'));
@@ -276,7 +317,7 @@ async function main() {
     const ls2 = Number(await text('sanityOut'));
     rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
     // Scale: standing at the door (eye 1.6 m, level gaze) the 2.0 m door top must project above the screen centre, and the 0 m threshold below it.
-    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:34,y:s.eye,z:75,yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[34,w.DOOR_HEIGHT,72.5]),foot=m.projectPoint(vp,[34,0,72.5]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
+    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:${doorX},y:s.eye,z:${doorZ + 2.5},yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[${doorX},w.DOOR_HEIGHT,${doorZ}]),foot=m.projectPoint(vp,[${doorX},0,${doorZ}]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
     const dn = JSON.parse(doorNdc || '{}');
     rec('scale: a 2.0 m door top projects above the screen centre when looking level, its foot below', dn.top > 0.05 && dn.foot < -0.05, dn);
     rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
@@ -529,13 +570,12 @@ async function main() {
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
 
     // villagers: present in 2D (list, minimap, canvas) and 3D, talk by keyboard, effect equal with an unreachable ?narrator, no console errors
-    const { generateLayout, PrefabCatalog } = await import('../web/src/core.js');
     const { generateRoster } = await import('../web/src/villagers.js');
     const { villagerPlacements } = await import('../web/src/villager-view.js');
     const vCatalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
-    const vLayout = generateLayout(vCatalog, 24, 24, 80, 1818), vRoster = generateRoster(1818, vLayout);
+    const vLayout = generateCityLayout(vCatalog, 36, 36, 180, 1818), vRoster = generateRoster(1818, vLayout);
     const VTICK = 900; // dusk: the fisher and the lamplighter stand in the square
-    const vPlaced = villagerPlacements({ roster: vRoster, layout: vLayout, tick: VTICK, dread: 0, gridW: 24, gridD: 24, seed: 1818 });
+    const vPlaced = villagerPlacements({ roster: vRoster, layout: vLayout, tick: VTICK, dread: 0, gridW: 36, gridD: 36, seed: 1818 });
     const vFront = vPlaced.find((p) => p.placeName === 'square');
     const vList = () => ev(`document.querySelectorAll('#villagerList li').length`);
     const talkRound = async (query) => {
@@ -560,9 +600,10 @@ async function main() {
     rec('villagers narrator: an unreachable ?narrator gives the same line and the same sanity change as no narrator', withBad.open.line === plain.open.line && withBad.open.effect === plain.open.effect && (withBad.s1 - withBad.s0) === (plain.s1 - plain.s0), { plain: [plain.s0, plain.s1, plain.open.effect], bad: [withBad.s0, withBad.s1, withBad.open.effect] });
     rec('villagers 2D: the effect text agrees with the sanity change', (() => { const m = /Sanity (-?\d+)/.exec(plain.open.effect); return m ? Number(m[1]) === plain.s1 - plain.s0 : plain.s1 === plain.s0; })(), { effect: plain.open.effect, s0: plain.s0, s1: plain.s1 });
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-    await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await sleep(500);
+    await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await until(async () => (await vList()) > 0, 20000).catch(() => null); await sleep(500);
     const pix = await ev(`(()=>{const c=document.getElementById('view'),g=c.getContext('2d');const m=document.getElementById('minimap').getContext('2d');const count=(ctx,w,h,f)=>{const d=ctx.getImageData(0,0,w,h).data;let n=0;for(let i=0;i<d.length;i+=4)if(f(d[i],d[i+1],d[i+2]))n++;return n};return {map:count(m,168,168,(r,gg,b)=>r>235&&gg>225&&b>190&&b<215), list:document.querySelectorAll('#villagerList li').length}})()`);
-    rec('villagers 2D: minimap shows villager markers', pix.map > 20, pix);
+    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so the count only has to show every one of the seven villagers
+    rec('villagers 2D: minimap shows villager markers', pix.map >= pix.list * 2 && pix.list === 7, pix);
     // click on a villager in the 2D canvas opens the dialogue
     const vClick = await ev(`(()=>{const c=document.getElementById('view');return c.getBoundingClientRect().toJSON()})()`);
     // 3D: stand 2.5 m south of the square villager, facing north
@@ -590,16 +631,7 @@ async function main() {
     rec('villagers 3D: talking applied the Core sanity effect', sv1 <= sv0, { sv0, sv1 });
 
     // ---- the clock: phases change the 3D sky, the HUD chip, lanterns and the vigil (Core VigilRules watch and dawn) ----
-    const skyAt = async (tick) => {
-      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-      await nav(`?intro=0&view=3d&capture=1&grain=0&weather=clear&tick=${tick}#seed=1818&sanity=100&cam3d=34,75,180,25`); await sleep(1500);
-      return ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,Math.max(1,Math.floor(c.height*0.3))).data;let r=0,gg=0,b=0,n=0;for(let i=0;i<d.length;i+=4*13){r+=d[i];gg+=d[i+1];b+=d[i+2];n++}n=Math.max(1,n);return {r:Math.round(r/n),g:Math.round(gg/n),b:Math.round(b/n),chip:document.getElementById('clockChipText').textContent,phase:document.getElementById('clockChip').getAttribute('data-phase'),lanterns:!document.getElementById('clockLanterns').hidden,hint:!document.getElementById('clockHint').hidden}})()`);
-    };
-    const skyDay = await skyAt(540), skyDusk = await skyAt(960), skyNight = await skyAt(1200);
-    const L = (p) => 0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
-    rec('clock: the 3D sky is measurably brighter by day than at night (sampled pixels)', L(skyDay) > L(skyNight) + 30, { day: skyDay, night: skyNight });
-    rec('clock: the dusk sky is warmer than the day and the night sky', (skyDusk.r - skyDusk.b) > (skyDay.r - skyDay.b) && (skyDusk.r - skyDusk.b) > (skyNight.r - skyNight.b), { dusk: skyDusk });
-    rec('clock: the HUD chip shows day, time and phase, lanterns only after dusk, and no hint in captures', skyDay.chip === 'Day 1, 13:00, day' && skyDay.phase === 'day' && !skyDay.lanterns && skyNight.chip === 'Day 1, 00:00, night' && skyNight.phase === 'night' && skyNight.lanterns && !skyDay.hint, { day: skyDay.chip, night: skyNight.chip });
+    await skyRun();
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&reduced=1#seed=1818&sanity=100'); await sleep(400);
     const chipA = await text('clockChipText'); await sleep(2600); const chipB = await text('clockChipText');
