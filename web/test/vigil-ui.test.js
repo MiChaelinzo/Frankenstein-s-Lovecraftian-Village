@@ -234,7 +234,7 @@ test('epilogue links: one pure params entry per ending, deterministic and seed d
   assert.ok(EPILOGUE_LOOKS.dawn.sanity > EPILOGUE_LOOKS.witness.sanity && EPILOGUE_LOOKS.vessel.sanity > EPILOGUE_LOOKS.name_spoken.sanity);
 });
 
-function clockHarness(startTick) {
+function clockHarness(startTick, skipClock = null) {
   const campaign = generateCampaign(5, 3), ritual = generateRitual(campaign), notices = [], els = new Map();
   const $ = (id) => { if (!els.has(id)) els.set(id, { hidden: false, textContent: '', showModal() {}, focus() {}, setAttribute() {}, addEventListener() {}, close() {} }); return els.get(id); };
   const state = { campaign, ritual, layout: [], seed: 5, sanity: new SanityModel(), landmarks: [] };
@@ -242,7 +242,7 @@ function clockHarness(startTick) {
   const c = createVigilController({
     $, tr, state, progress: { arm() {}, update() {}, snapshot: () => ({ codex: [] }), note: { vigilDone() {} } }, storage: memStorage(), announce() {}, notice: (t) => notices.push(t),
     adjust() {}, setSanity: (v) => { state.sanity.value = v; }, selectNight() {}, syncUi() {}, pushHash() {},
-    tickNow: () => clock.tick, skipClock: (m, done) => { clock.tick += m; done(); }, canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
+    tickNow: () => clock.tick, skipClock: skipClock || ((m, done) => { clock.tick += m; done(); return true; }), canPlay: () => true, exit3d() {}, reroll() {}, download() {}, shareLink() {}, reduceMotion: true,
   });
   c.reset();
   return { c, $, clock, notices, state };
@@ -261,6 +261,16 @@ test('by day the Endure control waits for dusk, then endures to dawn and the nex
   assert.equal(c.endure(), true);
   assert.equal(clock.tick, 1440, 'clock ran to dawn');
   assert.ok(notices.some((t) => /Night 2 begins/.test(t)));
+});
+
+test('Endure returns false and stays usable when the clock refuses the wait for dusk', () => {
+  let refuse = true;
+  const { c, clock } = clockHarness(400, (m, done) => { if (refuse) return false; clock.tick += m; done(); return true; });
+  c.clue('a'); c.clue('b'); c.sync();
+  assert.equal(c.endure(), false);
+  refuse = false;
+  assert.equal(c.endure(), true);
+  assert.equal(clock.tick, 840);
 });
 
 test('dawn without the clue target is a missed dawn: sanity drops, the night repeats, the lock holds', () => {

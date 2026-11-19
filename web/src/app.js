@@ -629,7 +629,7 @@ function setSound(on) { $('sound').checked = on; if (on) { if (!startAudio()) $(
 const { story, storyBeats, showBeat, setPlaying, openStory, closeStory, toggleStory, applyStoryHash } = createStoryController({ $, tr, lang, state, reduceMotion, optParam, renderCampaign, setSanity, pushHash });
 const progress = createProgressController({ $, tr, state, log, announce, fetchJson: (u) => fetch(u).then((r) => r.json()) });
 const vigil = createVigilController({
-  tickNow: () => clockTick(), clockFrozen: () => frozenTick !== null, skipClock: (minutes, done) => skipClock(minutes, done),
+  tickNow: () => clockTick(), skipClock: (minutes, done) => skipClock(minutes, done),
   $, tr, state, progress, storage, announce, reduceMotion, gridW: GRID_W, gridD: GRID_D,
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
@@ -660,7 +660,7 @@ const inventory = createInventoryController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   sanity: () => state.sanity, onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); }, allows: (id) => vigil.allows(id), clue: (id) => { progress.arm(); vigil.clue(id); },
   journal: (text) => log('lore', text), houseName: (i, l) => { const piece = state.layout[i]; return piece ? placeName(piece, l) || kindName(piece.id, l) : ''; },
-  tickNow: clockTick, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => { mark(); autosave(); },
+  tickNow: clockTick, clockFrozen: () => frozenTick !== null, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => { mark(); autosave(); },
 });
 // Creatures: seeded by Core rules (creatures.js) for the phase, weather and dread; exposure is 3D only (the 2D map shows marks). The vigil lock keeps its own sanity rules, so they rest during a live vigil.
 const creatures = createCreatureController({

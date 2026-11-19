@@ -138,7 +138,7 @@ export function createVigilController(deps) {
     progress.arm(); begin();
     enduring = true;
     if (!canEndureAt(tick, true)) { // by day the same control waits for dusk; Endure is offered once the watch begins
-      if (deps.skipClock(waitForDuskMinutes(tick), () => { enduring = false; notice(tr('vigil.dusk')); render(); }) === false) enduring = false;
+      if (deps.skipClock(waitForDuskMinutes(tick), () => { enduring = false; notice(tr('vigil.dusk')); render(); }) === false) { enduring = false; render(); return false; }
       render();
       return true;
     }

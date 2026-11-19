@@ -181,7 +181,7 @@ export function createInventoryController(deps) {
     const tick = deps.tickNow();
     if (!canSleep(tick)) { const msg = note('inv.note.notired'); deps.announce?.(msg); return false; }
     if (!deps.allows('night_step') || !deps.allows('sanity_keys')) return false;
-    if (deps.clockFrozen?.()) return false; // a frozen (?tick=) clock cannot run to dawn, so sleep would only restore sanity
+    if (deps.clockFrozen()) return false; // a frozen (?tick=) clock cannot run to dawn, so sleep would only restore sanity
     sleeping = true;
     const started = deps.skipClock(minutesToMorning(tick), () => {
       try {
