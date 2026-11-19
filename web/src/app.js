@@ -1064,7 +1064,7 @@ function foldGroupsOnNarrow() {
   if (optParam('villagers') === '1') villagers.setPanel(true);
   if (optParam('chronicle') === '1') chronicle.setPanel(true);
   if (optParam('lore') === '1') lore.readNext(); // QA: opens the first lore book page (stills)
-  if (optParam('kit') === 'farm') { homestead.claim(); for (const id of ['seed_kelp', 'seed_eyeroot', 'turnip', 'cabbage', 'glowcap', 'kelp', 'dried_fish']) inventory.grant(id, 2); } // QA: claims the yard and fills the satchel for the homestead checks and stills
+  if (optParam('kit') === 'farm') { window.flvHomestead = () => { const p = homestead.plot; return { exists: p.exists, origin: [p.originX, p.originZ], side: p.side, dir: p.dir, pieces: homestead.pieces().map((q) => q.kind) }; }; homestead.claim(); for (const id of ['seed_kelp', 'seed_eyeroot', 'turnip', 'cabbage', 'glowcap', 'kelp', 'dried_fish']) inventory.grant(id, 2); } // QA: claims the yard and fills the satchel for the homestead checks and stills
   if (optParam('kit') === 'ward') { inventory.grant('salt', 3); inventory.grant('sigil_chalk', 2); } // QA: salt and chalk in the satchel for the creature checks and stills
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);

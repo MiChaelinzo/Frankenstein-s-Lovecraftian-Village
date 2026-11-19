@@ -7,6 +7,8 @@ import { esc } from './util.js';
 
 export const NEAR_PLOT_M = 12; // in 3D the yard answers only within this many metres of the plot origin
 export const SECOND_HEN_OFFSET_M = 0.5; // a flock of two stands this far apart
+export const CROP_ON_MOUND_M = 0.12; // crops stand on top of their soil mound, not inside it
+export const CROP_SCALE = 1.5;       // crops are drawn a little larger than life so a ripe bed reads at walking distance
 
 /**
  * deps: { $, tr, lang, state (seed, layout, sanity, night 0-based), gridW, gridD, inventory (controller: world, player, catalog, render), tickNow(), sanity() -> SanityModel, onSanity(delta),
@@ -38,7 +40,7 @@ export function createHomesteadController(deps) {
     home.beds.forEach((b, i) => {
       const [x, z] = plot.beds[i], stage = home.stageOf(i, t);
       out.push({ kind: 'hs_mound', x, z, yaw, scale: 1 });
-      if (stage >= 1) out.push({ kind: stage === STAGE_RIPE ? `hs_${b.cropId}` : 'hs_sprout', x, z, yaw: yaw + i * 0.9, scale: 1 });
+      if (stage >= 1) out.push({ kind: stage === STAGE_RIPE ? `hs_${b.cropId}` : 'hs_sprout', x, y: CROP_ON_MOUND_M, z, yaw: yaw + i * 0.9, scale: CROP_SCALE });
     });
     cat.structures.forEach((s, i) => { if (home.built.has(s.id)) out.push({ kind: `hs_${s.id}`, x: plot.slots[i][0], z: plot.slots[i][1], yaw, scale: 1 }); });
     cat.residents.forEach((def, i) => {

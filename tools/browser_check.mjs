@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -340,6 +340,64 @@ async function main() {
     rec('creatures: the four creature meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
   };
 
+  /** Homestead (HOMESTEAD_ONLY=1 runs only this; HOMESTEAD_SHOT=<png> saves a 3D still of the yard with crops and animals, PET_SHOT=<png> a close still of a pet). ?kit=farm claims the yard and fills the satchel (QA only). */
+  const homesteadRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const click2 = async (sel) => { try { await ev(`document.querySelector('${sel}').click()`); } catch (e) { throw new Error(sel + ': ' + e.message); } }, count = (sel) => ev(`document.querySelectorAll('${sel}').length`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=60'); await ev(`localStorage.clear()`);
+    await nav('?intro=0&capture=1&tick=1300&kit=farm#seed=1818&sanity=60');
+    const plot = await ev(`window.flvHomestead && window.flvHomestead()`);
+    rec('homestead: a free plot is found beside the lodging house and the QA kit claims it', !!plot && plot.exists === true, plot);
+    await click2('#homeBtn'); await sleep(300);
+    const opened = !(await hidden('homePanel')), beds = await count('#homeBody ul:first-of-type li');
+    for (const sel of ['button[data-act="plant"][data-id="0:turnip"]', 'button[data-act="plant"][data-id="1:glowcap"]', 'button[data-act="plant"][data-id="2:kelp"]', 'button[data-act="plant"][data-id="3:eyeroot"]', 'button[data-act="build"][data-id="coop"]', 'button[data-act="build"][data-id="trough"]', 'button[data-act="build"][data-id="fence"]', 'button[data-act="feed"][data-id="chicken"]', 'button[data-act="feed"][data-id="lantern_moth"]', 'button[data-act="feed"][data-id="tide_hound"]']) { await click2('#homeBody ' + sel); await sleep(120); }
+    const note = await text('homeNote'), planted = await count('#homeBody button[data-act="plant"]');
+    const saved = await ev(`(JSON.parse(localStorage.getItem('flv.session.v1')||'{}').hs||'')`);
+    rec('homestead: panel opens with six beds; planting, building and feeding work and the yard is saved with the session', opened && beds === 6 && /^hs1;1;/.test(saved) && /coop/.test(saved) && /chicken/.test(saved) && /turnip\.|glowcap\./.test(saved) && note.length > 0, { opened, beds, planted, saved: saved.slice(0, 120), note });
+    const sanityBefore = Number(await text('sanityOut'));
+    await nav(`?intro=0&capture=1&tick=${3580}#seed=1818&sanity=60`);
+    await click2('#homeBtn'); await sleep(300);
+    const ripe = await count('#homeBody button[data-act="harvest"]'), eggs = await count('#homeBody button[data-act="collect"]');
+    const before = await ev(`(async()=>{const m=await import('./src/session.js');return (m.loadSession(localStorage)||{}).hs||''})()`);
+    await click2('#homeBody button[data-act="harvest"]'); await sleep(200);
+    const afterNote = await text('homeNote');
+    rec('homestead: after two village days the turnip and glowcap are ripe, the hens have laid and a harvest says so', ripe >= 2 && eggs >= 1 && /harvest/i.test(afterNote) && /^hs1;1;/.test(before), { ripe, eggs, afterNote, sanityBefore });
+    await click2('#homeBody button[data-act="collect"]'); await sleep(200);
+    await click2('#homeClose'); await sleep(200);
+    await click2('#invBtn'); await sleep(300);
+    const bag = await ev(`[...document.querySelectorAll('#invList .inv-name')].map((e)=>e.textContent).join('|')`);
+    rec('homestead: harvest and eggs land in the satchel', /Turnip|Glowcap/.test(bag) && /Egg/.test(bag), { bag });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300&lang=fr&kit=farm#seed=1818&sanity=60');
+    await click2('#homeBtn'); await sleep(300);
+    const fr = await text('homeTitle'), frBtn = await ev(`document.querySelector('#homeBody button')?.textContent||''`);
+    rec('homestead: the panel is in French with the lang switch', /Ferme/.test(fr) && frBtn.length > 0, { fr, frBtn });
+    const prep = `?intro=0&view=3d&quality=low&tick=${process.env.HOME_TICK || 3580}&kit=farm`; // midday of village day 3, two days after planting: crops ripe and the yard lit
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav(prep + '#seed=1818&sanity=60'); // the session saved above (beds, structures, animals) is restored here, so the still shows a working yard
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    const pl = await ev(`window.flvHomestead()`);
+    const deg = (v) => Math.round(v * 180 / Math.PI);
+    const stand = (a, b, yawVec, h) => `${(pl.origin[0] + pl.side[0] * a + pl.dir[0] * b).toFixed(2)},${(pl.origin[1] + pl.side[1] * a + pl.dir[1] * b).toFixed(2)},${deg(Math.atan2(yawVec[0], -yawVec[1]))},${h}`;
+    const shot = (name, cam) => ({ name, q: `${prep}&cam3d=${cam}#seed=1818&sanity=60` });
+    const wanted = [shot('yard', stand(Number(process.env.HOME_A || 1.5), Number(process.env.HOME_B || 8), [-pl.dir[0], -pl.dir[1]], -14)), shot('pet', stand(Number(process.env.PET_A || 0.6), Number(process.env.PET_B || 5.2), [-pl.dir[0], -pl.dir[1]], -24))];
+    for (const w of wanted) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(w.q);
+      await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+      await ev(`(async()=>{})()`);
+      const out = await ev(`(()=>{const h=window.flvHomestead&&window.flvHomestead();return !!h&&h.exists&&h.pieces.length>=10})()`);
+      await sleep(1500);
+      const file = w.name === 'yard' ? process.env.HOMESTEAD_SHOT : process.env.PET_SHOT;
+      const r = await ev(`(()=>{const b=document.getElementById('view3d').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height}})()`); // the still is the 3D view only, so it stays small and shows no page text
+      if (file) writeFileSync(file, Buffer.from(await capture({ format: 'png', clip: { ...r, scale: 1 } }), 'base64'));
+      rec(`homestead: 3D view of the ${w.name} renders without a warning`, out === true, { out });
+    }
+    const meshes = await ev(`Promise.all(['hs_mound','hs_turnip','hs_glowcap','hs_kelp','hs_eyeroot','hs_fence','hs_trough','hs_scarecrow','hs_coop','hs_chicken','hs_goat','hs_cat','hs_lantern_moth','hs_tide_hound','hs_jar_tentacle'].map((k)=>fetch('assets/meshes/'+k+'.glb').then((r)=>r.arrayBuffer()).then((b)=>b.byteLength)))`);
+    rec('homestead: the homestead meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -362,6 +420,7 @@ async function main() {
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     if (process.env.INVENTORY_ONLY) { await inventoryRun(); break suite; }
     if (process.env.CREATURES_ONLY) { await creaturesRun(); break suite; }
+    if (process.env.HOMESTEAD_ONLY) { await homesteadRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');

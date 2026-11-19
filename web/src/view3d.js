@@ -6,7 +6,7 @@ import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSI
 import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
 import { beamYaw, beamDirection, lighthouseSite, beamStrengthFor, BEAM_COLOR, LIGHTHOUSE_HALO_SCALE, HALF_ANGLE as BEAM_HALF_ANGLE, LAMP_HEIGHT as BEAM_LAMP_HEIGHT, BEAM_LENGTH } from './lighthouse.js';
-import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS, KINDS } from './glb.js';
 import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
@@ -1067,7 +1067,9 @@ async function loadAlienPack(meshes) {
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', 'shore_crawler', 'hollow_watcher', 'deep_one', 'cliff_flyer', ...DRESSING_KINDS], console.warn, 'data/village_shapes.json'));
+/** The homestead meshes (round 25, tools/blender/author_homestead_shapes.py): every glb kind that starts with hs_. */
+export const HOMESTEAD_KINDS = KINDS.filter((k) => k.startsWith('hs_'));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', 'shore_crawler', 'hollow_watcher', 'deep_one', 'cliff_flyer', ...DRESSING_KINDS, ...HOMESTEAD_KINDS], console.warn, 'data/village_shapes.json'));
 
 /**
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
