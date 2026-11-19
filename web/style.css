@@ -221,6 +221,18 @@ html.hc .touch-knob { background: #fff; border-color: #000; }
 .lore-page { margin: 8px 0; font-size: 1.05rem; line-height: 1.5; white-space: pre-line; }
 .lore-dialog .stats { color: #4a3216; }
 .lore-dialog button { min-height: 36px; background: #3a2610; color: #f2e6c8; border: 1px solid #1c1206; }
+.inv-dialog { position: absolute; right: 2%; top: 8%; width: min(420px, 92%); max-height: 80%; overflow-y: auto; padding: 14px 16px; background: #1b1713; color: #eadfc6; border: 1px solid #6b5230; box-shadow: 0 0 24px #000; z-index: 7; }
+.inv-dialog[hidden] { display: none; }
+.inv-dialog h2 { margin: 0 0 6px; font-size: 1.1rem; color: #e3d3aa; }
+.inv-dialog h3 { margin: 10px 0 4px; font-size: .95rem; color: #c9b583; }
+.inv-list { list-style: none; margin: 0; padding: 0; }
+.inv-list li { padding: 5px 0; border-bottom: 1px solid #3a2e1c; }
+.inv-count { color: #c9b583; }
+.inv-text { display: block; margin-top: 2px; font-size: .85rem; font-style: italic; color: #b8aa8a; }
+.inv-dialog button { min-height: 32px; margin: 2px 4px 2px 0; background: #3a2610; color: #f2e6c8; border: 1px solid #1c1206; }
+html.hc .inv-dialog { background: #000; color: #fff; border: 2px solid #fff; box-shadow: none; }
+html.hc .inv-dialog h2, html.hc .inv-dialog h3, html.hc .inv-count, html.hc .inv-text { color: #fff; }
+html.hc .inv-dialog button { background: #000; color: #fff; border-color: #fff; }
 .lore-text { margin: 4px 0 0; font-style: italic; white-space: pre-line; }
 .chronicle-body { max-height: 70vh; overflow-y: auto; padding-right: 6px; }
 .chronicle-body h3 { margin: 14px 0 6px; font-size: 1rem; color: #c9b583; letter-spacing: .04em; }

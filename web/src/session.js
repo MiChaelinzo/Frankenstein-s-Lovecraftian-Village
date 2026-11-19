@@ -8,6 +8,7 @@ const int = (v) => (typeof v === 'number' || typeof v === 'string') && v !== '' 
 const VIGIL_RE = /^vigil1;[0-9;,A-Za-z_@.\-]{0,600}$/;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
 const LORE_RE = /^b\d{2}$/;
+const INV_RE = /^inv1;[0-9a-z_:,.;\/]{0,1200}$/; // Added in round 25 (see inventory.js); ItemWorld.tryRestore validates the rest
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
 export function parseSession(input) {
@@ -31,6 +32,8 @@ export function parseSession(input) {
     ach: cleanAchievementIds(o.ach),
     // Added in round 23: ids of the lore books read in this village (see lore.js). Anything else is dropped.
     lore: Array.isArray(o.lore) ? [...new Set(o.lore.filter((i) => typeof i === 'string' && LORE_RE.test(i)))].slice(0, 60) : [],
+    // Added in round 25: the satchel, picked items and chest contents as one string.
+    inv: typeof o.inv === 'string' && INV_RE.test(o.inv) ? o.inv : '',
     // Added in round 17: the compact VigilState string. Anything that is not that shape is dropped (VigilState.tryRestore validates the rest).
     vigil: typeof o.vigil === 'string' && VIGIL_RE.test(o.vigil) ? o.vigil : '',
   };

@@ -19,6 +19,7 @@ import {
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
+const PICKUP_PICK_RADIUS = 0.5; // metres: items and chests lie on the ground like books
 const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
@@ -58,6 +59,20 @@ function pushBook(out, x, z, id, read = false) {
   if (read) { quad(0.26, 0.18, 0.07, 0.12, [0.32, 0.28, 0.2], 0); return; } // a read book keeps its cover and dull pages but loses the glow and the light shaft
   quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
   pushFrustum(out, x - 0.025, z - 0.025, x + 0.025, z + 0.025, 0.12, 0.8, 0.4, [0.95, 0.82, 0.5], 1, 0);
+}
+
+/** A found item (a small bundle with a teal glint) or a chest (a dark wooden box with a lid and a latch; the lodging chest's latch glows warm). Yaw comes from the id. */
+function pushPickup(out, x, z, id, chest, lodging) {
+  const turn = ((id.charCodeAt(id.length - 1) * 5 + id.charCodeAt(0) * 3) % 8) / 8 * Math.PI, c = Math.cos(turn), s = Math.sin(turn);
+  const box = (hx, hz, y0, y1, color, glow) => { const pts = [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]].map(([dx, dz]) => [x + dx * c - dz * s, z + dx * s + dz * c]); pushFrustum(out, Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1])), y0, y1, 1, color, glow, 0); };
+  if (chest) {
+    box(0.42, 0.28, 0, 0.42, [0.22, 0.13, 0.07], 0);
+    box(0.44, 0.3, 0.42, 0.52, [0.3, 0.19, 0.1], 0);
+    box(0.06, 0.32, 0.18, 0.34, lodging ? [0.95, 0.7, 0.35] : [0.55, 0.5, 0.4], lodging ? 1 : 0);
+    return;
+  }
+  box(0.16, 0.12, 0, 0.13, [0.28, 0.24, 0.18], 0);
+  box(0.1, 0.07, 0.13, 0.2, [0.45, 0.78, 0.74], 1);
 }
 
 // Frustum from a rectangle on the ground: the top rectangle is the base scaled about its centre by `taper` (0 = pyramid, 1 = box, >1 = flares out).
@@ -335,7 +350,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], corruption = 0 }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0 }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -355,6 +370,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
+  for (const q of pickups) pushPickup(out, q.pos[0], q.pos[2], q.id, !!q.chest, !!q.lodging);
   while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); // books come after the last textured prop; without this padding partitionChunks drops the uv reorder and every textured vertex samples the wrong texel
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
@@ -1007,7 +1023,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
@@ -1023,10 +1039,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number) });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1076,6 +1092,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (bHit && (!hit || bHit.distance <= hit.distance + 0.6)) {
       const b = bs[bHit.index];
       return { piece: { id: 'book', bookId: b.id, read: !!b.read }, kind: 'book', distance: bHit.distance, inRange: InteractionRules.inRange(bHit.distance) };
+    }
+    // Found items and chests share the view ray too.
+    const qs = s.pickups || [];
+    const qHit = qs.length ? pickLamp(origin, ray, qs, 60, PICKUP_PICK_RADIUS) : null;
+    if (qHit && (!hit || qHit.distance <= hit.distance + 0.6)) {
+      const q = qs[qHit.index];
+      return { piece: { id: 'pickup', pickupId: q.id, label: q.label, lodging: !!q.lodging }, kind: q.chest ? 'chest' : 'item', distance: qHit.distance, inRange: InteractionRules.inRange(qHit.distance) };
     }
     if (!hit || hit.index >= layoutCount) return null; // a dressing prop only blocks the view
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
@@ -1127,6 +1150,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       if (acts.includes('chat')) chatNearest();
       else if (acts.includes('talk')) talkNearest();
       else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
+      if (acts.includes('inventory') && onInventory) onInventory();
       if (acts.includes('whisper')) onExit();
     }
     return inp;

@@ -25,6 +25,7 @@ import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTI
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
+import { createInventoryController } from './inventory-ui.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
 import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -133,8 +134,8 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
-    labelFor: (p, kind) => (kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
+    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
@@ -143,7 +144,8 @@ const view3d = createView3d({
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.beam ? 'beam' : 'no beam'} | ${c.held ? 'held lantern' : 'no hand'} | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   alienPack: () => pack.want,
-  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen(), close: () => { villagers.close(); lore.close(); } },
+  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); } },
+  onInventory: () => inventory.toggle(),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
@@ -153,6 +155,7 @@ function setView3d(on) {
   if (on) { $('view3d').hidden = false; if (!view3d.enter()) { $('view3d').hidden = true; return; } $('view').style.visibility = 'hidden'; $('hint').textContent = tr('view3d.hint'); }
   else { view3d.exit(); $('view3d').hidden = true; $('view').style.visibility = ''; $('hint').textContent = tr('hint.view'); mark(); }
   touchControls?.sync(on && view3d.active);
+  inventory.render();
   $('view3dBtn').setAttribute('aria-pressed', String(on)); $('view3dBtn').textContent = tr(on ? 'btn.view3dexit' : 'btn.view3d');
 }
 function interact3d(p, kind) {
@@ -160,6 +163,7 @@ function interact3d(p, kind) {
   if (kind === 'door') { tryDoor(p); return; }
   if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
   if (kind === 'book') { lore.readById(p.bookId); return; }
+  if (kind === 'item' || kind === 'chest') { inventory.interactById(p.pickupId); return; }
   if (kind === 'villager') { villagers.talkTo(p.villagerIndex); return; }
   if (kind === 'villager-chat') { villagers.chatWith(p.villagerIndex); return; }
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
@@ -199,6 +203,7 @@ async function loadCatalog() {
   state.catalog = new PrefabCatalog(json.entries);
   try { state.nameLib = parseNameLibrary(await (await fetch('data/names.json')).json()); } catch (err) { state.nameLib = null; console.warn(`[names] could not load data/names.json, buildings keep their kind names this session: ${err.message}`); }
   try { state.storyLib = parseStoryLibrary(await (await fetch('data/story.json')).json()); } catch (err) { state.storyLib = null; console.warn(`[story] could not load data/story.json, no families, journals or missing persons this session: ${err.message}`); }
+  try { inventory.setCatalog(await (await fetch('data/items.json')).json()); } catch (err) { console.warn(`[items] could not load data/items.json, no items this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -402,7 +407,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -413,7 +418,7 @@ function applySession(s) {
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   progress.restore(v); progress.update();
-  if (v.seed === state.seed) vigil.restore(v.vigil);
+  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); }
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -638,6 +643,13 @@ const lore = createLoreController({
   onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
 });
+// Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
+const inventory = createInventoryController({
+  $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
+  sanity: () => state.sanity, onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); }, allows: (id) => vigil.allows(id), clue: (id) => { progress.arm(); vigil.clue(id); },
+  journal: (text) => log('lore', text), houseName: (i, l) => { const piece = state.layout[i]; return piece ? placeName(piece, l) || kindName(piece.id, l) : ''; },
+  tickNow: clockTick, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => mark(),
+});
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
@@ -737,10 +749,11 @@ function setHelp(on) {
 $('help').addEventListener('close', () => { if (helpIsOpen) { helpIsOpen = false; resumeTour(); helpPrevFocus?.focus?.(); } });
 $('help').addEventListener('keydown', (e) => e.stopPropagation()); // Escape closes the dialog, not the 3D view behind it
 $('helpBtn').addEventListener('click', () => setHelp(true));
+$('invBtn').addEventListener('click', () => inventory.toggle());
 // On-screen 3D controls: they call the same candle/endure/help paths as the keys and buttons, so the vigil sandbox lock applies.
 const touchControls = createTouchControls({
   doc: document, view3d, query: location.search + location.hash, coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints || 0,
-  actions: { candle: () => doCandle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
+  actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
 });
 $('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
@@ -780,7 +793,7 @@ $('sanity').addEventListener('input', () => { if (!vigil.allows('sanity_slider')
 const doWhisper = () => { progress.note.whisper(); vigil.clue('walls'); adjust(-SanityModel.WHISPER_COST, 'the walls'); };
 const doChurch = () => { vigil.clue('church-nave'); requestFlash(0.3); adjust(-SanityModel.CHURCH_COST, 'church'); };
 // With a live vigil the candle lights the next unlit lantern (limited by the lamps); otherwise it is the free-roam candle.
-const doCandle = () => { if (!vigil.candle()) adjust(SanityModel.CANDLE_RESTORE, 'the village'); };
+const doCandle = () => { inventory.burnCandle(); if (!vigil.candle()) adjust(SanityModel.CANDLE_RESTORE, 'the village'); };
 $('whisper').addEventListener('click', doWhisper);
 $('church').addEventListener('click', doChurch);
 $('candle').addEventListener('click', doCandle);
@@ -881,6 +894,8 @@ function doAction(raw) {
     case 'candle': doCandle(); break;
     case 'talk': if (villagers.isOpen()) villagers.close(); else villagers.talkNext(); break;
     case 'chat': villagers.chatNext(); break;
+    case 'inventory': inventory.toggle(); break;
+    case 'gather': inventory.open(); inventory.gatherNext(); break;
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
     case 'cinematic': setCinematic(!cine.on); break;
@@ -916,6 +931,7 @@ addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === '?' && !helpIsOpen && !titleOpen() && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { setHelp(true); return; }
+  if ((e.key === 'i' || e.key === 'I') && view3d.active && !titleOpen() && !helpIsOpen && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { inventory.toggle(); return; } // 3D: I is the satchel; in 2D I keeps sending the investigator
   if (view3d.active) return; // the 3D view owns WASD, E and Escape while open
   if (titleOpen()) return;
   if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
@@ -1021,7 +1037,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
