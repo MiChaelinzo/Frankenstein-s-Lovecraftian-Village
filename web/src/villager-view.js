@@ -1,7 +1,7 @@
 // Where villagers stand and how they are listed. Pure: layout, clock tick and dread in, positions and rows out. No DOM, no randomness.
 // Rules (who is where, how they behave) stay in villagers.js; this file only turns them into cell coordinates for 2D, 3D and the minimap.
-import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, causeOf, carriesLitLantern } from './villagers.js';
-import { phaseAt, dayNumber, lanternsLit, wrapTick, PHASE_NAMES, SESSION_START_TICK } from './clock.js';
+import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, causeOf, carriesLitLantern, stopAt, placeOfStop } from './villagers.js';
+import { phaseAt, dayNumber, lanternsLit, wrapTick, phaseStart, MINUTES_PER_DAY, PHASE_NAMES, SESSION_START_TICK } from './clock.js';
 import { coastSide } from './view3d-math.js';
 
 import { streetsEnabled, facingDx, facingDz } from './streets.js';
@@ -65,17 +65,71 @@ export function standingPoint(v, kind, layout, gridW, gridD, seed) {
   return { x: gridW / 2 + shift + Math.cos(angle) * ring, z: gridD / 2 + shift + Math.sin(angle) * ring, faceDx: 0 - Math.cos(angle), faceDz: 0 - Math.sin(angle) }; // as in Core: never -0
 }
 
+// ---------- walking and doors (mirror of VillagerRules.StopPoint and PresenceAt) ----------
+export const WALK_MINUTES = 40, SLEEP_MINUTE = 180, DOOR_FADE_MINUTES = 6, DOOR_FADE_FRACTION = 0.1, PATROL_RADIUS = 2.6, PATROL_MINUTES = 90;
+const [STOP_HOME, STOP_WORKPLACE, STOP_INN, STOP_CHAPEL, STOP_PATROL] = [0, 1, 4, 5, 6];
+const isDoor = (kind) => kind === STOP_HOME || kind === STOP_WORKPLACE || kind === STOP_INN || kind === STOP_CHAPEL;
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const sameStop = (a, b) => a.kind === b.kind && a.owner === b.owner;
+
+/** Point of a stop at an exact tick (only the patrol moves). Inn and chapel stand at the owner's workplace, spread by this villager's index. */
+export function stopPoint(roster, v, stop, tick, layout, gridW, gridD, seed) {
+  if (stop.kind === STOP_PATROL) {
+    const lap = tick / PATROL_MINUTES, angle = (lap - Math.floor(lap)) * Math.PI * 2, shift = streetsEnabled(gridW, gridD) ? 0.5 : 0;
+    return { x: gridW / 2 + shift + Math.cos(angle) * PATROL_RADIUS, z: gridD / 2 + shift + Math.sin(angle) * PATROL_RADIUS, faceDx: 0 - Math.sin(angle), faceDz: Math.cos(angle) };
+  }
+  if (stop.kind === STOP_INN || stop.kind === STOP_CHAPEL) {
+    const owner = roster && stop.owner >= 0 && stop.owner < roster.length ? roster[stop.owner] : v;
+    return standingPoint({ index: v.index, homeIndex: owner.workIndex, workIndex: owner.workIndex }, WORKPLACE, layout, gridW, gridD, seed);
+  }
+  return standingPoint(v, stop.kind, layout, gridW, gridD, seed);
+}
+
+/**
+ * Where a villager is at an exact tick: { gone, walking, indoors, stop, placeKind, x, z, faceDx, faceDz, stride, fade }.
+ * A change of stop starts a WALK_MINUTES walk along x then z (axis-aligned, not snapped to lanes); leaving a door fades in over the first tenth;
+ * at home villagers go indoors SLEEP_MINUTE minutes into the night and come out at dawn. Mirror of VillagerRules.PresenceAt.
+ */
+export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed) {
+  const t0 = Math.floor(tick);
+  if (behaviorAt(v, t0, dread) === 4) return { gone: true, walking: false, indoors: false, stop: SQUARE, placeKind: GONE, x: 0, z: 0, faceDx: 0, faceDz: 0, stride: 0, fade: 1 };
+  const cur = stopAt(roster, v, t0, dread), pt = stopPoint(roster, v, cur, tick, layout, gridW, gridD, seed);
+  const out = { gone: false, walking: false, indoors: false, stop: cur.kind, placeKind: placeOfStop(cur.kind), x: pt.x, z: pt.z, faceDx: pt.faceDx, faceDz: pt.faceDz, stride: 0, fade: 1 };
+  for (let k = 0; k < WALK_MINUTES; k++) {
+    const changeTick = t0 - k, before = stopAt(roster, v, changeTick - 1, dread);
+    if (sameStop(before, stopAt(roster, v, changeTick, dread))) continue;
+    const progress = (tick - changeTick) / WALK_MINUTES, from = stopPoint(roster, v, before, changeTick - 1, layout, gridW, gridD, seed);
+    const dx = pt.x - from.x, dz = pt.z - from.z, ax = Math.abs(dx), total = ax + Math.abs(dz);
+    if (total < 1e-9) break;
+    const s = progress * total;
+    out.walking = true; out.stride = s;
+    if (s < ax) { out.x = from.x + Math.sign(dx) * s; out.z = from.z; out.faceDx = Math.sign(dx); out.faceDz = 0; }
+    else { out.x = pt.x; out.z = from.z + Math.sign(dz) * (s - ax); out.faceDx = 0; out.faceDz = Math.sign(dz); }
+    if (isDoor(before.kind)) out.fade = Math.min(out.fade, clamp01(progress / DOOR_FADE_FRACTION));
+    out.indoors = out.fade < 0.02;
+    return out;
+  }
+  if (cur.kind === STOP_HOME) {
+    const wrapped = tick - Math.floor(tick / MINUTES_PER_DAY) * MINUTES_PER_DAY, nightMinute = wrapped - phaseStart(3);
+    if (nightMinute >= SLEEP_MINUTE) out.fade = clamp01(1 - (nightMinute - SLEEP_MINUTE) / DOOR_FADE_MINUTES);
+    else if (wrapped < DOOR_FADE_MINUTES) out.fade = clamp01(wrapped / DOOR_FADE_MINUTES);
+  }
+  out.indoors = out.fade < 0.02;
+  return out;
+}
+
 /**
  * One entry per villager, vanished ones included (gone: true, no position). x and z are cell coordinates; yaw faces as described above.
+ * tick may be fractional (smooth walking). indoors: behind a door, listed but not drawn; walking, stride (cells walked) and fade (0 through the door, 1 in view) drive the 3D figure.
  * lantern is true when the carried lantern burns (not in daylight; the lamplighter always carries a lit one).
  */
 export function villagerPlacements({ roster, layout, tick, dread, gridW, gridD, seed }) {
+  const whole = Math.floor(tick);
   return roster.map((v) => {
-    const behavior = behaviorAt(v, tick, dread), loc = locationAt(v, tick, dread), roleId = ROLE_IDS[v.role];
-    const base = { index: v.index, name: v.name, role: v.role, roleId, behavior, behaviorName: BEHAVIOR_NAMES[behavior], cause: causeOf(behavior), placeKind: loc.kind, placeName: PLACE_KIND_NAMES[loc.kind] };
-    if (loc.kind === GONE) return { ...base, gone: true, x: 0, z: 0, yaw: 0, lantern: false };
-    const pt = standingPoint(v, loc.kind, layout, gridW, gridD, seed);
-    return { ...base, gone: false, x: pt.x, z: pt.z, yaw: yawToward(pt.faceDx, pt.faceDz), lantern: carriesLitLantern(v, tick) };
+    const behavior = behaviorAt(v, whole, dread), pr = presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed), roleId = ROLE_IDS[v.role];
+    const base = { index: v.index, name: v.name, role: v.role, roleId, behavior, behaviorName: BEHAVIOR_NAMES[behavior], cause: causeOf(behavior), placeKind: pr.placeKind, placeName: PLACE_KIND_NAMES[pr.placeKind] };
+    if (pr.gone) return { ...base, gone: true, indoors: false, walking: false, fade: 1, stride: 0, x: 0, z: 0, yaw: 0, lantern: false };
+    return { ...base, gone: false, indoors: pr.indoors, walking: pr.walking, fade: pr.fade, stride: pr.stride, x: pr.x, z: pr.z, yaw: yawToward(pr.faceDx, pr.faceDz), lantern: carriesLitLantern(v, whole) };
   });
 }
 
@@ -87,13 +141,13 @@ export const clockParts = (tick) => ({ day: dayNumber(tick) + 1, phaseKey: `vill
 
 /** Minimap markers in pixels for a size x size map. Vanished villagers have none. */
 export function villagerMarkers(placements, gridW, gridD, size) {
-  return placements.filter((p) => !p.gone).map((p) => ({ index: p.index, name: p.name, x: (p.x / Math.max(1, gridW)) * size, y: (p.z / Math.max(1, gridD)) * size }));
+  return placements.filter((p) => !p.gone && !p.indoors).map((p) => ({ index: p.index, name: p.name, x: (p.x / Math.max(1, gridW)) * size, y: (p.z / Math.max(1, gridD)) * size }));
 }
 
 /** 3D scene entries (metres) for the renderer and the view ray picker. */
 export function villagerScene(placements, cell) {
-  return placements.filter((p) => !p.gone).map((p) => ({
-    id: p.index, name: p.name, roleId: p.roleId, pos: [p.x * cell, TALK_PICK_HEIGHT, p.z * cell], yaw: p.yaw, lantern: p.lantern, behavior: p.behavior,
+  return placements.filter((p) => !p.gone && !p.indoors).map((p) => ({
+    id: p.index, name: p.name, roleId: p.roleId, pos: [p.x * cell, TALK_PICK_HEIGHT, p.z * cell], yaw: p.yaw, lantern: p.lantern, behavior: p.behavior, walking: !!p.walking, stride: (p.stride || 0) * cell, fade: p.fade ?? 1,
   }));
 }
 

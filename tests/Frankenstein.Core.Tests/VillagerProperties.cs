@@ -196,6 +196,7 @@ namespace Frankenstein.Core.Tests
                             Assert.InRange(a.Topic, 0, VillagerRules.ChatTopics - 1);
                             if (!a.Available || a.Behavior != VillagerBehavior.Normal) { Assert.Equal("", a.HintId); continue; }
                             Assert.InRange(a.LineVariant, 0, VillagerRules.LineVariants - 1);
+                            if (a.Topic == VillagerRules.ChatTopics - 1) { Assert.Equal("village", a.HintId); continue; } // the village topic is told by VillageStory, whatever the vigil needs
                             string[] seeking = { "clues_seek", "lamps_light", "sanity_low" };
                             string[] done = { "clues_done", "lamps_done", "sanity_steady" };
                             Assert.Equal(seeking[a.Topic], a.HintId);
@@ -309,6 +310,51 @@ namespace Frankenstein.Core.Tests
             for (int i = 0; i < session.Vigil.ClueTarget; i++) session.RecordVigilClue("c" + i, out update);
             Assert.True(session.ResolveVigilDawn(next, out next, out update));
             Assert.Equal(1, session.Vigil.NightsEndured);
+        }
+
+        [Fact]
+        public void Presence_gathers_walks_and_goes_through_doors_deterministically()
+        {
+            foreach (int seed in new[] { 1, 42, 1818 })
+            {
+                var (layout, roster) = World(seed);
+                int dusk = GameClock.PhaseStart(DayPhase.Dusk), night = GameClock.PhaseStart(DayPhase.Night), day = GameClock.PhaseStart(DayPhase.Day);
+                // Dusk: fisher and lighthouse keeper at the inn, widow at the chapel; night: the lamplighter patrols; day: market in the square.
+                Assert.Equal(VillagerStopKind.Inn, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Fisher], dusk + 100, 0f).Kind);
+                Assert.Equal(roster[(int)VillagerRole.Innkeeper].Index, VillagerRules.StopAt(roster, roster[(int)VillagerRole.LighthouseKeeper], dusk + 100, 0f).OwnerIndex);
+                Assert.Equal(VillagerStopKind.Chapel, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Widow], dusk + 100, 0f).Kind);
+                Assert.Equal(VillagerStopKind.Patrol, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Lamplighter], night + 100, 0f).Kind);
+                Assert.Equal(VillagerStopKind.Square, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Child], day + 200, 0f).Kind);
+                Assert.Equal(VillagerStopKind.Shore, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Fisher], day + 50, 0f).Kind); // market is closed before its hour
+                // Dread behaviors do not gather: the window keeps the villager at home.
+                Assert.Equal(VillagerStopKind.Home, VillagerRules.StopAt(roster, roster[(int)VillagerRole.Fisher], dusk + 100, 0.4f).Kind);
+                foreach (var v in roster)
+                    for (double tick = 0; tick < 2 * GameClock.MinutesPerDay; tick += 7.5)
+                        foreach (float dread in new[] { 0f, 0.4f, 0.95f })
+                        {
+                            var a = VillagerRules.PresenceAt(roster, v, tick, dread, layout, 24, 24, seed);
+                            var b = VillagerRules.PresenceAt(roster, v, tick, dread, layout, 24, 24, seed);
+                            Assert.Equal(a.X, b.X); Assert.Equal(a.Z, b.Z); Assert.Equal(a.Fade, b.Fade);
+                            Assert.Equal(dread >= 0.9f, a.Gone);
+                            if (a.Gone) continue;
+                            Assert.InRange(a.X, 0.0, 24.0); Assert.InRange(a.Z, 0.0, 24.0);
+                            Assert.InRange(a.Fade, 0.0, 1.0);
+                            Assert.Equal(a.Fade < 0.02, a.Indoors);
+                            Assert.InRange(Math.Sqrt(a.FaceDx * a.FaceDx + a.FaceDz * a.FaceDz), 0.999, 1.001);
+                            if (a.Walking) Assert.True(a.Stride >= 0.0);
+                        }
+                // Late night at home: indoors. The lamplighter never goes indoors at night.
+                var fisher = roster[(int)VillagerRole.Fisher];
+                var late = VillagerRules.PresenceAt(roster, fisher, night + VillagerRules.SleepMinute + VillagerRules.DoorFadeMinutes + 5, 0f, layout, 24, 24, seed);
+                Assert.Equal(VillagerStopKind.Home, late.Stop); Assert.True(late.Indoors);
+                var lamp = VillagerRules.PresenceAt(roster, roster[(int)VillagerRole.Lamplighter], night + 300, 0f, layout, 24, 24, seed);
+                Assert.False(lamp.Indoors); Assert.Equal(VillagerStopKind.Patrol, lamp.Stop);
+                // At dusk the fisher walks from the square to the inn and arrives after WalkMinutes without ever jumping more than the route allows.
+                var before = VillagerRules.PresenceAt(roster, fisher, dusk, 0f, layout, 24, 24, seed);
+                Assert.True(before.Walking || before.Stride == 0.0);
+                var arrived = VillagerRules.PresenceAt(roster, fisher, dusk + VillagerRules.WalkMinutes + 1, 0f, layout, 24, 24, seed);
+                Assert.False(arrived.Walking); Assert.Equal(VillagerStopKind.Inn, arrived.Stop);
+            }
         }
     }
 }

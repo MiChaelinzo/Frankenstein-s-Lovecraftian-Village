@@ -120,3 +120,11 @@ Unity MCP prompts for each step are in [MCP.md](MCP.md). Report anything that fa
 
 ## City, districts and landmarks in Unity (round 23, compile checked, runtime Unverified)
 `VillageBuilder.city` turns on Core `VillageLayoutGenerator.GenerateCity` (set width and depth 36 and `pieceCount` 180). Districts and `CorruptionGrowth` are Core rules you can call from your own scripts. `VillageBuilder` does not place the landmarks (lighthouse cliffs, shipwreck, abbey, cemetery, marsh, grove) or the lit paths yet; use `VillageLandmarks` for the positions. The original GLB look-alikes for corruption and landmarks are in `web/assets/meshes`. None of this has run in the Unity editor.
+
+## Round 24 Core rules the Unity layer consumes (compile checked, runtime Unverified)
+Everything below is Core, so Unity code stays thin:
+- `VillagerRules.PresenceAt` (schedule, stops, door fade): `VillagerAgent` follows it.
+- `WalkCollision` round obstacles for trunks: used by Core walking checks; `FirstPersonExplorer` uses a `CharacterController`, so Unity collides with its own colliders, not with these radii.
+- `VillageNames.Assign` and `VillageBuilder.NameAt(index)`: prompts show seeded names (the scene builder assigns `Data/names.json` to `VillageBuilder.namesData`).
+- `VillageStory.Build` (families, owners, journals, missing persons, rumors), `LighthouseBeam` (turn period and phase) and `VillageLandmarks` landmarks 7 to 10 (standing stones, hidden cove, ritual site, catacombs).
+- Not wired, stated plainly: `PlayableVillageSceneBuilder` does not call `LoreBookRules.Place` at all (it does not place lore books in the scene), so the story is not passed to it. Passing a story would need a lore library, a story library and a book prefab in the builder, which is a feature and not a thin change. `VillageBuilder` still does not place the landmarks, the lighthouse beam light or the Quaternius houses. All compile checked only; none of it was run in Unity.

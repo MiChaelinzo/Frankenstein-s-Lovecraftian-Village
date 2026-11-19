@@ -1,15 +1,19 @@
-// JS port of Core/VillageLandmarks.cs: the six landmarks of the wider world, the lit paths, the props at the landmarks, the church rise and the lore book spots.
+// JS port of Core/VillageLandmarks.cs: the ten landmarks of the wider world, the lit paths, the props at the landmarks, the church rise and the lore book spots.
 // Core is the source of truth; keep the numbers and the order of everything identical to the C# file. Golden-checked ("landmarks").
 import { CELL_M, coastSideOf, hiOf, lightU, churchRise, coastToWorldAt, alongShoreYaw } from './dressing.js'; // a cycle with dressing.js, which is fine: both only use the other inside functions
 
-export const LANDMARK_IDS = Object.freeze(['cliffs', 'shipwreck', 'abbey', 'cemetery', 'marsh', 'grove']);
-const NAMES_EN = ['Lighthouse Cliffs', 'Wreck of the Marguerite', 'Abbey Ruins', 'The Cemetery', 'The Black Marsh', 'The Cursed Grove'];
-const NAMES_FR = ['Falaises du phare', 'Epave de la Marguerite', "Ruines de l'abbaye", 'Le cimetiere', 'Le marais noir', 'Le bosquet maudit'];
-const RADII = [14, 9, 12, 22, 12, 11];
+export const LANDMARK_IDS = Object.freeze(['cliffs', 'shipwreck', 'abbey', 'cemetery', 'marsh', 'grove', 'standing_stones', 'hidden_cove', 'ritual_site', 'catacombs']);
+const NAMES_EN = ['Lighthouse Cliffs', 'Wreck of the Marguerite', 'Abbey Ruins', 'The Cemetery', 'The Black Marsh', 'The Cursed Grove', 'The Standing Stones', 'The Hidden Cove', 'The Ritual Site', 'The Catacombs'];
+const NAMES_FR = ['Falaises du phare', 'Epave de la Marguerite', "Ruines de l'abbaye", 'Le cimetiere', 'Le marais noir', 'Le bosquet maudit', 'Les pierres dressees', 'La crique cachee', 'Le lieu du rituel', 'Les catacombes'];
+const RADII = [14, 9, 12, 22, 12, 11, 9, 9, 8, 8];
 export const WORLD_MARGIN = 60, GROVE_SETBACK = 13, ABBEY_SETBACK = 36;
 export const CLIFF_ANCHOR_U = 10.5, MARSH_ANCHOR_U = 11.5, WRECK_ANCHOR_U = 34;
 export const CLIFF_ANCHOR_V = -0.3, MARSH_ANCHOR_V = -2.3, WRECK_ANCHOR_V = 1.3;
 export const COAST_PATH_V = -0.8, SEA_STACK_V = 4.4, GATE_INSET = 1.5, GROVE_GATE_STOP = 9.5;
+// Round 24 sites (mirrors VillageLandmarks): metres beyond the inland edge and fraction along it, the cove's shore distance and the catacombs' offset from the church.
+export const STONES_DEPTH = 52, STONES_ALONG = 0.65, RITUAL_DEPTH = 52, RITUAL_ALONG = 0.1, COVE_ANCHOR_U = 44, COVE_ANCHOR_V = -2.0, CATACOMB_OFFSET = 33;
+export const STONE_RING_RADIUS = 4.8, STONE_RING_START = 0.3, RITUAL_STUMP_RADIUS = 4.3, RITUAL_FUNGUS_RADIUS = 5.6, RITUAL_SAPLING_RADIUS = 5.0, CATACOMB_LANDMARK_OFFSET = 3.0, CATACOMB_BOOK_OFFSET = 3.6, CATACOMB_GRAVE_OFFSET = 4.4;
+const STONE_SCALE = [1.0, 0.85, 1.1, 0.9, 1.15, 0.8, 1.0], RITUAL_SAPLING_ANGLE = [1.9];
 export const STONE_SPACING = 2.2, LAMP_SPACING = 14, LAMP_SIDE = 1.7, STONE_LIFT = 0.04;
 export const HILL_RX = 25, HILL_RZ = 23, HILL_PLATEAU = 0.4, HILL_FOOT = -0.5, CHURCH_TOWER_OFFSET = 7.1;
 /** Kinds that only exist as collision boxes: the renderer draws the church on its rise itself, so these have no mesh. */
@@ -30,6 +34,19 @@ export function groveCentre(seed, gridW, gridD) {
   if (side === 1) return { x: -GROVE_SETBACK, z: gridD * CELL_M * 0.85 };
   return { x: gridW * CELL_M * 0.6, z: gridD * CELL_M + GROVE_SETBACK };
 }
+/** A point beyond the inland edge of the grid: depth metres out and `along` (0 to 1) of the way along the edge. The inland side is +x, -x or +z by the coast side of the seed. */
+export function inlandToWorld(seed, gridW, gridD, depth, along) {
+  const side = coastSideOf(seed), w = gridW * CELL_M, d = gridD * CELL_M;
+  if (side === 0) return { x: w + depth, z: along * d };
+  if (side === 1) return { x: -depth, z: along * d };
+  return { x: along * w, z: d + depth };
+}
+/** The shore position along u of the hidden cove: past the cliff end, on the cliffs side. */
+export const coveU = (seed, gridW, gridD) => cliffEndU(seed, gridW, gridD) + cliffDir(seed, gridW, gridD) * COVE_ANCHOR_U;
+/** The catacomb gate centre and the direction (along x) its steps face: toward the city, like the church. */
+export function catacombSite(seed, gridW, gridD) { const c = churchRise(seed, gridW, gridD); return { x: c.x, z: c.z + CATACOMB_OFFSET, face: c.faceX }; }
+/** The landmark centre of the catacombs: the open ground at the foot of the steps, not the solid gate. */
+function catacombFoot(seed, gridW, gridD) { const k = catacombSite(seed, gridW, gridD); return { x: k.x + k.face * CATACOMB_LANDMARK_OFFSET, z: k.z }; }
 /** The abbey centre and the unit direction from it toward the city side, which its entrance arch faces. */
 export function abbeySite(seed, gridW, gridD) {
   const side = coastSideOf(seed), w = gridW * CELL_M, d = gridD * CELL_M;
@@ -40,11 +57,12 @@ export function abbeySite(seed, gridW, gridD) {
   return { x: w * (side === 0 ? 0.4 : 0.6), z: d + ABBEY_SETBACK, faceX: 0, faceZ: -1 };
 }
 
-/** The six landmarks in LANDMARK_IDS order: { id, x, z, radius }. */
+/** The ten landmarks in LANDMARK_IDS order: { id, x, z, radius }. */
 export function landmarks(seed, gridW, gridD) {
   const dir = cliffDir(seed, gridW, gridD), cliffEnd = cliffEndU(seed, gridW, gridD), marshEnd = marshEndU(seed, gridW, gridD);
   const at = (u, v) => coastToWorldAt(seed, gridW, u, v), church = churchRise(seed, gridW, gridD), abbey = abbeySite(seed, gridW, gridD), grove = groveCentre(seed, gridW, gridD);
-  const pts = [at(cliffEnd + dir * CLIFF_ANCHOR_U, CLIFF_ANCHOR_V), at(marshEnd - dir * WRECK_ANCHOR_U, WRECK_ANCHOR_V), abbey, church, at(marshEnd - dir * MARSH_ANCHOR_U, MARSH_ANCHOR_V), grove];
+  const pts = [at(cliffEnd + dir * CLIFF_ANCHOR_U, CLIFF_ANCHOR_V), at(marshEnd - dir * WRECK_ANCHOR_U, WRECK_ANCHOR_V), abbey, church, at(marshEnd - dir * MARSH_ANCHOR_U, MARSH_ANCHOR_V), grove,
+    inlandToWorld(seed, gridW, gridD, STONES_DEPTH, STONES_ALONG), at(coveU(seed, gridW, gridD), COVE_ANCHOR_V), inlandToWorld(seed, gridW, gridD, RITUAL_DEPTH, RITUAL_ALONG), catacombFoot(seed, gridW, gridD)];
   return LANDMARK_IDS.map((id, i) => ({ id, x: pts[i].x, z: pts[i].z, radius: RADII[i] }));
 }
 /** The id of the landmark whose radius holds (x, z), the one the point is deepest inside; null elsewhere. */
@@ -99,7 +117,27 @@ export function landmarkDressing(seed, gridW, gridD) {
   const church = churchRise(seed, gridW, gridD);
   items.push({ kind: 'church_nave', x: church.x, y: church.hill, z: church.z, yaw: 0, scale: 1 });
   items.push({ kind: 'church_tower', x: church.x, y: church.hill, z: church.z + CHURCH_TOWER_OFFSET, yaw: 0, scale: 1 });
+  addWildDressing(items, seed, gridW, gridD);
   return items;
+}
+
+/** The props of the round 24 places: standing stones, the cove's boat and cargo between two rocks, the ritual circle with stumps, fungi and saplings, the catacomb gate with two graves. */
+function addWildDressing(items, seed, gridW, gridD) {
+  const s = inlandToWorld(seed, gridW, gridD, STONES_DEPTH, STONES_ALONG);
+  STONE_SCALE.forEach((scale, i) => { const a = STONE_RING_START + (i * 2 * Math.PI) / STONE_SCALE.length; items.push({ kind: 'standing_stone', x: s.x + Math.cos(a) * STONE_RING_RADIUS, y: 0, z: s.z + Math.sin(a) * STONE_RING_RADIUS, yaw: a, scale }); });
+  const dir = cliffDir(seed, gridW, gridD), u0 = coveU(seed, gridW, gridD), along = alongShoreYaw(seed);
+  const cove = (kind, du, v, yaw, scale) => { const p = coastToWorldAt(seed, gridW, u0 + dir * du, v); items.push({ kind, x: p.x, y: 0, z: p.z, yaw, scale }); };
+  cove('boat', 0, -3.6, along, 1); cove('barrel', 3.8, -3.0, 0, 1); cove('crate_stack', -3.8, -3.4, along, 1); cove('rope_coil', 1.6, -2.0, 0.7, 1);
+  cove('cliff_rock', 7.4, -1.6, 1.1, 0.4); cove('cliff_rock', -7.4, -1.6, 3.0, 0.4);
+  const r = inlandToWorld(seed, gridW, gridD, RITUAL_DEPTH, RITUAL_ALONG), ring = (kind, a, radius) => items.push({ kind, x: r.x + Math.cos(a) * radius, y: 0, z: r.z + Math.sin(a) * radius, yaw: a, scale: 1 });
+  items.push({ kind: 'ritual_circle', x: r.x, y: 0, z: r.z, yaw: 0, scale: 1 });
+  for (let j = 0; j < 5; j++) ring('stump', 0.4 + (j * 2 * Math.PI) / 5, RITUAL_STUMP_RADIUS);
+  for (let j = 0; j < 2; j++) ring('fungus_cluster', 0.9 + j * 2.1, RITUAL_FUNGUS_RADIUS);
+  for (const a of RITUAL_SAPLING_ANGLE) ring('tentacle_sapling', a, RITUAL_SAPLING_RADIUS);
+  const k = catacombSite(seed, gridW, gridD), kyaw = (k.face * Math.PI) / 2;
+  items.push({ kind: 'catacomb_gate', x: k.x, y: 0, z: k.z, yaw: kyaw, scale: 1 });
+  items.push({ kind: 'gravestone_cross', x: k.x, y: 0, z: k.z - CATACOMB_GRAVE_OFFSET, yaw: kyaw, scale: 1 });
+  items.push({ kind: 'gravestone', x: k.x, y: 0, z: k.z + CATACOMB_GRAVE_OFFSET, yaw: kyaw, scale: 1 });
 }
 
 // ---------- paths ----------
@@ -159,6 +197,10 @@ export function landmarkBookSpots(place, seed, gridW, gridD, lateral) {
   if (place === 'cliffs') return [onCoast(cliffEnd + dir * CLIFF_ANCHOR_U, -1.2)];
   if (place === 'shipwreck') return [onCoast(marshEnd - dir * WRECK_ANCHOR_U, -1.2)];
   if (place === 'marsh') return [onCoast(marshEnd - dir * 6, -0.9)];
+  if (place === 'standing_stones') { const s = inlandToWorld(seed, gridW, gridD, STONES_DEPTH, STONES_ALONG); return [lateral.map((lat) => [s.x + lat, s.z + 1.0])]; }
+  if (place === 'ritual_site') { const r = inlandToWorld(seed, gridW, gridD, RITUAL_DEPTH, RITUAL_ALONG); return [lateral.map((lat) => [r.x + lat, r.z + 0.6])]; }
+  if (place === 'hidden_cove') return [onCoast(coveU(seed, gridW, gridD), -1.2)];
+  if (place === 'catacombs') { const k = catacombSite(seed, gridW, gridD); return [lateral.map((lat) => [k.x + k.face * CATACOMB_BOOK_OFFSET, k.z + lat])]; }
   if (place === 'abbey') { const a = abbeySite(seed, gridW, gridD); return [lateral.map((lx) => [a.x + a.faceZ * lx + a.faceX * -2.8, a.z - a.faceX * lx + a.faceZ * -2.8])]; }
   return [];
 }

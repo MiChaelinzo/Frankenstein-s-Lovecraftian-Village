@@ -73,6 +73,9 @@ Uses the Lovecraftian Village 1.3 environment (HDRP and URP editions) by DLNK Ar
 - [ ] In the write-up, say the city, landmarks and corruption growth are original assets with Core rules and tests (Verified), and that the look is SwiftShader stills only (Partially Verified)
 - [ ] Say in the write-up that the 3D look is WebGL1 on software GL checks only, and that the held lantern, windows and wall clearance are known round 23 bugs
 - [ ] Show the Graphics quality menu (Help > First-person view) and the `?perf=1` HUD in the video, and say the look was checked on software GL only unless you recorded on a real GPU
+- [x] Round 24 stills (`docs/media/round24-*`) are original content or CC0 Quaternius kit pieces, each under 700 KB; no pack data in the repo
+- [x] Asset disclosure: CC0 Quaternius Medieval Village MegaKit pieces (three houses) are credited in `THIRD_PARTY_ASSETS.md` and the README; the Unity packs, the itch.io tag pages and the Winged Boots NPC were not used
+- [ ] In the write-up, say the villager schedules, names, narrative, collision and four new landmarks are Core rules with tests (Verified), the look is SwiftShader stills (Partially Verified) and the Unity scene builder does not yet use them (Unverified)
 - [ ] Category selected: Frankenstein
 
 ## Bonus prizes

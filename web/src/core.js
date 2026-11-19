@@ -477,7 +477,7 @@ export function clampNights(nights) {
   return Math.max(CAMPAIGN_MIN_NIGHTS, Math.min(CAMPAIGN_MAX_NIGHTS, n));
 }
 
-/** Returns { seed, villageName, nights: [{ number, title, dreadTargetPercent, sanityStart, sky, weather, rumor, lore }] }. */
+/** Returns { seed, villageName, nights: [{ number, title, dreadTargetPercent, sanityStart, stage, sky, weather, rumor, lore }] }. */
 export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
   nights = clampNights(nights);
   seed |= 0;
@@ -509,7 +509,7 @@ export function generateCampaign(seed, nights = CAMPAIGN_DEFAULT_NIGHTS) {
     const weather = weatherForDay(seed, i);
     const rumor = `${RUMOR_WHO[rng.next(RUMOR_WHO.length)]} ${RUMOR_WHAT[rng.next(RUMOR_WHAT.length)]} ${RUMOR_WHEN[rng.next(RUMOR_WHEN.length)]}`;
     const lore = CAMPAIGN_LORE[stage][rng.next(CAMPAIGN_LORE[stage].length)];
-    out.push({ number: i + 1, title: CAMPAIGN_TITLES[stage][idx], dreadTargetPercent: target, sanityStart: 100 - target, sky, weather, rumor, lore });
+    out.push({ number: i + 1, title: CAMPAIGN_TITLES[stage][idx], dreadTargetPercent: target, sanityStart: 100 - target, stage, sky, weather, rumor, lore });
   }
   return { seed, villageName, nights: out };
 }

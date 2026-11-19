@@ -81,3 +81,17 @@ Qualitative only. Nothing is copied from either game: no assets, no names, no la
 **Landmarks** each hold one idea: the Lighthouse Cliffs (wind and distance), the Wreck of the Marguerite (a ship that went nowhere), the Abbey Ruins (arches with no roof), the Cemetery on the church rise (view of the whole village), the Black Marsh (still pools, spires), the Cursed Grove (the first place corruption grows). Lit paths with a lamp every 14 m connect them so the dark is never total on the way. Stills: `docs/media/round23-landmark-*.jpg`.
 
 **Local pack area:** under `?pack=1` on the author's machine only, the Alien Terrain models replace the corruption look-alikes (fitted to the same footprint). The public site keeps the originals.
+
+
+## Round 24: kit houses and the villager decision
+
+- Houses: `house_a`, `house_b` and `cottage_tall` are assembled from the CC0 Quaternius Medieval Village MegaKit (see `THIRD_PARTY_ASSETS.md`), stone ground floor, jettied plaster upper floor, terracotta roof, same footprint and door as the Blender originals. The triangle budget (60k per frame) decides how much of the kit can be real geometry: about 400 to 660 triangles per house.
+- Villager: the walk stays the CPU leg swing (`poseWalker`). Skeletal skinning in the WebGL1 renderer (bone matrices as uniforms, skin weights in the vertex format, a second shader path) was judged not worth it for a 1.7 m figure seen from 5 to 30 m, and no clearly CC0 rigged villager was evaluated. Revisit if a CC0 rigged model with under 600 triangles and under 24 bones is verified.
+
+## Round 24: the living village
+- Villagers: the Old Town square was empty at night because every villager stood at their own door. Core `PresenceAt` now sends them to the market, inn and chapel, a lamplighter patrols, and doors fade them in and out. Stills: `docs/media/round24-hero.jpg` (the square at dusk, a figure far down the lane; at 1.7 m it is small by design), also the README hero.
+- Walking: trunks are round obstacles (tree 0.35 m, tentacle tree 0.7 m) so the explorer slides around them; the old box was the canopy footprint. Still `round24-tree-walk-around.jpg`, taken after the fix beside the tree at 37.97, 60.00 (seed 1818); there is no before still, the browser check `COLLISION_ONLY` is the evidence. Partially Verified.
+- Names and narrative: house, well and landmark names are seeded (en and fr) and shown in door prompts; the chronicle adds families, journals, missing persons, rumors and legends. The tone stays implication over explanation: owners and missing persons are never explained.
+- Lighthouse beam, moon, stars and water haze: night only on Medium and High, a static glow on Low. Stills `round24-lighthouse-beam.png`, `round24-sea-*.png`.
+- Assets: CC0 Quaternius kit houses (three) lazy loaded over original Blender houses. Rigged villagers from the kit or from itch.io tag pages were not evaluated this round (Unverified); the walking figure is still the original mesh with a CPU leg swing.
+- Status: SwiftShader stills only (Partially Verified); real GPU Unverified.

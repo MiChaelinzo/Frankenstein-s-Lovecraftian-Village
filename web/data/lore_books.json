@@ -476,6 +476,298 @@
     "title": "Le compte du tourbier",
     "text": "Quarante briques coupees, quarante et une empilees. J'ai recoupe pour trouver la brique en trop et la fosse s'est remplie derriere moi, noire et lisse, avec une brique qui flottait, a mes initiales. Je compte depuis la route maintenant."
    }
+  },
+  {
+   "id": "b35",
+   "place": "standing_stones",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Surveyor's Field Note",
+    "text": "Seven stones, and I paced the ring four times. Four times it held seven. The fifth time I stood in the middle and counted eight, and the eighth was breathing out when I breathed in. The ring is not a boundary. It is a table laid for someone."
+   },
+   "fr": {
+    "title": "Note d'arpenteur",
+    "text": "Sept pierres, et j'ai fait le tour quatre fois. Quatre fois, il y en avait sept. La cinquieme fois, je me suis tenu au milieu et j'en ai compte huit, et la huitieme expirait quand j'inspirais. Ce cercle n'est pas une limite. C'est une table dressee pour quelqu'un."
+   }
+  },
+  {
+   "id": "b36",
+   "place": "standing_stones",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "A Shepherd's Rule",
+    "text": "Never graze the flock inside the stones. Sheep that have stood in the ring all face the same way afterward, toward the sea, and none will eat until the tide has turned twice."
+   },
+   "fr": {
+    "title": "La regle du berger",
+    "text": "Ne faites jamais paitre le troupeau dans les pierres. Les moutons qui sont restes dans le cercle regardent ensuite tous du meme cote, vers la mer, et aucun ne mange avant que la maree ait tourne deux fois."
+   }
+  },
+  {
+   "id": "b37",
+   "place": "hidden_cove",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Smuggler's Tally",
+    "text": "Eleven casks landed at the cove, nine sold. The two left over are not in the boat and not in the cave. The boat is hauled up high and dry, and the rope is wet. Do not light a lamp here. The cove keeps its own count, and it does not like ours."
+   },
+   "fr": {
+    "title": "Compte du contrebandier",
+    "text": "Onze tonneaux debarques a la crique, neuf vendus. Les deux restants ne sont ni dans la barque ni dans la grotte. La barque est tiree au sec, tres haut, et la corde est mouillee. N'allumez pas de lampe ici. La crique tient son propre compte, et le notre lui deplait."
+   }
+  },
+  {
+   "id": "b38",
+   "place": "hidden_cove",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Tide Table, Pencilled",
+    "text": "High water at the cove comes an hour before the harbour's, and low water an hour after. Somebody has pencilled in the margin: 'Between the two, the cove is not on the coast.'"
+   },
+   "fr": {
+    "title": "Table des marees, au crayon",
+    "text": "A la crique, la pleine mer vient une heure avant celle du port, et la basse mer une heure apres. Quelqu'un a note au crayon en marge : 'Entre les deux, la crique n'est pas sur la cote.'"
+   }
+  },
+  {
+   "id": "b39",
+   "place": "ritual_site",
+   "sanity": -2,
+   "clue": true,
+   "en": {
+    "title": "Burnt Page of a Rite",
+    "text": "...the red bars are drawn from the eye outward, never toward it, or the thing in the ground will take the drawing for an invitation. Five stumps for the five who sat, and a sixth place left bare. The page ends where the fire took it, at the words 'whoever fills the sixth place keeps the village'."
+   },
+   "fr": {
+    "title": "Page brulee d'un rite",
+    "text": "...les barres rouges se tracent depuis l'oeil vers l'exterieur, jamais vers lui, sans quoi la chose du sol prendra le dessin pour une invitation. Cinq souches pour les cinq qui etaient assis, et une sixieme place laissee vide. La page s'arrete la ou le feu l'a prise, aux mots 'celui qui occupe la sixieme place garde le village'."
+   }
+  },
+  {
+   "id": "b40",
+   "place": "ritual_site",
+   "sanity": -1,
+   "clue": false,
+   "en": {
+    "title": "A Child's Counting Rhyme",
+    "text": "One for the stump and two for the stone, three for the lantern that burns alone. Four for the fungus, five for the tree, and six for the one who is counting me. The children skip the last line. The ring does not."
+   },
+   "fr": {
+    "title": "Une comptine d'enfant",
+    "text": "Une pour la souche et deux pour la pierre, trois pour la lanterne qui brule solitaire. Quatre pour le champignon, cinq pour l'arbre, et six pour celui qui me compte. Les enfants sautent le dernier vers. Le cercle, non."
+   }
+  },
+  {
+   "id": "b41",
+   "place": "catacombs",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Sexton's Key Ring",
+    "text": "Four keys, and the fourth opens nothing above ground. The gate below the churchyard has no lock, only bars, and the bars are warm in winter. A body goes down by the stair on the day of burial. Nobody has ever been seen coming up it, yet the stair is worn on the way up."
+   },
+   "fr": {
+    "title": "Le trousseau du fossoyeur",
+    "text": "Quatre cles, et la quatrieme n'ouvre rien a la surface. La grille sous le cimetiere n'a pas de serrure, seulement des barreaux, et les barreaux sont chauds en hiver. On descend un corps par l'escalier le jour de l'enterrement. Personne n'a jamais ete vu en remontant, et pourtant l'escalier est use dans le sens de la montee."
+   }
+  },
+  {
+   "id": "b42",
+   "place": "catacombs",
+   "sanity": -2,
+   "clue": true,
+   "en": {
+    "title": "Parish Register, Bottom Page",
+    "text": "Beneath the last entry for the year, in a hand that is nobody's: 'Admitted below, forty three. Present, forty four.' The sexton struck it out. The next morning it was written again, and a name followed that the whole parish knows and nobody had yet buried."
+   },
+   "fr": {
+    "title": "Registre paroissial, derniere page",
+    "text": "Sous la derniere inscription de l'annee, d'une main qui n'est celle de personne : 'Admis en bas, quarante trois. Presents, quarante quatre.' Le fossoyeur l'a barre. Le lendemain matin, la ligne etait de nouveau ecrite, suivie d'un nom que toute la paroisse connait et que personne n'avait encore enterre."
+   }
+  },
+  {
+   "id": "j01",
+   "place": "journal",
+   "role": "fisher",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "Log of the {surname} boat",
+    "text": "Night one: nets full, and every fish looking toward {home}. Night two: nets full, and the fish are counting. Night three: I did not cast. {neighbour} at {neighbourHome} says the water asks nothing of a man who stays ashore. I would like to believe that."
+   },
+   "fr": {
+    "title": "Journal de bord des {surname}",
+    "text": "Nuit un : filets pleins, et chaque poisson regarde vers {home}. Nuit deux : filets pleins, et les poissons comptent. Nuit trois : je n'ai pas lance. {neighbour} de {neighbourHome} dit que l'eau ne demande rien a l'homme qui reste a terre. Je voudrais le croire."
+   }
+  },
+  {
+   "id": "j02",
+   "place": "journal",
+   "role": "priest",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Sermon Notes of the Chapel",
+    "text": "I have written the same sermon on every page. I did not intend to. The hand is mine, and the words are all the congregation's. {neighbour} of {neighbourHome} stays after service to listen to the bell, and says it is kinder when no one is ringing it."
+   },
+   "fr": {
+    "title": "Notes de sermon de la chapelle",
+    "text": "J'ai ecrit le meme sermon sur chaque page. Je ne l'avais pas voulu. La main est la mienne et les mots sont ceux de toute l'assemblee. {neighbour} de {neighbourHome} reste apres l'office pour ecouter la cloche, et dit qu'elle est plus douce quand personne ne la sonne."
+   }
+  },
+  {
+   "id": "j03",
+   "place": "journal",
+   "role": "innkeeper",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "The Innkeeper's Ledger",
+    "text": "Rooms let: none. Rooms occupied: all. I have stopped sweeping the upper floor because the dust arranges itself into a neat path to the window. {neighbour} of {neighbourHome} drinks here every dusk and has never once been served. The cup is empty each time. Nobody remarks."
+   },
+   "fr": {
+    "title": "Le registre de l'aubergiste",
+    "text": "Chambres louees : aucune. Chambres occupees : toutes. J'ai cesse de balayer l'etage parce que la poussiere s'arrange en un chemin net jusqu'a la fenetre. {neighbour} de {neighbourHome} boit ici chaque soir sans etre jamais servi. La tasse est vide chaque fois. Personne ne dit rien."
+   }
+  },
+  {
+   "id": "j04",
+   "place": "journal",
+   "role": "lamplighter",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "A Lamplighter's Tally",
+    "text": "Lamps lit: forty. Lamps burning when I return: forty-one. I have walked the route in both directions and the extra lamp is always behind me. {neighbour} at {neighbourHome} leaves a lantern on the sill for me. I never knew {neighbour} had kept a lantern. It is lit before I arrive."
+   },
+   "fr": {
+    "title": "Le decompte de l'allumeur",
+    "text": "Lampes allumees : quarante. Lampes brulant a mon retour : quarante et une. J'ai fait la route dans les deux sens et la lampe en trop est toujours derriere moi. {neighbour} de {neighbourHome} laisse une lanterne a la fenetre pour moi. Je ne savais pas que {neighbour} en avait une. Elle est allumee avant mon arrivee."
+   }
+  },
+  {
+   "id": "j05",
+   "place": "journal",
+   "role": "lighthouse_keeper",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Keeper's Daybook",
+    "text": "No ships sighted. I log them anyway, because the log is the only conversation I have. The beam turns, and each turn it lights a different house, and last night it dwelled on {home} a long while, as if reading a name. {neighbour} of {neighbourHome} says it is the light that is being watched."
+   },
+   "fr": {
+    "title": "Cahier du gardien",
+    "text": "Aucun navire en vue. Je les note quand meme, car le registre est ma seule conversation. Le faisceau tourne, et chaque tour eclaire une maison differente, et la nuit derniere il s'est attarde sur {home} longuement, comme pour lire un nom. {neighbour} de {neighbourHome} dit que c'est la lumiere qui est observee."
+   }
+  },
+  {
+   "id": "j06",
+   "place": "journal",
+   "role": "widow",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "A Widow's Letters, Unsent",
+    "text": "My dear, the {surname} house is quiet and the quiet has your step. I have not moved your chair. {neighbour} from {neighbourHome} says it is unwise to keep a place laid for the dead. I told {neighbour} it is only courtesy, for the sake of whoever might sit there."
+   },
+   "fr": {
+    "title": "Lettres de veuve, jamais postees",
+    "text": "Mon cher, la maison des {surname} est calme et le calme a votre pas. Je n'ai pas deplace votre chaise. {neighbour} de {neighbourHome} dit qu'il est imprudent de garder un couvert pour les morts. J'ai repondu que c'etait politesse, pour qui pourrait s'y asseoir."
+   }
+  },
+  {
+   "id": "j07",
+   "place": "journal",
+   "role": "child",
+   "sanity": 0,
+   "clue": false,
+   "en": {
+    "title": "A Child's Copybook",
+    "text": "I drew our house, {home}, and then I drew the other one, behind it, that is exactly the same. Mother says there is only one. {neighbour} from {neighbourHome} says there is only one too, but winks at the wall. I think the wall is the second house, and it is shy."
+   },
+   "fr": {
+    "title": "Le cahier d'un enfant",
+    "text": "J'ai dessine notre maison, {home}, puis j'ai dessine l'autre, derriere, qui est exactement pareille. Maman dit qu'il n'y en a qu'une. {neighbour} de {neighbourHome} dit pareil, mais fait un clin d'oeil au mur. Je crois que le mur est la deuxieme maison, et qu'elle est timide."
+   }
+  },
+  {
+   "id": "p01",
+   "place": "cliffs",
+   "missing": "m1",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "A Lamp Left at the Edge",
+    "text": "Set down at the lip of the cliff: one lamp, trimmed, still warm, and a shawl folded as {missing} folded everything. The lamp points toward {home}. I did not touch it. I think it is not mine to move, and not yet over."
+   },
+   "fr": {
+    "title": "Une lampe au bord",
+    "text": "Posee au bord de la falaise : une lampe, taillee, encore tiede, et un chale plie comme {missing} pliait toute chose. La lampe est tournee vers {home}. Je n'y ai pas touche. Je crois qu'il ne m'appartient pas de la deplacer, et que ce n'est pas fini."
+   }
+  },
+  {
+   "id": "p02",
+   "place": "shipwreck",
+   "missing": "m2",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Chalk Marks on the Hull",
+    "text": "Tally marks on the wreck's timber, new, in a hand that leans to the left like {missing}'s. Two crossed bars for each tide. They stop at the last tide before the one in which I stand. I am not going to add to them."
+   },
+   "fr": {
+    "title": "Traits de craie sur la coque",
+    "text": "Des traits de decompte sur le bois de l'epave, recents, d'une main penchee vers la gauche comme celle de {missing}. Deux barres croisees par maree. Ils s'arretent a la derniere maree avant celle ou je me tiens. Je n'ajouterai rien."
+   }
+  },
+  {
+   "id": "p03",
+   "place": "abbey",
+   "missing": "m3",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "The Responses",
+    "text": "Under the broken arch, a prayer book open at the evening office, the margin annotated in {missing}'s hand. The last note reads: 'Answer, and be answered.' The ink is wet. The abbey is very warm for ruins."
+   },
+   "fr": {
+    "title": "Les reponses",
+    "text": "Sous l'arche brisee, un livre de prieres ouvert a l'office du soir, la marge annotee de la main de {missing}. La derniere note dit : 'Repondez, et l'on vous repondra.' L'encre est fraiche. L'abbaye est tres chaude pour des ruines."
+   }
+  },
+  {
+   "id": "p04",
+   "place": "marsh",
+   "missing": "m4",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "Small Footprints",
+    "text": "A line of small bootprints crosses the fen, dry and distinct, and leads to the place where the lights gather. They are the size of {missing}'s, and they do not return. At the end, set neatly on a reed, is a ribbon the colour of the {surname} door."
+   },
+   "fr": {
+    "title": "Petites empreintes",
+    "text": "Une ligne de petites empreintes de bottes traverse le marais, seches et nettes, jusqu'a l'endroit ou se rassemblent les lueurs. Elles ont la taille de celles de {missing}, et ne reviennent pas. Au bout, pose sur un roseau, un ruban de la couleur de la porte des {surname}."
+   }
+  },
+  {
+   "id": "p05",
+   "place": "grave",
+   "missing": "m5",
+   "sanity": -1,
+   "clue": true,
+   "en": {
+    "title": "The Unnamed Stone",
+    "text": "A stone without a name. On the back, scratched small: 'For {missing}, who dug it well.' Someone has brought flowers from {home}. They were cut this morning. The grave is deeper than it was yesterday, and the earth at the rim is dry as bone."
+   },
+   "fr": {
+    "title": "La pierre sans nom",
+    "text": "Une pierre sans nom. Au dos, grave petit : 'Pour {missing}, qui l'a bien creusee.' Quelqu'un a apporte des fleurs de {home}. Elles ont ete coupees ce matin. La tombe est plus profonde qu'hier, et la terre du bord est seche comme un os."
+   }
   }
  ]
 }

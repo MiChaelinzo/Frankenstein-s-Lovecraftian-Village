@@ -9,8 +9,8 @@ export const OTHER_COLOR = '#667075';
 export const kindColor = (id) => KIND_COLORS[id] || OTHER_COLOR;
 export const kindLabel = (id) => KIND_LABELS[id] || String(id).replace(/_/g, ' ');
 
-/** cells are in pixel units of a size x size box; selected marks the piece sharing the given position. */
-export function minimapModel(layout, gridW, gridD, size, selected) {
+/** labelOf turns a kind id into its display text (app.js passes the translated kind name). cells are in pixel units of a size x size box; selected marks the piece sharing the given position. */
+export function minimapModel(layout, gridW, gridD, size, selected, labelOf = kindLabel) {
   const sx = size / Math.max(1, gridW), sz = size / Math.max(1, gridD);
   const counts = new Map();
   const cells = (layout || []).map((p) => {
@@ -20,6 +20,6 @@ export function minimapModel(layout, gridW, gridD, size, selected) {
       selected: !!selected && selected.id === p.id && selected.x === p.x && selected.z === p.z,
     };
   });
-  const legend = [...counts].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([id, count]) => ({ id, label: kindLabel(id), color: kindColor(id), count }));
+  const legend = [...counts].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([id, count]) => ({ id, label: labelOf(id), color: kindColor(id), count }));
   return { size, cells, legend };
 }

@@ -222,6 +222,12 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Debt: lantern halos and fireflies are not culled by distance; Unity runtime does not show district names; `VillageCoreInspectorWindow` previews `Generate` only.
 - Status: Core and JS Verified (dotnet, node, golden); HUD and minimap Verified by `browser_check` (`districtRun`); the look is Partially Verified (SwiftShader stills); Unity runtime Unverified.
 
+## Round 24 part 3: seeded names (FEAT-003)
+- Boundary kept: the name rule is Core `VillageNames` (kind + district + seed, one seeded stream per layout index); `web/src/names.js` mirrors it and the golden key `names` pins both. The words live in one data file, `Data/names.json`, with a byte-identical web copy (drift checked by C#, JS and `validate_repo.py`).
+- Reuse for the narrative: a name is a pure function of the seed and the pieces before it, so FEAT-004 can say who lives in a house through `VillageBuilder.NameAt(index)` or `piece.names` without a second naming system.
+- Residual duplication, small: `VillageLandmarks` still holds the six fixed landmark names (`Name`, `landmarkName`) and i18n keeps `landmark.*`; they are now only the fallback when `names.json` fails to load. Removing them is a follow-up once nothing reads them.
+- Status: Core and JS Verified (dotnet, node, golden); prompt and HUD chip Verified by `browser_check` (`NAMES_ONLY`, `LANDMARK_ONLY`, SwiftShader); Unity runtime Unverified (compile check only).
+
 ## Round 23: the wider world (task 126)
 - Boundary kept: all placement (landmarks, paths, hill height, book spots, walk margin) is in Core `VillageLandmarks`; the web file mirrors it and the golden key `landmarks` pins both. The renderer only batches the items and follows `groundHeight`.
 - Duplication removed: the cliff, marsh and grove anchors were private to `CorruptionGrowth`; they now come from `VillageLandmarks`, and `hillHeight` (a render-only function in `view3d.js`) is the Core function. Residual duplication: `coastFeatures` (JS only) still places two flank cliffs, so Core cannot route a path around them; they were moved into the sea (v 8 to 11) so no Core path crosses them. Moving that into Core is the clean fix.
@@ -233,3 +239,9 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Facts (Verified by a node test and a script over 10 seeds): every `CorruptionGrowth` site stands on Core `groundHeight`; `fitModelInto` puts a fitted pack model on the floor of the original mesh. So pack models cannot hover by placement. A pack tree can look raised because only 0.5% of its vertices touch the floor (Partially Verified: still inspection).
 - Not a bug: stills from the hash alone use the dusk clock; pass `tick=1250` for night. `corruptionLevel` is 0.75 dread plus 0.25 night.
 - Residual risk: the pack upgrade is async, so a `capture=1` still can show originals. Unverified in a real browser with a GPU.
+
+## Round 24 closing audit (FEAT-007)
+- Boundary kept: schedules (`PresenceAt`), trunk radii (`WalkCollision`), names (`VillageNames`), the story (`VillageStory`), the beam (`LighthouseBeam`) and landmarks 7 to 10 are Core rules with JS mirrors and golden keys (`presence`, `names`, `story`, `lighthouseBeam`, `landmarks`). The web adds presentation only (pose, drawing, panels).
+- Debt, small: villager routes are axis-aligned and not snapped to `VillageStreets` lanes; the Unity scene builder places no lore books, so it cannot yet pass the story; landmark names still have a fallback copy in `VillageLandmarks`; the dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced.
+- Risk: the 80% frame triangle budget limits dressing of the new landmarks (the ritual site has one sapling and two fungi).
+- Status: Core and JS Verified (dotnet, node, golden, browser checks); look Partially Verified (SwiftShader); Unity Unverified.

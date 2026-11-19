@@ -57,7 +57,7 @@ namespace Frankenstein.Core.Tests
             return dir.FullName;
         }
 
-        private static PrefabCatalog LoadCatalog(string root)
+        internal static PrefabCatalog LoadCatalog(string root)
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "Packages", "com.michaelinzo.frankenstein-village", "Data", "village_catalog.json")));
             var list = new List<CatalogEntry>();
@@ -340,6 +340,21 @@ namespace Frankenstein.Core.Tests
             AppendLore(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendNames(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendLighthouseBeam(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendCollision(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendCityPresence(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendStory(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -581,6 +596,9 @@ namespace Frankenstein.Core.Tests
 
         private static readonly int[] ClockTicks = { 0, 1, 119, 239, 240, 839, 840, 1079, 1080, 1439, 1440, 1441, 2900, -1, -240, -1441 };
         private static readonly int[] VillagerTicks = { 0, 300, 900, 1100, 1300, 1439 };
+        /// <summary>Fractional ticks for presence: walks starting at dawn, market, dusk and night, the patrol, indoors late at night, the dawn door.</summary>
+        private static readonly double[] PresenceTicks = { 0.0, 3.0, 130.5, 300.25, 700.0, 845.0, 1085.5, 1100.0, 1270.5, 1380.0, 1439.5, 1445.0 };
+        private static readonly float[] PresenceDreads = { 0f, 0.2f, 0.67f, 1f };
         private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
 
         /// <summary>Top level key "dressing": the seeded harbour, square and churchyard dressing on the real layout, per seed and grid.</summary>
@@ -834,6 +852,19 @@ namespace Frankenstein.Core.Tests
                 bool firstLamp = true;
                 foreach (var v in roster)
                     foreach (var t in VillagerTicks) { sb.Append(firstLamp ? "" : ", ").Append(VillagerRules.CarriesLitLantern(v, t) ? 1 : 0); firstLamp = false; }
+                sb.Append("], \"presence\": [");
+                bool firstPresence = true;
+                foreach (var v in roster)
+                    foreach (var t in PresenceTicks)
+                        foreach (var d in PresenceDreads)
+                        {
+                            var pr = VillagerRules.PresenceAt(roster, v, t, d, layout, 24, 24, seed);
+                            string R(double x) { return x.ToString("R", CultureInfo.InvariantCulture); }
+                            sb.Append(firstPresence ? "" : ", ").Append('[').Append(pr.Gone ? 1 : 0).Append(", ").Append(pr.Walking ? 1 : 0).Append(", ").Append(pr.Indoors ? 1 : 0).Append(", ")
+                              .Append((int)pr.Stop).Append(", ").Append((int)pr.Place).Append(", ").Append(R(pr.X)).Append(", ").Append(R(pr.Z)).Append(", ").Append(R(pr.FaceDx)).Append(", ")
+                              .Append(R(pr.FaceDz)).Append(", ").Append(R(pr.Stride)).Append(", ").Append(R(pr.Fade)).Append(']');
+                            firstPresence = false;
+                        }
                 sb.Append("], \"talks\": [");
                 bool firstTalk = true;
                 foreach (var v in roster)
@@ -898,6 +929,168 @@ namespace Frankenstein.Core.Tests
                           .Append(Math.Round(placed[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(placed[i].Z, 3).ToString("0.###", inv)).Append(']');
                     sb.Append("] }");
                 }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "names": per city seed, the English and French name of every layout piece and of every landmark (round 24).</summary>
+        private static void AppendNames(StringBuilder sb, PrefabCatalog cat)
+        {
+            var lib = NameLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "names.json")));
+            sb.Append("  \"names\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var names = VillageNames.Assign(lib, seed, grid, grid, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"en\": [");
+                first = false;
+                for (int i = 0; i < names.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(names[i] == null ? "" : names[i].Get("en")).Append('"');
+                sb.Append("], \"fr\": [");
+                for (int i = 0; i < names.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(names[i] == null ? "" : names[i].Get("fr")).Append('"');
+                sb.Append("], \"landmarks\": [");
+                for (int i = 0; i < VillageLandmarks.Ids.Length; i++)
+                {
+                    var n = VillageNames.Landmark(lib, seed, VillageLandmarks.Ids[i]);
+                    sb.Append(i > 0 ? ", " : "").Append("[\"").Append(n.Get("en")).Append("\", \"").Append(n.Get("fr")).Append("\"]");
+                }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "lighthouseBeam" (round 24): the constants, and per seed the lighthouse site on the 36 by 36 city and the beam yaw at fixed times.</summary>
+        private static void AppendLighthouseBeam(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string R(double v) { return v.ToString("R", inv); }
+            double[] times = { 0, 1.5, 4, 8, 15.99, 16, 33.3, 1000.25 };
+            sb.Append("  \"lighthouseBeam\": {\n    \"period\": ").Append(R(LighthouseBeam.PeriodSeconds)).Append(", \"halfAngle\": ").Append(R(LighthouseBeam.HalfAngle))
+              .Append(", \"lampHeight\": ").Append(R(LighthouseBeam.LampHeight)).Append(", \"length\": ").Append(R(LighthouseBeam.Length)).Append(",\n    \"times\": [");
+            for (int i = 0; i < times.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(times[i]));
+            sb.Append("],\n    \"seeds\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818, 99999 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                LighthouseBeam.Site(seed, grid, grid, out double sx, out double sz);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"phase\": ").Append(R(LighthouseBeam.Phase(seed)))
+                  .Append(", \"site\": [").Append(R(sx)).Append(", ").Append(R(sz)).Append("], \"yaw\": [");
+                first = false;
+                for (int i = 0; i < times.Length; i++) sb.Append(i > 0 ? ", " : "").Append(R(LighthouseBeam.Yaw(seed, times[i])));
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static readonly double[][] CollisionStarts =
+        {
+            new[] { 5.0, 5.0 }, new[] { 10.1, 11.2 }, new[] { 10.0, 10.0 }, new[] { 9.0, 10.4 }, new[] { 12.3, 8.9 }, new[] { -0.2, 4.0 }, new[] { 4.9, 0.1 }, new[] { 20.0, 20.0 },
+        };
+
+        /// <summary>Top level key "collision" (round 24): resolved positions for a trunk, a flat box and both together, so WalkCollision and the JS resolveCollisions are compared on numbers.</summary>
+        private static void AppendCollision(StringBuilder sb)
+        {
+            string R(double v) { return v.ToString("R", CultureInfo.InvariantCulture); }
+            var scenes = new[]
+            {
+                new[] { new WalkBox { MinX = 9.5, MaxX = 10.5, MinZ = 9.5, MaxZ = 10.5, Round = true } },
+                new[] { new WalkBox { MinX = 0, MaxX = 10, MinZ = 0, MaxZ = 5 } },
+                new[] { new WalkBox { MinX = 0, MaxX = 10, MinZ = 0, MaxZ = 5 }, new WalkBox { MinX = 9.5, MaxX = 10.5, MinZ = 5.2, MaxZ = 6.2, Round = true }, new WalkBox { MinX = 11, MaxX = 13, MinZ = 8, MaxZ = 10 } },
+            };
+            sb.Append("  \"collision\": {\n    \"radius\": 0.35, \"starts\": [");
+            sb.Append(string.Join(", ", CollisionStarts.Select(p => "[" + R(p[0]) + ", " + R(p[1]) + "]"))).Append("],\n    \"scenes\": [");
+            for (int i = 0; i < scenes.Length; i++)
+            {
+                sb.Append(i > 0 ? ",\n      " : "\n      ").Append("{ \"boxes\": [")
+                  .Append(string.Join(", ", scenes[i].Select(b => "[" + R(b.MinX) + ", " + R(b.MaxX) + ", " + R(b.MinZ) + ", " + R(b.MaxZ) + ", " + (b.Round ? 1 : 0) + "]"))).Append("], \"resolved\": [");
+                for (int j = 0; j < CollisionStarts.Length; j++)
+                {
+                    double x = CollisionStarts[j][0], z = CollisionStarts[j][1];
+                    WalkCollision.Resolve(ref x, ref z, 0.35, scenes[i]);
+                    sb.Append(j > 0 ? ", " : "").Append('[').Append(R(x)).Append(", ").Append(R(z)).Append(']');
+                }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "cityPresence" (round 24): PresenceAt on the 36 by 36 city, where the vanishing villagers bug was found. Rows as in villagers.presence.</summary>
+        private static void AppendCityPresence(StringBuilder sb, PrefabCatalog cat)
+        {
+            string R(double v) { return v.ToString("R", CultureInfo.InvariantCulture); }
+            int grid = VillageDistricts.CityGrid;
+            sb.Append("  \"cityPresence\": {\n    \"cases\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 1818 })
+            {
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"presence\": [");
+                first = false;
+                bool firstRow = true;
+                foreach (var v in roster)
+                    foreach (var t in PresenceTicks)
+                        foreach (var d in PresenceDreads)
+                        {
+                            var pr = VillagerRules.PresenceAt(roster, v, t, d, layout, grid, grid, seed);
+                            sb.Append(firstRow ? "" : ", ").Append('[').Append(pr.Gone ? 1 : 0).Append(", ").Append(pr.Walking ? 1 : 0).Append(", ").Append(pr.Indoors ? 1 : 0).Append(", ")
+                              .Append((int)pr.Stop).Append(", ").Append((int)pr.Place).Append(", ").Append(R(pr.X)).Append(", ").Append(R(pr.Z)).Append(", ").Append(R(pr.FaceDx)).Append(", ")
+                              .Append(R(pr.FaceDz)).Append(", ").Append(R(pr.Stride)).Append(", ").Append(R(pr.Fade)).Append(']');
+                            firstRow = false;
+                        }
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static string Q(string s) { return JsonSerializer.Serialize(s); }
+
+        /// <summary>Top level key "story" (round 24): per city seed the families, house owners, missing persons, journal and page texts, gossip, rumors and the lore placement with the story.</summary>
+        private static void AppendStory(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            sb.Append("  \"story\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var campaign = CampaignGenerator.Generate(seed, 5);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), campaign.VillageName);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"village\": ").Append(Q(campaign.VillageName));
+                first = false;
+                sb.Append(", \"stages\": [").Append(string.Join(", ", campaign.Nights.Select(n => n.Stage.ToString(inv)))).Append(']');
+                sb.Append(", \"families\": [").Append(string.Join(", ", story.Families.Select(f => "[" + Q(f.Surname) + ", [" + string.Join(", ", f.Members) + "], " + f.HomePiece + "]"))).Append(']');
+                sb.Append(", \"owners\": [").Append(string.Join(", ", story.Owners)).Append(']');
+                sb.Append(", \"missing\": [").Append(string.Join(", ", story.Missing.Select(m => "[" + Q(m.Id) + ", " + m.FamilyIndex + ", " + m.KinIndex + ", " + m.WitnessIndex + "]"))).Append(']');
+                var texts = new List<string>();
+                foreach (var b in lore.Books)
+                    if (b.Role.Length > 0 || (b.Missing.Length > 0 && story.HasMissing(b.Missing)))
+                        texts.Add("[" + Q(b.Id) + ", " + story.JournalOwner(b) + ", " + Q(story.BookTitle(b, "en")) + ", " + Q(story.BookText(b, "en")) + ", " + Q(story.BookTitle(b, "fr")) + ", " + Q(story.BookText(b, "fr")) + "]");
+                sb.Append(", \"books\": [").Append(string.Join(", ", texts)).Append(']');
+                var gossip = new List<string>();
+                foreach (var v in roster)
+                    for (int night = 1; night <= 5; night++)
+                    {
+                        int stage = VillageStory.StageOfNight(night, 5), tier = (v.Index + night) % VillageStory.Tiers;
+                        var g = story.GossipFor(v, night, stage);
+                        gossip.Add("[" + v.Index + ", " + night + ", " + tier + ", " + g.Kind + ", " + g.Subject + ", " + g.Stage + ", " + g.Variant + ", " + Q(story.GossipText(g, v, night, tier, "en")) + ", " + Q(story.GossipText(g, v, night, tier, "fr")) + "]");
+                    }
+                sb.Append(", \"gossip\": [").Append(string.Join(", ", gossip)).Append(']');
+                var rumors = new List<string>();
+                for (int night = 1; night <= 5; night++)
+                    for (int tier = 0; tier < VillageStory.Tiers; tier++)
+                        rumors.Add("[" + night + ", " + tier + ", " + Q(story.RumorText(night, VillageStory.StageOfNight(night, 5), tier, "en")) + ", " + Q(story.RumorText(night, VillageStory.StageOfNight(night, 5), tier, "fr")) + "]");
+                sb.Append(", \"rumors\": [").Append(string.Join(", ", rumors)).Append(']');
+                var placed = LoreBookRules.Place(seed, grid, grid, layout, lore, story);
+                sb.Append(", \"placed\": [").Append(string.Join(", ", placed.Select(p => "[" + Q(p.BookId) + ", " + Q(p.Place) + ", " + Math.Round(p.X, 3).ToString("0.###", inv) + ", " + Math.Round(p.Z, 3).ToString("0.###", inv) + "]"))).Append("] }");
+            }
             sb.Append("\n    ]\n  }\n");
         }
 

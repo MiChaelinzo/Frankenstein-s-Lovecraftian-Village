@@ -5,7 +5,7 @@ import { buildShapeModel } from './shapes.js';
 import { MAX_PLACE_SCALE } from './world-scale.js';
 export const CATALOG_KINDS = ['house_a', 'house_b', 'church', 'well', 'altar', 'dead_tree', 'lamp'];
 export const PROP_KINDS = ['boat', 'dock', 'fence', 'cliff_rock', 'lamp_tall', 'lamp_double'];
-export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager', 'cart', 'sack', 'wall_low', 'net', 'bench', 'sign', 'wall_lantern', 'tree', 'bush', 'reeds', 'rock', 'laundry_line', 'grass_tuft', 'stump', 'log', 'woodpile', 'hedge', 'picket_fence', 'bollard', 'rope_coil', 'crop_row', 'wheel_ruts', 'tentacle_tree', 'tentacle_sapling', 'fungus_tall', 'fungus_cluster', 'fungus_shelf', 'spire_horn', 'spire_ribbed', 'shipwreck', 'abbey_arch', 'abbey_wall', 'abbey_pillar', 'marsh_pool', 'path_stone'];
+export const VILLAGE_KINDS = ['cottage_thatch', 'cottage_tall', 'inn', 'chapel', 'lighthouse', 'market_stall', 'crate_stack', 'barrel', 'gravestone', 'gravestone_cross', 'fence_iron', 'villager', 'cart', 'sack', 'wall_low', 'net', 'bench', 'sign', 'wall_lantern', 'tree', 'bush', 'reeds', 'rock', 'laundry_line', 'grass_tuft', 'stump', 'log', 'woodpile', 'hedge', 'picket_fence', 'bollard', 'rope_coil', 'crop_row', 'wheel_ruts', 'tentacle_tree', 'tentacle_sapling', 'fungus_tall', 'fungus_cluster', 'fungus_shelf', 'spire_horn', 'spire_ribbed', 'shipwreck', 'abbey_arch', 'abbey_wall', 'abbey_pillar', 'marsh_pool', 'path_stone', 'standing_stone', 'ritual_circle', 'catacomb_gate'];
 export const KINDS = [...CATALOG_KINDS, ...PROP_KINDS, ...VILLAGE_KINDS]; // a test keeps this list equal to data/village_shapes.json
 const MAGIC = 0x46546c67, JSON_CHUNK = 0x4e4f534a, BIN_CHUNK = 0x004e4942;
 const COMP = { 5121: [1, Uint8Array], 5123: [2, Uint16Array], 5125: [4, Uint32Array], 5126: [4, Float32Array] };
@@ -142,8 +142,10 @@ export const loadGlbBuffer = (buf) => extractTriangles(parseGlb(buf));
 
 // ---- CC0 third party props (assets/third_party/models, see THIRD_PARTY_ASSETS.md) ----
 
-/** Kind -> GLB file of the CC0 prop that replaces the original Blender mesh in the 3D view. Order fixes each prop's atlas slot. */
-export const THIRD_PARTY_MODELS = Object.freeze({ barrel: 'barrel.glb', bench: 'bench.glb' });
+/** Kind -> GLB file of the CC0 model that replaces the original Blender mesh in the 3D view (props from Poly Haven, houses assembled from the Quaternius Medieval Village MegaKit). */
+export const THIRD_PARTY_MODELS = Object.freeze({ barrel: 'barrel.glb', bench: 'bench.glb', house_a: 'house_a.glb', house_b: 'house_b.glb', cottage_tall: 'cottage_tall.glb' });
+/** Kind -> atlas slot of its base colour image. The kit's houses share one 3 x 3 trim mosaic, so they share slot 2 (the same image is drawn again, harmlessly). */
+export const THIRD_PARTY_SLOTS = Object.freeze({ barrel: 0, bench: 1, house_a: 2, house_b: 2, cottage_tall: 2 });
 /** The props' base colour images share one texture: a ATLAS_GRID x ATLAS_GRID atlas of equal square slots. */
 export const ATLAS_GRID = 2;
 
@@ -161,7 +163,8 @@ export function atlasModel(model, slot, grid = ATLAS_GRID) {
  */
 export async function loadThirdPartyModels(fetchFn, base, originals, warn = console.warn) {
   const out = [];
-  for (const [slot, [kind, file]] of Object.entries(THIRD_PARTY_MODELS).entries()) {
+  for (const [kind, file] of Object.entries(THIRD_PARTY_MODELS)) {
+    const slot = THIRD_PARTY_SLOTS[kind];
     const reference = originals && originals.get(kind);
     if (!reference) continue;
     try {

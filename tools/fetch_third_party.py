@@ -6,7 +6,7 @@ Textures: the 1K diffuse JPEG, resized to 512 px and scaled to a mean brightness
 colours steady (the same convention as web/src/proc-textures.js). Models: the 1K glTF, repacked as one GLB with only
 POSITION, NORMAL, TEXCOORD_0, indices and the base colour texture (512 px JPEG); normal and ARM maps are dropped.
 Poly Haven publishes every asset under CC0 (https://polyhaven.com/license); the info API is queried per asset so the
-recorded authors match the source.
+recorded authors match the source. The Quaternius kit houses are built by tools/build_quaternius_models.py instead.
 """
 import io, json, os, struct, subprocess, sys, urllib.request
 

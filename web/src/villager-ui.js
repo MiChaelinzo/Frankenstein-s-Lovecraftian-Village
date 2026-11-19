@@ -2,6 +2,8 @@
 // positions from villager-view.js. Talking applies its clue and sanity effect through deps.applyEffect BEFORE any narrator request starts,
 // and the narrator text is only ever written with textContent, so an AI answer (or its failure) cannot change game state.
 import { generateRoster, talk, chat, lineKey } from './villagers.js';
+import { stageOfNight, GOSSIP_MISSING } from './village-story.js';
+import { tierFor } from './core.js';
 import { phaseAt, PHASE_NAMES } from './clock.js';
 import { villagerPlacements, whoIsWhereRows, clockParts } from './villager-view.js';
 import { buildVillagerRequest, fetchVillagerLine } from './villager-narrator.js';
@@ -9,7 +11,7 @@ import { esc } from './util.js';
 
 /**
  * deps: { $, tr, lang, chatNeeds() -> { cluesLeft, lampsLeft, sanity } (what the vigil still needs), state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
- *   narratorUrl, fetchImpl, exitPointerLock(), onChange() }
+ *   story() -> the village story or null, onGossip(missingId, stage), narratorUrl, fetchImpl, exitPointerLock(), onChange() }
  * state.villagers (placements) is kept current for the 2D and 3D renderers.
  */
 export function createVillagerController(deps) {
@@ -24,11 +26,17 @@ export function createVillagerController(deps) {
   }
   const placementOf = (index) => state.villagers.find((p) => p.index === index) || null;
 
+  /** Placements at an exact (fractional) tick, so 3D figures walk smoothly between the whole-minute refreshes. */
+  function placementsAt(tickExact) {
+    return villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick: tickExact, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed });
+  }
+  state.placementsAt = placementsAt;
+
   /** Recomputes positions for the current tick and dread; returns true when anything visible changed. */
   function refresh() {
     const tick = deps.tickNow();
-    const next = villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed });
-    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.lantern ? 1 : 0}`).join('|');
+    const next = placementsAt(deps.tickExact ? deps.tickExact() : tick);
+    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.lantern ? 1 : 0}:${p.indoors ? 1 : 0}`).join('|');
     const changed = sig(next) !== sig(state.villagers);
     state.villagers = next;
     renderPanel(tick);
@@ -62,7 +70,8 @@ export function createVillagerController(deps) {
   function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
     $('villagerName').textContent = p.name;
-    $('villagerRole').textContent = tr(`villager.role.${p.roleId}`);
+    const story = deps.story ? deps.story() : null, v = story && story.roster[p.index], role = tr(`villager.role.${p.roleId}`);
+    $('villagerRole').textContent = v ? tr('villagerui.roleAt', { role, home: story.pieceName(v.homeIndex, deps.lang, v.name.split(' ').pop()) }) : role;
     $('villagerLine').textContent = line;
     const effect = [];
     if (result.yieldsClue) effect.push(tr('villagerui.effect.clue'));
@@ -99,6 +108,14 @@ export function createVillagerController(deps) {
     return result;
   }
 
+  /** What the villager says about the village (Core story gossip); a missing person told about is recorded in the chronicle. */
+  function villageLine(v, night, result) {
+    const story = deps.story(), nights = state.campaign ? state.campaign.nights.length : 5;
+    const g = story.gossipFor(v, night, stageOfNight(night, nights));
+    if (g.kind === GOSSIP_MISSING) deps.onGossip?.(story.missing[g.subject].id, g.stage);
+    return story.gossipText(g, v, night, tierFor(state.sanity.dread), deps.lang);
+  }
+
   /**
    * Chat with a villager (C key): a Core-chosen hint about what the vigil still needs. Changes no clue and no sanity, and asks no narrator.
    * Chatting again with the same villager moves on to the next topic. Returns the Core result, or null when nobody is there.
@@ -110,7 +127,10 @@ export function createVillagerController(deps) {
     if (night !== chatNight) { chatNight = night; chatCounts.clear(); } // topics restart each night, so the first chat of a night is always topic 0
     const topic = chatCounts.get(index) || 0, need = deps.chatNeeds();
     const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity);
-    const line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    let line;
+    if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
+    else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
+    else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
     if (result.available) chatCounts.set(index, topic + 1);
     openFor = result.available ? index : -1; cursor = index; talkId++;
     showDialog(p, result, line, result.hintId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');

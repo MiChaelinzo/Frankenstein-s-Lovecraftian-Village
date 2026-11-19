@@ -192,3 +192,23 @@ test('corruption kinds have meshes and their stand sites lie outside the village
     assert.ok(!(it.x > 0 && it.x < w && it.z > 0 && it.z < w), `${it.kind} inside the ${grid} grid`);
   }
 });
+
+// ---------- round 24: walking around trees ----------
+import { resolveCollisions } from '../src/view3d-math.js';
+
+test('a tree blocks only its trunk (round, 0.5 m with clearance) and the explorer slides around it', () => {
+  const [b] = dressingBoxes([{ kind: 'tree', x: 10, y: 0, z: 10, yaw: 0.7, scale: 1 }]);
+  assert.equal(b.round, true);
+  assert.ok(Math.abs((b.maxX - b.minX) / 2 - 0.5) < 1e-9);
+  let x = 10.1, z = 15;
+  for (let i = 0; i < 400 && z > 7; i++) ({ x, z } = resolveCollisions(x, z - 0.05, BODY_RADIUS, [b]));
+  assert.ok(z <= 7, `stuck at z=${z}`);
+});
+
+test('a walker started anywhere near a trunk never ends inside the trunk circle', () => {
+  const [b] = dressingBoxes([{ kind: 'tentacle_tree', x: 0, y: 0, z: 0, yaw: 0, scale: 1 }]);
+  for (const [sx, sz] of [[0, 0], [0.2, 0.1], [-0.5, 0.3]]) {
+    const p = resolveCollisions(sx, sz, BODY_RADIUS, [b]);
+    assert.ok(Math.hypot(p.x, p.z) >= 0.85 + BODY_RADIUS - 1e-9);
+  }
+});

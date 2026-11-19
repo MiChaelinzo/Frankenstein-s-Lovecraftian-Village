@@ -4,10 +4,10 @@ import { placeBooks, readBook, bookTitle, bookText, parseLoreLibrary } from './l
 import { esc } from './util.js';
 
 export const BOOK_PICK_HEIGHT = 0.25; // metres above the ground: the centre of the book prop for the view ray picker
-export const LORE_ID_RE = /^b\d{2}$/;
+export const LORE_ID_RE = /^[bjp]\d{2}$/; // b: found books, j: villager journals, p: missing person pages
 
 /**
- * deps: { $, tr, lang, state (seed, layout), gridW, gridD, announce(text), applyEffect(result, book), journal(text), exitPointerLock(), activeElement(), keyTarget, onChange() }
+ * deps: { $, tr, lang, state (seed, layout), gridW, gridD, announce(text), applyEffect(result, book), journal(text), story() -> the village story or null, exitPointerLock(), activeElement(), keyTarget, onChange() }
  */
 export function createLoreController(deps) {
   const { $, tr, state } = deps;
@@ -18,10 +18,18 @@ export function createLoreController(deps) {
   function setLibrary(json) { library = json ? parseLoreLibrary(json) : null; placedKey = ''; renderList(); }
   function ensure() {
     if (readSeed !== state.seed) { read.clear(); readSeed = state.seed; cursor = -1; } // books belong to one village: a new seed starts with none read
-    const key = `${state.seed}|${state.layout.length}|${library ? library.books.length : 0}`;
-    if (key !== placedKey) { placedKey = key; placed = library && state.layout.length ? placeBooks(state.seed, deps.gridW, deps.gridD, state.layout, library) : []; }
+    const story = deps.story ? deps.story() : null;
+    const key = `${state.seed}|${state.layout.length}|${library ? library.books.length : 0}|${story ? story.missing.map((m) => m.id).join('+') : ''}`;
+    if (key !== placedKey) { placedKey = key; placed = library && state.layout.length ? placeBooks(state.seed, deps.gridW, deps.gridD, state.layout, library, story) : []; }
     return placed;
   }
+  const titleOf = (b) => { const st = deps.story ? deps.story() : null; return st ? st.bookTitle(b, lang()) : bookTitle(b, lang()); };
+  const textOf = (b) => { const st = deps.story ? deps.story() : null; return st ? st.bookText(b, lang()) : bookText(b, lang()); };
+  const lockedText = (b, p) => {
+    const st = deps.story ? deps.story() : null, owner = st && p.place === 'journal' ? st.journalOwner(b) : -1;
+    if (owner >= 0) { const v = st.roster[owner]; return tr('lore.locked.journal', { home: st.pieceName(v.homeIndex, lang(), v.name.split(' ').pop()) }); }
+    return tr('lore.locked', { place: tr(`lore.place.${p.place}`) });
+  };
   const spot = (id) => ensure().find((p) => p.bookId === id) || null;
 
   /** 3D scene entries (metres) for the renderer, the view ray picker and the prompt. */
@@ -37,14 +45,14 @@ export function createLoreController(deps) {
     el.innerHTML = list.map((p) => {
       const b = library.find(p.bookId), place = esc(tr(`lore.place.${p.place}`));
       return read.has(p.bookId)
-        ? `<li><strong>${esc(bookTitle(b, lang()))}</strong> <em>${place}</em><p class="lore-text">${esc(bookText(b, lang()))}</p></li>`
-        : `<li class="locked"><strong>???</strong> ${esc(tr('lore.locked', { place: tr(`lore.place.${p.place}`) }))}</li>`;
+        ? `<li><strong>${esc(titleOf(b))}</strong> <em>${place}</em><p class="lore-text">${esc(textOf(b))}</p></li>`
+        : `<li class="locked"><strong>???</strong> ${esc(lockedText(b, p))}</li>`;
     }).join('');
   }
 
   function showDialog(book, result) {
-    $('loreTitle').textContent = bookTitle(book, lang());
-    $('loreText').textContent = bookText(book, lang());
+    $('loreTitle').textContent = titleOf(book);
+    $('loreText').textContent = textOf(book);
     const effect = [];
     if (result.yieldsClue) effect.push(tr('villagerui.effect.clue'));
     if (result.sanityDelta !== 0) effect.push(tr('villagerui.effect.sanity', { n: result.sanityDelta }));
@@ -64,11 +72,11 @@ export function createLoreController(deps) {
     if (result.firstRead) {
       read.add(id);
       deps.applyEffect(result, book); // clue and sanity first, from Core data only
-      deps.journal(tr('lore.journal', { title: bookTitle(book, lang()), place: tr(`lore.place.${p.place}`) }));
+      deps.journal(tr('lore.journal', { title: titleOf(book), place: tr(`lore.place.${p.place}`) }));
       renderList();
     }
     showDialog(book, result);
-    deps.announce(`${bookTitle(book, lang())}. ${bookText(book, lang())}`);
+    deps.announce(`${titleOf(book)}. ${textOf(book)}`);
     deps.onChange?.();
     return result;
   }
@@ -98,7 +106,7 @@ export function createLoreController(deps) {
   $('loreClose')?.addEventListener?.('click', close);
 
   return {
-    setLibrary, scene, markers, readById, readNext, close, isOpen, renderList,
+    setLibrary, library: () => library, readIds: () => new Set(read), scene, markers, readById, readNext, close, isOpen, renderList,
     get hasBooks() { return ensure().length > 0; },
     snapshot: () => { ensure(); return { lore: [...read] }; },
     restore(s) { ensure(); read.clear(); for (const id of (s && s.lore) || []) if (LORE_ID_RE.test(id)) read.add(id); renderList(); },

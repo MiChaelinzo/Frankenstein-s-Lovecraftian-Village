@@ -1,6 +1,6 @@
 // JS port of Core/VillagerRules.cs. Enums are the same integers as in C#. Wording lives in i18n.js (villager.*), never read by these rules.
 import { SeededRandom, sanitizeDread, tierFor, villagerTalkCountsAsClue, InteractionRules, VIGIL_STEADY_SANITY } from './core.js';
-import { phaseAt, isDaylight, lanternsLit } from './clock.js';
+import { phaseAt, isDaylight, lanternsLit, phaseStart, wrapTick } from './clock.js';
 
 export const ROLE_IDS = ['fisher', 'priest', 'innkeeper', 'lamplighter', 'lighthouse_keeper', 'widow', 'child'];
 export const DISPOSITION_NAMES = ['kind', 'wary', 'haunted', 'closed'];
@@ -92,6 +92,27 @@ export function locationAt(v, tick, dread) {
   }
 }
 
+// ---------- the living village (mirror of VillagerRules.StopAt and friends; walking and doors are in villager-view.js presenceAt) ----------
+export const STOP_NAMES = ['home', 'workplace', 'square', 'shore', 'inn', 'chapel', 'patrol'];
+const [STOP_INN, STOP_CHAPEL, STOP_PATROL] = [4, 5, 6];
+export const MARKET_START_MINUTE = 120, MARKET_END_MINUTE = 420; // minutes into the day phase: fisher, widow and child shop in the square
+const ROLE_FISHER = 0, ROLE_INNKEEPER = 2, ROLE_LAMPLIGHTER = 3, ROLE_KEEPER = 4, ROLE_WIDOW = 5, ROLE_CHILD = 6, ROLE_PRIEST = 1, PHASE_DAY = 1, PHASE_DUSK = 2, PHASE_NIGHT = 3;
+const ownerOf = (roster, role, fallback) => (roster && role < roster.length ? roster[role] : fallback);
+
+/** The stop a villager heads for at a whole tick: { kind, owner }. Only a Normal villager gathers (market by day, inn and chapel at dusk, lamplighter patrol at night). */
+export function stopAt(roster, v, tick, dread) {
+  const place = locationAt(v, tick, dread);
+  if (place.kind === GONE || behaviorAt(v, tick, dread) !== 0) return { kind: place.kind === GONE ? SQUARE : place.kind, owner: -1 };
+  const phase = phaseAt(tick), minute = wrapTick(tick) - phaseStart(phase);
+  if (phase === PHASE_DAY && minute >= MARKET_START_MINUTE && minute < MARKET_END_MINUTE && (v.role === ROLE_FISHER || v.role === ROLE_WIDOW || v.role === ROLE_CHILD)) return { kind: SQUARE, owner: -1 };
+  if (phase === PHASE_DUSK && (v.role === ROLE_FISHER || v.role === ROLE_KEEPER)) return { kind: STOP_INN, owner: ownerOf(roster, ROLE_INNKEEPER, v).index };
+  if (phase === PHASE_DUSK && v.role === ROLE_WIDOW) return { kind: STOP_CHAPEL, owner: ownerOf(roster, ROLE_PRIEST, v).index };
+  if (phase === PHASE_NIGHT && v.role === ROLE_LAMPLIGHTER) return { kind: STOP_PATROL, owner: -1 };
+  return { kind: place.kind, owner: -1 };
+}
+/** Place kind shown in the Who is where list for a stop kind (inn and chapel are workplaces, the patrol is the square). */
+export const placeOfStop = (kind) => (kind === STOP_INN || kind === STOP_CHAPEL ? WORKPLACE : kind === STOP_PATROL ? SQUARE : kind);
+
 /** Same shape as VillagerTalkResult in C#. No display text is read, so narrator or translated text cannot change it. */
 export function talk(seed, v, tick, dread, campaign, night) {
   const behavior = behaviorAt(v, tick, dread);
@@ -124,11 +145,11 @@ export function lineKey(v, behavior, lineVariant) {
 /** A villager's carried lantern burns from dusk until dawn; the lamplighter (role 3) always carries a lit one. Mirror of VillagerRules.CarriesLitLantern. */
 export const carriesLitLantern = (v, tick) => lanternsLit(tick) || v.role === 3;
 
-export const CHAT_TOPICS = 3;
+export const CHAT_TOPICS = 4; // clues, lanterns, sanity, village story (village-story.js gossipFor)
 const CHAT_SEEKING = ['clues_seek', 'lamps_light', 'sanity_low'], CHAT_DONE = ['clues_done', 'lamps_done', 'sanity_steady'];
 
 /**
- * Chat (the C key), mirror of VillagerRules.Chat: topic 0 clues, 1 lanterns, 2 sanity. Availability and behavior come from talk();
+ * Chat (the C key), mirror of VillagerRules.Chat: topic 0 clues, 1 lanterns, 2 sanity, 3 village story. Availability and behavior come from talk();
  * only a lucid (Normal) villager gives a hint, otherwise hintId is '' and the UI shows the usual talk line. No state changes.
  */
 export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity) {
@@ -137,6 +158,7 @@ export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, s
   if (!base.available) return result;
   result.lineVariant = new SeededRandom(seed ^ (v.index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).next(LINE_VARIANTS);
   if (base.behavior !== 0) return result;
+  if (t === 3) { result.hintId = 'village'; return result; }
   const needs = t === 0 ? cluesLeft > 0 : t === 1 ? lampsLeft > 0 : sanity < VIGIL_STEADY_SANITY;
   result.hintId = (needs ? CHAT_SEEKING : CHAT_DONE)[t];
   return result;

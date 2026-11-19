@@ -3,6 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -158,10 +159,11 @@ async function main() {
     rec('districts: the HUD chip names the quarter under the camera (en Market, fr Le Marche), another quarter at the corner, and the stats show the 36 by 36 city', out.en === 'Market' && out.fr === 'Le Marche' && !!out.corner && out.corner !== 'market' && /36/.test(out.stats || ''), out);
   };
 
-  /** Landmarks (round 23): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
+  /** Landmarks (rounds 23 and 24: ten places, including the standing stones, the hidden cove, the ritual site and the catacombs): the HUD chip names each landmark of the wider world under the 3D camera in English and French (seed 1818), the camera is allowed out to them and the renderer runs without a warning. LANDMARK_ONLY=1 runs only this. */
   const landmarkRun = async () => {
-    const spots = [['cliffs', '148.5,-6', 'Lighthouse Cliffs', 'Falaises du phare'], ['shipwreck', '148.5,172', 'Wreck of the Marguerite', 'Epave de la Marguerite'], ['abbey', '86.4,170', 'Abbey Ruins', "Ruines de l'abbaye"],
-      ['cemetery', '-12,49', 'The Cemetery', 'Le cimetiere'], ['marsh', '148.5,150', 'The Black Marsh', 'Le marais noir'], ['grove', '-4,122.4', 'The Cursed Grove', 'Le bosquet maudit']];
+    const spots = [['cliffs', '148.5,-6', 'Saltwind Heights', 'Les Hauteurs de Ventsel'], ['shipwreck', '148.5,172', 'Wreck of the Drowned Gull', 'Epave de la Mouette Noyee'], ['abbey', '86.4,170', 'Abbey of St. Velor', 'Abbaye de Saint-Velor'],
+      ['cemetery', '-12,49', "Harrow's Rest", 'Le Repos de Harrow'], ['marsh', '148.5,150', 'The Lantern Fen', 'Les Fanges de la Lanterne'], ['grove', '-4,122.4', 'Thornwick Grove', 'Bosquet de Ronceval'],
+      ['standing_stones', '-52,93.6', 'The Standing Stones', 'Les pierres dressees'], ['hidden_cove', '148,-44', 'The Hidden Cove', 'La crique cachee'], ['ritual_site', '-52,14.4', 'The Ritual Site', 'Le lieu du rituel'], ['catacombs', '-27,83.4', 'The Forty Fourth Door', 'La Quarante-Quatrieme Porte']];
     const out = {}; warns.length = 0;
     for (const [id, cam, en, fr] of spots) for (const [lang, want] of [['en', en], ['fr', fr]]) {
       await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${cam},0,0#seed=1818&sanity=80`);
@@ -171,6 +173,100 @@ async function main() {
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
   };
 
+  /** Lighthouse and held lantern (round 24): at night the lighthouse beam is drawn on High and Medium, but not on Low, not with reduced motion and not in daylight (those keep the static lamp glow), and the held lantern is drawn (and absent in the fly-through). LIGHTHOUSE_ONLY=1 runs only this. */
+  const lighthouseRun = async () => {
+    const out = {};
+    const hudFor = async (query) => { await send('Page.navigate', { url: 'about:blank' }); await sleep(300); await nav(`?intro=0&view=3d&perf=1&fixscale=1&capture=1&caption=0&${query}#seed=1818&sanity=80&cam3d=122,22,55,8`); return until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000).catch(() => ''); };
+    out.high = await hudFor('quality=high&tick=1250'); out.low = await hudFor('quality=low&tick=1250'); out.reduced = await hudFor('quality=high&tick=1250&reduced=1'); out.day = await hudFor('quality=high&tick=540');
+    rec('lighthouse: the beam is drawn at night on High, not on Low, not with reduced motion and not by day; the held lantern is drawn', / beam /.test(out.high) && /no beam/.test(out.low) && /no beam/.test(out.reduced) && /no beam/.test(out.day) && /held lantern/.test(out.high) && warns.length === 0, out);
+  };
+
+  /** Names (round 24): the 3D door prompt shows the seeded name of the house in front of the explorer (seed 1818, en and fr) and never a raw id like house_a. NAMES_ONLY=1 runs only this; NAMES_SHOT=<file.png> also saves the English frame. */
+  const namesRun = async () => {
+    const { lanternLights } = await import('../web/src/view3d-math.js');
+    const { PrefabCatalog, SeededRandom } = await import('../web/src/core.js');
+    const { generateCityLayout } = await import('../web/src/districts.js');
+    const { parseNameLibrary, assignNames } = await import('../web/src/names.js');
+    const catalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
+    const lib = parseNameLibrary(readFileSync(new URL('../web/data/names.json', import.meta.url), 'utf8'));
+    const layout = generateCityLayout(catalog, 36, 36, 180, 1818), names = assignNames(lib, 1818, 36, 36, layout);
+    layout.forEach((p, i) => { const r = new SeededRandom(1818 * 31 + i * 7919 + 1); p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 }; });
+    const porch = (p) => lanternLights([{ ...p, detail: 3 }], 4).find((l) => !l.post);
+    const index = layout.findIndex((p) => (p.id === 'house_a' || p.id === 'house_b') && (p.facing | 0) === 0 && porch(p));
+    const light = porch(layout[index]), stand = `${light.pos[0].toFixed(2)},${(light.pos[2] + 2.5).toFixed(2)}`, out = { index, stand };
+    for (const [lang, head, name] of [['en', 'Try the door of ', names[index].en], ['fr', 'Essayer la porte de ', names[index].fr]]) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&view=3d&lang=${lang}#seed=1818&sanity=100&cam3d=${stand},0,0`);
+      await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
+      out[lang] = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`); if (!v) await hold('w', 'KeyW', 60); return v; }, 40000).catch(() => null);
+      out[`${lang}.want`] = head + name;
+      if (process.env.NAMES_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NAMES_SHOT, Buffer.from(await capture(), 'base64')); } // optional still of the named prompt
+    }
+    rec('names: the 3D door prompt shows the seeded building name in English and French, never a raw id', out.en === out['en.want'] && out.fr === out['fr.want'] && !/house_[ab]/.test(`${out.en}${out.fr}`), out);
+  };
+
+  /** Narrative (round 24): ?chronicle=1 opens the Village chronicle with families and their houses, three missing persons, five district histories and ten legends in English and French, and the lore list holds seven locked journals at the villagers' houses. NARRATIVE_ONLY=1 runs only this; NARRATIVE_SHOT=<file.png> saves the English frame. */
+  const narrativeRun = async () => {
+    const out = {};
+    for (const lang of ['en', 'fr']) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&chronicle=1&lang=${lang}&capture=1&tick=1100#seed=1818&sanity=60`);
+      out[lang] = await until(async () => { const v = await ev(`(()=>{const b=document.getElementById('chronicleBody');if(!b||document.getElementById('chroniclePanel').hidden)return null;const n=(q)=>b.querySelectorAll(q).length;return {missing:n('[data-missing]'),families:n('[data-family]'),districts:n('[data-district]'),legends:n('[data-legend]'),rumor:(b.querySelector('.chronicle-rumor')||{}).textContent||'',raw:b.textContent.includes('{'),journals:document.querySelectorAll('#loreList li.locked').length,journalLocked:[...document.querySelectorAll('#loreList li.locked')].filter((li)=>/${lang === 'en' ? 'journal waits at' : 'journal attend a'}/.test(li.textContent)).length}})()`); return v && v.missing ? v : null; }, 40000).catch(() => null);
+      if (process.env.NARRATIVE_SHOT && lang === 'en' && out.en) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.NARRATIVE_SHOT, Buffer.from(await capture(), 'base64')); }
+    }
+    const ok = (o) => o && o.missing === 3 && o.families >= 5 && o.districts === 5 && o.legends === 10 && o.rumor.length > 20 && !/  /.test(o.rumor) && !o.raw && o.journalLocked === 7;
+    rec('narrative: the chronicle lists families, 3 missing persons, 5 district histories, 10 legends and a rumor, and the lore list has 7 journals, in English and French', ok(out.en) && ok(out.fr) && out.en.rumor !== out.fr.rumor, out);
+  };
+
+  /** Clock sky (round 23): the 3D sky by day, dusk and night from the open market square (pitched up so the sampled top rows are sky, not a house wall). SKY_ONLY=1 runs only this. */
+  const skyRun = async () => {
+    const skyAt = async (tick) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
+      await nav(`?intro=0&view=3d&capture=1&grain=0&weather=clear&tick=${tick}#seed=1818&sanity=100&cam3d=74.5,74.5,180,40`); await sleep(1500);
+      return ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,Math.max(1,Math.floor(c.height*0.3))).data;let r=0,gg=0,b=0,n=0;for(let i=0;i<d.length;i+=4*13){r+=d[i];gg+=d[i+1];b+=d[i+2];n++}n=Math.max(1,n);return {r:Math.round(r/n),g:Math.round(gg/n),b:Math.round(b/n),chip:document.getElementById('clockChipText').textContent,phase:document.getElementById('clockChip').getAttribute('data-phase'),lanterns:!document.getElementById('clockLanterns').hidden,hint:!document.getElementById('clockHint').hidden}})()`);
+    };
+    const skyDay = await skyAt(540), skyDusk = await skyAt(960), skyNight = await skyAt(1200);
+    const L = (p) => 0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
+    rec('clock: the 3D sky is measurably brighter by day than at night (sampled pixels)', L(skyDay) > L(skyNight) + 30, { day: skyDay, night: skyNight });
+    rec('clock: the dusk sky is warmer than the day and the night sky', (skyDusk.r - skyDusk.b) > (skyDay.r - skyDay.b) && (skyDusk.r - skyDusk.b) > (skyNight.r - skyNight.b), { dusk: skyDusk });
+    rec('clock: the HUD chip shows day, time and phase, lanterns only after dusk, and no hint in captures', skyDay.chip === 'Day 1, 13:00, day' && skyDay.phase === 'day' && !skyDay.lanterns && skyNight.chip === 'Day 1, 00:00, night' && skyNight.phase === 'night' && skyNight.lanterns && !skyDay.hint, { day: skyDay.chip, night: skyNight.chip });
+  };
+
+  /** 3D cinematic: the flythrough changes frames over 2.5 s with a caption. CINEMA_ONLY=1 runs only this. */
+  const cinemaRun = async () => {
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
+    await until(() => ev(`!!document.getElementById('cinemaCaption') && !document.getElementById('cinemaCaption').hidden`), 20000); // the 36 by 36 city can take longer than the 2.5 s nav wait to build under load
+    // the caption and view are read before the screenshots: on SwiftShader a full page capture of the 36 by 36 city takes about 14 s, so the whole night 1 timeline can end (and hide the caption, as designed) before the second shot returns
+    const capShown = !(await hidden('cinemaCaption')), viewShown = !(await hidden('view3d')), capText = (await text('cinemaCaption')).slice(0, 80);
+    const tc0 = Date.now(); const ca = await shotHash(); await sleep(2500); const cb = await shotHash(); const cineMs = Date.now() - tc0;
+    rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && capShown && viewShown && capText.length > 5, { before: ca, after: cb, elapsedMs: cineMs, capShown, viewShown, caption: capText });
+  };
+
+  /** Villagers (round 24): the 3D view really draws the named villagers in the Old Town square by day, at dusk and at night (the perf HUD counts the figures in the villager buffer). VILLAGER_ONLY=1 runs only this. */
+  const villagerRun = async () => {
+    const seen = {};
+    for (const [label, tick] of [['day', 400], ['dusk', 1070], ['night', 1250]]) {
+      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=low&tick=${tick}&cam3d=74,92,180,0#seed=1818&sanity=100`);
+      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
+      seen[label] = Number((/(\d+) villagers/.exec(hud || '') || [])[1] || 0);
+    }
+    rec('villagers: seed 1818 draws named villagers in 3D by day, at dusk and at night (perf HUD villager count above zero, most at dusk)', seen.day >= 1 && seen.dusk >= 3 && seen.night >= 1, seen);
+  };
+
+  /** Collision (round 24): walking straight at a tree trunk (seed 1818 city, tree at 37.97, 60.00, the only tree with a clear corridor) slides around it and ends well past it instead of stopping. COLLISION_ONLY=1 runs only this. */
+  const collisionRun = async () => {
+    const TREE = { x: 37.97, z: 60.0 }, camOf = async () => { const [x, z] = String(await ev(`document.getElementById('districtChip').getAttribute('data-cam')||''`)).split(',').map(Number); return { x, z }; };
+    await nav(`?intro=0&view=3d&quality=low&fixscale=1&cam3d=${TREE.x + 0.1},${TREE.z + 4.5},0,0#seed=1818&sanity=100`);
+    await until(() => camOf().then((c) => Number.isFinite(c.z) && c), 60000);
+    const start = await camOf();
+    // SwiftShader draws few frames per second and the step is capped at 0.1 s, so walking is slow here: keep walking (up to 60 s) until past the tree
+    let end = start;
+    for (let i = 0; i < 12 && !(end.z < TREE.z - 0.8); i++) { await hold('w', 'KeyW', 5000); await sleep(1100); end = await camOf(); }
+    const passed = end.z < TREE.z - 0.8, clearOfTrunk = Math.hypot(end.x - TREE.x, end.z - TREE.z) > 0.5 + 0.45 - 1e-3;
+    rec('collision: walking straight at a tree trunk slides around it and ends past it (not stopped at the trunk)', Number.isFinite(end.z) && passed && clearOfTrunk, { tree: TREE, start, end });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -178,8 +274,20 @@ async function main() {
     if (process.env.TIER_ONLY) { await tierTimingRun(); break suite; }
     if (process.env.LOOK_ONLY) { await lookRun(); break suite; }
     if (process.env.QUALITY_ONLY) { await qualityRun(); break suite; }
+    if (process.env.PROBE_URLS) { // PROBE_URLS="q1|q2" saves a screenshot of each query to $PROBE_DIR/probe_N.png (default the system temp dir) for visual diagnosis
+      const { writeFileSync } = await import('node:fs');
+      let n = 0; for (const q of process.env.PROBE_URLS.split('|')) { await send('Page.navigate', { url: 'about:blank' }); await sleep(200); await nav(q); await sleep(1500); writeFileSync(join(process.env.PROBE_DIR || tmpdir(), `probe_${n++}.png`), Buffer.from(await capture(), 'base64')); }
+      break suite;
+    }
+    if (process.env.SKY_ONLY) { await skyRun(); break suite; }
+    if (process.env.CINEMA_ONLY) { for (let i = 0; i < 2; i++) await cinemaRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
+    if (process.env.LIGHTHOUSE_ONLY) { await lighthouseRun(); break suite; }
+    if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
+    if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
+    if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
+    if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -250,25 +358,33 @@ async function main() {
     await special('Escape', 27, undefined); await sleep(400);
     rec('3d: second Escape returns to the 2D view', await hidden('view3d'), {});
 
-    // 3D cinematic
-    await nav('?intro=0&view=3d&cinematic=1#seed=7272&sanity=70');
-    const ca = await shotHash(); await sleep(2500); const cb = await shotHash();
-    rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && !(await hidden('cinemaCaption')) && !(await hidden('view3d')), { before: ca, after: cb, caption: (await text('cinemaCaption')).slice(0, 80) });
+    await cinemaRun();
     await special('Escape', 27, undefined); await sleep(400);
 
-    // 3D: stand 2.5 m south of the house_b at layout cell (7, 16) of seed 1818 (two storey, door faces south) facing it, then interact with the door (E; a click would first take the pointer lock)
-    await nav('?intro=0&view=3d#seed=1818&sanity=100&cam3d=34,75,0,0');
+    // 3D: stand 2.5 m in front of a south facing house door of the 36 by 36 city (seed 1818, derived from the city layout and the Core lantern positions) facing it, then interact with the door (E; a click would first take the pointer lock)
+    const { generateCityLayout } = await import('../web/src/districts.js');
+    const { lanternLights } = await import('../web/src/view3d-math.js');
+    const { SeededRandom, PrefabCatalog } = await import('../web/src/core.js');
+    const cityCatalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
+    const cityLayout = generateCityLayout(cityCatalog, 36, 36, 180, 1818);
+    cityLayout.forEach((p, i) => { const r = new SeededRandom(1818 * 31 + i * 7919 + 1); p.vis = { h: r.next(100) / 100, tilt: r.next(100) / 100, lit: r.next(100) / 100, phase: r.next(1000), lit2: r.next(100) / 100 }; });
+    const doorHouses = cityLayout.filter((p) => (p.id === 'house_a' || p.id === 'house_b') && (p.facing | 0) === 0);
+    const porch = (p) => lanternLights([{ ...p, detail: 3 }], 4).find((l) => !l.post);
+    const doorHouse = doorHouses.find((p) => porch(p)) || doorHouses[0];
+    const doorX = porch(doorHouse).pos[0], doorZ = porch(doorHouse).pos[2]; // porch light hangs 0.5 m in front of the door wall
+    const stand = `${doorX.toFixed(2)},${(doorZ + 2.5).toFixed(2)}`;
+    await nav(`?intro=0&view=3d#seed=1818&sanity=100&cam3d=${stand},0,0`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300); // a small step makes the view refresh its prompt
-    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const readPrompt = () => ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`);
     const promptText = await until(async () => { const v = await readPrompt(); if (!v) await hold('w', 'KeyW', 60); return v; });
     const j0 = await ev(`document.getElementById('whispers').children.length`);
     if (promptText) { await key('e'); await sleep(500); }
     const j1 = await ev(`document.getElementById('whispers').children.length`);
     // 3D vigil: the same spot looking up at the door lantern; E lights it once, restoring sanity and counting the lamp
     await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
-    await nav('?intro=0&view=3d#seed=1818&sanity=70&cam3d=86,75,0,14');
+    await nav(`?intro=0&view=3d#seed=1818&sanity=70&cam3d=${stand},0,14`);
     await sleep(600); await hold('w', 'KeyW', 150); await sleep(300);
-    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`);
+    const lampPrompt = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`);
     const ls0 = Number(await text('sanityOut'));
     await key('e'); await sleep(900);
     const ls1 = Number(await text('sanityOut')), lobj = await text('objectiveText');
@@ -276,7 +392,7 @@ async function main() {
     const ls2 = Number(await text('sanityOut'));
     rec('3d vigil: looking up at a door lantern, E lights it once and restores sanity', lampPrompt === 'Light the lantern' && ls1 > ls0 && ls2 <= ls1 && /lanterns lit 1\/3/.test(lobj), { lampPrompt, ls0, ls1, ls2, lobj });
     // Scale: standing at the door (eye 1.6 m, level gaze) the 2.0 m door top must project above the screen centre, and the 0 m threshold below it.
-    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:34,y:s.eye,z:75,yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[34,w.DOOR_HEIGHT,72.5]),foot=m.projectPoint(vp,[34,0,72.5]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
+    const doorNdc = await ev(`(async()=>{const m=await import('./src/view3d-math.js'),w=await import('./src/world-scale.js');const s=m.sanitizeViewSettings(JSON.parse(localStorage.getItem(m.VIEW_SETTINGS_KEY)||'null'));const cam={x:${doorX},y:s.eye,z:${doorZ + 2.5},yaw:0,pitch:0},vp=m.viewProjection(cam,16/9,m.fovRadians(s.fovDeg));const top=m.projectPoint(vp,[${doorX},w.DOOR_HEIGHT,${doorZ}]),foot=m.projectPoint(vp,[${doorX},0,${doorZ}]);return JSON.stringify({eye:s.eye,top:top&&(top.y??top[1]),foot:foot&&(foot.y??foot[1])})})()`);
     const dn = JSON.parse(doorNdc || '{}');
     rec('scale: a 2.0 m door top projects above the screen centre when looking level, its foot below', dn.top > 0.05 && dn.foot < -0.05, dn);
     rec('3d: facing a house door shows a prompt and E on the door adds a journal entry', /^Try the door/.test(promptText) && j1 > j0, { prompt: promptText, entriesBefore: j0, entriesAfter: j1 });
@@ -329,6 +445,8 @@ async function main() {
     await qualityRun();
     await districtRun();
     await landmarkRun();
+    await namesRun();
+    await narrativeRun();
 
     // pointer-lock fallback last: the injected script persists for later navigations
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'Element.prototype.requestPointerLock=undefined;' });
@@ -529,13 +647,12 @@ async function main() {
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
 
     // villagers: present in 2D (list, minimap, canvas) and 3D, talk by keyboard, effect equal with an unreachable ?narrator, no console errors
-    const { generateLayout, PrefabCatalog } = await import('../web/src/core.js');
     const { generateRoster } = await import('../web/src/villagers.js');
     const { villagerPlacements } = await import('../web/src/villager-view.js');
     const vCatalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../web/data/village_catalog.json', import.meta.url))).entries);
-    const vLayout = generateLayout(vCatalog, 24, 24, 80, 1818), vRoster = generateRoster(1818, vLayout);
+    const vLayout = generateCityLayout(vCatalog, 36, 36, 180, 1818), vRoster = generateRoster(1818, vLayout);
     const VTICK = 900; // dusk: the fisher and the lamplighter stand in the square
-    const vPlaced = villagerPlacements({ roster: vRoster, layout: vLayout, tick: VTICK, dread: 0, gridW: 24, gridD: 24, seed: 1818 });
+    const vPlaced = villagerPlacements({ roster: vRoster, layout: vLayout, tick: VTICK, dread: 0, gridW: 36, gridD: 36, seed: 1818 });
     const vFront = vPlaced.find((p) => p.placeName === 'square');
     const vList = () => ev(`document.querySelectorAll('#villagerList li').length`);
     const talkRound = async (query) => {
@@ -560,9 +677,10 @@ async function main() {
     rec('villagers narrator: an unreachable ?narrator gives the same line and the same sanity change as no narrator', withBad.open.line === plain.open.line && withBad.open.effect === plain.open.effect && (withBad.s1 - withBad.s0) === (plain.s1 - plain.s0), { plain: [plain.s0, plain.s1, plain.open.effect], bad: [withBad.s0, withBad.s1, withBad.open.effect] });
     rec('villagers 2D: the effect text agrees with the sanity change', (() => { const m = /Sanity (-?\d+)/.exec(plain.open.effect); return m ? Number(m[1]) === plain.s1 - plain.s0 : plain.s1 === plain.s0; })(), { effect: plain.open.effect, s0: plain.s0, s1: plain.s1 });
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-    await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await sleep(500);
+    await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await until(async () => (await vList()) > 0, 20000).catch(() => null); await sleep(500);
     const pix = await ev(`(()=>{const c=document.getElementById('view'),g=c.getContext('2d');const m=document.getElementById('minimap').getContext('2d');const count=(ctx,w,h,f)=>{const d=ctx.getImageData(0,0,w,h).data;let n=0;for(let i=0;i<d.length;i+=4)if(f(d[i],d[i+1],d[i+2]))n++;return n};return {map:count(m,168,168,(r,gg,b)=>r>235&&gg>225&&b>190&&b<215), list:document.querySelectorAll('#villagerList li').length}})()`);
-    rec('villagers 2D: minimap shows villager markers', pix.map > 20, pix);
+    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so the count only has to show every one of the seven villagers
+    rec('villagers 2D: minimap shows villager markers', pix.map >= pix.list * 2 && pix.list === 7, pix);
     // click on a villager in the 2D canvas opens the dialogue
     const vClick = await ev(`(()=>{const c=document.getElementById('view');return c.getBoundingClientRect().toJSON()})()`);
     // 3D: stand 2.5 m south of the square villager, facing north
@@ -571,7 +689,7 @@ async function main() {
     await nav(`?intro=0&view=3d&tick=${VTICK}#seed=1818&sanity=100&cam3d=${vx.toFixed(2)},${(vz + 2).toFixed(2)},0,-8`);
     await sleep(600); await hold('w', 'KeyW', 60); await sleep(300);
     await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<120)requestAnimationFrame(t)})(performance.now())`);
-    const vPrompt = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return p.hidden?'':p.textContent})()`); if (!v) await hold('s', 'KeyS', 40); return v; });
+    const vPrompt = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`); if (!v) await hold('s', 'KeyS', 40); return v; });
     rec('villagers 3D: a villager stands in front of the camera and shows a Talk prompt', /^Talk to /.test(vPrompt), { vPrompt, at: [vx, vz], who: vFront.name });
     const sv0 = Number(await text('sanityOut'));
     await key('e'); await sleep(500);
@@ -590,16 +708,7 @@ async function main() {
     rec('villagers 3D: talking applied the Core sanity effect', sv1 <= sv0, { sv0, sv1 });
 
     // ---- the clock: phases change the 3D sky, the HUD chip, lanterns and the vigil (Core VigilRules watch and dawn) ----
-    const skyAt = async (tick) => {
-      await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
-      await nav(`?intro=0&view=3d&capture=1&grain=0&weather=clear&tick=${tick}#seed=1818&sanity=100&cam3d=34,75,180,25`); await sleep(1500);
-      return ev(`(()=>{const c=document.getElementById('view3d'),o=document.createElement('canvas');o.width=c.width;o.height=c.height;const g=o.getContext('2d');g.drawImage(c,0,0);const d=g.getImageData(0,0,c.width,Math.max(1,Math.floor(c.height*0.3))).data;let r=0,gg=0,b=0,n=0;for(let i=0;i<d.length;i+=4*13){r+=d[i];gg+=d[i+1];b+=d[i+2];n++}n=Math.max(1,n);return {r:Math.round(r/n),g:Math.round(gg/n),b:Math.round(b/n),chip:document.getElementById('clockChipText').textContent,phase:document.getElementById('clockChip').getAttribute('data-phase'),lanterns:!document.getElementById('clockLanterns').hidden,hint:!document.getElementById('clockHint').hidden}})()`);
-    };
-    const skyDay = await skyAt(540), skyDusk = await skyAt(960), skyNight = await skyAt(1200);
-    const L = (p) => 0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
-    rec('clock: the 3D sky is measurably brighter by day than at night (sampled pixels)', L(skyDay) > L(skyNight) + 30, { day: skyDay, night: skyNight });
-    rec('clock: the dusk sky is warmer than the day and the night sky', (skyDusk.r - skyDusk.b) > (skyDay.r - skyDay.b) && (skyDusk.r - skyDusk.b) > (skyNight.r - skyNight.b), { dusk: skyDusk });
-    rec('clock: the HUD chip shows day, time and phase, lanterns only after dusk, and no hint in captures', skyDay.chip === 'Day 1, 13:00, day' && skyDay.phase === 'day' && !skyDay.lanterns && skyNight.chip === 'Day 1, 00:00, night' && skyNight.phase === 'night' && skyNight.lanterns && !skyDay.hint, { day: skyDay.chip, night: skyNight.chip });
+    await skyRun();
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&reduced=1#seed=1818&sanity=100'); await sleep(400);
     const chipA = await text('clockChipText'); await sleep(2600); const chipB = await text('clockChipText');

@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Frankenstein.Core.Tests
 {
-    /// <summary>The wider world: six landmarks, lit paths, props, the church rise and the lore books at the landmarks.</summary>
+    /// <summary>The wider world: ten landmarks, lit paths, props, the church rise and the lore books at the landmarks.</summary>
     public class VillageLandmarksTests
     {
         private static readonly int[] Seeds = { 1, 7, 42, -7, 1818, 99999, 123456789, 2024 };
@@ -38,7 +38,7 @@ namespace Frankenstein.Core.Tests
         [Fact]
         public void Six_named_landmarks_in_a_fixed_order_with_both_languages_and_a_deterministic_world()
         {
-            Assert.Equal(new[] { "cliffs", "shipwreck", "abbey", "cemetery", "marsh", "grove" }, VillageLandmarks.Ids);
+            Assert.Equal(new[] { "cliffs", "shipwreck", "abbey", "cemetery", "marsh", "grove", "standing_stones", "hidden_cove", "ritual_site", "catacombs" }, VillageLandmarks.Ids);
             foreach (var id in VillageLandmarks.Ids) { Assert.NotEmpty(VillageLandmarks.Name(id, "en")); Assert.NotEmpty(VillageLandmarks.Name(id, "fr")); Assert.NotEqual(VillageLandmarks.Name(id, "en"), VillageLandmarks.Name(id, "fr")); }
             Assert.Equal("", VillageLandmarks.Name("nowhere", "en"));
             foreach (int seed in Seeds)
@@ -114,6 +114,72 @@ namespace Frankenstein.Core.Tests
                             bool apart = Math.Abs(solids[i].X - solids[j].X) >= ax + bx - 1e-9 || Math.Abs(solids[i].Z - solids[j].Z) >= az + bz - 1e-9;
                             Assert.True(apart, $"{solids[i].Kind} and {solids[j].Kind} overlap, seed {seed} grid {grid}");
                         }
+                }
+        }
+
+        [Fact]
+        public void The_round_24_places_are_named_reachable_and_hold_their_props_inside_their_radius()
+        {
+            var wild = new[] { VillageLandmarks.StandingStones, VillageLandmarks.HiddenCove, VillageLandmarks.RitualSite, VillageLandmarks.Catacombs };
+            var kinds = new Dictionary<string, string[]>
+            {
+                { VillageLandmarks.StandingStones, new[] { "standing_stone" } },
+                { VillageLandmarks.HiddenCove, new[] { "boat", "barrel", "crate_stack", "rope_coil" } },
+                { VillageLandmarks.RitualSite, new[] { "ritual_circle", "stump", "fungus_cluster", "tentacle_sapling" } },
+                { VillageLandmarks.Catacombs, new[] { "catacomb_gate", "gravestone_cross", "gravestone" } },
+            };
+            foreach (int seed in Seeds)
+                foreach (int grid in Grids)
+                {
+                    var all = VillageLandmarks.All(seed, grid, grid);
+                    var items = VillageLandmarks.Dressing(seed, grid, grid);
+                    var solids = items.Where(it => VillageDressing.TryCollisionHalfExtents(it, out double a, out double b)).ToList();
+                    foreach (var id in wild)
+                    {
+                        var land = all.First(l => l.Id == id);
+                        Assert.NotEmpty(VillageLandmarks.Name(id, "en"));
+                        Assert.NotEqual(VillageLandmarks.Name(id, "en"), VillageLandmarks.Name(id, "fr"));
+                        foreach (var it in items.Where(i => kinds[id].Contains(i.Kind)))
+                        {
+                            double d = Math.Sqrt(Math.Pow(it.X - land.X, 2) + Math.Pow(it.Z - land.Z, 2));
+                            Assert.True(d <= land.Radius, $"{it.Kind} stands {d:F1} m from {id}, radius {land.Radius}, seed {seed} grid {grid}");
+                        }
+                        foreach (var k in kinds[id]) Assert.Contains(items, it => it.Kind == k);
+                        // the centre can be walked to: no solid prop covers it
+                        foreach (var it in solids)
+                        {
+                            VillageDressing.TryCollisionHalfExtents(it, out double hx, out double hz);
+                            Assert.False(Math.Abs(land.X - it.X) < hx + WorldScale.BodyRadius && Math.Abs(land.Z - it.Z) < hz + WorldScale.BodyRadius, $"the centre of {id} is blocked by a {it.Kind}, seed {seed} grid {grid}");
+                        }
+                    }
+                    var cove = all.First(l => l.Id == VillageLandmarks.HiddenCove);
+                    Assert.Equal(2, items.Count(it => it.Kind == "cliff_rock" && Math.Sqrt(Math.Pow(it.X - cove.X, 2) + Math.Pow(it.Z - cove.Z, 2)) <= cove.Radius)); // the two rocks that screen the cove (the sea stacks lie far off)
+                    Assert.Equal(7, items.Count(it => it.Kind == "standing_stone"));
+                    Assert.Equal(5, items.Count(it => it.Kind == "stump"));
+                    Assert.Single(items, it => it.Kind == "catacomb_gate");
+                }
+        }
+
+        [Fact]
+        public void The_round_24_places_hold_a_lore_book_with_a_clue_each_on_free_ground()
+        {
+            var lib = LoreLibrary.Parse(File.ReadAllText(Path.Combine(Root(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "lore_books.json")));
+            foreach (var place in new[] { "standing_stones", "hidden_cove", "ritual_site", "catacombs" })
+            {
+                Assert.True(lib.Books.Count(b => b.Place == place) >= 2, place);
+                Assert.Contains(lib.Books, b => b.Place == place && b.Clue);
+            }
+            foreach (int seed in Seeds)
+                foreach (int grid in Grids)
+                {
+                    var books = LoreBookRules.Place(seed, grid, grid, Layout(seed, grid), lib);
+                    foreach (var place in new[] { "standing_stones", "hidden_cove", "ritual_site", "catacombs" })
+                    {
+                        var at = books.Where(b => b.Place == place).ToList();
+                        Assert.Single(at);
+                        var land = VillageLandmarks.All(seed, grid, grid).First(l => l.Id == place);
+                        Assert.True(Math.Sqrt(Math.Pow(at[0].X - land.X, 2) + Math.Pow(at[0].Z - land.Z, 2)) <= land.Radius, $"{place} book outside its place, seed {seed} grid {grid}");
+                    }
                 }
         }
 
@@ -203,6 +269,25 @@ namespace Frankenstein.Core.Tests
                         Assert.Equal(place, lib.Find(at[0].BookId).Place);
                     }
                 }
+        }
+
+        [Fact]
+        public void Lighthouse_beam_turns_once_per_period_and_is_deterministic()
+        {
+            foreach (int seed in Seeds)
+            {
+                Assert.Equal(LighthouseBeam.Yaw(seed, 3.7), LighthouseBeam.Yaw(seed, 3.7));
+                Assert.Equal(LighthouseBeam.Yaw(seed, 0), LighthouseBeam.Phase(seed), 12);
+                Assert.Equal(LighthouseBeam.Yaw(seed, 5.0), LighthouseBeam.Yaw(seed, 5.0 + LighthouseBeam.PeriodSeconds), 9);
+                Assert.Equal(Math.PI, (LighthouseBeam.Yaw(seed, LighthouseBeam.PeriodSeconds / 2) - LighthouseBeam.Yaw(seed, 0) + 2 * Math.PI) % (2 * Math.PI), 9);
+                foreach (double t in new[] { 0, 1.25, 7.5, 16, 123.4, 99999.9 }) Assert.InRange(LighthouseBeam.Yaw(seed, t), 0, 2 * Math.PI);
+                foreach (int grid in Grids)
+                {
+                    LighthouseBeam.Site(seed, grid, grid, out double x, out double z);
+                    VillageDressing.WalkBounds(seed, grid, grid, out double minX, out double maxX, out double minZ, out double maxZ);
+                    Assert.True(x > minX - 20 && x < maxX + 20 && z > minZ - 20 && z < maxZ + 20, $"lighthouse near the village, seed {seed} grid {grid}");
+                }
+            }
         }
     }
 }

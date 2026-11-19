@@ -32,6 +32,7 @@ const FOOTPRINTS = {
   tentacle_tree: [1.4, 1.62, 4.85, true], tentacle_sapling: [0.6, 0.75, 2.4, false], fungus_tall: [0.97, 0.78, 2.64, false], fungus_cluster: [0.58, 0.47, 0.58, false],
   fungus_shelf: [0.74, 0.61, 0.87, false], spire_horn: [1.01, 0.48, 4.85, true], spire_ribbed: [0.97, 0.7, 5.95, true],
   cliff_rock: [5.0, 4.48, 8.0, true], shipwreck: [5.13, 1.6, 5.5, true], abbey_arch: [2.49, 1.085, 5.6, false], abbey_wall: [2.6, 0.715, 3.6, true], abbey_pillar: [1.025, 0.825, 3.25, true],
+  standing_stone: [0.65, 0.59, 3.58, true], ritual_circle: [3.2, 3.2, 0.11, false], catacomb_gate: [2.6, 1.81, 2.9, true],
   marsh_pool: [3.0, 2.85, 0.09, false], path_stone: [0.48, 0.36, 0.09, false], church_nave: [3.0, 5.9, 7.4, true], church_tower: [1.9, 1.9, 18.0, true],
 };
 /** Half extents at yaw 0, height and whether the kind blocks walking. Lamps (and unknown kinds) do not block. */
@@ -39,6 +40,8 @@ export function footprintOf(kind) {
   const f = FOOTPRINTS[kind] || [0.5, 0.26, 3.45, false];
   return { halfX: f[0], halfZ: f[1], height: f[2], solid: f[3] };
 }
+/** Trunk radius in metres of the tree kinds; only the trunk is solid, not the canopy. Mirrors VillageDressing.TryTrunkRadius. */
+export const TRUNK_RADIUS = { tree: 0.35, tentacle_tree: 0.7 };
 export const DRESSING_KINDS = Object.keys(FOOTPRINTS);
 
 export const coastSideOf = (seed) => new SeededRandom(seed ^ 0x2f6b).next(3);
@@ -332,6 +335,7 @@ export function dressingBoxes(items) {
     if (DRESSING_LAMP_KINDS.includes(it.kind)) { const h = LAMP_POLE_HALF * it.scale + OVERHANG_CLEARANCE; out.push({ minX: it.x - h, maxX: it.x + h, minZ: it.z - h, maxZ: it.z + h, height: footprintOf(it.kind).height * it.scale }); continue; }
     const f = footprintOf(it.kind);
     if (!f.solid) continue;
+    if (TRUNK_RADIUS[it.kind] !== undefined) { const h = TRUNK_RADIUS[it.kind] * it.scale + OVERHANG_CLEARANCE; out.push({ minX: it.x - h, maxX: it.x + h, minZ: it.z - h, maxZ: it.z + h, height: f.height * it.scale, round: true }); continue; }
     const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     out.push({ minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz, height: f.height * it.scale });
   }

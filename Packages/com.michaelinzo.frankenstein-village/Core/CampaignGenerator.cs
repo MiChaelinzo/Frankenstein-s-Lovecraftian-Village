@@ -9,6 +9,7 @@ namespace Frankenstein.Core
         public string Title;
         public int DreadTargetPercent; // strictly rising across nights, 1..100
         public int SanityStart;  // 100 - DreadTargetPercent
+        public int Stage;        // 0 early, 1 middle, 2 late: the arc stage the village story (VillageStory) tells at
         public string Sky;       // "dusk", "night" or "witching"
         public string Weather;   // "clear", "rain" or "fog"
         public string Rumor;
@@ -105,6 +106,7 @@ namespace Frankenstein.Core
                     Title = Titles[stage][idx],
                     DreadTargetPercent = target,
                     SanityStart = 100 - target,
+                    Stage = stage,
                     Sky = sky,
                     Weather = weather,
                     Rumor = rumor,

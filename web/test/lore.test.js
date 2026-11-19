@@ -115,7 +115,7 @@ test('readNext cycles through unread books, then rereads', () => {
 
 test('lore strings exist in en and fr', async () => {
   const { STRINGS } = await import('../src/i18n.js');
-  for (const k of ['view3d.prompt.book', 'view3d.prompt.bookread', 'lore.progress', 'lore.locked', 'lore.journal', 'lore.reread', 'keys.lore', ...LORE_PLACES.map((p) => `lore.place.${p}`)]) {
+  for (const k of ['view3d.prompt.book', 'view3d.prompt.bookread', 'lore.progress', 'lore.locked', 'lore.journal', 'lore.reread', 'lore.locked.journal', 'keys.lore', ...LORE_PLACES.map((p) => `lore.place.${p}`)]) {
     assert.ok(STRINGS.en[k] && STRINGS.fr[k], k);
   }
 });

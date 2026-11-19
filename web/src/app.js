@@ -25,9 +25,12 @@ import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTI
 import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
+import { parseStoryLibrary, buildStory } from './village-story.js';
+import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
+import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } from './names.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
@@ -52,7 +55,7 @@ import { cinematicFrame, cinematicWanted, flythroughCamera } from './cinematic.j
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
 import { restoreAction, shouldStepInvestigator, snapshotPlayback } from './investigator-state.js';
 import {
-  LocalizedNarrationProvider, locName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
+  LocalizedNarrationProvider, kindName, tierLabel, themeLabel, cameraLabel, doorName, omenTextL, entryLabelL, doorMessageL,
   describeSceneL, describeVillageL, describeInvestigatorL, ritualHudTextL, ritualScheduleTextL, nightClampNoticeL, postcardCaptionL, weatherNameL,
 } from './i18n-text.js';
 
@@ -74,6 +77,8 @@ let dirty = true;
 const mark = () => { dirty = true; start(); };
 
 
+/** What the player sees for a building: its seeded name, else the translated kind (never the raw id). */
+const pieceLabel = (p) => placeName(p, lang) || kindName(p.id, lang);
 const state = {
   seed: 1818, sanity: new SanityModel(100), layout: [], landmarks: [], walkers: [], drawOrder: [], catalog: null,
   narrationLine: '', narrationAt: 0, flash: 0, flashAt: null, flashLevel: 0, drain: false,
@@ -128,14 +133,14 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.villagers || [], CELL), books: lore.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
-    labelFor: (p, kind) => (kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: locName(lang, p.id) })),
+    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    labelFor: (p, kind) => (kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
   onThunder: (delayMs) => ambient?.thunder(delayMs), onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
-  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
+  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.beam ? 'beam' : 'no beam'} | ${c.held ? 'held lantern' : 'no hand'} | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   alienPack: () => pack.want,
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen(), close: () => { villagers.close(); lore.close(); } },
@@ -159,7 +164,7 @@ function interact3d(p, kind) {
   if (kind === 'villager-chat') { villagers.chatWith(p.villagerIndex); return; }
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
   if (kind === 'landmark') { progress.note.listen(); const li = state.landmarks.indexOf(p); if (li >= 0) setFocus(li); } else progress.note.whisper();
-  adjust(InteractionRules.sanityDelta(kind), p.id);
+  adjust(InteractionRules.sanityDelta(kind), pieceLabel(p));
 }
 
 // ---------- audio (procedural ambient soundtrack, starts only after the user opts in by gesture) ----------
@@ -192,6 +197,8 @@ async function loadCatalog() {
   const res = await fetch('data/village_catalog.json');
   const json = await res.json();
   state.catalog = new PrefabCatalog(json.entries);
+  try { state.nameLib = parseNameLibrary(await (await fetch('data/names.json')).json()); } catch (err) { state.nameLib = null; console.warn(`[names] could not load data/names.json, buildings keep their kind names this session: ${err.message}`); }
+  try { state.storyLib = parseStoryLibrary(await (await fetch('data/story.json')).json()); } catch (err) { state.storyLib = null; console.warn(`[story] could not load data/story.json, no families, journals or missing persons this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -203,6 +210,8 @@ function rebuild() {
     p.key = buildingKey(p);
     p.floors = floorCountFor(p.id, p.vis.h, p.vis.tilt);
   });
+  const names = state.nameLib ? assignNames(state.nameLib, state.seed, GRID_W, GRID_D, state.layout) : [];
+  state.layout.forEach((p, i) => { p.names = names[i] || null; }); // one seeded name per building index, reused by the narrative
   state.attempts.clear(); state.shakes.clear(); state.doorFocus = -1;
   state.doors = state.layout.filter((p) => p.id === 'house_a' || p.id === 'house_b');
   refreshDetail();
@@ -225,7 +234,7 @@ function rebuild() {
   showNightClamp();
   renderCampaign();
   $('listen').innerHTML = `<option value="">${esc(tr('opt.landmark'))}</option>` +
-    state.landmarks.map((p, i) => `<option value="${i}">${esc(tr('opt.landmarkitem', { name: locName(lang, p.id), hint: hintLabel(p.id) ? ` [${hintLabel(p.id)}]` : '', x: p.x, z: p.z }))}</option>`).join('');
+    state.landmarks.map((p, i) => `<option value="${i}">${esc(tr('opt.landmarkitem', { name: pieceLabel(p), hint: hintLabel(p.id) ? ` [${hintLabel(p.id)}]` : '', x: p.x, z: p.z }))}</option>`).join('');
   const area = state.layout.reduce((a, p) => a + p.sizeX * p.sizeZ, 0);
   $('stats').textContent = tr('msg.stats', { seed: state.seed, pieces: state.layout.length, w: GRID_W, d: GRID_D, area, cells: GRID_W * GRID_D, count: PIECES });
   if (state.investigatorOn) startInvestigator();
@@ -333,7 +342,7 @@ function updateDesc() {
   const f = state.landmarks[state.focus];
   $('viewDesc').textContent = describeSceneL({
     seed: state.seed, pieces: state.layout.length, tier: tierFor(d), dreadPercent: Math.round(d * 100),
-    focus: f ? tr('desc.focus', { name: locName(lang, f.id), x: f.x, z: f.z }) : '',
+    focus: f ? tr('desc.focus', { name: pieceLabel(f), x: f.x, z: f.z }) : '',
   }, lang) + describeVillageL(state.layout, lang) + describeInvestigatorL(state.investigator, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${weatherNameL(currentNight().weather, 'en')}.` : '');
 }
 
@@ -411,7 +420,7 @@ function drawMinimap() {
   if (!mapOn) return;
   const c = $('minimap'), g = c.getContext('2d');
   const sel = state.focus >= 0 ? state.landmarks[state.focus] : null;
-  const m = minimapModel(state.layout, GRID_W, GRID_D, c.width, sel);
+  const m = minimapModel(state.layout, GRID_W, GRID_D, c.width, sel, (id) => kindName(id, lang));
   g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0b1012'; g.fillRect(0, 0, c.width, c.height);
   const dmap = districtMap(state.seed, GRID_W, GRID_D), dsx = c.width / GRID_W, dsz = c.height / GRID_D;
   for (let x = 0; x < GRID_W; x++) for (let z = 0; z < GRID_D; z++) { g.fillStyle = DISTRICT_TINTS[dmap[x * GRID_D + z]]; g.fillRect(x * dsx, z * dsz, Math.ceil(dsx), Math.ceil(dsz)); }
@@ -544,7 +553,7 @@ function tryDoor(p) {
   showToast(text, behavior >= 2);
   if (view3d.active) { $('narration').textContent = text; $('narration').style.opacity = 1; }
   announce(`${text} (${doorName(lang, behavior)})`);
-  log('door', text);
+  log('door', `${pieceLabel(p)}: ${text}`); // the journal says which house answered
   progress.note.door(); progress.update();
   mark();
 }
@@ -574,7 +583,7 @@ function listen(i) {
   const p = state.landmarks[i]; if (!p) return;
   progress.note.listen();
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
-  setFocus(i); adjust(-SanityModel.FOCUS_COST, p.id);
+  setFocus(i); adjust(-SanityModel.FOCUS_COST, pieceLabel(p));
 }
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
@@ -615,19 +624,33 @@ const vigil = createVigilController({
   download: (name, blob, mime) => download(name, blob, mime),
   shareLink: () => (!pack.want && location.origin && location.origin !== 'null' ? buildShareLink(location, currentSession()) : ''),
 });
+// The village story (Core VillageStory mirror): families, house owners, missing persons. Rebuilt only when the seed, layout or roster changes; null without data/story.json.
+let storyKey = '', storyCache = null, storyRoster = () => [];
+function currentStory() {
+  if (!state.storyLib || !state.layout.length) return null;
+  const roster = storyRoster(), village = state.campaign ? state.campaign.villageName : '', key = `${state.seed}|${state.layout.length}|${roster.length}|${state.nameLib ? 1 : 0}|${village}`;
+  if (key !== storyKey && roster.length) { storyKey = key; storyCache = buildStory(state.storyLib, state.seed, state.layout, roster, state.layout.map((p) => p.names || null), village); }
+  return roster.length ? storyCache : null;
+}
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
-  onChange: () => { drawMinimap(); mark(); }, journal: (text) => log('lore', text),
+  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
 });
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
-  tickNow: clockTick, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
+  tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
-  onChange: () => { drawMinimap(); mark(); },
+  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
+});
+storyRoster = () => villagers.roster;
+// Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
+const chronicle = createChronicleController({
+  $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
+  landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
 });
 // HUD clock chip and the first-play hint (dismissal is kept for the browser session; stills with ?capture=1 never show it).
 function renderClockChip() {
@@ -647,15 +670,16 @@ function renderDistrictChip() {
   const chip = $('districtChip'); if (!chip) return;
   const c = view3d.active ? view3d.camera : null, f = state.focus >= 0 ? state.landmarks?.[state.focus] : null;
   const id = c ? districtAtWorld(state.seed, GRID_W, GRID_D, c.x, c.z) : f ? districtAtWorld(state.seed, GRID_W, GRID_D, (f.x + 0.5) * CELL, (f.z + 0.5) * CELL) : null;
-  const lm = c ? landmarkAt(state.seed, GRID_W, GRID_D, c.x, c.z) : null; // a landmark of the wider world (cliffs, wreck, abbey, cemetery, marsh, grove) names the chip first
-  const text = lm ? tr(`landmark.${lm}`) : id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
+  const lm = c ? landmarkAt(state.seed, GRID_W, GRID_D, c.x, c.z) : null; // a landmark of the wider world (cliffs, wreck, abbey, cemetery, marsh, grove, standing stones, hidden cove, ritual site, catacombs) names the chip first
+  if (c) chip.setAttribute?.('data-cam', `${c.x.toFixed(2)},${c.z.toFixed(2)}`); // the explorer's metres, read by tools/browser_check.mjs
+  const text = lm ? (nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, lm), lang) || tr(`landmark.${lm}`)) : id ? tr('district.chip', { name: tr(`district.${id}`) }) : '';
   if ($('districtChipText').textContent !== text) $('districtChipText').textContent = text;
   if (chip.getAttribute?.('data-district') !== (id || '')) chip.setAttribute?.('data-district', id || '');
   if (chip.getAttribute?.('data-landmark') !== (lm || '')) chip.setAttribute?.('data-landmark', lm || '');
   chip.hidden = !id && !lm;
 }
 renderClockChip(); renderDistrictChip();
-setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } }, 1000);
+setInterval(() => { if (document.hidden) return; vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } chronicle.refresh(); }, 1000);
 // Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
 // map with a slow CSS drift. Both stop the moment the player chooses a view.
 let backdropKind = null, backdropT0 = 0;
@@ -726,14 +750,14 @@ canvas.addEventListener('click', (e) => {
   if (state.dlnk) return; // scene mode draws schematic solids instead of the village; do not select hidden pieces
   const r = canvas.getBoundingClientRect();
   const mx = (e.clientX - r.left) * canvas.width / r.width, my = (e.clientY - r.top) * canvas.height / r.height;
-  const vis = (state.villagers || []).filter((v) => !v.gone);
+  const vis = (state.villagers || []).filter((v) => !v.gone && !v.indoors);
   const vi = nearestDoor(vis.map((v) => { const pt = iso(v.x, v.z); return { x: pt.x, y: pt.y - 10 }; }), mx, my, 16);
   if (vi >= 0) { $('hint').style.display = 'none'; villagers.talkTo(vis[vi].index); return; }
   const di = nearestDoor(state.doors.map(doorPoint).map((pt) => ({ x: pt.x, y: pt.y - 3 })), mx, my, 12);
   if (di >= 0) { $('hint').style.display = 'none'; state.doorFocus = di; tryDoor(state.doors[di]); return; }
   let best = null, bd = 1e9;
   state.layout.forEach((p) => { const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2); const d = Math.hypot(c.x - mx, c.y - 12 - my); if (d < bd) { bd = d; best = p; } });
-  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); vigil.clue(`${best.id}@${best.x}.${best.z}`); adjust(-SanityModel.FOCUS_COST, best.id); }
+  if (best && bd < 60) { $('hint').style.display = 'none'; const li = state.landmarks.indexOf(best); if (li >= 0) setFocus(li); vigil.clue(`${best.id}@${best.x}.${best.z}`); adjust(-SanityModel.FOCUS_COST, pieceLabel(best)); }
 });
 canvas.addEventListener('keydown', (e) => {
   if (state.dlnk) return;
@@ -1003,6 +1027,7 @@ function foldGroupsOnNarrow() {
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;
   if (optParam('map') === '1') setMap(true);
   if (optParam('villagers') === '1') villagers.setPanel(true);
+  if (optParam('chronicle') === '1') chronicle.setPanel(true);
   if (optParam('lore') === '1') lore.readNext(); // QA: opens the first lore book page (stills)
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);

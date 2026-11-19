@@ -21,3 +21,7 @@ test('colors, labels, empty input', () => {
   assert.deepEqual(minimapModel(null, 24, 24, 100, null).cells, []);
   assert.ok(minimapModel(layout, 24, 24, 100, null).cells.every((c) => !c.selected));
 });
+test('legend labels come from the labelOf callback when given', () => {
+  const m = minimapModel(layout, 24, 24, 100, null, (id) => `<${id}>`);
+  assert.deepEqual(m.legend.map((l) => l.label), ['<church>', '<house_a>', '<mystery>']);
+});

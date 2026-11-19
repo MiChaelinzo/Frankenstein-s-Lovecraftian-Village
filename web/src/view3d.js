@@ -5,6 +5,7 @@ import { InteractionRules } from './core.js';
 import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSING_KINDS, walkBounds, coastToWorldAt, hiOf } from './dressing.js';
 import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
+import { beamYaw, beamDirection, lighthouseSite, beamStrengthFor, BEAM_COLOR, LIGHTHOUSE_HALO_SCALE, HALF_ANGLE as BEAM_HALF_ANGLE, LAMP_HEIGHT as BEAM_LAMP_HEIGHT, BEAM_LENGTH } from './lighthouse.js';
 import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
 import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
@@ -205,25 +206,80 @@ export const VILLAGER_HEIGHT_SCALE = 1;    // the villager mesh is authored 1.7 
 export const VILLAGER_SWAY_RAD = 0.05;     // idle sway amplitude in radians; zero with reduced motion
 const VILLAGER_SWAY_STEP = 0.1;            // seconds; sway is sampled so the dynamic buffer is rebuilt at most ten times a second
 
-/** Vertices for the villagers (metres). Idle sway turns each figure slightly; reduced motion holds it still. Empty without the mesh. */
+export const VILLAGER_STRIDE_M = 0.7;        // metres per full leg swing cycle half: one step every 0.7 m walked
+export const VILLAGER_LEG_SWING_RAD = 0.55;  // hip swing amplitude while walking
+export const VILLAGER_HIP_HEIGHT = 0.85;     // metres: below this the figure's legs swing
+export const VILLAGER_BOB_M = 0.035;         // metres the body rises at mid step
+
+/**
+ * Walking pose for one figure, applied to its freshly appended vertices (floats per vertex as in glb.js): the legs below the hip swing in
+ * opposite directions along the facing, the whole body bobs, and a fade under 1 (a door swallowing or releasing the villager) narrows the
+ * body across its width to nothing. Pure on the array. Exported for tests.
+ */
+export function poseWalker(out, from, cx, cz, yaw, stride, fade, reduced = false) {
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), rx = fz, rz = -fx; // facing and right on the ground
+  const step = stride / VILLAGER_STRIDE_M * Math.PI, swing = reduced ? 0 : Math.sin(step) * VILLAGER_LEG_SWING_RAD, bob = reduced ? 0 : Math.abs(Math.sin(step)) * VILLAGER_BOB_M;
+  const narrow = Math.max(0, Math.min(1, fade));
+  for (let i = from; i < out.length; i += VERTEX_FLOATS) {
+    const dx = out[i] - cx, dz = out[i + 2] - cz, side = dx * rx + dz * rz;
+    let along = dx * fx + dz * fz, y = out[i + 1];
+    if (y < VILLAGER_HIP_HEIGHT && swing !== 0) along += (VILLAGER_HIP_HEIGHT - y) * Math.tan(swing * (side >= 0 ? 1 : -1));
+    const w = side * narrow;
+    out[i] = cx + fx * along + rx * w; out[i + 2] = cz + fz * along + rz * w; out[i + 1] = y + bob;
+  }
+}
+
+/** Vertices for the villagers (metres). Idle sway turns each figure slightly; walking villagers swing their legs and bob; reduced motion holds the pose still. Empty without the mesh. */
 export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, reduced = false }) {
   const out = [];
   if (!model) return new Float32Array(0);
   const t = Math.floor(timeSec / VILLAGER_SWAY_STEP) * VILLAGER_SWAY_STEP;
   for (const v of villagers) {
-    const sway = reduced ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD;
-    appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot: v.yaw + sway });
+    const walking = !!v.walking, fade = v.fade ?? 1, sway = reduced || walking ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD, rot = v.yaw + sway, first = out.length;
+    appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot });
+    if (walking || fade < 1) poseWalker(out, first, v.pos[0], v.pos[2], rot, walking ? v.stride || 0 : 0, fade, reduced);
   }
   return new Float32Array(out);
 }
 
+
+// ---------- the lighthouse beam: crossed soft sheets turning with the Core clock ----------
+
+/** Floats per beam vertex: x, y, z and the alpha of the sheet there (bright on the axis, zero at the edges and the far end). */
+export const BEAM_FLOATS = 4;
+const BEAM_SHEETS = 4, BEAM_STATIONS = [[0.45, 0.4], [1, 0.06]]; // [distance as a fraction of the length, centre alpha]
+
+/**
+ * Four soft sheets that cross along the beam axis (so the cone reads from every side), each a fan from the lamp. pos is the lamp [x, y, z], yaw the Core beam yaw.
+ * Pure and deterministic: 24 triangles. The renderer draws them additively, so a sheet seen edge on adds almost nothing.
+ */
+export function buildBeam({ pos, yaw, halfAngle = BEAM_HALF_ANGLE, length = BEAM_LENGTH }) {
+  const [dx, dz] = beamDirection(yaw), side = [-dz, 0, dx], up = [0, 1, 0], out = [];
+  const vert = (a, d, w, across, alpha) => out.push(pos[0] + dx * d + a[0] * w * across, pos[1] + a[1] * w * across, pos[2] + dz * d + a[2] * w * across, alpha);
+  for (let k = 0; k < BEAM_SHEETS; k++) {
+    const t = (k / BEAM_SHEETS) * Math.PI, c = Math.cos(t), sn = Math.sin(t);
+    const axis = [side[0] * c + up[0] * sn, side[1] * c + up[1] * sn, side[2] * c + up[2] * sn];
+    const apex = () => out.push(pos[0], pos[1], pos[2], 0.6);
+    const rows = BEAM_STATIONS.map(([f, a]) => ({ d: f * length, w: f * length * Math.tan(halfAngle), a }));
+    const at = (r, across) => (across === 0 ? [r.d, r.w, 0, r.a] : [r.d, r.w, across, 0]);
+    const [r1, r2] = rows;
+    for (const [aL, aR] of [[-1, 0], [0, 1]]) { apex(); vert(axis, ...at(r1, aL)); vert(axis, ...at(r1, aR)); }
+    for (const [aL, aR] of [[-1, 0], [0, 1]]) {
+      vert(axis, ...at(r1, aL)); vert(axis, ...at(r2, aL)); vert(axis, ...at(r1, aR));
+      vert(axis, ...at(r1, aR)); vert(axis, ...at(r2, aL)); vert(axis, ...at(r2, aR));
+    }
+  }
+  return new Float32Array(out);
+}
 
 // ---------- the explorer's own lantern, held low at the right of the view ----------
 
 /** Where the held lantern hangs in camera space (metres: right, up, forward of the eye). Low and to the right, so only its glass and cap sit in the corner. */
 export const HELD_LANTERN_OFFSET = Object.freeze([0.4, -0.42, 0.8]);
 export const HELD_LANTERN_SWING_RAD = 0.06; // walking swing amplitude in radians; zero with reduced motion
-const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
+const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38], HELD_FLAME = [1, 0.95, 0.75];
+/** Vertex phase marks read by the held lantern in the fragment shader (mode 3): flame part (above 1.5) and glass part. */
+export const HELD_FLAME_PHASE = 2, HELD_GLASS_PHASE = 0.7;
 
 /**
  * A small original hand lantern (about 0.24 m tall, 0.11 m wide: base, glowing glass, cap and ring) placed in front of the eye.
@@ -232,7 +288,12 @@ const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
 export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }) {
   const local = [];
   pushFrustum(local, -0.055, -0.055, 0.055, 0.055, 0, 0.025, 1, HELD_METAL);                       // base plate
-  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 1, 0.7);        // glass chimney, glowing
+  pushFrustum(local, -0.026, -0.026, 0.026, 0.026, 0.03, 0.12, 0.55, HELD_FLAME, 1, HELD_FLAME_PHASE); // the flame, white hot at its heart, seen between the cage posts
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {                                     // four cage posts at the corners of the open lower half
+    const cx = sx * 0.043, cz = sz * 0.043;
+    pushFrustum(local, cx - 0.006, cz - 0.006, cx + 0.006, cz + 0.006, 0.025, 0.1, 1, HELD_METAL);
+  }
+  pushFrustum(local, -0.047, -0.047, 0.047, 0.047, 0.1, 0.17, 0.85, HELD_GLASS, 0.8, HELD_GLASS_PHASE); // amber glass of the upper half, shaded by its angle in the fragment shader
   pushFrustum(local, -0.06, -0.06, 0.06, 0.06, 0.17, 0.21, 0.3, HELD_METAL);                         // cap
   pushFrustum(local, -0.012, -0.012, 0.012, 0.012, 0.21, 0.245, 1, HELD_METAL);                     // ring the hand holds
   const swing = reduced ? 0 : Math.sin(swingPhase * 3.75) * HELD_LANTERN_SWING_RAD, cs = Math.cos(swing), sn = Math.sin(swing);
@@ -294,6 +355,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
+  while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); // books come after the last textured prop; without this padding partitionChunks drops the uv reorder and every textured vertex samples the wrong texel
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
   pushQuad(ground, g.minX, g.minZ, g.maxX, g.maxZ, 0, gc, -1);
@@ -416,10 +478,11 @@ void main(){
     col = mix(mix(shallow, deep, smoothstep(0.0, 28.0, shoreOff)), skyRefl, 0.1 + 0.85 * fres); // depth gradient: teal shallows into black water
     col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 70.0) * uMoonGain;
     if (uDetail > 1.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 900.0) * uMoonGain * 3.0; // sharp glints on the moon path
-    if (uDetail > 0.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 18.0) * uMoonGain * 0.9 * step(0.62, vnoise(p * 2.6 + vec2(t * 0.7, -t * 0.5))) * (0.6 + 0.4 * sin(t * 3.0 + p.x * 4.0)); // broken glitter path
+    if (uDetail > 0.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 18.0) * uMoonGain * 0.7 * smoothstep(0.55, 0.8, vnoise(vec2(p.x * 0.7, p.y * 3.6) + vec2(t * 0.7, -t * 0.5))) * (0.6 + 0.4 * sin(t * 3.0 + p.x * 4.0)); // broken glitter path
     if (uDetail > 0.5) { // shore foam: a broken band that pulses with the swell along the ground edge
       float off = ((uShore.x > 0.5 ? vPos.x : vPos.z) - uShore.y) * uShore.z;
-      float brk = vnoise(vPos.xz * 0.7 + vec2(t * 0.15, 0.0)) * 0.6 + vnoise(vPos.xz * 2.3 - t * 0.3) * 0.4;
+      vec2 sp = uShore.x > 0.5 ? vPos.zx : vPos.xz; // along the shore, out to sea: foam stretches along the beach in lines instead of round blobs
+      float brk = vnoise(vec2(sp.x * 0.22, sp.y * 1.3) + vec2(t * 0.15, 0.0)) * 0.6 + vnoise(vec2(sp.x * 0.7, sp.y * 3.2) - t * 0.3) * 0.4;
       off -= uLap * 1.2 * (0.5 + 0.5 * sin(t * 0.7 + (uShore.x > 0.5 ? vPos.z : vPos.x) * 0.12)); // waves lap up the shore and draw back
       float band = (1.0 - smoothstep(0.0, 3.5, off + brk * 1.6)) * smoothstep(-0.5, 0.2, off) * (0.6 + 0.4 * sin(off * 2.2 - t * 1.4));
       col = mix(col, vec3(0.62, 0.68, 0.7) * (0.35 + lightSum * 1.5), clamp(band * smoothstep(0.35, 0.7, brk + 0.2), 0.0, 0.85));
@@ -430,6 +493,7 @@ void main(){
       col += uLightCol[i] * pow(max(dot(R, normalize(d)), 0.0), 40.0) * att * uLampGain;
     }
   }
+  if (uMode > 1.5 && uMode < 2.5 && uDetail > 0.5) col = mix(col, mix(uHorizon, uZenith, 0.12) * 1.05, (1.0 - smoothstep(0.0, 0.1, abs(V.y))) * 0.75); // the far water melts into the sky haze: no hard line at the horizon
   float peak = max(col.r, max(col.g, col.b)); // hue-preserving soft shoulder: lit walls keep their colour under a lantern instead of clipping to white
   if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
   if (vGlow > 0.0 || vUv.x < -1.5) {
@@ -452,7 +516,7 @@ void main(){
       vec3 wood = vec3(0.07, 0.05, 0.035) * (0.6 + lightSum * 0.6);
       col = mix(glassCol, wood, max(frame, bar));
     } else {
-      if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); lit = uGlowColor / max(gp, 0.001) * 1.25 * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
+      if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); vec3 hue = uGlowColor / max(gp, 0.001); float face = abs(dot(n, V)); float core = step(1.5, vPhase); lit = mix(hue * (0.55 + 0.75 * face), mix(hue, vec3(1.0, 0.94, 0.78), 0.65) * 1.5, core) * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
       col = mix(col, mix(col * 0.55, lit, on), clamp(vGlow, 0.0, 1.0) * mix(1.0, fl, on));
     }
   }
@@ -488,12 +552,17 @@ void main(){
   col = mix(col, uHorizon * 0.55 + 0.03 + uMoonColor * mlit * (1.0 - smoothstep(0.42, 0.9, cl)) * (uDetail > 0.5 ? 0.9 : 0.0), c * 0.7);
   vec3 g = floor(d * 160.0); float sh = hash(g.xy + g.z * 7.31); float s = step(0.9972, sh) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h) * (0.65 + 0.35 * sin(uTime * 2.1 + sh * 600.0));
   col += vec3(0.8, 0.85, 1.0) * s;
+  if (uDetail > 0.5) { vec3 g2 = floor(d * 70.0); float sh2 = hash(g2.xy * 1.7 + g2.z * 3.13); float big = step(0.9985, sh2) * uStars * (1.0 - c) * smoothstep(0.08, 0.35, h) * (0.7 + 0.3 * sin(uTime * 1.3 + sh2 * 900.0)); col += mix(vec3(1.0, 0.82, 0.62), vec3(0.7, 0.8, 1.0), fract(sh2 * 311.0)) * big * 1.4; } // a few large warm and cold stars
   float m = dot(d, uMoonDir); float disc = smoothstep(cos(uMoonSize), cos(uMoonSize * 0.9), m);
   float halo = pow(max(m, 0.0), 220.0) * 0.4 + pow(max(m, 0.0), 40.0) * 0.1 + pow(max(m, 0.0), 6.0) * 0.04;
   float moonOn = (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
   col += uMoonColor * 0.9 * halo * moonOn;
   vec3 discCol = mix(vec3(0.6, 0.66, 0.78), normalize(uMoonColor + 0.001) * 1.25, uSun);
-  col = mix(col, discCol * (0.85 + 0.15 * vnoise(d.xz * 90.0 + d.y * 40.0)), disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  vec3 mu = normalize(cross(vec3(0.0, 1.0, 0.0), uMoonDir) + vec3(0.0001, 0.0, 0.0)); vec3 mv = cross(uMoonDir, mu); vec2 ml = vec2(dot(d, mu), dot(d, mv)) / sin(uMoonSize); // position on the disc, -1 to 1: marks that stay on the moon instead of streaking across the sky
+  float maria = vnoise(ml * 2.6 + 7.0) * 0.6 + vnoise(ml * 6.5) * 0.4, crater = uDetail > 0.5 ? smoothstep(0.62, 0.7, vnoise(ml * 14.0 + 3.0)) * 0.1 : 0.0;
+  vec3 surf = discCol * (0.97 - 0.13 * smoothstep(0.4, 0.75, maria) - crater * 0.5) * (1.0 - 0.22 * dot(ml, ml)); // dark seas and a darkened limb
+  col = mix(col, surf, disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  col += uMoonColor * pow(max(m, 0.0), 900.0) * 0.5 * moonOn; // a tight bloom hugging the limb
   if (uDetail > 0.5) col = mix(col, uHorizon * 1.05, 0.5 * exp(-abs(h) * 22.0) * (0.75 + 0.25 * vnoise(vec2(d.x * 9.0 + uTime * 0.02, 3.0)))); // tidal haze lying on the horizon
   col += uHorizon * 0.35 * exp(-abs(h) * 9.0) * (0.6 + 0.4 * uMoonColor.z);
   if (uEyeOpen > 0.01 && dot(d, uEyeDir) > 0.0) {
@@ -521,6 +590,10 @@ void main(){
 const HALO_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uFog; uniform float uCore; varying float vFlick; varying float vDist;
 void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; float k = clamp(1.0 - r, 0.0, 1.0); float a = (pow(k, 2.2) * 0.85 + pow(k, 7.0) * uCore) * vFlick * (1.0 - clamp(1.0 - exp(-pow(vDist * uFog, 2.0)), 0.0, 0.85));
   gl_FragColor = vec4(mix(uColor, vec3(1.0, 0.82, 0.5), clamp(pow(k, 5.0) * uCore, 0.0, 1.0)), min(a, 1.0)); }`;
+const BEAM_VS = `attribute vec4 aBeam; uniform mat4 uVP; uniform vec3 uCam; varying float vA; varying float vDist;
+void main(){ gl_Position = uVP * vec4(aBeam.xyz, 1.0); vA = aBeam.w; vDist = length(aBeam.xyz - uCam); }`;
+const BEAM_FS = `${FRAG_HEAD}uniform vec3 uColor; uniform float uStrength; uniform float uFog; varying float vA; varying float vDist;
+void main(){ float seen = 1.0 - clamp(1.0 - exp(-pow(vDist * uFog * 0.5, 2.0)), 0.0, 0.8); gl_FragColor = vec4(uColor, clamp(vA, 0.0, 1.0) * uStrength * seen); }`;
 const PART_VS = `attribute vec3 aSeed; uniform mat4 uVP; uniform vec3 uCam; uniform vec3 uBox; uniform vec3 uVel; uniform float uTime; uniform float uSize; uniform float uScale;
 varying float vFade;
 void main(){
@@ -631,7 +704,7 @@ export const THIRD_PARTY_BASE = 'assets/third_party/';
 
 /** Owns the GL programs and buffers. frame = the per-frame values computed by the controller; nothing here decides gameplay. */
 export function createGlRenderer(gl) {
-  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS), fly = program(gl, FLY_VS, FLY_FS);
+  const scene = program(gl, SCENE_VS, SCENE_FS), sky = program(gl, SKY_VS, SKY_FS), part = program(gl, PART_VS, PART_FS), halo = program(gl, HALO_VS, HALO_FS), beam = program(gl, BEAM_VS, BEAM_FS), fly = program(gl, FLY_VS, FLY_FS);
   const post = (() => { try { return program(gl, POST_VS, POST_FS); } catch (err) { console.warn('[view3d] post pass disabled, drawing directly: ' + err.message); return null; } })();
   let fbo = null, fboTex = null, fboDepth = null, fboSize = '', postBroken = !post;
   // Offscreen target for the post pass. Any failure (incomplete framebuffer, allocation error) disables post for good and warns once.
@@ -657,8 +730,8 @@ export function createGlRenderer(gl) {
   }
   const skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, skyBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const uvBuf = gl.createBuffer(); let uvCount = 0, buildingChunks = [], buildingDrawn = 0, buildingRanges = 0;
-  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), held: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), fly: gl.createBuffer() };
-  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, held: 0, rain: 0, mist: 0, halo: 0, fly: 0 };
+  const bufs = { building: gl.createBuffer(), ground: gl.createBuffer(), sea: gl.createBuffer(), coast: gl.createBuffer(), tentacle: gl.createBuffer(), villager: gl.createBuffer(), held: gl.createBuffer(), rain: gl.createBuffer(), mist: gl.createBuffer(), halo: gl.createBuffer(), beam: gl.createBuffer(), fly: gl.createBuffer() };
+  const counts = { building: 0, ground: 0, sea: 0, coast: 0, tentacle: 0, villager: 0, held: 0, rain: 0, mist: 0, halo: 0, beam: 0, fly: 0 };
   // unit 0 = wall texture, unit 1 = ground texture; original procedural stone and ground by default, replaced only by ?pack=1 textures
   const makeTex = (unit, kind) => {
     const t = gl.createTexture(), px = proceduralTexture(kind, { size: 128 });
@@ -681,7 +754,7 @@ export function createGlRenderer(gl) {
   let packed = 0;
   const lightPos = new Float32Array(MAX_LIGHTS * 4), lightCol = new Float32Array(MAX_LIGHTS * 3);
   let size = [1, 1];
-  const FLOATS = { rain: 3, mist: 3, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
+  const FLOATS = { rain: 3, mist: 3, beam: BEAM_FLOATS, halo: HALO_FLOATS, fly: FIREFLY_FLOATS };
   const upload = (name, data, usage = gl.STATIC_DRAW) => { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]); gl.bufferData(gl.ARRAY_BUFFER, data, usage); counts[name] = data.length / (FLOATS[name] || VERTEX_FLOATS); };
   const attrs = [['aPos', 3, 0], ['aNormal', 3, 3], ['aColor', 3, 6], ['aGlow', 1, 9], ['aPhase', 1, 10]];
   function bindScene(buf) {
@@ -705,6 +778,8 @@ export function createGlRenderer(gl) {
     /** Rebuilt every frame while the omen is visible (the tentacles sway), so it is a dynamic buffer. */
     setFireflies(data) { upload('fly', data); },
     setHalos(data) { upload('halo', data); },
+    /** The lighthouse beam turns, so it is rebuilt every frame it is drawn (24 triangles). An empty array hides it. */
+    setBeam(data) { upload('beam', data, gl.DYNAMIC_DRAW); },
     setTentacles(data) { upload('tentacle', data, gl.DYNAMIC_DRAW); },
     setVillagers(data) { upload('villager', data, gl.DYNAMIC_DRAW); },
     /** The held lantern moves with the camera, so it is rebuilt every drawn frame (under 100 triangles). */
@@ -802,6 +877,14 @@ export function createGlRenderer(gl) {
         gl.uniformMatrix4fv(halo.u('uVP'), false, f.vp); gl.uniform3fv(halo.u('uCam'), f.camPos); gl.uniform1f(halo.u('uScale'), f.pointScale);
         gl.uniform1f(halo.u('uTime'), f.time); gl.uniform1f(halo.u('uReduced'), f.reduced ? 1 : 0); gl.uniform1f(halo.u('uFog'), f.fog); gl.uniform3fv(halo.u('uColor'), f.glowColor); gl.uniform1f(halo.u('uCore'), f.lampCore);
         gl.drawArrays(gl.POINTS, 0, counts.halo);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      // lighthouse beam: additive soft sheets, depth tested so a house hides it
+      if (counts.beam && f.beam) {
+        gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.useProgram(beam.p); gl.bindBuffer(gl.ARRAY_BUFFER, bufs.beam);
+        const bl = gl.getAttribLocation(beam.p, 'aBeam'); gl.enableVertexAttribArray(bl); gl.vertexAttribPointer(bl, 4, gl.FLOAT, false, BEAM_FLOATS * 4, 0);
+        gl.uniformMatrix4fv(beam.u('uVP'), false, f.vp); gl.uniform3fv(beam.u('uCam'), f.camPos); gl.uniform3fv(beam.u('uColor'), f.beam.color); gl.uniform1f(beam.u('uStrength'), f.beam.strength); gl.uniform1f(beam.u('uFog'), f.fog);
+        gl.drawArrays(gl.TRIANGLES, 0, counts.beam);
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
       // fireflies near warm lanterns (embers at high dread): additive glow points
@@ -926,11 +1009,12 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  */
 export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
+  let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
   let tierName = quality, tier = tierSettings(quality); // graphics quality tier (quality.js), set by the app
   let settings = sanitizeViewSettings(null); // eye height and field of view, set by the app from localStorage
-  let lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
+  let peopleDrawn = 0, lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
   let drive = { forward: 0, strafe: 0 }, stick = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
@@ -942,7 +1026,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1082,7 +1166,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const size = renderSize(rect.width || canvas.width, rect.height || canvas.height, dpr, scale, tier.maxPixels);
     if (`${size.width}x${size.height}` !== lastSize) { lastSize = `${size.width}x${size.height}`; canvas.width = size.width; canvas.height = size.height; renderer.resize(size.width, size.height); }
     perf.sample(ts);
-    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), { ...renderer.counts(), scale, tier: tierName, size: lastSize }); }
+    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), { ...renderer.counts(), people: peopleDrawn, scale, tier: tierName, size: lastSize }); }
     if (!reduced && !fixedScale) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames, tier.minScale); if (ns !== scale) { scale = ns; perf.reset(); } }
     const time = capture ? STILL_TIME : (ts - t0) / 1000, aspect = canvas.width / canvas.height;
     const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
@@ -1118,7 +1202,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       all.set(fl); all.set(lf, fl.length); renderer.setFireflies(all);
     }
     if (haloKey !== lastHalos) { // lit and unlit vigil lanterns glow differently; the halo buffer is rebuilt only when that changes
-      lastHalos = haloKey; renderer.setHalos(haloSprites(lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }))));
+      lastHalos = haloKey; const near = lightsWithin(lights, cc.x, cc.z, cullR).map((i) => ({ ...lights[i], haloScale: lanternPool(states[i], s.dread).halo * tier.lampHalo }));
+      renderer.setHalos(haloSprites([...near, { pos: [lighthouse.x, BEAM_LAMP_HEIGHT, lighthouse.z], phase: 0.5, post: true, haloScale: LIGHTHOUSE_HALO_SCALE }])); // the lamp room glows even where the beam is off (Low tier, reduced motion, day)
     }
     const bc = birdCounts({ weather, dread: s.dread, reduced, perches: perches.length }), counts = { ...bc, gulls: Math.round(bc.gulls * tier.birds), circling: Math.round(bc.circling * tier.birds) }, plan = flockPlan({ seed: s.seed, gridW: s.gridW, gridD: s.gridD, layout: s.layout });
     const nextFlockKey = `${s.seed}|${s.layout.length}|${counts.gulls}|${counts.circling}|${counts.silhouettes}`;
@@ -1131,8 +1216,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); } }
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
@@ -1149,7 +1234,11 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       renderer.setTentacles(tentKey ? buildTentacles({ bases: tentacleBases(s.gridW, s.gridD, s.seed), grow: omen.tentacle, dread: s.dread, timeSec: time, reduced }) : new Float32Array(0));
     }
     const postP = { ...postParams({ dread: s.dread, reduced, quality: scale, tier }) }; if (!grain) postP.grain = 0; if (hc) { postP.grain = 0; postP.chroma = 0; } postP.vignette = Math.max(0, postP.vignette + grade.vignetteBoost); if (!post) postP.enabled = false; // ?post=0 forces direct rendering (QA and low-end switch)
+    // the beam turns with the Core clock; Low tier and reduced motion keep only the static glow, daylight hides it
+    const beamStrength = beamStrengthFor({ sunWeight: day.sunWeight, fog: fogs.density, quality: tier.detail, reduced });
+    renderer.setBeam(beamStrength > 0 ? buildBeam({ pos: [lighthouse.x, BEAM_LAMP_HEIGHT, lighthouse.z], yaw: beamYaw(s.seed, time) }) : new Float32Array(0));
     renderer.draw({
+      beam: { color: BEAM_COLOR, strength: beamStrength },
       vp: viewProjection(eye, aspect, fovRadians(settings.fovDeg)), fovY: fovRadians(settings.fovDeg), basis, camPos: [eye.x, eye.y, eye.z], aspect, time, reduced, sky: { ...sk, ambient: coldFill(sk.ambient) }, moon, moonLight: moonBoost(moon.color), lights: lit,
       fog: fogs.density, drawDistance: tier.drawDistance, groundFog: fogs.ground, groundHeight: fogs.groundHeight, eye: { ...eyeParams(s.seed, s.night.number, s.gridW, s.gridD), open: omen.eye }, fogColor: cf.color, grade, rim: rimLight({ horizon: sk.horizon, moonColor: moon.color, dread: s.dread, tier }), win: (({ unlit, flicker }) => [unlit, flicker])(windowMood({ dread: s.dread, tier })), godColor: moon.color.map((v) => Math.min(1, v * 0.8)), godRays: (() => { const sp = projectToScreen(viewProjection(eye, aspect, fovRadians(settings.fovDeg)), [eye.x + moon.dir[0] * 300, eye.y + moon.dir[1] * 300, eye.z + moon.dir[2] * 300]); return [sp.u, sp.v, godRayAmount(grade.godRays, sp) * 0.6]; })(), glowColor: lc.map((v) => v * day.lampGain * wlook.glow), windU: [wind.dir[0], wind.dir[1], wind.strength, reduced ? 0 : wind.base], life: lifeNow, lifeWind: [wind.dir[0] * wind.strength, wind.dir[1] * wind.strength], rain: precipitationStyle(weather, wind), sunWeight: day.sunWeight, post: postP, sea: seaParams({ dread: s.dread, weather: s.night.weather, reduced }), waterTime: reduced ? 0 : time, flies: { ...fliesStyle, rise: fliesStyle.rise }, fogOffset: [fogs.drift[0] * time * 0.06, fogs.drift[1] * time * 0.06], pointScale: canvas.height * 0.5, detail: tier.detail, lampCore: tier.lampCore, fogSheets: tier.fogSheets ? 1 : 0, wet: wetness(weather), blobs: tier.detail > 0 ? blobShadows(vsc, eye) : null, shore: shore(s),
     });

@@ -1,0 +1,383 @@
+{
+  "version": 1,
+  "kinds": {
+    "house_a": {
+      "districts": {
+        "harbour": [
+          {"en": "Fisherman's Watch", "fr": "Le Guet du Pecheur"},
+          {"en": "Gullscar House", "fr": "Maison Mouettecap"},
+          {"en": "Tidewrack Hall", "fr": "Manoir Maree-Epave"},
+          {"en": "Saltwind House", "fr": "Maison Ventsel"},
+          {"en": "Captain Orne's Berth", "fr": "Le Mouillage du Capitaine Orne"}
+        ],
+        "old_town": [
+          {"en": "Crowmere Hall", "fr": "Manoir Corbeaumare"},
+          {"en": "The Lantern's End", "fr": "Le Bout de la Lanterne"},
+          {"en": "Ashgrave House", "fr": "Maison Cendretombe"},
+          {"en": "Thornwick Hall", "fr": "Manoir Ronceval"},
+          {"en": "Widow Harrow's House", "fr": "Maison de la Veuve Harrow"}
+        ],
+        "chapel_hill": [
+          {"en": "The Vicar's Silence", "fr": "Le Silence du Vicaire"},
+          {"en": "Candlemere Hall", "fr": "Manoir Chandelac"},
+          {"en": "Sexton's Lodge", "fr": "Le Pavillon du Fossoyeur"},
+          {"en": "Mourning House", "fr": "Maison du Deuil"},
+          {"en": "Belfry Court", "fr": "La Cour du Beffroi"}
+        ],
+        "market": [
+          {"en": "The Drowned Gull Inn", "fr": "L'Auberge de la Mouette Noyee"},
+          {"en": "The Salted Penny Inn", "fr": "L'Auberge du Sou Sale"},
+          {"en": "Weighhouse Hall", "fr": "La Halle de la Pesee"},
+          {"en": "The Pale Lamp Inn", "fr": "L'Auberge de la Lampe Pale"},
+          {"en": "Chandler's Court", "fr": "La Cour du Chandelier"}
+        ],
+        "fishers_row": [
+          {"en": "Netmender's House", "fr": "Maison du Raccommodeur de Filets"},
+          {"en": "Brinegate House", "fr": "Maison Portesaumure"},
+          {"en": "Driftwood Hall", "fr": "Manoir Bois-Flotte"},
+          {"en": "Oarsman's Rest", "fr": "Le Repos du Rameur"},
+          {"en": "Skerry House", "fr": "Maison du Ecueil"}
+        ]
+      },
+      "any": [
+        {"en": "Hollow Shutters", "fr": "Les Volets Creux"},
+        {"en": "The Whispering Gable", "fr": "Le Pignon Chuchotant"}
+      ],
+      "prefixes": [
+        {"en": "Blackwater", "fr": "Eaunoire"},
+        {"en": "Saltwind", "fr": "Ventsel"},
+        {"en": "Crowmere", "fr": "Corbeaumare"},
+        {"en": "Hollowmere", "fr": "Creuxmare"},
+        {"en": "Gullscar", "fr": "Mouettecap"},
+        {"en": "Ashgrave", "fr": "Cendretombe"},
+        {"en": "Thornwick", "fr": "Ronceval"},
+        {"en": "Mistholm", "fr": "Brumeilot"},
+        {"en": "Wrackhill", "fr": "Epavemont"},
+        {"en": "Lanternfold", "fr": "Fanalclos"},
+        {"en": "Tidewrack", "fr": "Mareerouge"},
+        {"en": "Gravenmoor", "fr": "Landetombe"},
+        {"en": "Pallowick", "fr": "Palevic"},
+        {"en": "Drownward", "fr": "Noyeval"},
+        {"en": "Cinderwell", "fr": "Braisepuits"},
+        {"en": "Hagfen", "fr": "Fangesorbe"},
+        {"en": "Marrowby", "fr": "Moelleville"},
+        {"en": "Greywick", "fr": "Griselay"}
+      ],
+      "forms": [
+        {"en": "{p} House", "fr": "Maison {p}"},
+        {"en": "{p} Hall", "fr": "Manoir {p}"},
+        {"en": "{p} Lodge", "fr": "Pavillon {p}"},
+        {"en": "{p} Steading", "fr": "Ferme {p}"},
+        {"en": "{p} Court", "fr": "Cour {p}"}
+      ]
+    },
+    "house_b": {
+      "districts": {
+        "harbour": [
+          {"en": "Ropewalk Cottage", "fr": "Chaumiere de la Corderie"},
+          {"en": "Lamplighter's Cot", "fr": "La Masure de l'Allumeur"},
+          {"en": "Sailmaker's Nook", "fr": "Le Refuge du Voilier"},
+          {"en": "Brine Cottage", "fr": "Chaumiere Saumure"},
+          {"en": "Mooring Cottage", "fr": "Chaumiere de l'Amarre"}
+        ],
+        "old_town": [
+          {"en": "Blackwater Cottage", "fr": "Chaumiere Eaunoire"},
+          {"en": "Widow's Rest", "fr": "Le Repos de la Veuve"},
+          {"en": "Saltwind Cottage", "fr": "Chaumiere Ventsel"},
+          {"en": "Ivywick Cottage", "fr": "Chaumiere Lierrevic"},
+          {"en": "The Crooked Hearth", "fr": "Le Foyer de Travers"}
+        ],
+        "chapel_hill": [
+          {"en": "Gravedigger's Cot", "fr": "La Masure du Fossoyeur"},
+          {"en": "Vesper Cottage", "fr": "Chaumiere des Vepres"},
+          {"en": "Hymnal Cottage", "fr": "Chaumiere du Psautier"},
+          {"en": "Churchwarden's Rest", "fr": "Le Repos du Marguillier"},
+          {"en": "Pilgrim's Nook", "fr": "Le Refuge du Pelerin"}
+        ],
+        "market": [
+          {"en": "Tinker's Cottage", "fr": "Chaumiere du Rempailleur"},
+          {"en": "Baker's Nook", "fr": "Le Refuge du Boulanger"},
+          {"en": "Cooper's Cot", "fr": "La Masure du Tonnelier"},
+          {"en": "Chandler's Nook", "fr": "Le Refuge du Chandelier"},
+          {"en": "Peddler's Rest", "fr": "Le Repos du Colporteur"}
+        ],
+        "fishers_row": [
+          {"en": "Fisher Anne's Cottage", "fr": "Chaumiere de Anne la Pecheuse"},
+          {"en": "Driftnet Cot", "fr": "La Masure du Filet Derivant"},
+          {"en": "Tarred Hearth", "fr": "Le Foyer Goudronne"},
+          {"en": "Eelman's Nook", "fr": "Le Refuge de l'Anguillier"},
+          {"en": "Low Tide Cottage", "fr": "Chaumiere de la Maree Basse"}
+        ]
+      },
+      "any": [
+        {"en": "The Sleepless Cot", "fr": "La Masure sans Sommeil"},
+        {"en": "Salt-Stained Hearth", "fr": "Le Foyer Tache de Sel"}
+      ],
+      "prefixes": [
+        {"en": "Blackwater", "fr": "Eaunoire"},
+        {"en": "Saltwind", "fr": "Ventsel"},
+        {"en": "Crowmere", "fr": "Corbeaumare"},
+        {"en": "Hollowmere", "fr": "Creuxmare"},
+        {"en": "Gullscar", "fr": "Mouettecap"},
+        {"en": "Ashgrave", "fr": "Cendretombe"},
+        {"en": "Thornwick", "fr": "Ronceval"},
+        {"en": "Mistholm", "fr": "Brumeilot"},
+        {"en": "Wrackhill", "fr": "Epavemont"},
+        {"en": "Lanternfold", "fr": "Fanalclos"},
+        {"en": "Tidewrack", "fr": "Mareerouge"},
+        {"en": "Gravenmoor", "fr": "Landetombe"},
+        {"en": "Pallowick", "fr": "Palevic"},
+        {"en": "Drownward", "fr": "Noyeval"},
+        {"en": "Cinderwell", "fr": "Braisepuits"},
+        {"en": "Hagfen", "fr": "Fangesorbe"},
+        {"en": "Marrowby", "fr": "Moelleville"},
+        {"en": "Greywick", "fr": "Griselay"}
+      ],
+      "forms": [
+        {"en": "{p} Cottage", "fr": "Chaumiere {p}"},
+        {"en": "{p} Cot", "fr": "Masure {p}"},
+        {"en": "{p} Croft", "fr": "Cabane {p}"},
+        {"en": "{p} Nook", "fr": "Refuge {p}"},
+        {"en": "{p} Hearth", "fr": "Foyer {p}"}
+      ]
+    },
+    "church": {
+      "districts": {
+        "chapel_hill": [
+          {"en": "St. Velor Chapel", "fr": "Chapelle Saint-Velor"},
+          {"en": "St. Maudrin Chapel", "fr": "Chapelle Saint-Maudrin"},
+          {"en": "The Chapel of Unlit Candles", "fr": "La Chapelle des Cierges Eteints"}
+        ],
+        "harbour": [
+          {"en": "Our Lady of the Drowned", "fr": "Notre-Dame des Noyes"},
+          {"en": "St. Orne of the Tides", "fr": "Saint-Orne des Marees"}
+        ],
+        "old_town": [
+          {"en": "St. Corvane Chapel", "fr": "Chapelle Saint-Corvane"},
+          {"en": "The Ashen Chapel", "fr": "La Chapelle Cendree"}
+        ],
+        "market": [
+          {"en": "St. Ewild Chapel", "fr": "Chapelle Saint-Ewild"},
+          {"en": "The Chapel of Weights", "fr": "La Chapelle des Poids"}
+        ],
+        "fishers_row": [
+          {"en": "St. Isaude Chapel", "fr": "Chapelle Sainte-Isaude"},
+          {"en": "Chapel of the Salt Vigil", "fr": "Chapelle de la Veille Salee"}
+        ]
+      },
+      "any": [
+        {"en": "The Chapel of Last Hours", "fr": "La Chapelle des Dernieres Heures"}
+      ],
+      "prefixes": [
+        {"en": "Velor", "fr": "Velor"},
+        {"en": "Maudrin", "fr": "Maudrin"},
+        {"en": "Corvane", "fr": "Corvane"},
+        {"en": "Ewild", "fr": "Ewild"},
+        {"en": "Isaude", "fr": "Isaude"},
+        {"en": "Thessaly", "fr": "Thessaly"},
+        {"en": "Brannoch", "fr": "Brannoch"},
+        {"en": "Ulfric", "fr": "Ulfric"},
+        {"en": "Marrowen", "fr": "Marrowen"}
+      ],
+      "forms": [
+        {"en": "St. {p} Chapel", "fr": "Chapelle Saint-{p}"},
+        {"en": "St. {p} Church", "fr": "Eglise Saint-{p}"},
+        {"en": "St. {p} Priory", "fr": "Prieure Saint-{p}"}
+      ]
+    },
+    "well": {
+      "districts": {
+        "market": [
+          {"en": "The Penny Well", "fr": "Le Puits du Sou"},
+          {"en": "Hollowmere Well", "fr": "Puits de Creuxmare"},
+          {"en": "The Gossip Well", "fr": "Le Puits des Commeres"}
+        ],
+        "old_town": [
+          {"en": "Blackwater Well", "fr": "Puits Eaunoire"},
+          {"en": "The Weeping Well", "fr": "Le Puits qui Pleure"},
+          {"en": "Old Thorne Well", "fr": "Le Vieux Puits Thorne"}
+        ],
+        "chapel_hill": [
+          {"en": "The Pilgrim's Well", "fr": "Le Puits du Pelerin"},
+          {"en": "Candle Well", "fr": "Le Puits aux Cierges"}
+        ],
+        "harbour": [
+          {"en": "The Brackish Well", "fr": "Le Puits Saumatre"},
+          {"en": "Sailors' Well", "fr": "Le Puits des Marins"}
+        ],
+        "fishers_row": [
+          {"en": "Gull's Cistern", "fr": "La Citerne de la Mouette"},
+          {"en": "The Net Well", "fr": "Le Puits aux Filets"}
+        ]
+      },
+      "any": [
+        {"en": "The Listening Well", "fr": "Le Puits qui Ecoute"}
+      ],
+      "prefixes": [
+        {"en": "Hollowmere", "fr": "Creuxmare"},
+        {"en": "Crowmere", "fr": "Corbeaumare"},
+        {"en": "Ashgrave", "fr": "Cendretombe"},
+        {"en": "Mistholm", "fr": "Brumeilot"},
+        {"en": "Gravenmoor", "fr": "Landetombe"},
+        {"en": "Pallowick", "fr": "Palevic"},
+        {"en": "Drownward", "fr": "Noyeval"},
+        {"en": "Cinderwell", "fr": "Braisepuits"},
+        {"en": "Marrowby", "fr": "Moelleville"},
+        {"en": "Greywick", "fr": "Griselay"}
+      ],
+      "forms": [
+        {"en": "{p} Well", "fr": "Puits {p}"},
+        {"en": "{p} Spring", "fr": "Source {p}"},
+        {"en": "{p} Cistern", "fr": "Citerne {p}"}
+      ]
+    },
+    "altar": {
+      "districts": {
+        "chapel_hill": [
+          {"en": "The Kneeling Stone", "fr": "La Pierre Agenouillee"},
+          {"en": "The Pale Altar", "fr": "L'Autel Pale"}
+        ],
+        "old_town": [
+          {"en": "The Candle Stone", "fr": "La Pierre aux Cierges"},
+          {"en": "The Hushed Altar", "fr": "L'Autel Muet"}
+        ],
+        "harbour": [
+          {"en": "The Tide Altar", "fr": "L'Autel de la Maree"}
+        ],
+        "market": [
+          {"en": "The Weighing Stone", "fr": "La Pierre de la Pesee"}
+        ],
+        "fishers_row": [
+          {"en": "The Salt Altar", "fr": "L'Autel de Sel"}
+        ]
+      },
+      "any": [
+        {"en": "The Unnamed Altar", "fr": "L'Autel sans Nom"}
+      ],
+      "prefixes": [
+        {"en": "Velor", "fr": "Velor"},
+        {"en": "Maudrin", "fr": "Maudrin"},
+        {"en": "Corvane", "fr": "Corvane"},
+        {"en": "Ewild", "fr": "Ewild"},
+        {"en": "Isaude", "fr": "Isaude"},
+        {"en": "Thessaly", "fr": "Thessaly"}
+      ],
+      "forms": [
+        {"en": "{p}'s Altar", "fr": "Autel de {p}"},
+        {"en": "{p}'s Stone", "fr": "Pierre de {p}"}
+      ]
+    },
+    "dead_tree": {
+      "districts": {
+        "chapel_hill": [
+          {"en": "The Hanging Elm", "fr": "L'Orme Pendu"},
+          {"en": "The Mourner's Yew", "fr": "L'If du Deuil"}
+        ],
+        "old_town": [
+          {"en": "The Gallows Oak", "fr": "Le Chene des Potences"},
+          {"en": "The Crow Tree", "fr": "L'Arbre aux Corbeaux"}
+        ],
+        "harbour": [
+          {"en": "The Driftwood Pine", "fr": "Le Pin Flotte"}
+        ],
+        "market": [
+          {"en": "The Notice Tree", "fr": "L'Arbre aux Avis"}
+        ],
+        "fishers_row": [
+          {"en": "The Salt-Burnt Ash", "fr": "Le Frene Brule de Sel"}
+        ]
+      },
+      "any": [
+        {"en": "The Listening Tree", "fr": "L'Arbre qui Ecoute"}
+      ],
+      "prefixes": [
+        {"en": "Widow's", "fr": "de la Veuve"},
+        {"en": "Hangman's", "fr": "du Pendu"},
+        {"en": "Weeping", "fr": "Pleureur"},
+        {"en": "Hollow", "fr": "Creux"},
+        {"en": "Lightning", "fr": "Foudroye"},
+        {"en": "Bone-White", "fr": "Blanc d'Os"},
+        {"en": "Crooked", "fr": "de Travers"},
+        {"en": "Whispering", "fr": "Chuchotant"}
+      ],
+      "forms": [
+        {"en": "{p} Elm", "fr": "Orme {p}"},
+        {"en": "{p} Yew", "fr": "If {p}"},
+        {"en": "{p} Thorn", "fr": "Epine {p}"},
+        {"en": "{p} Ash", "fr": "Frene {p}"}
+      ]
+    }
+  },
+  "landmarks": {
+    "cliffs": [
+      {"en": "Lighthouse Cliffs", "fr": "Falaises du phare"},
+      {"en": "Gullscar Cliffs", "fr": "Falaises de Mouettecap"},
+      {"en": "The Lantern Cliffs", "fr": "Les Falaises de la Lanterne"},
+      {"en": "Keeper's Edge", "fr": "La Corniche du Gardien"},
+      {"en": "Saltwind Heights", "fr": "Les Hauteurs de Ventsel"}
+    ],
+    "shipwreck": [
+      {"en": "Wreck of the Marguerite", "fr": "Epave de la Marguerite"},
+      {"en": "Wreck of the Pale Anselm", "fr": "Epave du Pale Anselme"},
+      {"en": "Wreck of the Drowned Gull", "fr": "Epave de la Mouette Noyee"},
+      {"en": "Wreck of the Orne Lantern", "fr": "Epave de la Lanterne d'Orne"},
+      {"en": "Wreck of the Sorrel Jane", "fr": "Epave de la Sorrel Jane"}
+    ],
+    "abbey": [
+      {"en": "Abbey Ruins", "fr": "Ruines de l'abbaye"},
+      {"en": "Abbey of St. Velor", "fr": "Abbaye de Saint-Velor"},
+      {"en": "The Unroofed Abbey", "fr": "L'Abbaye sans Toit"},
+      {"en": "Maudrin Abbey", "fr": "Abbaye de Maudrin"},
+      {"en": "The Silent Abbey", "fr": "L'Abbaye Silencieuse"}
+    ],
+    "cemetery": [
+      {"en": "The Cemetery", "fr": "Le cimetiere"},
+      {"en": "The Salt Churchyard", "fr": "Le Cimetiere de Sel"},
+      {"en": "Sexton's Field", "fr": "Le Champ du Fossoyeur"},
+      {"en": "The Quiet Rows", "fr": "Les Rangs Silencieux"},
+      {"en": "Harrow's Rest", "fr": "Le Repos de Harrow"}
+    ],
+    "marsh": [
+      {"en": "The Black Marsh", "fr": "Le marais noir"},
+      {"en": "Hagfen Marsh", "fr": "Marais de Fangesorbe"},
+      {"en": "The Drowning Reeds", "fr": "Les Roseaux Noyeurs"},
+      {"en": "Mistholm Fen", "fr": "Les Fanges de Brumeilot"},
+      {"en": "The Lantern Fen", "fr": "Les Fanges de la Lanterne"}
+    ],
+    "grove": [
+      {"en": "The Cursed Grove", "fr": "Le bosquet maudit"},
+      {"en": "Thornwick Grove", "fr": "Bosquet de Ronceval"},
+      {"en": "The Listening Grove", "fr": "Le Bosquet qui Ecoute"},
+      {"en": "Crowmere Wood", "fr": "Bois de Corbeaumare"},
+      {"en": "The Hollow Orchard", "fr": "Le Verger Creux"}
+    ],
+    "standing_stones": [
+      {"en": "The Standing Stones", "fr": "Les pierres dressees"},
+      {"en": "The Seven Sisters", "fr": "Les Sept Soeurs"},
+      {"en": "Hallowmere Stones", "fr": "Les Pierres de Hallowmere"},
+      {"en": "The Waiting Ring", "fr": "Le Cercle qui Attend"},
+      {"en": "Greywether Circle", "fr": "Le Cercle de Grisemouton"}
+    ],
+    "hidden_cove": [
+      {"en": "The Hidden Cove", "fr": "La crique cachee"},
+      {"en": "Smugglers' Rest", "fr": "Le Repos des Contrebandiers"},
+      {"en": "Pelham's Cove", "fr": "La Crique de Pelham"},
+      {"en": "The Quiet Water", "fr": "L'Eau Tranquille"},
+      {"en": "Gullet Cove", "fr": "La Crique du Goulet"}
+    ],
+    "ritual_site": [
+      {"en": "The Ritual Site", "fr": "Le lieu du rituel"},
+      {"en": "The Sixth Place", "fr": "La Sixieme Place"},
+      {"en": "Ashring Hollow", "fr": "Le Creux de la Couronne de Cendre"},
+      {"en": "The Red Circle", "fr": "Le Cercle Rouge"},
+      {"en": "Cinder Ring", "fr": "L'Anneau de Cendres"}
+    ],
+    "catacombs": [
+      {"en": "The Catacombs", "fr": "Les catacombes"},
+      {"en": "The Sexton's Stair", "fr": "L'Escalier du Fossoyeur"},
+      {"en": "Undercroft of Harrow", "fr": "La Crypte de Harrow"},
+      {"en": "The Warm Gate", "fr": "La Porte Tiede"},
+      {"en": "The Forty Fourth Door", "fr": "La Quarante-Quatrieme Porte"}
+    ]
+  }
+}

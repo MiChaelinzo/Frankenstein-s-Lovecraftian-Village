@@ -36,10 +36,16 @@
     "ruin_moss": [0.14, 0.2, 0.13, 1.0],
     "mud": [0.07, 0.06, 0.045, 1.0],
     "water_dark": [0.015, 0.03, 0.035, 1.0],
-    "path_stone": [0.42, 0.4, 0.36, 1.0]
+    "path_stone": [0.42, 0.4, 0.36, 1.0],
+    "menhir": [0.3, 0.31, 0.3, 1.0],
+    "lichen": [0.2, 0.27, 0.17, 1.0],
+    "ritual_ash": [0.1, 0.07, 0.065, 1.0],
+    "ritual_red": [0.36, 0.05, 0.05, 1.0],
+    "tomb_black": [0.008, 0.008, 0.012, 1.0],
+    "tomb_iron": [0.1, 0.1, 0.11, 1.0]
   },
   "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5, "storeyHeight": 3.0, "houseStoreys": 2, "ridgeMin": 6.0, "ridgeMax": 10.0, "houseFootprintMinCells": 2},
-  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7], "shipwreck": [3, 6], "abbey_arch": [4, 6.5], "abbey_wall": [2.5, 4.5], "abbey_pillar": [1.5, 4], "marsh_pool": [0.0, 0.1], "path_stone": [0.0, 0.12]},
+  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7], "shipwreck": [3, 6], "abbey_arch": [4, 6.5], "abbey_wall": [2.5, 4.5], "abbey_pillar": [1.5, 4], "marsh_pool": [0.0, 0.1], "path_stone": [0.0, 0.12], "standing_stone": [2.5, 4.5], "ritual_circle": [0.0, 0.15], "catacomb_gate": [2.5, 4.0]},
   "meshes": [
     {"id": "house_a", "group": "catalog", "parts": [
       {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [6.4, 5.8, 0.4]},
@@ -257,14 +263,24 @@
       {"name": "side_window_r", "material": "glow", "shape": "box", "at": [2.22, 0.19, 1.4], "size": [0.096, 0.475, 1.0]}
     ]},
     {"id": "lighthouse", "group": "village", "parts": [
-      {"name": "plinth", "material": "stone", "shape": "cylinder", "at": [0, 0, 0], "radii": [2.2, 1.8], "height": 1.0, "sides": 8},
-      {"name": "tower_low", "material": "lime", "shape": "cylinder", "at": [0, 0, 1.0], "radii": [1.6, 1.3], "height": 3.0, "sides": 8},
-      {"name": "band", "material": "red", "shape": "cylinder", "at": [0, 0, 4.0], "radii": [1.3, 1.2], "height": 1.6, "sides": 8},
-      {"name": "tower_high", "material": "lime", "shape": "cylinder", "at": [0, 0, 5.6], "radii": [1.2, 1.0], "height": 2.4, "sides": 8},
-      {"name": "gallery", "material": "iron", "shape": "cylinder", "at": [0, 0, 8.0], "radii": [1.5, 1.5], "height": 0.2, "sides": 8},
-      {"name": "lamp_room", "material": "glow", "shape": "cylinder", "at": [0, 0, 8.2], "radii": [0.8, 0.8], "height": 1.1, "sides": 8},
-      {"name": "cap", "material": "iron", "shape": "cone", "at": [0, 0, 9.3], "radius": 1.0, "height": 0.9, "sides": 8},
-      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.92, 1.0], "size": [0.8, 0.12, 2.0]}
+      {"name": "plinth", "material": "stone", "shape": "cylinder", "at": [0, 0, 0], "radii": [2.2, 1.95], "height": 0.9, "sides": 8},
+      {"name": "batter", "material": "rock", "shape": "cylinder", "at": [0, 0, 0.9], "radii": [1.95, 1.55], "height": 1.6, "sides": 8},
+      {"name": "tower_a", "material": "ruin_stone", "shape": "cylinder", "at": [0, 0, 2.5], "radii": [1.55, 1.3], "height": 2.2, "sides": 8},
+      {"name": "string_course", "material": "stone", "shape": "cylinder", "at": [0, 0, 4.7], "radii": [1.42, 1.42], "height": 0.22, "sides": 8},
+      {"name": "tower_b", "material": "rock", "shape": "cylinder", "at": [0, 0, 4.92], "radii": [1.3, 1.05], "height": 2.7, "sides": 8},
+      {"name": "corbel", "material": "stone", "shape": "cylinder", "at": [0, 0, 7.6], "radii": [1.05, 1.8], "height": 0.45, "sides": 8},
+      {"name": "gallery", "material": "iron", "shape": "cylinder", "at": [0, 0, 8.05], "radii": [1.8, 1.8], "height": 0.1, "sides": 8},
+      {"name": "rail_0", "material": "iron", "shape": "box", "at": [1.7, 0.0, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_2", "material": "iron", "shape": "box", "at": [0.0, 1.7, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_4", "material": "iron", "shape": "box", "at": [-1.7, 0.0, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "rail_6", "material": "iron", "shape": "box", "at": [-0.0, -1.7, 8.15], "size": [0.1, 0.1, 0.8]},
+      {"name": "lamp_room", "material": "glow", "shape": "cylinder", "at": [0, 0, 8.15], "radii": [0.85, 0.8], "height": 1.0, "sides": 8},
+      {"name": "lamp_cap", "material": "iron", "shape": "cone", "at": [0, 0, 9.15], "radius": 1.1, "height": 1.05, "sides": 8},
+      {"name": "door", "material": "wood", "shape": "box", "at": [0, -1.6, 0.9], "size": [0.9, 0.6, 2.0]},
+      {"name": "door_lintel", "material": "stone", "shape": "box", "at": [0, -1.62, 2.9], "size": [1.3, 0.7, 0.25]},
+      {"name": "slit_low", "material": "iron", "shape": "box", "at": [0, -1.4, 3.5], "size": [0.2, 0.15, 0.6]},
+      {"name": "slit_keeper", "material": "glow", "shape": "box", "at": [0, -1.2, 5.9], "size": [0.28, 0.15, 0.5]},
+      {"name": "slit_high", "material": "iron", "shape": "box", "at": [0, -1.1, 6.8], "size": [0.2, 0.15, 0.5]}
     ]},
     {"id": "market_stall", "group": "village", "parts": [
       {"name": "post_a", "material": "wood", "shape": "box", "at": [-1.1, -0.7, 0], "size": [0.12, 0.12, 2.2]},
@@ -696,6 +712,34 @@
     {"id": "path_stone", "group": "village", "parts": [
       {"name": "slab", "material": "path_stone", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [0.95, 0.72, 0.06]},
       {"name": "chip", "material": "ruin_stone", "shape": "box", "at": [0.28, 0.2, 0.0], "size": [0.42, 0.3, 0.09]}
+    ]},
+    {"id": "standing_stone", "group": "village", "parts": [
+      {"name": "footing", "material": "lichen", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [1.3, 1.0, 0.3]},
+      {"name": "slab", "material": "menhir", "shape": "cylinder", "at": [0.0, 0.0, 0.3], "radii": [0.62, 0.36], "height": 3.2, "sides": 5, "shear": {"dx": 0.2, "from": 0.3, "height": 3.2}},
+      {"name": "cap", "material": "lichen", "shape": "cylinder", "at": [0.2, 0.0, 3.4], "radii": [0.34, 0.2], "height": 0.18, "sides": 5}
+    ]},
+    {"id": "ritual_circle", "group": "village", "parts": [
+      {"name": "ring", "material": "menhir", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [3.2, 3.1], "height": 0.05, "sides": 12},
+      {"name": "ash", "material": "ritual_ash", "shape": "cylinder", "at": [0.0, 0.0, 0.05], "radii": [2.9, 2.9], "height": 0.03, "sides": 12},
+      {"name": "bar_0", "material": "ritual_red", "shape": "box", "at": [0.0, 0.0, 0.08], "size": [5.0, 0.2, 0.02]},
+      {"name": "bar_1", "material": "ritual_red", "shape": "box", "at": [0.0, 0.0, 0.08], "size": [5.0, 0.2, 0.02], "yaw": 60},
+      {"name": "bar_2", "material": "ritual_red", "shape": "box", "at": [0.0, 0.0, 0.08], "size": [5.0, 0.2, 0.02], "yaw": 120},
+      {"name": "eye", "material": "ritual_red", "shape": "cylinder", "at": [0.0, 0.0, 0.08], "radii": [0.55, 0.5], "height": 0.03, "sides": 8}
+    ]},
+    {"id": "catacomb_gate", "group": "village", "parts": [
+      {"name": "wall", "material": "menhir", "shape": "box", "at": [0.0, 0.3, 0.0], "size": [4.8, 1.2, 2.6]},
+      {"name": "cap", "material": "lichen", "shape": "box", "at": [0.0, 0.3, 2.6], "size": [5.2, 1.6, 0.3]},
+      {"name": "pier_l", "material": "menhir", "shape": "box", "at": [-1.15, -0.45, 0.0], "size": [0.5, 0.5, 2.3]},
+      {"name": "pier_r", "material": "menhir", "shape": "box", "at": [1.15, -0.45, 0.0], "size": [0.5, 0.5, 2.3]},
+      {"name": "lintel", "material": "menhir", "shape": "box", "at": [0.0, -0.45, 2.0], "size": [2.8, 0.5, 0.45]},
+      {"name": "doorway", "material": "tomb_black", "shape": "box", "at": [0.0, -0.2, 0.0], "size": [1.8, 0.2, 2.0]},
+      {"name": "bar_0", "material": "tomb_iron", "shape": "box", "at": [-0.6, -0.4, 0.0], "size": [0.07, 0.07, 2.0]},
+      {"name": "bar_1", "material": "tomb_iron", "shape": "box", "at": [0.0, -0.4, 0.0], "size": [0.07, 0.07, 2.0]},
+      {"name": "bar_2", "material": "tomb_iron", "shape": "box", "at": [0.6, -0.4, 0.0], "size": [0.07, 0.07, 2.0]},
+      {"name": "tread_0", "material": "tomb_black", "shape": "box", "at": [0.0, -0.95, 0.0], "size": [2.2, 0.35, 0.1]},
+      {"name": "tread_1", "material": "ruin_stone", "shape": "box", "at": [0.0, -1.3, 0.0], "size": [2.6, 0.35, 0.1]},
+      {"name": "tread_2", "material": "ruin_stone", "shape": "box", "at": [0.0, -1.65, 0.0], "size": [3.0, 0.35, 0.1]},
+      {"name": "buttress", "material": "lichen", "shape": "box", "at": [0.0, 1.65, 0.0], "size": [3.0, 0.3, 0.7]}
     ]}
   ]
 }

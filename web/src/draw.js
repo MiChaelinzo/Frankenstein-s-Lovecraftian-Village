@@ -7,7 +7,8 @@ import { pickRole, badgeText } from './pack.js';
 import { sceneLabel } from './dlnk-layout.js';
 import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, detailFeatures, visibleFloors, doorShake, DOOR_RING } from './building.js';
 import { lerp, mix } from './util.js';
-import { locName } from './i18n-text.js';
+import { kindName } from './i18n-text.js';
+import { placeName } from './names.js';
 
 /**
  * Dredge and Silent Hill mood for the 2D view (docs/ART_DIRECTION.md): mossy damp ground, grey green close fog, a cold top and warm low grade.
@@ -444,7 +445,8 @@ export function createRenderer(env) {
     ctx.strokeStyle = `rgba(160,255,200,${pulse.toFixed(2)})`; ctx.lineWidth = 2; ctx.stroke();
     const c = iso(p.x + p.sizeX / 2, p.z + p.sizeZ / 2);
     const hint = hintLabel(p.id);
-    const label = hint ? `${locName(lang, p.id)} (${hint})` : locName(lang, p.id);
+    const place = placeName(p, lang) || kindName(p.id, lang);
+    const label = hint ? `${place} (${hint})` : place;
     ctx.font = '600 20px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillText(label, c.x + 1, c.y + 26); ctx.fillStyle = 'rgb(190,255,220)'; ctx.fillText(label, c.x, c.y + 25);
   }
 
@@ -608,7 +610,7 @@ export function createRenderer(env) {
       const s = iso(pos.x, pos.z); glow(s.x, s.y, 26, '255,190,110', 0.28, 0.5);
     }
     // villagers stand in the village at the current clock tick; vanished ones are not listed. They share the cultist depth ordering.
-    for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
+    for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone && !v.indoors) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
     if (state.dlnk) drawDlnk(dread, time);

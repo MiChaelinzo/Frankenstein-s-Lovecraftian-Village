@@ -345,3 +345,16 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Timings (SwiftShader, indicative): see CHANGELOG parts 7 and 8. Before the city, camera 84,96: 268/330/353 ms (Low/Medium/High). After, same camera inside the city: 410/480/516 ms; city edge: 269/311/354 ms. The halo and firefly cull gave no speedup.
 - Full `tools/browser_check.mjs` (foreground, SwiftShader, about 20 min): ran to the end for the first time on the city build, 93 of 103 passed (log `/projects/sandbox/browser_check_r23_final.log`, not committed). The 10 failures: meshes.html count (stale `47 of 47`, the page loads 60 of 60, check now accepts any all-loaded count, fixed), the 3D door prompt and door lantern checks, the four villager 3D and 2D checks (prompt, dialogue, Escape, minimap markers), the cinematic frame change, and the two clock sky checks. Those checks use fixed camera positions and villager spots chosen for the old 24 by 24 grid, so they are likely stale after the city and the wider world, but I did not confirm each one, and the sky check at `cam3d=34,75` might also see the church rise. Partially Verified; these 9 remaining failures are open work for the next round.
 - Gotcha: the image viewer failed the first read of a fresh PNG ("ENOENT"); reading it again worked.
+
+
+## Round 24 commits (living village, branch feat/round24, from `git log c000123..HEAD`)
+- `bf1fae8` fix: villagers gather, walk and use doors so the Old Town is populated in 3D (Core PresenceAt, JS mirror, walk pose, Unity agent)
+- `8c8dc79` fix: round trunk collision so the explorer slides around trees
+- `dde80ee`, `dfad827`, `391458f`, `7920a26`: seeded names (Core VillageNames, prompts, NAMES_ONLY check, docs)
+- `85741fd`, `f669a0a`, `8279974`, `9724630`: narrative layer (Core VillageStory, chronicle panel, chronicle check, README label)
+- `44360c1` fix: held lantern flame, cage and shaded glass
+- `d6b7a81`, `d6e981f`, `915a6d7`, `ff12b28`, `27a4b71`: Core LighthouseBeam, stone lighthouse, sky and water, LIGHTHOUSE_ONLY check, docs
+- `c9f00f2`, `efc1f0a`: CC0 Quaternius kit houses, uv padding fix, credits
+- `e05b07c`, `9d7972f`: four new landmarks, docs
+- `22fb964` test: SKY_ONLY, CINEMA_ONLY and PROBE_URLS filters
+- Closing run (FEAT-007): dotnet 244, node 568, browser check 105 of 105, tier timing low 224.3, medium 295.9, high 346.8 ms (SwiftShader, indicative). Unverified: Unity runtime, real GPU, rigged villagers.

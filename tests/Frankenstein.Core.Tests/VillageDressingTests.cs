@@ -68,5 +68,30 @@ namespace Frankenstein.Core.Tests
             Assert.False(VillageDressing.TryCollisionHalfExtents(new DressingItem { Kind = "bench", Yaw = 0, Scale = 1.0 }, out _, out _));
             Assert.True(WorldScale.BodyRadius >= 0.45f);
         }
+
+        [Fact]
+        public void Tree_collision_is_the_trunk_not_the_canopy()
+        {
+            var tree = new DressingItem { Kind = "tree", Yaw = 0.7, Scale = 1.0 };
+            Assert.True(VillageDressing.TryCollisionHalfExtents(tree, out double hx, out double hz));
+            Assert.Equal(0.35 + WorldScale.OverhangClearance, hx, 6);
+            Assert.Equal(hx, hz, 6);
+            Assert.True(hx < VillageDressing.FootprintOf("tree").HalfX / 1.5);
+        }
+
+        [Fact]
+        public void Walking_into_a_trunk_slides_along_it_and_passes()
+        {
+            double h = 0.35 + WorldScale.OverhangClearance, r = WorldScale.BodyRadius;
+            var boxes = new[] { new WalkBox { MinX = -h, MaxX = h, MinZ = -h, MaxZ = h, Round = true } };
+            double x = 0.1, z = 5.0, step = 0.05;
+            for (int i = 0; i < 400; i++)
+            {
+                z -= step; // walks straight at the trunk, slightly off centre
+                WalkCollision.Resolve(ref x, ref z, r, boxes);
+                if (z < -3) break;
+            }
+            Assert.True(z < -3, $"explorer stuck at z={z}");
+        }
     }
 }
