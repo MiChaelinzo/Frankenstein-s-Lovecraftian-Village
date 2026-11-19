@@ -477,10 +477,11 @@ void main(){
     col = mix(mix(shallow, deep, smoothstep(0.0, 28.0, shoreOff)), skyRefl, 0.1 + 0.85 * fres); // depth gradient: teal shallows into black water
     col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 70.0) * uMoonGain;
     if (uDetail > 1.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 900.0) * uMoonGain * 3.0; // sharp glints on the moon path
-    if (uDetail > 0.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 18.0) * uMoonGain * 0.9 * step(0.62, vnoise(p * 2.6 + vec2(t * 0.7, -t * 0.5))) * (0.6 + 0.4 * sin(t * 3.0 + p.x * 4.0)); // broken glitter path
+    if (uDetail > 0.5) col += uMoonColor * pow(max(dot(R, uMoonDir), 0.0), 18.0) * uMoonGain * 0.7 * smoothstep(0.55, 0.8, vnoise(vec2(p.x * 0.7, p.y * 3.6) + vec2(t * 0.7, -t * 0.5))) * (0.6 + 0.4 * sin(t * 3.0 + p.x * 4.0)); // broken glitter path
     if (uDetail > 0.5) { // shore foam: a broken band that pulses with the swell along the ground edge
       float off = ((uShore.x > 0.5 ? vPos.x : vPos.z) - uShore.y) * uShore.z;
-      float brk = vnoise(vPos.xz * 0.7 + vec2(t * 0.15, 0.0)) * 0.6 + vnoise(vPos.xz * 2.3 - t * 0.3) * 0.4;
+      vec2 sp = uShore.x > 0.5 ? vPos.zx : vPos.xz; // along the shore, out to sea: foam stretches along the beach in lines instead of round blobs
+      float brk = vnoise(vec2(sp.x * 0.22, sp.y * 1.3) + vec2(t * 0.15, 0.0)) * 0.6 + vnoise(vec2(sp.x * 0.7, sp.y * 3.2) - t * 0.3) * 0.4;
       off -= uLap * 1.2 * (0.5 + 0.5 * sin(t * 0.7 + (uShore.x > 0.5 ? vPos.z : vPos.x) * 0.12)); // waves lap up the shore and draw back
       float band = (1.0 - smoothstep(0.0, 3.5, off + brk * 1.6)) * smoothstep(-0.5, 0.2, off) * (0.6 + 0.4 * sin(off * 2.2 - t * 1.4));
       col = mix(col, vec3(0.62, 0.68, 0.7) * (0.35 + lightSum * 1.5), clamp(band * smoothstep(0.35, 0.7, brk + 0.2), 0.0, 0.85));
@@ -491,6 +492,7 @@ void main(){
       col += uLightCol[i] * pow(max(dot(R, normalize(d)), 0.0), 40.0) * att * uLampGain;
     }
   }
+  if (uMode > 1.5 && uMode < 2.5 && uDetail > 0.5) col = mix(col, mix(uHorizon, uZenith, 0.12) * 1.05, (1.0 - smoothstep(0.0, 0.1, abs(V.y))) * 0.75); // the far water melts into the sky haze: no hard line at the horizon
   float peak = max(col.r, max(col.g, col.b)); // hue-preserving soft shoulder: lit walls keep their colour under a lantern instead of clipping to white
   if (peak > 0.55) col *= (0.55 + 0.33 * (1.0 - exp(-(peak - 0.55) / 0.33))) / peak;
   if (vGlow > 0.0 || vUv.x < -1.5) {
@@ -549,12 +551,17 @@ void main(){
   col = mix(col, uHorizon * 0.55 + 0.03 + uMoonColor * mlit * (1.0 - smoothstep(0.42, 0.9, cl)) * (uDetail > 0.5 ? 0.9 : 0.0), c * 0.7);
   vec3 g = floor(d * 160.0); float sh = hash(g.xy + g.z * 7.31); float s = step(0.9972, sh) * uStars * (1.0 - c) * smoothstep(0.04, 0.3, h) * (0.65 + 0.35 * sin(uTime * 2.1 + sh * 600.0));
   col += vec3(0.8, 0.85, 1.0) * s;
+  if (uDetail > 0.5) { vec3 g2 = floor(d * 70.0); float sh2 = hash(g2.xy * 1.7 + g2.z * 3.13); float big = step(0.9985, sh2) * uStars * (1.0 - c) * smoothstep(0.08, 0.35, h) * (0.7 + 0.3 * sin(uTime * 1.3 + sh2 * 900.0)); col += mix(vec3(1.0, 0.82, 0.62), vec3(0.7, 0.8, 1.0), fract(sh2 * 311.0)) * big * 1.4; } // a few large warm and cold stars
   float m = dot(d, uMoonDir); float disc = smoothstep(cos(uMoonSize), cos(uMoonSize * 0.9), m);
   float halo = pow(max(m, 0.0), 220.0) * 0.4 + pow(max(m, 0.0), 40.0) * 0.1 + pow(max(m, 0.0), 6.0) * 0.04;
   float moonOn = (1.0 - c * 0.75) * step(0.0001, uMoonColor.z);
   col += uMoonColor * 0.9 * halo * moonOn;
   vec3 discCol = mix(vec3(0.6, 0.66, 0.78), normalize(uMoonColor + 0.001) * 1.25, uSun);
-  col = mix(col, discCol * (0.85 + 0.15 * vnoise(d.xz * 90.0 + d.y * 40.0)), disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  vec3 mu = normalize(cross(vec3(0.0, 1.0, 0.0), uMoonDir) + vec3(0.0001, 0.0, 0.0)); vec3 mv = cross(uMoonDir, mu); vec2 ml = vec2(dot(d, mu), dot(d, mv)) / sin(uMoonSize); // position on the disc, -1 to 1: marks that stay on the moon instead of streaking across the sky
+  float maria = vnoise(ml * 2.6 + 7.0) * 0.6 + vnoise(ml * 6.5) * 0.4, crater = uDetail > 0.5 ? smoothstep(0.62, 0.7, vnoise(ml * 14.0 + 3.0)) * 0.1 : 0.0;
+  vec3 surf = discCol * (0.97 - 0.13 * smoothstep(0.4, 0.75, maria) - crater * 0.5) * (1.0 - 0.22 * dot(ml, ml)); // dark seas and a darkened limb
+  col = mix(col, surf, disc * moonOn); // the disc replaces the sky behind it, so it stays a pale moon instead of adding up to white
+  col += uMoonColor * pow(max(m, 0.0), 900.0) * 0.5 * moonOn; // a tight bloom hugging the limb
   if (uDetail > 0.5) col = mix(col, uHorizon * 1.05, 0.5 * exp(-abs(h) * 22.0) * (0.75 + 0.25 * vnoise(vec2(d.x * 9.0 + uTime * 0.02, 3.0)))); // tidal haze lying on the horizon
   col += uHorizon * 0.35 * exp(-abs(h) * 9.0) * (0.6 + 0.4 * uMoonColor.z);
   if (uEyeOpen > 0.01 && dot(d, uEyeDir) > 0.0) {
