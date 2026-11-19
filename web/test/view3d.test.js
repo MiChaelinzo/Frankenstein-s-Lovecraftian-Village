@@ -8,7 +8,7 @@ import { loadGlbBuffer, appendMeshVertices, fitScale, VERTEX_FLOATS, windowUvs, 
 import { padAxes3d, touchDrive, combineDrive, isTap } from '../src/input.js';
 import { streetSurfaces } from '../src/streets.js';
 import * as M from '../src/view3d-math.js';
-import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer, buildHeldLantern, chatTarget, HELD_LANTERN_OFFSET, HELD_LANTERN_SWING_RAD } from '../src/view3d.js';
+import { buildWorld, buildCoast, buildChurchHill, buildTentacles, createGlRenderer, buildHeldLantern, HELD_FLAME_PHASE, HELD_GLASS_PHASE, chatTarget, HELD_LANTERN_OFFSET, HELD_LANTERN_SWING_RAD } from '../src/view3d.js';
 import { omenTargets } from '../src/scene.js';
 import { texturePlan } from '../src/pack.js';
 import { tierFor } from '../src/core.js';
@@ -529,6 +529,8 @@ test('held lantern: small, in the lower right of the view, past the near plane, 
   assert.ok(Math.max(...ys) < -0.2 && visible > 0, `lower part of the screen and partly visible (top ${Math.max(...ys).toFixed(2)})`);
   assert.ok(Math.min(...ys) > -0.97, `the whole lantern stays inside the frame, the base is not cut off (bottom ${Math.min(...ys).toFixed(2)})`);
   assert.ok(a.some((v, i) => i % VERTEX_FLOATS === 9 && v >= 1), 'the glass glows at full strength');
+  const phases = new Set(); for (let i = 10; i < a.length; i += VERTEX_FLOATS) phases.add(a[i]);
+  assert.ok(phases.has(Math.fround(HELD_FLAME_PHASE)) && phases.has(Math.fround(HELD_GLASS_PHASE)), 'a flame part and a glass part, so the shader can shade them differently (the glass was one flat colour)');
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4, reduced: true }), buildHeldLantern({ eye, basis, swingPhase: 2.9, reduced: true }), 'still with reduced motion');
   assert.notDeepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), buildHeldLantern({ eye, basis, swingPhase: 1.2 }));
   assert.deepEqual(buildHeldLantern({ eye, basis, swingPhase: 0.4 }), a, 'deterministic');

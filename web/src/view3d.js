@@ -247,7 +247,9 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
 /** Where the held lantern hangs in camera space (metres: right, up, forward of the eye). Low and to the right, so only its glass and cap sit in the corner. */
 export const HELD_LANTERN_OFFSET = Object.freeze([0.4, -0.42, 0.8]);
 export const HELD_LANTERN_SWING_RAD = 0.06; // walking swing amplitude in radians; zero with reduced motion
-const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
+const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38], HELD_FLAME = [1, 0.95, 0.75];
+/** Vertex phase marks read by the held lantern in the fragment shader (mode 3): flame part (above 1.5) and glass part. */
+export const HELD_FLAME_PHASE = 2, HELD_GLASS_PHASE = 0.7;
 
 /**
  * A small original hand lantern (about 0.24 m tall, 0.11 m wide: base, glowing glass, cap and ring) placed in front of the eye.
@@ -256,7 +258,12 @@ const HELD_METAL = [0.09, 0.08, 0.07], HELD_GLASS = [0.95, 0.7, 0.38];
 export function buildHeldLantern({ eye, basis, swingPhase = 0, reduced = false }) {
   const local = [];
   pushFrustum(local, -0.055, -0.055, 0.055, 0.055, 0, 0.025, 1, HELD_METAL);                       // base plate
-  pushFrustum(local, -0.045, -0.045, 0.045, 0.045, 0.025, 0.17, 0.85, HELD_GLASS, 1, 0.7);        // glass chimney, glowing
+  pushFrustum(local, -0.026, -0.026, 0.026, 0.026, 0.03, 0.12, 0.55, HELD_FLAME, 1, HELD_FLAME_PHASE); // the flame, white hot at its heart, seen between the cage posts
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {                                     // four cage posts at the corners of the open lower half
+    const cx = sx * 0.043, cz = sz * 0.043;
+    pushFrustum(local, cx - 0.006, cz - 0.006, cx + 0.006, cz + 0.006, 0.025, 0.1, 1, HELD_METAL);
+  }
+  pushFrustum(local, -0.047, -0.047, 0.047, 0.047, 0.1, 0.17, 0.85, HELD_GLASS, 0.8, HELD_GLASS_PHASE); // amber glass of the upper half, shaded by its angle in the fragment shader
   pushFrustum(local, -0.06, -0.06, 0.06, 0.06, 0.17, 0.21, 0.3, HELD_METAL);                         // cap
   pushFrustum(local, -0.012, -0.012, 0.012, 0.012, 0.21, 0.245, 1, HELD_METAL);                     // ring the hand holds
   const swing = reduced ? 0 : Math.sin(swingPhase * 3.75) * HELD_LANTERN_SWING_RAD, cs = Math.cos(swing), sn = Math.sin(swing);
@@ -476,7 +483,7 @@ void main(){
       vec3 wood = vec3(0.07, 0.05, 0.035) * (0.6 + lightSum * 0.6);
       col = mix(glassCol, wood, max(frame, bar));
     } else {
-      if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); lit = uGlowColor / max(gp, 0.001) * 1.25 * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
+      if (uMode > 2.5) { float gp = max(uGlowColor.r, max(uGlowColor.g, uGlowColor.b)); vec3 hue = uGlowColor / max(gp, 0.001); float face = abs(dot(n, V)); float core = step(1.5, vPhase); lit = mix(hue * (0.55 + 0.75 * face), mix(hue, vec3(1.0, 0.94, 0.78), 0.65) * 1.5, core) * (0.92 + 0.08 * fl); } // the held lantern burns by itself: its glass keeps the lantern hue at full strength, whatever the world lamp gain is (it was darkened by a low dusk/day gain)
       col = mix(col, mix(col * 0.55, lit, on), clamp(vGlow, 0.0, 1.0) * mix(1.0, fl, on));
     }
   }
