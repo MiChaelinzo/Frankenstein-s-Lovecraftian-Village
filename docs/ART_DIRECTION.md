@@ -81,3 +81,9 @@ Qualitative only. Nothing is copied from either game: no assets, no names, no la
 **Landmarks** each hold one idea: the Lighthouse Cliffs (wind and distance), the Wreck of the Marguerite (a ship that went nowhere), the Abbey Ruins (arches with no roof), the Cemetery on the church rise (view of the whole village), the Black Marsh (still pools, spires), the Cursed Grove (the first place corruption grows). Lit paths with a lamp every 14 m connect them so the dark is never total on the way. Stills: `docs/media/round23-landmark-*.jpg`.
 
 **Local pack area:** under `?pack=1` on the author's machine only, the Alien Terrain models replace the corruption look-alikes (fitted to the same footprint). The public site keeps the originals.
+
+
+## Round 24: kit houses and the villager decision
+
+- Houses: `house_a`, `house_b` and `cottage_tall` are assembled from the CC0 Quaternius Medieval Village MegaKit (see `THIRD_PARTY_ASSETS.md`), stone ground floor, jettied plaster upper floor, terracotta roof, same footprint and door as the Blender originals. The triangle budget (60k per frame) decides how much of the kit can be real geometry: about 400 to 660 triangles per house.
+- Villager: the walk stays the CPU leg swing (`poseWalker`). Skeletal skinning in the WebGL1 renderer (bone matrices as uniforms, skin weights in the vertex format, a second shader path) was judged not worth it for a 1.7 m figure seen from 5 to 30 m, and no clearly CC0 rigged villager was evaluated. Revisit if a CC0 rigged model with under 600 triangles and under 24 bones is verified.

@@ -372,6 +372,6 @@ This submission combines:
 
 Environment assets courtesy of DLNK Artworks' Lovecraftian Village environment pack.
 
-The browser 3D view also uses CC0 assets from [Poly Haven](https://polyhaven.com): the Old Stone Wall texture by Charlotte Baglioni, the Roof Slates 02, Cobblestone Floor 04 and Brown Mud Leaves 01 textures by Rob Tuytel, the Barrel 03 model by Serhii Khromov and the Painted Wooden Bench model by Kirill Sannikov. Files, sources and licences are listed in [`THIRD_PARTY_ASSETS.md`](THIRD_PARTY_ASSETS.md); `python3 tools/validate_repo.py` fails when a file under `web/assets/third_party/` has no CC0 entry there.
+The browser 3D view also uses CC0 assets from [Poly Haven](https://polyhaven.com): the Old Stone Wall texture by Charlotte Baglioni, the Roof Slates 02, Cobblestone Floor 04 and Brown Mud Leaves 01 textures by Rob Tuytel, the Barrel 03 model by Serhii Khromov and the Painted Wooden Bench model by Kirill Sannikov. The three timber houses of the 3D view are assembled from pieces and trim textures of the [Medieval Village MegaKit](https://quaternius.itch.io/medieval-village-megakit) by Quaternius (CC0 1.0; the Standard download ships `License_Standard.txt` saying so). Files, sources and licences are listed in [`THIRD_PARTY_ASSETS.md`](THIRD_PARTY_ASSETS.md); `python3 tools/validate_repo.py` fails when a file under `web/assets/third_party/` has no CC0 entry there.
 
 Created by Michael G. Inso for Kiroween 2026.
