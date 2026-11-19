@@ -420,7 +420,7 @@ namespace Frankenstein.Core
     /// <summary>Named constants of the item system.</summary>
     public static class ItemRules
     {
-        public static readonly string[] Kinds = { "supply", "food", "tea", "ward", "key", "letter", "trinket" };
+        public static readonly string[] Kinds = { "supply", "food", "tea", "ward", "key", "letter", "trinket", "seed" };
         public static readonly string[] Effects = { "sanity", "fuel", "ward", "none" };
         public static readonly string[] Languages = { "en", "fr" };
         public const int MaxStack = 99;

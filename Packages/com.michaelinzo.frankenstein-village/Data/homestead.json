@@ -1,0 +1,275 @@
+{
+ "version": 1,
+ "starter": [
+  {
+   "item": "seed_turnip",
+   "count": 3
+  },
+  {
+   "item": "seed_cabbage",
+   "count": 2
+  },
+  {
+   "item": "seed_glowcap",
+   "count": 1
+  },
+  {
+   "item": "timber",
+   "count": 4
+  }
+ ],
+ "crops": [
+  {
+   "id": "turnip",
+   "kind": "normal",
+   "seed": "seed_turnip",
+   "harvest": "turnip",
+   "growDays": 2,
+   "yield": 2,
+   "en": {
+    "name": "Turnips",
+    "text": "A plain crop that ripens in two village days. A blight on the village thins it unless a scarecrow stands guard."
+   },
+   "fr": {
+    "name": "Navets",
+    "text": "Une culture simple qui murit en deux jours du village. La brume du village l'eclaircit sauf si un epouvantail veille."
+   }
+  },
+  {
+   "id": "cabbage",
+   "kind": "normal",
+   "seed": "seed_cabbage",
+   "harvest": "cabbage",
+   "growDays": 3,
+   "yield": 2,
+   "en": {
+    "name": "Cabbages",
+    "text": "Slow and steady, ripe in three days. The blight thins them too unless a scarecrow stands guard."
+   },
+   "fr": {
+    "name": "Choux",
+    "text": "Lents et sages, murs en trois jours. La brume les eclaircit aussi sauf si un epouvantail veille."
+   }
+  },
+  {
+   "id": "glowcap",
+   "kind": "eldritch",
+   "seed": "seed_glowcap",
+   "harvest": "glowcap",
+   "growDays": 2,
+   "yield": 1,
+   "en": {
+    "name": "Glowcap mushrooms",
+    "text": "A pale mushroom that shines in the dark. It ripens in two days and thrives when the village grows uneasy."
+   },
+   "fr": {
+    "name": "Capuchons lumineux",
+    "text": "Un champignon pale qui luit dans le noir. Il murit en deux jours et prospere quand le village s'inquiete."
+   }
+  },
+  {
+   "id": "kelp",
+   "kind": "eldritch",
+   "seed": "seed_kelp",
+   "harvest": "kelp",
+   "growDays": 3,
+   "yield": 2,
+   "en": {
+    "name": "Weeping kelp",
+    "text": "Fronds that weep in a dry bed. Ripe in three days, and the more dread the village holds, the more they give."
+   },
+   "fr": {
+    "name": "Varech pleureur",
+    "text": "Des frondes qui pleurent en lit sec. Mures en trois jours, et plus le village a peur, plus elles donnent."
+   }
+  },
+  {
+   "id": "eyeroot",
+   "kind": "eldritch",
+   "seed": "seed_eyeroot",
+   "harvest": "eyeroot",
+   "growDays": 4,
+   "yield": 1,
+   "en": {
+    "name": "Eyeroot",
+    "text": "A root that turns toward you as you pass. Ripe in four days, and generous only when the village is afraid."
+   },
+   "fr": {
+    "name": "Oeilracine",
+    "text": "Une racine qui se tourne vers vous quand vous passez. Mure en quatre jours, genereuse seulement quand le village a peur."
+   }
+  }
+ ],
+ "structures": [
+  {
+   "id": "fence",
+   "cost": 1,
+   "en": {
+    "name": "Fence",
+    "text": "A low run of driftwood rails. Goats stay where a fence is, and animals feel less alone behind it."
+   },
+   "fr": {
+    "name": "Cloture",
+    "text": "Une basse rangee de rails de bois flotte. Les chevres restent ou il y a une cloture, et les betes s'y sentent moins seules."
+   }
+  },
+  {
+   "id": "trough",
+   "cost": 1,
+   "en": {
+    "name": "Trough",
+    "text": "A hollowed log kept full. Animals fed from it stay fed a day longer."
+   },
+   "fr": {
+    "name": "Auge",
+    "text": "Un tronc creuse toujours plein. Les betes nourries la restent rassasiees un jour de plus."
+   }
+  },
+  {
+   "id": "scarecrow",
+   "cost": 2,
+   "en": {
+    "name": "Scarecrow",
+    "text": "A coat on a pole with a sack for a face. It keeps the blight off the plain crops, and the crows too."
+   },
+   "fr": {
+    "name": "Epouvantail",
+    "text": "Un manteau sur une perche, un sac en guise de visage. Il tient la brume loin des cultures simples, et les corbeaux aussi."
+   }
+  },
+  {
+   "id": "coop",
+   "cost": 2,
+   "en": {
+    "name": "Coop",
+    "text": "A small tarred hut on legs. Hens and cats sleep easier in it, and so do the stranger tenants."
+   },
+   "fr": {
+    "name": "Poulailler",
+    "text": "Une petite cabane goudronnee sur pilotis. Poules et chats y dorment mieux, et les locataires plus etranges aussi."
+   }
+  }
+ ],
+ "animals": [
+  {
+   "id": "chicken",
+   "group": "animal",
+   "food": "turnip",
+   "shelter": "coop",
+   "fedDays": 2,
+   "sanity": 1,
+   "produce": "egg",
+   "every": 1,
+   "cap": 3,
+   "count": 2,
+   "en": {
+    "name": "Chickens",
+    "text": "Two brown hens that eat turnips and lay an egg a day when fed and housed in a coop."
+   },
+   "fr": {
+    "name": "Poules",
+    "text": "Deux poules brunes qui mangent des navets et pondent un oeuf par jour si elles sont nourries et logees."
+   }
+  },
+  {
+   "id": "goat",
+   "group": "animal",
+   "food": "cabbage",
+   "shelter": "fence",
+   "fedDays": 2,
+   "sanity": 1,
+   "produce": "goat_milk",
+   "every": 2,
+   "cap": 2,
+   "count": 1,
+   "en": {
+    "name": "Goat",
+    "text": "A goat with square pupils that eats cabbage and gives milk every second day behind a fence."
+   },
+   "fr": {
+    "name": "Chevre",
+    "text": "Une chevre aux pupilles carrees qui mange du chou et donne du lait un jour sur deux derriere une cloture."
+   }
+  },
+  {
+   "id": "cat",
+   "group": "animal",
+   "food": "dried_fish",
+   "shelter": "coop",
+   "fedDays": 2,
+   "sanity": 1,
+   "produce": "",
+   "every": 0,
+   "cap": 0,
+   "count": 1,
+   "en": {
+    "name": "Cat",
+    "text": "A grey cat that eats dried fish. It gives nothing but company, and the company counts."
+   },
+   "fr": {
+    "name": "Chat",
+    "text": "Un chat gris qui mange du poisson seche. Il ne donne que sa compagnie, et elle compte."
+   }
+  },
+  {
+   "id": "lantern_moth",
+   "group": "pet",
+   "food": "glowcap",
+   "shelter": "coop",
+   "fedDays": 2,
+   "sanity": 2,
+   "produce": "",
+   "every": 0,
+   "cap": 0,
+   "count": 1,
+   "en": {
+    "name": "Lantern moth",
+    "text": "A moth the size of a hand with a lit lantern for a body. It eats glowcaps and calms you when it is kept."
+   },
+   "fr": {
+    "name": "Phalene lanterne",
+    "text": "Un papillon de nuit grand comme une main, avec une lanterne allumee pour corps. Il mange des capuchons lumineux et vous apaise quand il est bien tenu."
+   }
+  },
+  {
+   "id": "tide_hound",
+   "group": "pet",
+   "food": "dried_fish",
+   "shelter": "fence",
+   "fedDays": 2,
+   "sanity": 2,
+   "produce": "",
+   "every": 0,
+   "cap": 0,
+   "count": 1,
+   "en": {
+    "name": "Tide hound",
+    "text": "A lean wet hound that smells of low tide. It eats dried fish and keeps close if it has a fence."
+   },
+   "fr": {
+    "name": "Chien de maree",
+    "text": "Un chien maigre et mouille qui sent la maree basse. Il mange du poisson seche et reste pres de vous s'il a une cloture."
+   }
+  },
+  {
+   "id": "jar_tentacle",
+   "group": "pet",
+   "food": "kelp",
+   "shelter": "trough",
+   "fedDays": 2,
+   "sanity": 3,
+   "produce": "",
+   "every": 0,
+   "cap": 0,
+   "count": 1,
+   "en": {
+    "name": "Tentacle in a jar",
+    "text": "A small tentacle in a brine jar. It eats weeping kelp and wants a trough of water nearby. It notices more than it should."
+   },
+   "fr": {
+    "name": "Tentacule en bocal",
+    "text": "Un petit tentacule dans un bocal de saumure. Il mange du varech pleureur et veut une auge d'eau pres de lui. Il remarque plus qu'il ne devrait."
+   }
+  }
+ ]
+}

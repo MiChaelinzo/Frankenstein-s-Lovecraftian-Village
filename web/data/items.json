@@ -238,6 +238,227 @@
     "name": "Bouton noir",
     "text": "Un bouton de manteau noir a quatre trous. Quatre trous, vous recomptez, et il y en a cinq."
    }
+  },
+  {
+   "id": "timber",
+   "kind": "supply",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Driftwood timber",
+    "text": "Salt-grey planks, straight enough to build with. Fences and coops start as a few of these."
+   },
+   "fr": {
+    "name": "Bois flotte",
+    "text": "Des planches grises de sel, assez droites pour batir. Les clotures et les poulaillers commencent par quelques-unes."
+   }
+  },
+  {
+   "id": "seed_turnip",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Turnip seed",
+    "text": "A paper twist of small dark seeds. Turnips ask for little and forgive most things."
+   },
+   "fr": {
+    "name": "Graines de navet",
+    "text": "Un cornet de petites graines sombres. Le navet demande peu et pardonne presque tout."
+   }
+  },
+  {
+   "id": "seed_cabbage",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Cabbage seed",
+    "text": "Pale round seeds in a twist of newsprint. Cabbages are slow, and they keep."
+   },
+   "fr": {
+    "name": "Graines de chou",
+    "text": "Des graines rondes et pales dans un cornet de papier journal. Le chou est lent, et il se garde."
+   }
+  },
+  {
+   "id": "seed_glowcap",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Glowcap spores",
+    "text": "A pinch of grey dust that gives off a faint green light in a closed hand."
+   },
+   "fr": {
+    "name": "Spores de capuchon lumineux",
+    "text": "Une pincee de poussiere grise qui rend une faible lueur verte dans une main fermee."
+   }
+  },
+  {
+   "id": "seed_kelp",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Weeping kelp cutting",
+    "text": "A wet frond, cold to the touch, that never seems to dry however long it lies in the sun."
+   },
+   "fr": {
+    "name": "Bouture de varech pleureur",
+    "text": "Une fronde humide, froide au toucher, qui ne seche jamais, meme longtemps au soleil."
+   }
+  },
+  {
+   "id": "seed_eyeroot",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Eyeroot seed",
+    "text": "A hard seed with a pale ring on one side. It is better not to hold it up to the light."
+   },
+   "fr": {
+    "name": "Graine d'oeilracine",
+    "text": "Une graine dure marquee d'un anneau pale. Mieux vaut ne pas la tenir face a la lumiere."
+   }
+  },
+  {
+   "id": "turnip",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 3,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Turnip",
+    "text": "A plain pale turnip with soil still in its creases. Plainness is a comfort here."
+   },
+   "fr": {
+    "name": "Navet",
+    "text": "Un navet pale et simple, encore de la terre dans les plis. La simplicite est un reconfort ici."
+   }
+  },
+  {
+   "id": "cabbage",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 4,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Cabbage",
+    "text": "A tight green head, heavy and cold. It smells only of cabbage, which helps."
+   },
+   "fr": {
+    "name": "Chou",
+    "text": "Une pomme verte et serree, lourde et froide. Elle ne sent que le chou, et cela aide."
+   }
+  },
+  {
+   "id": "glowcap",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 7,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Glowcap",
+    "text": "A mushroom that shines a dim green in the dark. It tastes of rain, and the whispers go quiet while you chew."
+   },
+   "fr": {
+    "name": "Capuchon lumineux",
+    "text": "Un champignon qui luit d'un vert terne dans le noir. Il a un gout de pluie, et les murmures se taisent pendant que l'on mache."
+   }
+  },
+  {
+   "id": "kelp",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Weeping kelp",
+    "text": "Long fronds that drip even when dry. Boiled, they taste of the sea and of someone else's grief."
+   },
+   "fr": {
+    "name": "Varech pleureur",
+    "text": "De longues frondes qui gouttent meme sechees. Bouillies, elles ont le gout de la mer et du chagrin d'un autre."
+   }
+  },
+  {
+   "id": "eyeroot",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 2,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Eyeroot",
+    "text": "A knobbed root that seems to watch the knife. It is edible, and it steadies the nerves a little."
+   },
+   "fr": {
+    "name": "Oeilracine",
+    "text": "Une racine noueuse qui semble suivre le couteau des yeux. Elle se mange, et calme un peu les nerfs."
+   }
+  },
+  {
+   "id": "egg",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 4,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Egg",
+    "text": "A brown egg, warm from the nest. Whatever else is wrong, the hens are laying."
+   },
+   "fr": {
+    "name": "Oeuf",
+    "text": "Un oeuf brun, tiede du nid. Quoi qu'il aille mal, les poules pondent."
+   }
+  },
+  {
+   "id": "goat_milk",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 6,
+   "stack": 5,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Goat milk",
+    "text": "A pail of thin sweet milk. The goat watched you the whole time it was being drawn."
+   },
+   "fr": {
+    "name": "Lait de chevre",
+    "text": "Un seau de lait fin et sucre. La chevre vous a regarde tout le temps de la traite."
+   }
   }
  ]
 }

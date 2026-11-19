@@ -134,5 +134,36 @@ namespace Frankenstein.Core
         {
             return Grow(seed, gridW, gridD, Level(dread, night));
         }
+
+        /// <summary>
+        /// Round 25: the edge of the homestead plot. Three candidates stand beside the beds in the plot's own frame (metres to the side and metres forward of the plot origin) and
+        /// appear and grow with <see cref="AppearLevel"/> and <see cref="ScaleAt"/> like every other site, so the plot grows stranger with dread and night without a second growth rule.
+        /// </summary>
+        private static readonly Candidate[] PlotEdge = { C("fungus_cluster", -3.8, 1.0), C("fungus_shelf", 3.9, 2.0), C("tentacle_sapling", -3.4, 4.8) };
+
+        /// <summary>The full size candidate spots of the plot edge as { side, forward } in the plot frame, in rank order. The plot search keeps them clear of walls and props.</summary>
+        public static double[][] PlotEdgeOffsets()
+        {
+            var o = new double[PlotEdge.Length][];
+            for (int i = 0; i < PlotEdge.Length; i++) o[i] = new[] { PlotEdge[i].A, PlotEdge[i].B };
+            return o;
+        }
+
+        /// <summary>The plot edge corruption at a growth level. (sideX, sideZ) and (dirX, dirZ) are the plot's unit axes in the world.</summary>
+        public static List<DressingItem> GrowPlotEdge(double originX, double originZ, double sideX, double sideZ, double dirX, double dirZ, int level)
+        {
+            var grown = new List<DressingItem>();
+            for (int rank = 0; rank < PlotEdge.Length; rank++)
+            {
+                double scale = ScaleAt(rank, PlotEdge.Length, level);
+                if (scale <= 0.0) continue;
+                var c = PlotEdge[rank];
+                grown.Add(new DressingItem { Kind = c.Kind, X = originX + sideX * c.A + dirX * c.B, Z = originZ + sideZ * c.A + dirZ * c.B, Yaw = rank * PlotEdgeYawStep, Scale = scale });
+            }
+            return grown;
+        }
+
+        /// <summary>Radians between the turns of the plot edge candidates.</summary>
+        public const double PlotEdgeYawStep = 2.1;
     }
 }

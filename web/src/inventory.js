@@ -7,7 +7,7 @@ import { isBuilding } from './streets.js';
 import { frontSpots, isBlocked } from './lore.js';
 import { phaseAt, wrapTick, MINUTES_PER_DAY } from './clock.js';
 
-export const ITEM_KINDS = ['supply', 'food', 'tea', 'ward', 'key', 'letter', 'trinket'];
+export const ITEM_KINDS = ['supply', 'food', 'tea', 'ward', 'key', 'letter', 'trinket', 'seed'];
 export const ITEM_EFFECTS = ['sanity', 'fuel', 'ward', 'none'];
 export const ITEM_LANGUAGES = ['en', 'fr'];
 export const MAX_STACK = 99, PLAYER_SLOTS = 12, CHEST_SLOTS = 8, FUEL_MAX = 100, FUEL_START = 60, CANDLE_FUEL_COST = 5, SLEEP_SANITY_RESTORE = 10;
