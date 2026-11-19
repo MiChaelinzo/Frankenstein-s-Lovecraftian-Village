@@ -70,6 +70,18 @@ Dynamic resolution steps the render scale down by 0.25 when the average frame is
 
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
+### Round 25 controls
+| Key | 3D view | 2D view |
+|-----|---------|---------|
+| `I` | open the satchel | sends the investigator (use the Satchel button) |
+| `E` | pick up, read or open what you face | endure the night |
+| `Z` | lay a salt line | not available |
+| `V` | draw a chalk sigil | not available |
+| `F` | fire a flare | not available |
+| Homestead button | plant, feed, build and harvest within 12 m of the yard | marks only |
+
+Touch has a Bag button and the pad uses left stick press for the satchel. The help overlay and the tour (`?tour=1`) cover the satchel, wards and homestead in English and French.
+
 ### Creatures and sanity exposure (round 25)
 Pale things walk the village after dark. They are seeded (same seed, phase, weather and dread give the same creatures), capped at 8 at once, and never jump out at you.
 
@@ -246,7 +258,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Homestead look: 17 meshes, yard rendering, 2D marks | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/homestead_yard.png` and `homestead_pet.png` were viewed and show the beds, crops, coop, fence, trough, chickens, tide hound and lantern moth; 2D marks only checked for no errors; a real GPU was not used |
 | Unity hook `HomesteadBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
 | Unity hook `CreatureExposureBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 408 passing, including golden parity with C# output |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 622 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 0 warnings against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |

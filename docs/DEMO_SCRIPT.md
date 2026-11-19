@@ -98,3 +98,9 @@ Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted musi
 - Names: open the door prompt of a house and switch `lang=fr`; the house has a seeded name in both languages. Open the Chronicle button for families, journals and missing persons.
 - Walking around a tree: `cam3d=40.5,64.5,0,-4` walk forward past the tree at 37.97, 60.00. Say: "Trunks are round now, so you slide around them."
 - Night on the shore: the lighthouse beam (needs `quality=high` or Medium; software GL may default to Low and hide it).
+
+## Round 25 shots (optional, 10 s each)
+- Satchel: `?view=3d&intro=0&caption=0&kit=farm` then press `I`. Say: "Food steadies the mind, oil feeds the lantern."
+- Wards: `?view=3d&intro=0&caption=0&kit=ward` at night, press `Z` to lay salt. Say: "Nothing crosses the salt, and nothing sees through it." Creatures are quiet by design, so do not promise a jump scare.
+- Homestead: `?view=3d&intro=0&caption=0&kit=farm`, open the Homestead button within 12 m of the yard and plant a seed. Stills: `docs/media/homestead_yard.png`.
+- A busier street: 24 villagers by district, see `docs/media/round25-busy-streets.png`. All of this is the web demo; the Unity hooks are compile checked only and Unverified at runtime.

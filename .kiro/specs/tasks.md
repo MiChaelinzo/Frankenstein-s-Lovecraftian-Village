@@ -169,10 +169,10 @@ Round 24 leftovers (open, from FEAT-007):
 - [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
 - [x] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
 
-## Round 25: survival and homestead (in progress)
+## Round 25: survival and homestead (done, see FEAT-008 in the feature files)
 - [x] 141. Baseline green on `feat/round25` (Verified: node 570, dotnet 244, UnityCompileCheck 0/0)
 - [x] 142. Asset licence audit of the author's itch.io links in `docs/ASSET_LICENCE_AUDIT.md`, Support link (About, README, en and fr) and `docs/PAYMENTS_PLAN.md` (plan only, no function, no secret)
-- [ ] 143. Inventory and items, monsters and sanity exposure, homestead, more villagers (see the round 25 feature files under `.agents/tasks/task-round25-survival-homestead/`)
+- [x] 143. Inventory and items, monsters and sanity exposure, homestead, more villagers (done; forest and swamp tasks 129 and 130 deferred; see the round 25 feature files under `.agents/tasks/task-round25-survival-homestead/`)
 
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).

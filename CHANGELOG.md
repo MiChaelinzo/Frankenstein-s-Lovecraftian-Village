@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 25 (FEAT-008): finalize
+- Help overlay and tour now cover the homestead (en and fr, new `keys.homestead` and tour step `homestead`); README round 25 controls table, verification counts, BUILD_LOG round 25 commits, ART_DIRECTION, UNITY_SETUP hooks, DEMO_SCRIPT and DEVPOST checklist, spec task 143 done. Forest and swamp (129, 130) stay deferred.
+
 ### Round 25 (FEAT-006): more villagers, lane routes
 - Core `VillagerRules.GenerateRoster(seed, layout, gridW, gridD)`: the seven principals (unchanged) plus 17 townsfolk by district on grids of at least `VillageDistricts.CityGrid` (own seed stream `ResidentStream`, no lamplighter or keeper). JS `generateTownRoster`. The story and journals still use the seven principals.
 - Core `VillageStreets.LaneRoute` and `LegIsClear` (JS `laneRoute`, `legIsClear`): `PresenceAt` walks lane centre lines instead of x then z, so a walk never crosses a building. Without streets the old x then z walk stays.
