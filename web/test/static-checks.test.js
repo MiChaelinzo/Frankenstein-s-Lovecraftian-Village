@@ -139,6 +139,6 @@ test('stills options: ?caption=0 hides the cinematic caption and ?grain=0 remove
 test('the moon disc replaces the sky and lit walls use a hue preserving shoulder, so neither clips to white', () => {
   const view = readFileSync(join(web, 'src', 'view3d.js'), 'utf8');
   assert.match(view, /vec3 discCol = mix\(vec3\(0\.6, 0\.66, 0\.78\)/);
-  assert.match(view, /col = mix\(col, discCol/);
+  assert.match(view, /vec3 surf = discCol/); assert.match(view, /col = mix\(col, surf, disc \* moonOn\)/); // the disc still replaces the sky (now with fixed marks and limb darkening)
   assert.match(view, /peak > 0\.55/);
 });

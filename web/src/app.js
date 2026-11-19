@@ -140,7 +140,7 @@ const view3d = createView3d({
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
   }),
   onThunder: (delayMs) => ambient?.thunder(delayMs), onStep: (surface) => ambient?.footstep(surface), onCoast: (c) => ambient?.setCoast(c),
-  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
+  onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.beam ? 'beam' : 'no beam'} | ${c.held ? 'held lantern' : 'no hand'} | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   alienPack: () => pack.want,
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen(), close: () => { villagers.close(); lore.close(); } },

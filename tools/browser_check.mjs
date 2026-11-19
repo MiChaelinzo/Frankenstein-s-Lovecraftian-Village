@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -172,6 +172,14 @@ async function main() {
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
   };
 
+  /** Lighthouse and held lantern (round 24): at night the lighthouse beam is drawn on High and Medium, but not on Low, not with reduced motion and not in daylight (those keep the static lamp glow), and the held lantern is drawn (and absent in the fly-through). LIGHTHOUSE_ONLY=1 runs only this. */
+  const lighthouseRun = async () => {
+    const out = {};
+    const hudFor = async (query) => { await send('Page.navigate', { url: 'about:blank' }); await sleep(300); await nav(`?intro=0&view=3d&perf=1&fixscale=1&capture=1&caption=0&${query}#seed=1818&sanity=80&cam3d=122,22,55,8`); return until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000).catch(() => ''); };
+    out.high = await hudFor('quality=high&tick=1250'); out.low = await hudFor('quality=low&tick=1250'); out.reduced = await hudFor('quality=high&tick=1250&reduced=1'); out.day = await hudFor('quality=high&tick=540');
+    rec('lighthouse: the beam is drawn at night on High, not on Low, not with reduced motion and not by day; the held lantern is drawn', / beam /.test(out.high) && /no beam/.test(out.low) && /no beam/.test(out.reduced) && /no beam/.test(out.day) && /held lantern/.test(out.high) && warns.length === 0, out);
+  };
+
   /** Names (round 24): the 3D door prompt shows the seeded name of the house in front of the explorer (seed 1818, en and fr) and never a raw id like house_a. NAMES_ONLY=1 runs only this; NAMES_SHOT=<file.png> also saves the English frame. */
   const namesRun = async () => {
     const { lanternLights } = await import('../web/src/view3d-math.js');
@@ -274,6 +282,7 @@ async function main() {
     if (process.env.CINEMA_ONLY) { for (let i = 0; i < 2; i++) await cinemaRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
+    if (process.env.LIGHTHOUSE_ONLY) { await lighthouseRun(); break suite; }
     if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
     if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
