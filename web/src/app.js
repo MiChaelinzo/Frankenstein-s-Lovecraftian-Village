@@ -23,6 +23,7 @@ import { loadMeshSet } from './glb.js';
 import { createView3d } from './view3d.js';
 import { view3dWanted, CELL, sanitizeViewSettings, parseViewSettings, VIEW_SETTINGS_KEY } from './view3d-math.js';
 import { createVillagerController } from './villager-ui.js';
+import { ROLE_COUNT } from './villagers.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
 import { createInventoryController } from './inventory-ui.js';
@@ -676,7 +677,7 @@ const villagers = createVillagerController({
   onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
-storyRoster = () => villagers.roster;
+storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,

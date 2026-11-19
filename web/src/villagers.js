@@ -1,5 +1,6 @@
 // JS port of Core/VillagerRules.cs. Enums are the same integers as in C#. Wording lives in i18n.js (villager.*), never read by these rules.
 import { SeededRandom, sanitizeDread, tierFor, villagerTalkCountsAsClue, InteractionRules, VIGIL_STEADY_SANITY } from './core.js';
+import { districtAt, CITY_GRID, DISTRICT_IDS } from './districts.js';
 import { phaseAt, isDaylight, lanternsLit, phaseStart, wrapTick } from './clock.js';
 
 export const ROLE_IDS = ['fisher', 'priest', 'innkeeper', 'lamplighter', 'lighthouse_keeper', 'widow', 'child'];
@@ -57,6 +58,48 @@ export function generateRoster(seed, layout) {
     }
     if (workIndex < 0) workIndex = homeIndex;
     roster.push({ index: r, name, role: r, disposition, homeIndex, workIndex });
+  }
+  return roster;
+}
+
+// ---------- townsfolk: extra residents by district (mirror of VillagerRules.GenerateRoster with a grid) ----------
+export const RESIDENT_STREAM = 0x7e51d;
+// Roles per district in VillageDistricts order (harbour, old town, chapel hill, market, fishers' row): never the unique lamplighter or keeper.
+const RESIDENT_ROLES = [[0, 0, 5], [5, 6, 2, 0, 6], [1, 5], [2, 6, 5, 0], [0, 6, 5]];
+const inDistrict = (layout, candidates, seed, gridW, gridD, district) => candidates.filter((i) => {
+  const p = layout[i];
+  return districtAt(seed, gridW, gridD, p.x + Math.trunc(p.sizeX / 2), p.z + Math.trunc(p.sizeZ / 2)) === district;
+});
+
+/** The 7 principals of generateRoster followed by the townsfolk of the city (grid at least CITY_GRID); smaller grids have none. */
+export function generateTownRoster(seed, layout, gridW, gridD) {
+  const roster = generateRoster(seed, layout);
+  if (gridW < CITY_GRID || gridD < CITY_GRID) return roster;
+  const rng = new SeededRandom(seed ^ RESIDENT_STREAM), taken = new Set(roster.map((v) => v.name)), houses = piecesWithPrefix(layout, 'house'), all = layout.map((_, i) => i);
+  for (let d = 0; d < DISTRICT_IDS.length; d++) {
+    const districtHouses = inDistrict(layout, houses, seed, gridW, gridD, d);
+    for (const role of RESIDENT_ROLES[d]) {
+      let name;
+      do { name = `${FIRST_NAMES[rng.next(FIRST_NAMES.length)]} ${LAST_NAMES[rng.next(LAST_NAMES.length)]}`; } while (taken.has(name));
+      taken.add(name);
+      const disposition = DISPOSITIONS[role][rng.next(2)];
+      const homeIndex = pick(districtHouses.length > 0 ? districtHouses : houses.length > 0 ? houses : all, rng);
+      let workIndex = -1;
+      if (role === ROLE_INNKEEPER) {
+        const others = (districtHouses.length > 0 ? districtHouses : houses).filter((i) => i !== homeIndex);
+        workIndex = pick(others.length > 0 ? others : houses, rng);
+      } else {
+        for (const id of WORK_PIECE_IDS[role]) {
+          const matches = piecesWithPrefix(layout, id);
+          if (matches.length === 0) continue;
+          const local = inDistrict(layout, matches, seed, gridW, gridD, d);
+          workIndex = pick(local.length > 0 ? local : matches, rng);
+          break;
+        }
+      }
+      if (workIndex < 0) workIndex = homeIndex;
+      roster.push({ index: roster.length, name, role, disposition, homeIndex, workIndex });
+    }
   }
   return roster;
 }

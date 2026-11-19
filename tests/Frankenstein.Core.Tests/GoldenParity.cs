@@ -1229,8 +1229,24 @@ namespace Frankenstein.Core.Tests
             foreach (var seed in new[] { 1, 1818 })
             {
                 var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
-                var roster = VillagerRules.GenerateRoster(seed, layout);
-                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"presence\": [");
+                var roster = VillagerRules.GenerateRoster(seed, layout, grid, grid);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"roster\": [");
+                for (int i = 0; i < roster.Count; i++)
+                    sb.Append(i == 0 ? "" : ", ").Append('[').Append(Q(roster[i].Name)).Append(", ").Append((int)roster[i].Role).Append(", ").Append((int)roster[i].Disposition).Append(", ").Append(roster[i].HomeIndex).Append(", ").Append(roster[i].WorkIndex).Append(']');
+                sb.Append("], \"routes\": [");
+                bool firstRoute = true;
+                foreach (var v in roster)
+                {
+                    var home = VillagerRules.StandPoint(v, VillagerPlaceKind.Home, layout, grid, grid, seed);
+                    foreach (var kind in new[] { VillagerPlaceKind.Workplace, VillagerPlaceKind.Square, VillagerPlaceKind.Shore })
+                    {
+                        var to = VillagerRules.StandPoint(v, kind, layout, grid, grid, seed);
+                        var route = VillageStreets.LaneRoute(home.X, home.Z, to.X, to.Z, grid, grid, layout);
+                        sb.Append(firstRoute ? "" : ", ").Append("[").Append(string.Join(", ", route.Select(w => R(w[0]) + ", " + R(w[1])))).Append("]");
+                        firstRoute = false;
+                    }
+                }
+                sb.Append("], \"presence\": [");
                 first = false;
                 bool firstRow = true;
                 foreach (var v in roster)

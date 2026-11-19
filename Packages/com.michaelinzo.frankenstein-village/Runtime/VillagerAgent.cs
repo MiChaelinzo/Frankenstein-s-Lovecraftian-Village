@@ -35,7 +35,7 @@ namespace Frankenstein.Runtime
             {
                 if (_villager == null && village != null && village.Layout != null)
                 {
-                    _roster = VillagerRules.GenerateRoster(village.seed, village.Layout);
+                    _roster = VillagerRules.GenerateRoster(village.seed, village.Layout, village.width, village.depth);
                     if (rosterIndex >= 0 && rosterIndex < _roster.Count) _villager = _roster[rosterIndex];
                 }
                 return _villager;
