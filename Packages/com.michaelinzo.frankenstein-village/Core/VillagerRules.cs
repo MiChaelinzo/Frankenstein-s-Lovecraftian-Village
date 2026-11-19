@@ -73,6 +73,38 @@ namespace Frankenstein.Core
     }
 
     /// <summary>
+    /// A stop on a villager's day. Home to Shore match <see cref="VillagerPlaceKind"/>; Inn and Chapel are the front step of the innkeeper's house and the church
+    /// (OwnerIndex is the roster index whose workplace it is); Patrol is the lamplighter's slow loop round the square at night.
+    /// </summary>
+    public enum VillagerStopKind { Home = 0, Workplace = 1, Square = 2, Shore = 3, Inn = 4, Chapel = 5, Patrol = 6 }
+
+    public struct VillagerStop
+    {
+        public VillagerStopKind Kind;
+        /// <summary>Roster index of the villager whose building this is (Inn, Chapel); -1 otherwise.</summary>
+        public int OwnerIndex;
+    }
+
+    /// <summary>
+    /// Where a villager is at an exact (fractional) tick: cell coordinates, facing, whether they are mid-walk, how far they have walked (cells, for the stride),
+    /// and Fade (1 fully there, 0 gone through the door). Indoors means the villager is inside and must not be drawn or picked.
+    /// </summary>
+    public struct VillagerPresence
+    {
+        public bool Gone;
+        public bool Walking;
+        public bool Indoors;
+        public VillagerStopKind Stop;
+        public VillagerPlaceKind Place;
+        public double X;
+        public double Z;
+        public double FaceDx;
+        public double FaceDz;
+        public double Stride;
+        public double Fade;
+    }
+
+    /// <summary>
     /// Engine-free villagers: a seeded roster placed on the village layout, a daily routine across <see cref="GameClock"/>, and the
     /// way dread bends that routine. Same seed, layout, tick and dread always give the same result; nothing here is random beyond the seed.
     /// Behavior has causes: the dark (dusk and night) deepens what dread starts, haunted villagers react one step earlier,
@@ -316,6 +348,125 @@ namespace Frankenstein.Core
             double ring = VillageStreets.Enabled(gridW, gridD) ? StreetSquareRadius : SquareRadius, centreShift = VillageStreets.Enabled(gridW, gridD) ? 0.5 : 0.0;
             return new VillagerStandPoint { X = gridW / 2.0 + centreShift + Math.Cos(angle) * ring, Z = gridD / 2.0 + centreShift + Math.Sin(angle) * ring, FaceDx = 0.0 - Math.Cos(angle), FaceDz = 0.0 - Math.Sin(angle) }; // 0.0 - x never yields -0, so golden JSON round-trips
         }
+
+        // ---------- the living village: gathering, walking, doors (web mirror: stopAt in villagers.js, presenceAt in villager-view.js) ----------
+        /// <summary>Minutes into the day phase when the market opens and closes (fisher, widow and child shop in the square).</summary>
+        public const int MarketStartMinute = 120;
+        public const int MarketEndMinute = 420;
+        /// <summary>Minutes into the night when villagers at home go indoors, and the minutes the door takes to swallow them (or let them out at dawn).</summary>
+        public const int SleepMinute = 180;
+        public const int DoorFadeMinutes = 6;
+        /// <summary>Minutes a walk between two stops takes.</summary>
+        public const int WalkMinutes = 40;
+        /// <summary>Share of a walk spent fading in at the door the villager leaves.</summary>
+        public const double DoorFadeFraction = 0.1;
+        /// <summary>Cells; the lamplighter's loop is wider than the square ring. Minutes per lap.</summary>
+        public const double PatrolRadius = 2.6;
+        public const int PatrolMinutes = 90;
+
+        private static Villager OwnerOf(IList<Villager> roster, VillagerRole role, Villager fallback)
+        {
+            int i = (int)role;
+            return roster != null && i < roster.Count ? roster[i] : fallback;
+        }
+
+        private static VillagerStop PlainStop(VillagerPlaceKind kind) { return new VillagerStop { Kind = (VillagerStopKind)(int)kind, OwnerIndex = -1 }; }
+
+        /// <summary>
+        /// The stop a villager is heading for at a whole tick. Dread behaviors (window, sea, phrase) keep the plain routine place; only a Normal villager gathers:
+        /// the market in the square by day, the inn and the chapel at dusk, the lamplighter's patrol at night. Vanished returns the square (see <see cref="PresenceAt"/> for Gone).
+        /// </summary>
+        public static VillagerStop StopAt(IList<Villager> roster, Villager v, int tick, float dread)
+        {
+            var place = LocationAt(v, tick, dread);
+            if (place.Kind == VillagerPlaceKind.Gone || BehaviorAt(v, tick, dread) != VillagerBehavior.Normal) return PlainStop(place.Kind == VillagerPlaceKind.Gone ? VillagerPlaceKind.Square : place.Kind);
+            var phase = GameClock.PhaseAt(tick);
+            int minute = GameClock.Wrap(tick) - GameClock.PhaseStart(phase);
+            if (phase == DayPhase.Day && minute >= MarketStartMinute && minute < MarketEndMinute && (v.Role == VillagerRole.Fisher || v.Role == VillagerRole.Widow || v.Role == VillagerRole.Child))
+                return PlainStop(VillagerPlaceKind.Square);
+            if (phase == DayPhase.Dusk && (v.Role == VillagerRole.Fisher || v.Role == VillagerRole.LighthouseKeeper))
+                return new VillagerStop { Kind = VillagerStopKind.Inn, OwnerIndex = OwnerOf(roster, VillagerRole.Innkeeper, v).Index };
+            if (phase == DayPhase.Dusk && v.Role == VillagerRole.Widow)
+                return new VillagerStop { Kind = VillagerStopKind.Chapel, OwnerIndex = OwnerOf(roster, VillagerRole.Priest, v).Index };
+            if (phase == DayPhase.Night && v.Role == VillagerRole.Lamplighter) return new VillagerStop { Kind = VillagerStopKind.Patrol, OwnerIndex = -1 };
+            return PlainStop(place.Kind);
+        }
+
+        /// <summary>The place kind shown in the Who is where list for a stop.</summary>
+        public static VillagerPlaceKind PlaceOf(VillagerStopKind kind)
+        {
+            switch (kind)
+            {
+                case VillagerStopKind.Inn:
+                case VillagerStopKind.Chapel: return VillagerPlaceKind.Workplace;
+                case VillagerStopKind.Patrol: return VillagerPlaceKind.Square;
+                default: return (VillagerPlaceKind)(int)kind;
+            }
+        }
+
+        /// <summary>The point of a stop at an exact tick (only the patrol moves). Inn and Chapel stand in front of the owner's workplace, spread by this villager's index.</summary>
+        public static VillagerStandPoint StopPoint(IList<Villager> roster, Villager v, VillagerStop stop, double tick, IList<PlacedPiece> layout, int gridW, int gridD, int seed)
+        {
+            if (stop.Kind == VillagerStopKind.Patrol)
+            {
+                double lap = tick / PatrolMinutes, angle = (lap - Math.Floor(lap)) * Math.PI * 2;
+                bool streets = VillageStreets.Enabled(gridW, gridD);
+                double shift = streets ? 0.5 : 0.0;
+                return new VillagerStandPoint { X = gridW / 2.0 + shift + Math.Cos(angle) * PatrolRadius, Z = gridD / 2.0 + shift + Math.Sin(angle) * PatrolRadius, FaceDx = 0.0 - Math.Sin(angle), FaceDz = Math.Cos(angle) };
+            }
+            if (stop.Kind == VillagerStopKind.Inn || stop.Kind == VillagerStopKind.Chapel)
+            {
+                var owner = roster != null && stop.OwnerIndex >= 0 && stop.OwnerIndex < roster.Count ? roster[stop.OwnerIndex] : v;
+                var proxy = new Villager { Index = v.Index, HomeIndex = owner.WorkIndex, WorkIndex = owner.WorkIndex };
+                return StandPoint(proxy, VillagerPlaceKind.Workplace, layout, gridW, gridD, seed);
+            }
+            return StandPoint(v, (VillagerPlaceKind)(int)stop.Kind, layout, gridW, gridD, seed);
+        }
+
+        private static bool SameStop(VillagerStop a, VillagerStop b) { return a.Kind == b.Kind && a.OwnerIndex == b.OwnerIndex; }
+        private static bool IsDoor(VillagerStopKind kind) { return kind == VillagerStopKind.Home || kind == VillagerStopKind.Workplace || kind == VillagerStopKind.Inn || kind == VillagerStopKind.Chapel; }
+        private static double Clamp01(double x) { return Math.Max(0.0, Math.Min(1.0, x)); }
+
+        /// <summary>
+        /// Where the villager is at an exact tick. A change of stop starts a <see cref="WalkMinutes"/> walk from the old point to the new one along the x axis first, then z
+        /// (an axis-aligned route; it is not snapped to the lanes of <see cref="VillageStreets"/>). A villager stepping out of a door fades in over the first
+        /// <see cref="DoorFadeFraction"/> of the walk. At home, villagers go indoors after <see cref="SleepMinute"/> minutes of night (fading over <see cref="DoorFadeMinutes"/>) and come out at dawn.
+        /// </summary>
+        public static VillagerPresence PresenceAt(IList<Villager> roster, Villager v, double tick, float dread, IList<PlacedPiece> layout, int gridW, int gridD, int seed)
+        {
+            int t0 = (int)Math.Floor(tick);
+            if (BehaviorAt(v, t0, dread) == VillagerBehavior.Vanished) return new VillagerPresence { Gone = true, Stop = VillagerStopKind.Square, Place = VillagerPlaceKind.Gone, Fade = 1.0 };
+            var cur = StopAt(roster, v, t0, dread);
+            var pt = StopPoint(roster, v, cur, tick, layout, gridW, gridD, seed);
+            var result = new VillagerPresence { Stop = cur.Kind, Place = PlaceOf(cur.Kind), X = pt.X, Z = pt.Z, FaceDx = pt.FaceDx, FaceDz = pt.FaceDz, Fade = 1.0 };
+            for (int k = 0; k < WalkMinutes; k++)
+            {
+                int changeTick = t0 - k;
+                var before = StopAt(roster, v, changeTick - 1, dread);
+                if (SameStop(before, StopAt(roster, v, changeTick, dread))) continue;
+                double progress = (tick - changeTick) / WalkMinutes;
+                var from = StopPoint(roster, v, before, changeTick - 1, layout, gridW, gridD, seed);
+                double dx = pt.X - from.X, dz = pt.Z - from.Z, ax = Math.Abs(dx), total = ax + Math.Abs(dz);
+                if (total < 1e-9) break;
+                double s = progress * total;
+                result.Walking = true;
+                result.Stride = s;
+                if (s < ax) { result.X = from.X + Math.Sign(dx) * s; result.Z = from.Z; result.FaceDx = Math.Sign(dx); result.FaceDz = 0.0; }
+                else { result.X = pt.X; result.Z = from.Z + Math.Sign(dz) * (s - ax); result.FaceDx = 0.0; result.FaceDz = Math.Sign(dz); }
+                if (IsDoor(before.Kind)) result.Fade = Math.Min(result.Fade, Clamp01(progress / DoorFadeFraction));
+                return Finish(result);
+            }
+            if (cur.Kind == VillagerStopKind.Home)
+            {
+                double wrapped = tick - Math.Floor(tick / GameClock.MinutesPerDay) * GameClock.MinutesPerDay;
+                double nightMinute = wrapped - GameClock.PhaseStart(DayPhase.Night);
+                if (nightMinute >= SleepMinute) result.Fade = Clamp01(1.0 - (nightMinute - SleepMinute) / DoorFadeMinutes);
+                else if (wrapped < DoorFadeMinutes) result.Fade = Clamp01(wrapped / DoorFadeMinutes);
+            }
+            return Finish(result);
+        }
+
+        private static VillagerPresence Finish(VillagerPresence p) { p.Indoors = p.Fade < 0.02; return p; }
 
         private static double ClampCell(double v, int max) { return Math.Max(EdgeMargin, Math.Min(max - EdgeMargin, v)); }
 

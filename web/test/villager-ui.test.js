@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { generateCityLayout } from '../src/districts.js';
 import { generateLayout, PrefabCatalog, generateCampaign, SanityModel } from '../src/core.js';
 import { readFileSync } from 'node:fs';
 import { mapGamepad, BUTTON_ACTIONS } from '../src/input.js';
@@ -13,7 +14,7 @@ import {
   parseTickParam, sessionTick, villagerPlacements, whoIsWhereRows, villagerMarkers, villagerScene, nearestVillager, START_TICK,
 } from '../src/villager-view.js';
 import { createVillagerController } from '../src/villager-ui.js';
-import { buildVillagers, VILLAGER_SWAY_RAD } from '../src/view3d.js';
+import { buildVillagers, poseWalker, VILLAGER_SWAY_RAD, VILLAGER_HIP_HEIGHT } from '../src/view3d.js';
 import { frameCost, FRAME_BUDGET } from '../src/view3d-math.js';
 
 const catalog = new PrefabCatalog(JSON.parse(readFileSync(new URL('../data/village_catalog.json', import.meta.url))).entries);
@@ -81,6 +82,48 @@ test('rows, markers, scene and nearest pick', () => {
   const scene = villagerScene(ps, 4), v = scene[0];
   assert.equal(nearestVillager(scene, v.pos[0], v.pos[2], 3).id, v.id);
   assert.equal(nearestVillager(scene, -500, -500, 3), null);
+});
+
+// ---- the living village (round 24) ----
+// Root cause of "no villagers in the Old Town": the city is 36 x 36 cells (144 m) but the roster is seven people who, after dusk, all stood at their own
+// front doors spread across the whole city, so the square (Old Town, centre) was empty at night. Gathering and the lamplighter's patrol bring people back.
+const cityLayout = generateCityLayout(catalog, 36, 36, 180, 1818), cityRoster = generateRoster(1818, cityLayout);
+const cityScene = (tick, dread = 0.2) => villagerScene(villagerPlacements({ roster: cityRoster, layout: cityLayout, tick, dread, gridW: 36, gridD: 36, seed: 1818 }), 4);
+const nearSquare = (scene, metres) => scene.filter((v) => Math.hypot(v.pos[0] - 74, v.pos[2] - 74) <= metres);
+test('seed 1818: someone is always drawn in the Old Town square, night included, and a night walker carries a lit lantern', () => {
+  for (const tick of [0, 300, 400, 700, 845, 1070, 1100, 1250, 1380, 1439]) assert.ok(nearSquare(cityScene(tick), 20).length >= 1, `nobody in the square at tick ${tick}`);
+  const night = nearSquare(cityScene(1250), 20);
+  assert.ok(night.every((v) => v.lantern));
+  assert.ok(cityScene(1070).length >= 6, 'at the session start nearly everyone is drawn');
+});
+test('late at night villagers at home are indoors (not drawn, not pickable) and the lamplighter is not', () => {
+  const placements = villagerPlacements({ roster: cityRoster, layout: cityLayout, tick: 1300, dread: 0.2, gridW: 36, gridD: 36, seed: 1818 });
+  assert.ok(placements.some((p) => p.indoors));
+  const scene = villagerScene(placements, 4);
+  assert.ok(scene.every((v) => !placements[v.id].indoors));
+  assert.ok(!placements[3].indoors && scene.some((v) => v.id === 3));
+  assert.equal(villagerMarkers(placements, 36, 36, 100).length, scene.length);
+});
+test('walking is continuous: a villager never jumps more than the walk speed allows between two ticks', () => {
+  for (const v of cityRoster) {
+    let prev = null;
+    for (let tick = 200; tick < 1500; tick += 0.5) {
+      const p = villagerPlacements({ roster: cityRoster, layout: cityLayout, tick, dread: 0.2, gridW: 36, gridD: 36, seed: 1818 })[v.index];
+      if (prev && !prev.gone && !p.gone && prev.walking && p.walking) assert.ok(Math.hypot(p.x - prev.x, p.z - prev.z) < 2.5, `${v.name} jumped at ${tick}`);
+      prev = p;
+    }
+  }
+});
+test('poseWalker swings the legs, bobs, narrows through a door and holds still when reduced', () => {
+  const tri = (y) => [0.2, y, 0, 0, 0, 1, 1, 1, 1, 0, 0];
+  const verts = () => [...tri(0.1), ...tri(1.2), ...tri(0.1)];
+  const a = verts(); poseWalker(a, 0, 0, 0, 0, 0.35, 1);
+  assert.ok(a[2] !== 0, 'legs swing along the facing');
+  assert.equal(a[11 + 2], 0, 'the torso does not swing');
+  assert.ok(a[1] > 0.1 && a[12] > 1.2, 'the body bobs');
+  const door = verts(); poseWalker(door, 0, 0, 0, 0, 0, 0); assert.equal(door[0], 0, 'fully faded is a sliver');
+  const still = verts(); poseWalker(still, 0, 0, 0, 0, 0.35, 1, true); assert.deepEqual(still, verts());
+  assert.ok(VILLAGER_HIP_HEIGHT > 0.5 && VILLAGER_HIP_HEIGHT < 1.2);
 });
 
 // ---- 3D buffer and budget ----

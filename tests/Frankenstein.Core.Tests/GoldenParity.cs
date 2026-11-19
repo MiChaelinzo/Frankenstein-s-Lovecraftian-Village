@@ -581,6 +581,9 @@ namespace Frankenstein.Core.Tests
 
         private static readonly int[] ClockTicks = { 0, 1, 119, 239, 240, 839, 840, 1079, 1080, 1439, 1440, 1441, 2900, -1, -240, -1441 };
         private static readonly int[] VillagerTicks = { 0, 300, 900, 1100, 1300, 1439 };
+        /// <summary>Fractional ticks for presence: walks starting at dawn, market, dusk and night, the patrol, indoors late at night, the dawn door.</summary>
+        private static readonly double[] PresenceTicks = { 0.0, 3.0, 130.5, 300.25, 700.0, 845.0, 1085.5, 1100.0, 1270.5, 1380.0, 1439.5, 1445.0 };
+        private static readonly float[] PresenceDreads = { 0f, 0.2f, 0.67f, 1f };
         private static readonly float[] VillagerDreads = { 0f, 0.2f, 0.34f, 0.5f, 0.67f, 0.9f, 1f, float.NaN };
 
         /// <summary>Top level key "dressing": the seeded harbour, square and churchyard dressing on the real layout, per seed and grid.</summary>
@@ -834,6 +837,19 @@ namespace Frankenstein.Core.Tests
                 bool firstLamp = true;
                 foreach (var v in roster)
                     foreach (var t in VillagerTicks) { sb.Append(firstLamp ? "" : ", ").Append(VillagerRules.CarriesLitLantern(v, t) ? 1 : 0); firstLamp = false; }
+                sb.Append("], \"presence\": [");
+                bool firstPresence = true;
+                foreach (var v in roster)
+                    foreach (var t in PresenceTicks)
+                        foreach (var d in PresenceDreads)
+                        {
+                            var pr = VillagerRules.PresenceAt(roster, v, t, d, layout, 24, 24, seed);
+                            string R(double x) { return x.ToString("R", CultureInfo.InvariantCulture); }
+                            sb.Append(firstPresence ? "" : ", ").Append('[').Append(pr.Gone ? 1 : 0).Append(", ").Append(pr.Walking ? 1 : 0).Append(", ").Append(pr.Indoors ? 1 : 0).Append(", ")
+                              .Append((int)pr.Stop).Append(", ").Append((int)pr.Place).Append(", ").Append(R(pr.X)).Append(", ").Append(R(pr.Z)).Append(", ").Append(R(pr.FaceDx)).Append(", ")
+                              .Append(R(pr.FaceDz)).Append(", ").Append(R(pr.Stride)).Append(", ").Append(R(pr.Fade)).Append(']');
+                            firstPresence = false;
+                        }
                 sb.Append("], \"talks\": [");
                 bool firstTalk = true;
                 foreach (var v in roster)

@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, VILLAGER_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -197,6 +197,17 @@ async function main() {
     rec('cinematic 3D: ?view=3d&cinematic=1 changes frames over 2.5 s with a caption', ca !== cb && capShown && viewShown && capText.length > 5, { before: ca, after: cb, elapsedMs: cineMs, capShown, viewShown, caption: capText });
   };
 
+  /** Villagers (round 24): the 3D view really draws the named villagers in the Old Town square by day, at dusk and at night (the perf HUD counts the figures in the villager buffer). VILLAGER_ONLY=1 runs only this. */
+  const villagerRun = async () => {
+    const seen = {};
+    for (const [label, tick] of [['day', 400], ['dusk', 1070], ['night', 1250]]) {
+      await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=low&tick=${tick}&cam3d=74,92,180,0#seed=1818&sanity=100`);
+      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
+      seen[label] = Number((/(\d+) villagers/.exec(hud || '') || [])[1] || 0);
+    }
+    rec('villagers: seed 1818 draws named villagers in 3D by day, at dusk and at night (perf HUD villager count above zero, most at dusk)', seen.day >= 1 && seen.dusk >= 3 && seen.night >= 1, seen);
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -213,6 +224,7 @@ async function main() {
     if (process.env.CINEMA_ONLY) { for (let i = 0; i < 2; i++) await cinemaRun(); break suite; }
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
+    if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);

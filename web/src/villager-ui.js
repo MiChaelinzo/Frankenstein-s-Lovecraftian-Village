@@ -24,11 +24,17 @@ export function createVillagerController(deps) {
   }
   const placementOf = (index) => state.villagers.find((p) => p.index === index) || null;
 
+  /** Placements at an exact (fractional) tick, so 3D figures walk smoothly between the whole-minute refreshes. */
+  function placementsAt(tickExact) {
+    return villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick: tickExact, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed });
+  }
+  state.placementsAt = placementsAt;
+
   /** Recomputes positions for the current tick and dread; returns true when anything visible changed. */
   function refresh() {
     const tick = deps.tickNow();
-    const next = villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed });
-    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.lantern ? 1 : 0}`).join('|');
+    const next = placementsAt(deps.tickExact ? deps.tickExact() : tick);
+    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.lantern ? 1 : 0}:${p.indoors ? 1 : 0}`).join('|');
     const changed = sig(next) !== sig(state.villagers);
     state.villagers = next;
     renderPanel(tick);

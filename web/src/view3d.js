@@ -205,14 +205,38 @@ export const VILLAGER_HEIGHT_SCALE = 1;    // the villager mesh is authored 1.7 
 export const VILLAGER_SWAY_RAD = 0.05;     // idle sway amplitude in radians; zero with reduced motion
 const VILLAGER_SWAY_STEP = 0.1;            // seconds; sway is sampled so the dynamic buffer is rebuilt at most ten times a second
 
-/** Vertices for the villagers (metres). Idle sway turns each figure slightly; reduced motion holds it still. Empty without the mesh. */
+export const VILLAGER_STRIDE_M = 0.7;        // metres per full leg swing cycle half: one step every 0.7 m walked
+export const VILLAGER_LEG_SWING_RAD = 0.55;  // hip swing amplitude while walking
+export const VILLAGER_HIP_HEIGHT = 0.85;     // metres: below this the figure's legs swing
+export const VILLAGER_BOB_M = 0.035;         // metres the body rises at mid step
+
+/**
+ * Walking pose for one figure, applied to its freshly appended vertices (floats per vertex as in glb.js): the legs below the hip swing in
+ * opposite directions along the facing, the whole body bobs, and a fade under 1 (a door swallowing or releasing the villager) narrows the
+ * body across its width to nothing. Pure on the array. Exported for tests.
+ */
+export function poseWalker(out, from, cx, cz, yaw, stride, fade, reduced = false) {
+  const fx = Math.sin(yaw), fz = Math.cos(yaw), rx = fz, rz = -fx; // facing and right on the ground
+  const step = stride / VILLAGER_STRIDE_M * Math.PI, swing = reduced ? 0 : Math.sin(step) * VILLAGER_LEG_SWING_RAD, bob = reduced ? 0 : Math.abs(Math.sin(step)) * VILLAGER_BOB_M;
+  const narrow = Math.max(0, Math.min(1, fade));
+  for (let i = from; i < out.length; i += VERTEX_FLOATS) {
+    const dx = out[i] - cx, dz = out[i + 2] - cz, side = dx * rx + dz * rz;
+    let along = dx * fx + dz * fz, y = out[i + 1];
+    if (y < VILLAGER_HIP_HEIGHT && swing !== 0) along += (VILLAGER_HIP_HEIGHT - y) * Math.tan(swing * (side >= 0 ? 1 : -1));
+    const w = side * narrow;
+    out[i] = cx + fx * along + rx * w; out[i + 2] = cz + fz * along + rz * w; out[i + 1] = y + bob;
+  }
+}
+
+/** Vertices for the villagers (metres). Idle sway turns each figure slightly; walking villagers swing their legs and bob; reduced motion holds the pose still. Empty without the mesh. */
 export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, reduced = false }) {
   const out = [];
   if (!model) return new Float32Array(0);
   const t = Math.floor(timeSec / VILLAGER_SWAY_STEP) * VILLAGER_SWAY_STEP;
   for (const v of villagers) {
-    const sway = reduced ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD;
-    appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot: v.yaw + sway });
+    const walking = !!v.walking, fade = v.fade ?? 1, sway = reduced || walking ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD, rot = v.yaw + sway, first = out.length;
+    appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot });
+    if (walking || fade < 1) poseWalker(out, first, v.pos[0], v.pos[2], rot, walking ? v.stride || 0 : 0, fade, reduced);
   }
   return new Float32Array(out);
 }
@@ -930,7 +954,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   let flocks = null, flockKey = '', perches = [], birdCountsNow = null, lastBirds = '', flashState = { flash: 0, flashAt: null, flashLevel: 0 }, lastFlashAt = 0, lastLightningSlot = -1;
   let tierName = quality, tier = tierSettings(quality); // graphics quality tier (quality.js), set by the app
   let settings = sanitizeViewSettings(null); // eye height and field of view, set by the app from localStorage
-  let lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
+  let peopleDrawn = 0, lastVillagers = '', perfAt = 0, packLoaded = false, thirdPartyStarted = false, upgraded = 0, omen = { eye: 0, tentacle: 0 }, lastTent = '';
   let lastDraw = 0, last = 0, t0 = 0, dirty = true, scale = 1, lastSize = '', lastUse = -Infinity, bobPhase = 0, locked = false, pendingMouse = null;
   const keys = new Set(), perf = createPerf(), touches = new Map();
   let drive = { forward: 0, strafe: 0 }, stick = { forward: 0, strafe: 0 }, smooth = { forward: 0, strafe: 0 }, coastAt = -1, look = { dx: 0, dy: 0 }, padPrev = null, mouseDown = null, lockedBeforeDown = false;
@@ -1082,7 +1106,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const size = renderSize(rect.width || canvas.width, rect.height || canvas.height, dpr, scale, tier.maxPixels);
     if (`${size.width}x${size.height}` !== lastSize) { lastSize = `${size.width}x${size.height}`; canvas.width = size.width; canvas.height = size.height; renderer.resize(size.width, size.height); }
     perf.sample(ts);
-    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), { ...renderer.counts(), scale, tier: tierName, size: lastSize }); }
+    if (onPerf && ts - perfAt > 500) { perfAt = ts; onPerf(perf.stats(), { ...renderer.counts(), people: peopleDrawn, scale, tier: tierName, size: lastSize }); }
     if (!reduced && !fixedScale) { const st = perf.stats(), ns = nextScale(scale, st.avgMs, st.frames, tier.minScale); if (ns !== scale) { scale = ns; perf.reset(); } }
     const time = capture ? STILL_TIME : (ts - t0) / 1000, aspect = canvas.width / canvas.height;
     const targets = omenTargets(tierFor(s.dread)), step = reduced || capture ? 1 : Math.min(1, (ts - (lastDraw || ts)) / 1000 * 3);
@@ -1131,8 +1155,8 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); } }
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);

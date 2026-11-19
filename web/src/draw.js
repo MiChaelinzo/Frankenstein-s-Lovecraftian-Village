@@ -608,7 +608,7 @@ export function createRenderer(env) {
       const s = iso(pos.x, pos.z); glow(s.x, s.y, 26, '255,190,110', 0.28, 0.5);
     }
     // villagers stand in the village at the current clock tick; vanished ones are not listed. They share the cultist depth ordering.
-    for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
+    for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone && !v.indoors) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
     if (state.dlnk) drawDlnk(dread, time);

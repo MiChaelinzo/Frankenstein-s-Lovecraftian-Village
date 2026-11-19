@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Frankenstein.Core;
 using UnityEngine;
@@ -6,7 +7,7 @@ namespace Frankenstein.Runtime
 {
     /// <summary>
     /// Thin villager body. Who the villager is, where they stand, how they behave, whether their lantern burns and what talking does all come
-    /// from Core (VillagerRules.GenerateRoster, LocationAt, StandPoint, CarriesLitLantern, Talk); this component only walks toward the Core point,
+    /// from Core (VillagerRules.GenerateRoster, LocationAt, StandPoint, CarriesLitLantern, Talk); this component only follows the Core presence point,
     /// hides the body when Core says Gone, toggles the lantern light and forwards talk effects to the vigil and sanity.
     /// InteractionRaycaster calls Talk when the villager is under the crosshair. Compile checked against original stubs only; runtime behaviour is Unverified in Unity.
     /// </summary>
@@ -21,8 +22,6 @@ namespace Frankenstein.Runtime
         public WalkthroughController walkthrough;
         public DreadHud hud;
         public Light lantern;
-        [Tooltip("Walking pace in metres per second.")]
-        [Min(0f)] public float walkSpeed = 1.2f;
         [Tooltip("Villager wording language, a key of Core VillagerStrings (en or fr).")]
         public string language = "en";
 
@@ -36,14 +35,15 @@ namespace Frankenstein.Runtime
             {
                 if (_villager == null && village != null && village.Layout != null)
                 {
-                    List<Villager> roster = VillagerRules.GenerateRoster(village.seed, village.Layout);
-                    if (rosterIndex >= 0 && rosterIndex < roster.Count) _villager = roster[rosterIndex];
+                    _roster = VillagerRules.GenerateRoster(village.seed, village.Layout);
+                    if (rosterIndex >= 0 && rosterIndex < _roster.Count) _villager = _roster[rosterIndex];
                 }
                 return _villager;
             }
         }
 
         private int Tick { get { return clock != null ? clock.Tick : GameClock.SessionStartTick; } }
+        private List<Villager> _roster;
         private float Dread { get { return director != null ? director.Sanity.Dread : 0f; } }
 
         /// <summary>True while Core places the villager somewhere (not vanished).</summary>
@@ -60,13 +60,20 @@ namespace Frankenstein.Runtime
         {
             var v = Villager;
             if (v == null) return;
-            bool present = Present;
-            if (_renderers != null) foreach (var r in _renderers) r.enabled = present;
-            if (lantern != null) lantern.enabled = present && VillagerRules.CarriesLitLantern(v, Tick);
-            if (!present) return;
-            var target = Target();
-            if (!target.HasValue) return;
-            transform.position = Vector3.MoveTowards(transform.position, target.Value, walkSpeed * Time.deltaTime);
+            var presence = PresenceNow();
+            bool visible = !presence.Gone && !presence.Indoors; // Core hides villagers who are vanished or indoors behind their door
+            if (_renderers != null) foreach (var r in _renderers) r.enabled = visible;
+            if (lantern != null) lantern.enabled = visible && VillagerRules.CarriesLitLantern(v, Tick);
+            if (presence.Gone) return;
+            // Core already walks the villager between stops (VillagerRules.PresenceAt), so the body follows its point instead of choosing a route.
+            transform.position = village.CellToWorld(presence.X, presence.Z);
+            if (presence.FaceDx != 0.0 || presence.FaceDz != 0.0) transform.rotation = Quaternion.Euler(0f, (float)Math.Atan2(presence.FaceDx, presence.FaceDz) * Mathf.Rad2Deg, 0f);
+        }
+
+        private VillagerPresence PresenceNow()
+        {
+            if (Villager == null || village == null) return new VillagerPresence { Gone = true };
+            return VillagerRules.PresenceAt(_roster, Villager, Tick, Dread, village.Layout, village.width, village.depth, village.seed);
         }
 
         /// <summary>World point Core gives for this tick and dread, or null when the villager is gone.</summary>
