@@ -148,11 +148,31 @@ namespace Frankenstein.Core
                 halfX = halfZ = LampPoleHalf * item.Scale + WorldScale.OverhangClearance;
                 return true;
             }
+            double trunk;
+            if (TryTrunkRadius(item.Kind, out trunk))
+            {
+                halfX = halfZ = trunk * item.Scale + WorldScale.OverhangClearance;
+                return true;
+            }
             var f = FootprintOf(item.Kind);
             double c = Math.Abs(Math.Cos(item.Yaw)), s = Math.Abs(Math.Sin(item.Yaw));
             halfX = (c * f.HalfX + s * f.HalfZ) * item.Scale + WorldScale.OverhangClearance;
             halfZ = (s * f.HalfX + c * f.HalfZ) * item.Scale + WorldScale.OverhangClearance;
             return f.Solid;
+        }
+
+        /// <summary>
+        /// Trunk radius in metres of a tree kind, or false for kinds whose collision is their whole footprint. A tree's footprint is its canopy
+        /// (about 1 m half width), but only the trunk is solid: using the canopy made a 2.5 m wide invisible wall that the explorer could not walk around.
+        /// </summary>
+        public static bool TryTrunkRadius(string kind, out double radius)
+        {
+            switch (kind)
+            {
+                case "tree": radius = 0.35; return true;
+                case "tentacle_tree": radius = 0.7; return true;
+                default: radius = 0; return false;
+            }
         }
 
         public static readonly string[] LampKinds = { "lamp", "lamp_tall", "lamp_double" };

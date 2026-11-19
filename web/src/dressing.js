@@ -39,6 +39,8 @@ export function footprintOf(kind) {
   const f = FOOTPRINTS[kind] || [0.5, 0.26, 3.45, false];
   return { halfX: f[0], halfZ: f[1], height: f[2], solid: f[3] };
 }
+/** Trunk radius in metres of the tree kinds; only the trunk is solid, not the canopy. Mirrors VillageDressing.TryTrunkRadius. */
+export const TRUNK_RADIUS = { tree: 0.35, tentacle_tree: 0.7 };
 export const DRESSING_KINDS = Object.keys(FOOTPRINTS);
 
 export const coastSideOf = (seed) => new SeededRandom(seed ^ 0x2f6b).next(3);
@@ -332,6 +334,7 @@ export function dressingBoxes(items) {
     if (DRESSING_LAMP_KINDS.includes(it.kind)) { const h = LAMP_POLE_HALF * it.scale + OVERHANG_CLEARANCE; out.push({ minX: it.x - h, maxX: it.x + h, minZ: it.z - h, maxZ: it.z + h, height: footprintOf(it.kind).height * it.scale }); continue; }
     const f = footprintOf(it.kind);
     if (!f.solid) continue;
+    if (TRUNK_RADIUS[it.kind] !== undefined) { const h = TRUNK_RADIUS[it.kind] * it.scale + OVERHANG_CLEARANCE; out.push({ minX: it.x - h, maxX: it.x + h, minZ: it.z - h, maxZ: it.z + h, height: f.height * it.scale, round: true }); continue; }
     const c = Math.abs(Math.cos(it.yaw)), s = Math.abs(Math.sin(it.yaw)), hx = (c * f.halfX + s * f.halfZ) * it.scale + OVERHANG_CLEARANCE, hz = (s * f.halfX + c * f.halfZ) * it.scale + OVERHANG_CLEARANCE;
     out.push({ minX: it.x - hx, maxX: it.x + hx, minZ: it.z - hz, maxZ: it.z + hz, height: f.height * it.scale });
   }

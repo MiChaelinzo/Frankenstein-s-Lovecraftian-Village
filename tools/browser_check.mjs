@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, VILLAGER_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -208,6 +208,19 @@ async function main() {
     rec('villagers: seed 1818 draws named villagers in 3D by day, at dusk and at night (perf HUD villager count above zero, most at dusk)', seen.day >= 1 && seen.dusk >= 3 && seen.night >= 1, seen);
   };
 
+  /** Collision (round 24): walking straight at a tree trunk (seed 1818 city, tree at 37.97, 60.00, the only tree with a clear corridor) slides around it and ends well past it instead of stopping. COLLISION_ONLY=1 runs only this. */
+  const collisionRun = async () => {
+    const TREE = { x: 37.97, z: 60.0 }, camOf = async () => { const [x, z] = String(await ev(`document.getElementById('districtChip').getAttribute('data-cam')||''`)).split(',').map(Number); return { x, z }; };
+    await nav(`?intro=0&view=3d&quality=low&fixscale=1&cam3d=${TREE.x + 0.1},${TREE.z + 4.5},0,0#seed=1818&sanity=100`);
+    await until(() => camOf().then((c) => Number.isFinite(c.z) && c), 60000);
+    const start = await camOf();
+    // SwiftShader draws few frames per second and the step is capped at 0.1 s, so walking is slow here: keep walking (up to 60 s) until past the tree
+    let end = start;
+    for (let i = 0; i < 12 && !(end.z < TREE.z - 0.8); i++) { await hold('w', 'KeyW', 5000); await sleep(1100); end = await camOf(); }
+    const passed = end.z < TREE.z - 0.8, clearOfTrunk = Math.hypot(end.x - TREE.x, end.z - TREE.z) > 0.5 + 0.45 - 1e-3;
+    rec('collision: walking straight at a tree trunk slides around it and ends past it (not stopped at the trunk)', Number.isFinite(end.z) && passed && clearOfTrunk, { tree: TREE, start, end });
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -225,6 +238,7 @@ async function main() {
     if (process.env.DISTRICT_ONLY) { await districtRun(); break suite; }
     if (process.env.LANDMARK_ONLY) { await landmarkRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
+    if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);

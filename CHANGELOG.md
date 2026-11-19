@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 24 (part 2): walking around trees (FEAT-002)
+- Root cause of "blocked at the tree": a tree's collision box was its whole canopy footprint (about 1 m half width) plus clearance, a square 2.5 m wide wall with flat faces. Walking straight at a flat face is pure normal motion, so the push-out cancelled all of it and the explorer stopped.
+- Core `VillageDressing.TryTrunkRadius` (tree 0.35 m, tentacle tree 0.7 m): only the trunk collides, plus the 0.15 m overhang clearance. Core `WalkCollision.Resolve` (new, mirrors `resolveCollisions`) treats trunks as circles, so a walker is pushed radially and keeps its tangential motion: it slides around. JS mirror `TRUNK_RADIUS` and `round` boxes in `dressingBoxes`.
+- Tests: C# trunk radius and slide-past tests, JS slide and trunk tests. Existing street tests still show no lane or door approach is blocked by props. `tools/browser_check.mjs` section `COLLISION_ONLY=1` walks at the seed 1818 tree and ends 1.7 m past it (the HUD chip carries `data-cam`). Service worker cache bumped to v38.
+- Status: C#, JS and browser check Verified (SwiftShader). Unity: compile checked only, Unverified. Before and after stills were not committed: the stills did not show the tree clearly.
+
 ### Round 24 (part 1): a living village (FEAT-001)
 - Root cause of "no villagers in the 3D Old Town": the figures were drawn (a probe near a villager's door shows one with a lit lantern, and the villager mesh loads), but the city grew to 36 by 36 cells (144 m) while the roster stayed at seven people. After dusk the routine sent nearly everyone to their own front door, spread across the city, so the square was empty at night. Verified by the placement probe for seed 1818 at tick 1250 (nobody within 45 m of the square centre except the lamplighter on the ring) and the stills `docs/media/round24-old-town-night-{before,after}.png`.
 - Core `VillagerRules`: `StopAt` (market in the square by day for fisher, widow and child; fisher and lighthouse keeper at the inn and the widow at the chapel at dusk; the lamplighter's lantern patrol round the square at night; dread behaviors do not gather), `StopPoint`, and `PresenceAt` (a 40 minute walk between stops along x then z, fade in at the door a villager leaves, indoors after 180 minutes of night and out at dawn). The route is axis-aligned and not snapped to the `VillageStreets` lanes.

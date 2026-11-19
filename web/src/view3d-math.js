@@ -115,10 +115,17 @@ export function worldBoxes(layout, heights = [], cell = CELL) {
 }
 export const worldBounds = (gridW, gridD, cell = CELL, margin = 2) => ({ minX: -margin, maxX: gridW * cell + margin, minZ: -margin, maxZ: gridD * cell + margin });
 
-/** Circle against axis aligned boxes: push the position out of every box it overlaps. */
+/** Circle against axis aligned boxes and round trunks (box.round: the circle inscribed in the square box): push the position out of every obstacle it overlaps along its normal, so tangential motion survives and the walker slides around. Mirrors WalkCollision.Resolve. */
 export function resolveCollisions(x, z, radius, boxes) {
   for (let pass = 0; pass < 2; pass++) {
     for (const b of boxes) {
+      if (b.round) {
+        const mx = (b.minX + b.maxX) / 2, mz = (b.minZ + b.maxZ) / 2, reach = (b.maxX - b.minX) / 2 + radius, rx = x - mx, rz = z - mz, rd2 = rx * rx + rz * rz;
+        if (rd2 >= reach * reach) continue;
+        if (rd2 < 1e-12) { x = mx + reach; continue; }
+        const k = reach / Math.sqrt(rd2); x = mx + rx * k; z = mz + rz * k;
+        continue;
+      }
       const cx = clamp(x, b.minX, b.maxX), cz = clamp(z, b.minZ, b.maxZ);
       const dx = x - cx, dz = z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= radius * radius) continue;
