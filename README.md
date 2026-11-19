@@ -362,6 +362,11 @@ Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](C
 ## Built with Kiro
 Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script (side-by-side web and Unity, under 3:00): [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Recording setup: [docs/RECORDING.md](docs/RECORDING.md). Unity pack exploration script: [docs/PACK_EXPLORATION.md](docs/PACK_EXPLORATION.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 
+## Support the project
+Optional: [paypal.me/michaelinzo77](https://paypal.me/michaelinzo77). The demo stays free. Plan for any future in-game purchases: [docs/PAYMENTS_PLAN.md](docs/PAYMENTS_PLAN.md).
+
+Soutenir le projet (facultatif, la demo reste gratuite) : [paypal.me/michaelinzo77](https://paypal.me/michaelinzo77).
+
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 

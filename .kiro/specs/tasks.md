@@ -169,14 +169,20 @@ Round 24 leftovers (open, from FEAT-007):
 - [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
 - [ ] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
 
+## Round 25: survival and homestead (in progress)
+- [x] 141. Baseline green on `feat/round25` (Verified: node 570, dotnet 244, UnityCompileCheck 0/0)
+- [x] 142. Asset licence audit of the author's itch.io links in `docs/ASSET_LICENCE_AUDIT.md`, Support link (About, README, en and fr) and `docs/PAYMENTS_PLAN.md` (plan only, no function, no secret)
+- [ ] 143. Inventory and items, monsters and sanity exposure, homestead, more villagers (see the round 25 feature files under `.agents/tasks/task-round25-survival-homestead/`)
+
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
 - Round 23: the look bug fixes, bigger city, `C` key citizen chat, lore books and a first larger world (tasks 119 to 127).
 - Round 24: living village (names, narrative, 3D polish, lighthouse beam, CC0 houses) and a larger world (task 128 done, 129 to 134 open).
-- Round 25: inventory and items (finding and storing, sleep and food sanity recovery) and the open world tasks above.
-- Round 26: economy, shops, buy/sell, the horror restaurant.
-- Round 27: monsters on the ground and in the sky, sanity exposure over time.
-- Round 28: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
-- Round 29: lore, stories and adventures.
-- Round 30: procedural regions beyond the village.
-- Round 31: Unity parity, performance and polish.
+- Round 25: survival and homestead: inventory and items, monsters and sanity exposure, a homestead, more villagers, licence audit, Support link and payments plan.
+- Round 26: voxel world spec (a voxel terrain and building layer; write the spec in Core terms first: seed, chunk, edit log, determinism), then the open world tasks 129 to 134.
+- Round 27: economy, shops, buy/sell and the horror restaurant.
+- Round 28: real-money checkout from `docs/PAYMENTS_PLAN.md` (PayPal Orders v2 behind a same-origin Vercel function, author-set env vars, cosmetic only), sandbox first.
+- Round 29: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 30: lore, stories and adventures.
+- Round 31: procedural regions beyond the village.
+- Round 32: Unity parity, performance and polish.
