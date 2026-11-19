@@ -26,6 +26,7 @@ import { createVillagerController } from './villager-ui.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
 import { createInventoryController } from './inventory-ui.js';
+import { createCreatureController } from './creature-ui.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
 import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -134,7 +135,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
@@ -146,6 +147,7 @@ const view3d = createView3d({
   alienPack: () => pack.want,
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); } },
   onInventory: () => inventory.toggle(),
+  onPlayer: (p) => { creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
@@ -204,6 +206,7 @@ async function loadCatalog() {
   try { state.nameLib = parseNameLibrary(await (await fetch('data/names.json')).json()); } catch (err) { state.nameLib = null; console.warn(`[names] could not load data/names.json, buildings keep their kind names this session: ${err.message}`); }
   try { state.storyLib = parseStoryLibrary(await (await fetch('data/story.json')).json()); } catch (err) { state.storyLib = null; console.warn(`[story] could not load data/story.json, no families, journals or missing persons this session: ${err.message}`); }
   try { inventory.setCatalog(await (await fetch('data/items.json')).json()); } catch (err) { console.warn(`[items] could not load data/items.json, no items this session: ${err.message}`); }
+  try { creatures.setCatalog(await (await fetch('data/creatures.json')).json()); } catch (err) { console.warn(`[creatures] could not load data/creatures.json, no creatures this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -650,6 +653,12 @@ const inventory = createInventoryController({
   journal: (text) => log('lore', text), houseName: (i, l) => { const piece = state.layout[i]; return piece ? placeName(piece, l) || kindName(piece.id, l) : ''; },
   tickNow: clockTick, skipClock: (minutes, done) => skipClock(minutes, done), in3d: () => view3d.active, onChange: () => { mark(); autosave(); },
 });
+// Creatures: seeded by Core rules (creatures.js) for the phase, weather and dread; exposure is 3D only (the 2D map shows marks). The vigil lock keeps its own sanity rules, so they rest during a live vigil.
+const creatures = createCreatureController({
+  $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, inventory, announce: (text) => announce(text), journal: (text) => log('lore', text), allows: (id) => vigil.allows(id), sanity: () => state.sanity,
+  onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); }, tickNow: clockTickExact, weather: () => withWeather(currentNight() || {}).weather || 'clear', camera: () => (view3d.active ? view3d.camera : null),
+});
+state.creatureMarks = () => creatures.marks().map((c) => ({ kind: c.kind, x: c.x / CELL, z: c.z / CELL }));
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,

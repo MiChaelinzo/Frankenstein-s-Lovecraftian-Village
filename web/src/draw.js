@@ -225,7 +225,17 @@ export function createRenderer(env) {
     ctx.fillStyle = v.lantern ? (dread > 0.67 ? 'rgb(255,120,70)' : 'rgb(255,214,140)') : 'rgb(110,100,84)'; ctx.fillRect(lx - 1.5, ly - 1, 3, 4);
     if (v.lantern) glow(lx, ly + 1, 16, '255,190,110', 0.6);
   }
-  const drawActor = (a, dread, time) => (a.villager ? drawVillager(a, dread, time) : drawCultist(a, dread, time));
+  // A creature mark on the map: a pale, faceless silhouette per kind (low crawler, tall shroud, hunched figure, a pair of wings). No motion beyond a slow sway, none under reduced motion.
+  function drawCreature(pos, dread, time) {
+    const k = pos.creature.kind, s = iso(pos.x, pos.z), sway = reduceMotion ? 0 : Math.sin(time / 1100 + pos.x) * 0.8, lift = k === 'cliff_flyer' ? 22 : 0;
+    glow(s.x, s.y - lift, 10, '0,0,0', 0.4);
+    ctx.fillStyle = 'rgba(190,196,180,.88)';
+    if (k === 'shore_crawler') { ctx.beginPath(); ctx.ellipse(s.x + sway, s.y - 3, 9, 3.2, 0, 0, 7); ctx.fill(); }
+    else if (k === 'hollow_watcher') { poly([{ x: s.x - 4 + sway, y: s.y }, { x: s.x + 4 + sway, y: s.y }, { x: s.x + 1.4 + sway, y: s.y - 24 }, { x: s.x - 1.4 + sway, y: s.y - 24 }], 'rgb(190,196,180)'); ctx.fillStyle = 'rgb(8,9,10)'; ctx.fillRect(s.x - 2 + sway, s.y - 22, 1.6, 2.4); ctx.fillRect(s.x + 0.6 + sway, s.y - 22, 1.6, 2.4); }
+    else if (k === 'deep_one') { poly([{ x: s.x - 5 + sway, y: s.y }, { x: s.x + 5 + sway, y: s.y }, { x: s.x + 3 + sway, y: s.y - 15 }, { x: s.x - 3 + sway, y: s.y - 15 }], 'rgb(60,92,92)'); ctx.fillStyle = 'rgb(190,196,180)'; ctx.beginPath(); ctx.arc(s.x + sway, s.y - 17, 3.4, 0, 7); ctx.fill(); }
+    else { poly([{ x: s.x - 9, y: s.y - lift - 2 }, { x: s.x, y: s.y - lift + 1 }, { x: s.x + 9, y: s.y - lift - 2 }, { x: s.x, y: s.y - lift - 4 }], 'rgb(20,22,26)'); }
+  }
+  const drawActor = (a, dread, time) => (a.creature ? drawCreature(a, dread, time) : a.villager ? drawVillager(a, dread, time) : drawCultist(a, dread, time));
 
   const stars = Array.from({ length: 90 }, (_, i) => { const r = new SeededRandom(i + 99); return { x: r.next(960), y: r.next(260), s: 0.5 + r.next(100) / 100, ph: r.next(628) }; });
   const reeds = Array.from({ length: 70 }, (_, i) => { const r = new SeededRandom(i + 4242); return { x: GRID_W + 0.3 + r.next(80) / 10, z: 1 + r.next(GRID_D * 10) / 10, h: 8 + r.next(14), lean: (r.next(100) - 50) / 40 }; });
@@ -611,6 +621,7 @@ export function createRenderer(env) {
     }
     // villagers stand in the village at the current clock tick; vanished ones are not listed. They share the cultist depth ordering.
     for (const v of state.dlnk ? [] : state.villagers || []) if (!v.gone && !v.indoors) active.push({ x: v.x, z: v.z, depth: v.x + v.z + 0.5, villager: v });
+    for (const c of state.dlnk || !state.creatureMarks ? [] : state.creatureMarks()) active.push({ x: c.x, z: c.z, depth: c.x + c.z + 0.5, creature: c });
     active.sort((a, b) => a.depth - b.depth);
     let ai = 0;
     if (state.dlnk) drawDlnk(dread, time);

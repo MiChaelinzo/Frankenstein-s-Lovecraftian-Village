@@ -258,6 +258,34 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
 }
 
 
+// ---------- creatures: pale shapes that stand, crawl or wheel; their sway is the vertex shader's hanging-prop sway ----------
+
+export const CREATURE_SWAY_PHASE = 2000;   // vertex phase of the hanging-prop sway (the shader swings these more with height); the shader's uSway is 0 under reduced motion
+export const CREATURE_GLOW = 0.45;         // dim, steady eyes
+export const FLYER_ORBIT_M = 3.0, FLYER_ORBIT_RAD_PER_SEC = 0.35;
+
+/**
+ * Vertices for the creatures (metres): each faces the player (facing = sin yaw, cos yaw like the villagers), flyers hang at their mesh height and wheel slowly in a small circle
+ * (still under reduced motion). entries: { id, kind, pos: [x, y, z], yaw, height, phase }; models: Map kind -> model. Pure and deterministic. Empty without the meshes.
+ */
+export const MAX_PLAYER_DT = 0.25; // seconds: a stalled frame never makes a creature jump
+export const CREATURE_FOG_GAIN = 0.6, CREATURE_FLICKER_DEPTH = 0.35, CREATURE_STEADY_DIM = 0.12;
+/** The held lantern's brightness factor while a creature is near: it gutters with closeness; under reduced motion it only dims a little, steadily. */
+export const creatureFlicker = (near, timeSec, reduced) => (reduced ? 1 - CREATURE_STEADY_DIM * near : 1 - CREATURE_FLICKER_DEPTH * near * (0.5 + 0.5 * Math.sin(timeSec * 23)));
+export const WARD_KEYS = Object.freeze({ KeyZ: 'salt', KeyV: 'sigil', KeyF: 'flare' });
+export function buildCreatures({ creatures, models, timeSec = 0, reduced = false }) {
+  const out = [];
+  if (!models) return new Float32Array(0);
+  for (const c of creatures || []) {
+    const model = models.get(c.kind);
+    if (!model) continue;
+    const a = reduced ? 0 : timeSec * FLYER_ORBIT_RAD_PER_SEC + c.phase, wheel = c.height > 0 ? FLYER_ORBIT_M : 0;
+    const x = c.pos[0] + Math.cos(a) * wheel, z = c.pos[2] + Math.sin(a) * wheel, yaw = wheel ? a + Math.PI / 2 : c.yaw;
+    appendMeshVertices(out, model, null, CELL, { glow: CREATURE_GLOW, phase: CREATURE_SWAY_PHASE + c.phase, scale: 1, at: [x, z], rot: yaw, lift: c.height });
+  }
+  return new Float32Array(out);
+}
+
 // ---------- the lighthouse beam: crossed soft sheets turning with the Core clock ----------
 
 /** Floats per beam vertex: x, y, z and the alpha of the sheet there (bright on the axis, zero at the edges and the far end). */
@@ -1013,7 +1041,7 @@ async function loadAlienPack(meshes) {
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', ...DRESSING_KINDS], console.warn, 'data/village_shapes.json'));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', 'shore_crawler', 'hollow_watcher', 'deep_one', 'cliff_flyer', ...DRESSING_KINDS], console.warn, 'data/village_shapes.json'));
 
 /**
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
@@ -1023,7 +1051,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, onPlayer = null, onWard = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
@@ -1177,6 +1205,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       if (onStep && !s.fly && footfall(prevPhase, bobPhase)) onStep(surfaceAt(cam.x, cam.z, s.gridW, s.gridD, s.seed));
     }
     if (onCoast && !s.fly) { const c = Math.round(coastCloseness(cam.x, cam.z, s.gridW, s.gridD, s.seed) * 10) / 10; if (c !== coastAt) { coastAt = c; onCoast(c); } }
+    if (onPlayer && !s.fly) onPlayer({ x: cam.x, z: cam.z, yaw: cam.yaw, dt: Math.min(dt, MAX_PLAYER_DT) });
     const padOn = navigator.getGamepads && Array.from(navigator.getGamepads() || []).some(Boolean);
     const animated = !reduced && !capture;
     if (s.fly) updatePromptOff();
@@ -1237,18 +1266,19 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     const hc = !!highContrast(), cf = closeFog({ fog: sk.fog, dread: s.dread, tier, w: day.w }); // Silent Hill style close fog: denser by tier, colour from the sky
     fogs.density *= cf.density; fogs.ground *= cf.ground; fogs.groundHeight *= cf.groundHeight;
+    const near = Math.max(0, Math.min(1, s.creatureNear || 0)); fogs.density *= 1 + CREATURE_FOG_GAIN * near; fogs.ground *= 1 + CREATURE_FOG_GAIN * near; // a creature close by: the fog thickens
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), cr = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), all = new Float32Array(v3.length + cr.length + birds.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
       return { pos: l.pos, radius: l.radius * wlook.pool, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
     });
-    const k0 = lanternFlicker(0.7, time, s.dread, reduced);
+    const k0 = lanternFlicker(0.7, time, s.dread, reduced) * creatureFlicker(near, time, reduced);
     const basis = cameraBasis(eye), [hx, hy, hz] = HELD_LANTERN_OFFSET, heldAt = [0, 1, 2].map((c) => [eye.x, eye.y, eye.z][c] + basis.r[c] * hx + basis.u[c] * (hy + 0.1) + basis.f[c] * hz);
     renderer.setHeld(s.fly ? new Float32Array(0) : buildHeldLantern({ eye, basis, swingPhase: bobPhase, reduced })); // no hand in the fly-through
     lit.push({ pos: s.fly ? [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4] : heldAt, radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
@@ -1273,6 +1303,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (!active || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Escape') { if (locked) document.exitPointerLock(); else onExit(); e.preventDefault(); return; }
     if (e.code === 'KeyC') { chatNearest(); e.preventDefault(); return; }
+    if (onWard && WARD_KEYS[e.code]) { onWard(WARD_KEYS[e.code]); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { interact(centerRay()); e.preventDefault(); return; }
     if (KEY_MOVE[e.code]) { keys.add(e.code); e.preventDefault(); wake(); }
   };
