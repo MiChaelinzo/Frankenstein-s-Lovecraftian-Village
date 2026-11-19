@@ -340,6 +340,9 @@ namespace Frankenstein.Core.Tests
             AppendLore(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendItems(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -930,6 +933,61 @@ namespace Frankenstein.Core.Tests
                     sb.Append("] }");
                 }
             sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "items" (round 25): the item library digest, seeded ground items and chests per village (positions to 3 decimals) and a scripted inventory scenario.</summary>
+        private static void AppendItems(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = ItemCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "items.json")));
+            sb.Append("  \"items\": {\n    \"defs\": [");
+            for (int i = 0; i < lib.Items.Count; i++)
+            {
+                var d = lib.Items[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(d.Id).Append("\", \"").Append(d.Kind).Append("\", \"").Append(d.Effect).Append("\", ").Append(d.Amount).Append(", ").Append(d.Stack).Append(", ").Append(d.Weight).Append(", ").Append(d.Clue ? 1 : 0).Append(']');
+            }
+            sb.Append("],\n    \"villages\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var world = ItemWorld.Create(seed, grid, grid, layout, lib);
+                    sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"ground\": [");
+                    first = false;
+                    for (int i = 0; i < world.Ground.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(world.Ground[i].ItemId).Append("\", ").Append(world.Ground[i].Count).Append(", ")
+                          .Append(Math.Round(world.Ground[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(world.Ground[i].Z, 3).ToString("0.###", inv)).Append(']');
+                    sb.Append("], \"chests\": [");
+                    for (int i = 0; i < world.Chests.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append('[').Append(world.Chests[i].HouseIndex).Append(", ").Append(world.Chests[i].Lodging ? 1 : 0).Append(", ")
+                          .Append(Math.Round(world.Chests[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(world.Chests[i].Z, 3).ToString("0.###", inv)).Append(", \"").Append(world.Chests[i].Contents.SlotsText()).Append("\"]");
+                    sb.Append("], \"state\": \"").Append(world.Serialize(new Inventory(ItemRules.PlayerSlots))).Append("\" }");
+                }
+            sb.Append("\n    ],\n    \"scenario\": [");
+            var player = new Inventory(3);
+            var sanity = new SanityModel(50f);
+            var log = new List<string>();
+            log.Add("add bread 7 -> " + player.Add(lib, "bread", 7));
+            log.Add("add tea 3 -> " + player.Add(lib, "tea", 3));
+            log.Add("add salt 9 -> " + player.Add(lib, "salt", 9));
+            log.Add("add herbs 1 -> " + player.Add(lib, "herbs", 1));
+            log.Add("use bread -> " + UseText(player.Use(lib, "bread", sanity)) + " sanity " + sanity.Value.ToString("0.###", inv));
+            log.Add("use salt -> " + UseText(player.Use(lib, "salt", sanity)));
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)));
+            log.Add("remove bread 4 -> " + player.Remove("bread", 4));
+            player.Fuel = 70;
+            player.Add(lib, "lantern_oil", 2);
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)) + " fuel " + player.Fuel);
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)) + " fuel " + player.Fuel);
+            log.Add("slots " + player.SlotsText());
+            for (int i = 0; i < log.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(log[i]));
+            sb.Append("]\n  }\n");
+        }
+
+        private static string UseText(ItemUseResult r)
+        {
+            return (r.Used ? "used" : "refused " + r.Reason) + " s" + r.SanityDelta + " f" + r.FuelDelta;
         }
 
         /// <summary>Top level key "names": per city seed, the English and French name of every layout piece and of every landmark (round 24).</summary>

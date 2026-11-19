@@ -1,0 +1,243 @@
+{
+ "version": 1,
+ "items": [
+  {
+   "id": "lantern_oil",
+   "kind": "supply",
+   "effect": "fuel",
+   "amount": 40,
+   "stack": 3,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Lantern oil",
+    "text": "A stoppered bottle of whale oil, thick as syrup. The lantern drinks it and burns steadier."
+   },
+   "fr": {
+    "name": "Huile de lanterne",
+    "text": "Une bouteille bouchee d'huile de baleine, epaisse comme un sirop. La lanterne la boit et brule plus droit."
+   }
+  },
+  {
+   "id": "salt",
+   "kind": "ward",
+   "effect": "ward",
+   "amount": 0,
+   "stack": 9,
+   "weight": 5,
+   "clue": false,
+   "en": {
+    "name": "Salt",
+    "text": "A twist of coarse grey salt. The old women say it keeps certain things from crossing a threshold."
+   },
+   "fr": {
+    "name": "Sel",
+    "text": "Un cornet de gros sel gris. Les vieilles disent qu'il empeche certaines choses de franchir un seuil."
+   }
+  },
+  {
+   "id": "candles",
+   "kind": "supply",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 9,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Candles",
+    "text": "Tallow candles, bent from a long time in a pocket. A small flame makes a small certainty."
+   },
+   "fr": {
+    "name": "Chandelles",
+    "text": "Des chandelles de suif, tordues par un long sejour en poche. Une petite flamme fait une petite certitude."
+   }
+  },
+  {
+   "id": "bread",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 6,
+   "stack": 5,
+   "weight": 5,
+   "clue": false,
+   "en": {
+    "name": "Bread",
+    "text": "A heel of dark bread, still faintly warm, though no oven has been lit today."
+   },
+   "fr": {
+    "name": "Pain",
+    "text": "Un quignon de pain noir, encore tiede, bien qu'aucun four n'ait brule aujourd'hui."
+   }
+  },
+  {
+   "id": "dried_fish",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 5,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Dried fish",
+    "text": "Salt cod stiff as a board. It tastes of the sea and of nothing you could name."
+   },
+   "fr": {
+    "name": "Poisson seche",
+    "text": "Une morue salee raide comme une planche. Elle a le gout de la mer et de rien que l'on puisse nommer."
+   }
+  },
+  {
+   "id": "tea",
+   "kind": "tea",
+   "effect": "sanity",
+   "amount": 9,
+   "stack": 3,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Tea",
+    "text": "A tin of black tea and a cup that is never quite empty. The steam steadies the hands."
+   },
+   "fr": {
+    "name": "The",
+    "text": "Une boite de the noir et une tasse jamais tout a fait vide. La vapeur calme les mains."
+   }
+  },
+  {
+   "id": "herbs",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 3,
+   "stack": 9,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Bitter herbs",
+    "text": "Rue and sea thrift tied with thread. Chewed slowly, they push the whispers back a little."
+   },
+   "fr": {
+    "name": "Herbes ameres",
+    "text": "De la rue et de l'armeria nouees d'un fil. Machees lentement, elles repoussent un peu les murmures."
+   }
+  },
+  {
+   "id": "sigil_chalk",
+   "kind": "ward",
+   "effect": "ward",
+   "amount": 0,
+   "stack": 5,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Sigil chalk",
+    "text": "A stub of white chalk, worn on one side where a hand has drawn the same mark many times."
+   },
+   "fr": {
+    "name": "Craie a sceaux",
+    "text": "Un bout de craie blanche, use d'un cote par une main qui a trace cent fois le meme signe."
+   }
+  },
+  {
+   "id": "brass_key",
+   "kind": "key",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Brass key",
+    "text": "A small brass key with a gull cut into the bow. It fits no lock you have seen yet."
+   },
+   "fr": {
+    "name": "Cle de laiton",
+    "text": "Une petite cle de laiton, une mouette gravee dans l'anneau. Elle n'ouvre aucune serrure connue."
+   }
+  },
+  {
+   "id": "iron_key",
+   "kind": "key",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Iron key",
+    "text": "A heavy iron key, cold even in the sun, with salt crusted in its teeth."
+   },
+   "fr": {
+    "name": "Cle de fer",
+    "text": "Une lourde cle de fer, froide meme au soleil, du sel incruste entre les dents."
+   }
+  },
+  {
+   "id": "harbour_letter",
+   "kind": "letter",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Harbour letter",
+    "text": "A letter never posted. It says the boats will not be going out, and asks that nobody count them."
+   },
+   "fr": {
+    "name": "Lettre du port",
+    "text": "Une lettre jamais postee. Elle dit que les barques ne sortiront pas, et demande que personne ne les compte."
+   }
+  },
+  {
+   "id": "chapel_letter",
+   "kind": "letter",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Chapel letter",
+    "text": "A note slipped under a door: the bell rang at midnight, and the ringer was found asleep in another town."
+   },
+   "fr": {
+    "name": "Lettre de la chapelle",
+    "text": "Un mot glisse sous une porte: la cloche a sonne a minuit, et le sonneur dormait dans une autre ville."
+   }
+  },
+  {
+   "id": "gull_charm",
+   "kind": "trinket",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Bone gull charm",
+    "text": "A gull carved from bone and polished by thumbs. It is warm, and it should not be."
+   },
+   "fr": {
+    "name": "Porte-bonheur mouette",
+    "text": "Une mouette taillee dans un os et polie par des pouces. Elle est tiede, et elle ne devrait pas l'etre."
+   }
+  },
+  {
+   "id": "black_button",
+   "kind": "trinket",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Black button",
+    "text": "A black coat button with four holes. Four holes, and you count them again, and there are five."
+   },
+   "fr": {
+    "name": "Bouton noir",
+    "text": "Un bouton de manteau noir a quatre trous. Quatre trous, vous recomptez, et il y en a cinq."
+   }
+  }
+ ]
+}

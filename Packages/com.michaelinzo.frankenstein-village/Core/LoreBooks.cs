@@ -124,11 +124,8 @@ namespace Frankenstein.Core
         {
             var result = new List<LoreBookPlacement>();
             if (library == null || gridW <= 0 || gridD <= 0) return result;
-            var items = VillageDressing.Compose(seed, gridW, gridD, layout);
-            items.AddRange(VillageLandmarks.Dressing(seed, gridW, gridD)); // the wreck, the abbey ruins and the church box block books like any solid prop
-            items.AddRange(VillageLandmarks.PathDressing(seed, gridW, gridD));
-            var blockers = new List<DressingItem>();
-            foreach (var it in items) { double hx, hz; if (VillageDressing.TryCollisionHalfExtents(it, out hx, out hz)) blockers.Add(it); }
+            var items = AllDressing(seed, gridW, gridD, layout);
+            var blockers = SolidProps(items);
             var buildings = new List<PlacedPiece>();
             if (layout != null) foreach (var p in layout) if (VillageStreets.IsBuilding(p.SizeX, p.SizeZ)) buildings.Add(p);
             for (int place = 0; place < Places.Length; place++)
@@ -156,6 +153,23 @@ namespace Frankenstein.Core
             return result;
         }
 
+        /// <summary>Every prop of one village that a ground object must know about: street dressing, the wreck, the abbey ruins and the church box, and the lit paths.</summary>
+        public static List<DressingItem> AllDressing(int seed, int gridW, int gridD, IList<PlacedPiece> layout)
+        {
+            var items = VillageDressing.Compose(seed, gridW, gridD, layout);
+            items.AddRange(VillageLandmarks.Dressing(seed, gridW, gridD));
+            items.AddRange(VillageLandmarks.PathDressing(seed, gridW, gridD));
+            return items;
+        }
+
+        /// <summary>The props with a walking box; a book, an item or a chest never stands inside one (see <see cref="IsBlocked"/>).</summary>
+        public static List<DressingItem> SolidProps(List<DressingItem> items)
+        {
+            var blockers = new List<DressingItem>();
+            foreach (var it in items) { double hx, hz; if (VillageDressing.TryCollisionHalfExtents(it, out hx, out hz)) blockers.Add(it); }
+            return blockers;
+        }
+
         /// <summary>The effect of reading <paramref name="book"/>; <paramref name="alreadyRead"/> is true when this player read it before.</summary>
         public static LoreReadResult Read(LoreBook book, bool alreadyRead)
         {
@@ -164,13 +178,16 @@ namespace Frankenstein.Core
         }
 
         /// <summary>The spots in front of a building (street side), each with the lateral alternatives of <see cref="Lateral"/>.</summary>
-        private static List<double[]> FrontSpots(PlacedPiece p)
+        private static List<double[]> FrontSpots(PlacedPiece p) { return FrontSpots(p, Lateral); }
+
+        /// <summary>The spots in front of a building (street side) at the given lateral offsets along the wall; shared with the item spawns.</summary>
+        public static List<double[]> FrontSpots(PlacedPiece p, double[] laterals)
         {
             double yaw = VillageStreets.FacingYaw(p.Facing), dirX = Math.Sin(yaw), dirZ = Math.Cos(yaw), sideX = Math.Cos(yaw), sideZ = -Math.Sin(yaw);
             double half = (p.Facing % 2 == 0 ? p.SizeZ : p.SizeX) * VillageDressing.Cell / 2, cx = (p.X + p.SizeX / 2.0) * VillageDressing.Cell, cz = (p.Z + p.SizeZ / 2.0) * VillageDressing.Cell;
             double d = half + HouseBookOffset;
             var alts = new List<double[]>();
-            foreach (var lat in Lateral) alts.Add(new[] { cx + dirX * d + sideX * lat, cz + dirZ * d + sideZ * lat });
+            foreach (var lat in laterals) alts.Add(new[] { cx + dirX * d + sideX * lat, cz + dirZ * d + sideZ * lat });
             return alts;
         }
 
