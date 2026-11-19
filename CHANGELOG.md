@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 25 (FEAT-006): more villagers, lane routes
+- Core `VillagerRules.GenerateRoster(seed, layout, gridW, gridD)`: the seven principals (unchanged) plus 17 townsfolk by district on grids of at least `VillageDistricts.CityGrid` (own seed stream `ResidentStream`, no lamplighter or keeper). JS `generateTownRoster`. The story and journals still use the seven principals.
+- Core `VillageStreets.LaneRoute` and `LegIsClear` (JS `laneRoute`, `legIsClear`): `PresenceAt` walks lane centre lines instead of x then z, so a walk never crosses a building. Without streets the old x then z walk stays.
+- Tests: `VillagerRoutes.cs` (6), golden `cityPresence` gained roster and routes, JS parity and no-intersection test. Closes spec tasks 135 and 140.
+- Web: villagers beyond the tier draw distance are not drawn. SwiftShader `?perf=1` stills (medium 14 fps and 71 ms avg with 17 in range; low and high not comparable in software GL, high did not finish sampling) show no tier needing a cap. Cache `flv-shell-v50`. Still: `docs/media/round25-busy-streets.png`.
+
 ### Round 25 (FEAT-005): homestead, farming, animals and pets
 - Core `HomesteadRules.cs` (`HomesteadCatalog`, `HomesteadPlot`, `Homestead`, `HomesteadRules`) and `Data/homestead.json` (en and fr): five crops (turnips and cabbages, plus the eldritch glowcap mushrooms, weeping kelp and eyeroot), four structures (fence, trough, scarecrow, coop, paid in timber), three animals (chickens, goat, cat) and three pets (lantern moth, tide hound, tentacle in a jar).
 - The plot is found beside the lodging chest's house (in front, then behind), with every bed, slot and resident spot kept clear by `LoreBookRules.IsBlocked`. Crops grow by `GameClock.DayNumber` (planted, sprouting, ripe), never by frame time. Once the corruption level reaches 3 (`CorruptionGrowth.Level`), eldritch crops give one more and plain crops one less unless a scarecrow stands.

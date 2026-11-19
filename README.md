@@ -106,6 +106,11 @@ The yard beside your lodging house can be claimed from the Homestead button. Cla
 ![The homestead yard with crops, a coop, chickens and a tide hound](docs/media/homestead_yard.png)
 ![A lantern moth pet in the yard](docs/media/homestead_pet.png)
 
+### More villagers and lane walks (round 25)
+The 36 by 36 city has 24 villagers: the seven principals (names, story and journals unchanged) plus 17 townsfolk spread by district (harbour 3, old town 5, chapel hill 2, market 4, fishers' row 3). They keep the Core schedules of their role and talk and chat like the principals (the lamplighter and keeper stay unique). Walks now follow the lane centre lines of `VillageStreets` (`LaneRoute`), so no route crosses a building; a test checks this on five seeds in C# and JS. The 3D view draws a villager only within the tier draw distance and the fog. Smaller villages keep seven villagers.
+
+![A busier street in the city](docs/media/round25-busy-streets.png)
+
 ### Honest quality bar
 **WebGL1 limits (round 22):** the 3D view is WebGL1 only, with no extensions required. That means no `dFdx` derivatives (bump is two albedo taps), no float render targets (so no real HDR bloom, the post pass works on 8 bit), no instancing (props are merged into chunked buffers), no shadow maps, at most 8 lantern lights per pixel, and a fixed texture unit budget. The Dredge and Silent Hill look is created with fog, a curve grade, rim light and window mood inside those limits, so it is a mood study, not a copy of those games. Measured only on SwiftShader (software GL); real GPU frame times are Unverified.
 

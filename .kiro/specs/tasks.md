@@ -162,12 +162,12 @@ Done (Verified by C# and JS parity tests, golden `landmarks`/`names`/`story`, an
 - [ ] 134. Lit paths to the four new places (not drawn yet; they are reached over open ground).
 
 Round 24 leftovers (open, from FEAT-007):
-- [ ] 135. Villager routes snapped to `VillageStreets` lanes (routes are axis-aligned today).
+- [x] 135. Villager routes snapped to `VillageStreets` lanes (routes are axis-aligned today).
 - [ ] 136. Unity: the scene builder places no lore books, so the story is not passed to `LoreBookRules.Place`; add lore and story libraries to the builder and wire them.
 - [ ] 137. Evaluate a CC0 rigged villager (for example a Quaternius character) against the CPU leg swing; not downloaded yet.
 - [ ] 138. Unity: names of the new landmarks and the lighthouse beam in the scene.
 - [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
-- [ ] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
+- [x] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
 
 ## Round 25: survival and homestead (in progress)
 - [x] 141. Baseline green on `feat/round25` (Verified: node 570, dotnet 244, UnityCompileCheck 0/0)
