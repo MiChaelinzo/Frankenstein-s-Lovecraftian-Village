@@ -121,6 +121,11 @@ Unity MCP prompts for each step are in [MCP.md](MCP.md). Report anything that fa
 ## City, districts and landmarks in Unity (round 23, compile checked, runtime Unverified)
 `VillageBuilder.city` turns on Core `VillageLayoutGenerator.GenerateCity` (set width and depth 36 and `pieceCount` 180). Districts and `CorruptionGrowth` are Core rules you can call from your own scripts. `VillageBuilder` does not place the landmarks (lighthouse cliffs, shipwreck, abbey, cemetery, marsh, grove) or the lit paths yet; use `VillageLandmarks` for the positions. The original GLB look-alikes for corruption and landmarks are in `web/assets/meshes`. None of this has run in the Unity editor.
 
+## Round 25 hooks (compile checked, runtime Unverified)
+- `CreatureExposureBehaviour`: thin hook. It gathers the player position, sanity and lantern state, forwards them to Core `CreatureRules` and shows the drain. It reads night 1 and has no wards UI.
+- `HomesteadBehaviour`: thin hook over Core `Homestead`. It reads corruption at night 1 and does not draw the yard; the scene builder places neither. Items and chests (`Items.cs`) have no Unity wrapper.
+- Both compile in `tests/UnityCompileCheck` against stubs (0 errors) and have never run in Unity. The game rules are in Core and Verified by dotnet and node tests.
+
 ## Round 24 Core rules the Unity layer consumes (compile checked, runtime Unverified)
 Everything below is Core, so Unity code stays thin:
 - `VillagerRules.PresenceAt` (schedule, stops, door fade): `VillagerAgent` follows it.

@@ -42,10 +42,37 @@
     "ritual_ash": [0.1, 0.07, 0.065, 1.0],
     "ritual_red": [0.36, 0.05, 0.05, 1.0],
     "tomb_black": [0.008, 0.008, 0.012, 1.0],
-    "tomb_iron": [0.1, 0.1, 0.11, 1.0]
+    "tomb_iron": [0.1, 0.1, 0.11, 1.0],
+    "creature_pale": [0.55, 0.56, 0.5, 1.0],
+    "creature_wet": [0.1, 0.17, 0.17, 1.0],
+    "creature_dark": [0.02, 0.025, 0.03, 1.0],
+    "glow_creature_eye": [0.85, 0.8, 0.5, 1.0],
+    "hs_soil": [0.1, 0.075, 0.055, 1.0],
+    "hs_leaf": [0.16, 0.3, 0.14, 1.0],
+    "hs_turnip": [0.62, 0.5, 0.62, 1.0],
+    "hs_cabbage": [0.25, 0.42, 0.2, 1.0],
+    "glow_hs_cap": [0.4, 0.85, 0.55, 1.0],
+    "hs_stalk": [0.7, 0.72, 0.62, 1.0],
+    "hs_kelp": [0.08, 0.2, 0.19, 1.0],
+    "hs_root": [0.55, 0.45, 0.3, 1.0],
+    "hs_eye": [0.04, 0.03, 0.03, 1.0],
+    "hs_wood": [0.27, 0.2, 0.14, 1.0],
+    "hs_wood_dark": [0.13, 0.095, 0.07, 1.0],
+    "hs_water": [0.05, 0.12, 0.15, 1.0],
+    "hs_cloth": [0.22, 0.2, 0.17, 1.0],
+    "hs_straw": [0.5, 0.42, 0.22, 1.0],
+    "hs_hen": [0.52, 0.32, 0.18, 1.0],
+    "hs_comb": [0.5, 0.12, 0.1, 1.0],
+    "hs_goat": [0.62, 0.6, 0.55, 1.0],
+    "hs_cat": [0.2, 0.2, 0.22, 1.0],
+    "hs_hound": [0.18, 0.26, 0.28, 1.0],
+    "hs_jar": [0.5, 0.66, 0.66, 1.0],
+    "hs_tentacle": [0.4, 0.18, 0.3, 1.0],
+    "glow_hs_moth": [0.95, 0.8, 0.5, 1.0],
+    "hs_moth_wing": [0.7, 0.66, 0.58, 1.0]
   },
   "scale": {"comment": "Real-world scale standard in metres. Meshes are authored at 1 unit = 1 m and placed at scale 1 (never enlarged to fill a cell). Mirrored by Core WorldScale.cs and web/src/world-scale.js; tests check all three.", "eyeHeight": 1.6, "personHeight": 1.7, "doorHeight": 2.0, "eavesMin": 2.4, "eavesMax": 3.2, "lampMin": 3.0, "lampMax": 3.6, "treeMin": 3.5, "storeyHeight": 3.0, "houseStoreys": 2, "ridgeMin": 6.0, "ridgeMax": 10.0, "houseFootprintMinCells": 2},
-  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7], "shipwreck": [3, 6], "abbey_arch": [4, 6.5], "abbey_wall": [2.5, 4.5], "abbey_pillar": [1.5, 4], "marsh_pool": [0.0, 0.1], "path_stone": [0.0, 0.12], "standing_stone": [2.5, 4.5], "ritual_circle": [0.0, 0.15], "catacomb_gate": [2.5, 4.0]},
+  "propHeights": {"comment": "Believable real-world height range in metres [min, max] of each mesh as placed (scale 1). Tests in C# and JS check every mesh against it; see docs/ART_DIRECTION.md.", "house_a": [6, 10], "house_b": [6, 10], "church": [10, 14], "well": [1.8, 3.2], "altar": [1, 2.6], "dead_tree": [3.5, 8], "lamp": [3, 3.6], "boat": [1.5, 3.2], "dock": [0.5, 1.4], "fence": [0.8, 1.3], "cliff_rock": [4, 12], "lamp_tall": [4.5, 6], "lamp_double": [3, 3.6], "cottage_thatch": [3.5, 5], "cottage_tall": [5, 7], "inn": [4.5, 6], "chapel": [5.5, 7], "lighthouse": [8, 14], "market_stall": [2.2, 2.8], "crate_stack": [0.8, 1.6], "barrel": [0.8, 1.1], "gravestone": [0.5, 1.4], "gravestone_cross": [0.9, 1.8], "fence_iron": [1.2, 1.8], "villager": [1.6, 1.8], "cart": [0.9, 1.4], "sack": [0.5, 1.0], "wall_low": [0.6, 1.2], "net": [1.5, 2.4], "bench": [0.7, 1.1], "sign": [2, 2.8], "wall_lantern": [0.3, 0.7], "tree": [4, 8], "bush": [0.4, 1.2], "reeds": [1, 2.2], "rock": [0.3, 1], "laundry_line": [1.8, 2.6], "grass_tuft": [0.3, 0.8], "stump": [0.3, 0.7], "log": [0.25, 0.6], "woodpile": [0.7, 1.3], "hedge": [0.8, 1.5], "picket_fence": [0.7, 1.2], "bollard": [0.5, 1.0], "rope_coil": [0.05, 0.3], "crop_row": [0.3, 0.8], "wheel_ruts": [0.0, 0.1], "tentacle_tree": [4, 6.5], "tentacle_sapling": [1.6, 3], "fungus_tall": [1.5, 3], "fungus_cluster": [0.4, 1.2], "fungus_shelf": [0.6, 1.4], "spire_horn": [3, 6], "spire_ribbed": [4, 7], "shipwreck": [3, 6], "abbey_arch": [4, 6.5], "abbey_wall": [2.5, 4.5], "abbey_pillar": [1.5, 4], "marsh_pool": [0.0, 0.1], "path_stone": [0.0, 0.12], "standing_stone": [2.5, 4.5], "ritual_circle": [0.0, 0.15], "catacomb_gate": [2.5, 4.0], "shore_crawler": [0.5, 1.1], "hollow_watcher": [2.2, 3.0], "deep_one": [1.6, 2.2], "cliff_flyer": [0.2, 0.8], "hs_mound": [0.05, 0.3], "hs_sprout": [0.1, 0.4], "hs_turnip": [0.2, 0.5], "hs_cabbage": [0.15, 0.5], "hs_glowcap": [0.15, 0.5], "hs_kelp": [0.4, 1.0], "hs_eyeroot": [0.2, 0.6], "hs_fence": [0.6, 1.2], "hs_trough": [0.25, 0.6], "hs_scarecrow": [1.4, 2.2], "hs_coop": [0.9, 1.6], "hs_chicken": [0.25, 0.6], "hs_goat": [0.7, 1.1], "hs_cat": [0.2, 0.45], "hs_lantern_moth": [0.4, 0.9], "hs_tide_hound": [0.5, 0.9], "hs_jar_tentacle": [0.3, 0.7]},
   "meshes": [
     {"id": "house_a", "group": "catalog", "parts": [
       {"name": "base", "material": "stone", "shape": "box", "at": [0, 0, 0], "size": [6.4, 5.8, 0.4]},
@@ -740,6 +767,181 @@
       {"name": "tread_1", "material": "ruin_stone", "shape": "box", "at": [0.0, -1.3, 0.0], "size": [2.6, 0.35, 0.1]},
       {"name": "tread_2", "material": "ruin_stone", "shape": "box", "at": [0.0, -1.65, 0.0], "size": [3.0, 0.35, 0.1]},
       {"name": "buttress", "material": "lichen", "shape": "box", "at": [0.0, 1.65, 0.0], "size": [3.0, 0.3, 0.7]}
+    ]},
+    {"id": "shore_crawler", "group": "village", "parts": [
+      {"name": "body", "material": "creature_wet", "shape": "box", "at": [0.0, 0.1, 0.22], "size": [0.6, 1.2, 0.34]},
+      {"name": "back", "material": "creature_pale", "shape": "box", "at": [0.0, 0.2, 0.5], "size": [0.4, 0.8, 0.1]},
+      {"name": "head", "material": "creature_pale", "shape": "cylinder", "at": [0.0, -0.75, 0.3], "radii": [0.2, 0.15], "height": 0.3, "sides": 6},
+      {"name": "eye_l", "material": "glow_creature_eye", "shape": "box", "at": [-0.08, -0.93, 0.5], "size": [0.05, 0.03, 0.05]},
+      {"name": "eye_r", "material": "glow_creature_eye", "shape": "box", "at": [0.08, -0.93, 0.5], "size": [0.05, 0.03, 0.05]},
+      {"name": "limb_0", "material": "creature_pale", "shape": "box", "at": [-0.55, -0.35, 0.05], "size": [0.8, 0.1, 0.12], "yaw": 35},
+      {"name": "limb_1", "material": "creature_pale", "shape": "box", "at": [0.55, -0.35, 0.05], "size": [0.8, 0.1, 0.12], "yaw": -35},
+      {"name": "limb_2", "material": "creature_pale", "shape": "box", "at": [-0.55, 0.5, 0.05], "size": [0.8, 0.1, 0.12], "yaw": -35},
+      {"name": "limb_3", "material": "creature_pale", "shape": "box", "at": [0.55, 0.5, 0.05], "size": [0.8, 0.1, 0.12], "yaw": 35}
+    ]},
+    {"id": "hollow_watcher", "group": "village", "parts": [
+      {"name": "shroud", "material": "creature_pale", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.5, 0.18], "height": 2.0, "sides": 8},
+      {"name": "neck", "material": "creature_pale", "shape": "cylinder", "at": [0.0, 0.0, 2.0], "radii": [0.1, 0.1], "height": 0.2, "sides": 6},
+      {"name": "head", "material": "creature_pale", "shape": "cylinder", "at": [0.0, 0.0, 2.2], "radii": [0.17, 0.13], "height": 0.4, "sides": 6},
+      {"name": "hollow_l", "material": "creature_dark", "shape": "box", "at": [-0.07, -0.13, 2.38], "size": [0.08, 0.05, 0.1]},
+      {"name": "hollow_r", "material": "creature_dark", "shape": "box", "at": [0.07, -0.13, 2.38], "size": [0.08, 0.05, 0.1]},
+      {"name": "arm_l", "material": "creature_pale", "shape": "box", "at": [-0.34, 0.0, 0.5], "size": [0.07, 0.07, 1.5]},
+      {"name": "arm_r", "material": "creature_pale", "shape": "box", "at": [0.34, 0.0, 0.5], "size": [0.07, 0.07, 1.5]}
+    ]},
+    {"id": "deep_one", "group": "village", "parts": [
+      {"name": "leg_l", "material": "creature_wet", "shape": "box", "at": [-0.2, 0.0, 0.0], "size": [0.22, 0.28, 0.8]},
+      {"name": "leg_r", "material": "creature_wet", "shape": "box", "at": [0.2, 0.0, 0.0], "size": [0.22, 0.28, 0.8]},
+      {"name": "torso", "material": "creature_wet", "shape": "cylinder", "at": [0.0, 0.1, 0.75], "radii": [0.42, 0.3], "height": 0.85, "sides": 8},
+      {"name": "head", "material": "creature_pale", "shape": "cylinder", "at": [0.0, -0.12, 1.6], "radii": [0.26, 0.2], "height": 0.34, "sides": 6},
+      {"name": "eye_l", "material": "glow_creature_eye", "shape": "box", "at": [-0.11, -0.36, 1.78], "size": [0.05, 0.03, 0.05]},
+      {"name": "eye_r", "material": "glow_creature_eye", "shape": "box", "at": [0.11, -0.36, 1.78], "size": [0.05, 0.03, 0.05]},
+      {"name": "arm_l", "material": "creature_pale", "shape": "box", "at": [-0.52, -0.05, 0.55], "size": [0.12, 0.14, 1.05]},
+      {"name": "arm_r", "material": "creature_pale", "shape": "box", "at": [0.52, -0.05, 0.55], "size": [0.12, 0.14, 1.05]},
+      {"name": "fin_0", "material": "creature_dark", "shape": "cone", "at": [0, 0.36, 1.0], "radius": 0.14, "height": 0.3, "sides": 3},
+      {"name": "fin_1", "material": "creature_dark", "shape": "cone", "at": [0, 0.36, 1.35], "radius": 0.14, "height": 0.3, "sides": 3}
+    ]},
+    {"id": "cliff_flyer", "group": "village", "parts": [
+      {"name": "body", "material": "creature_dark", "shape": "cylinder", "at": [0.0, 0.0, 0.15], "radii": [0.12, 0.09], "height": 0.5, "sides": 6},
+      {"name": "wing_l", "material": "creature_dark", "shape": "box", "at": [-0.85, 0.0, 0.2], "size": [1.7, 0.45, 0.04], "yaw": 18},
+      {"name": "wing_r", "material": "creature_dark", "shape": "box", "at": [0.85, 0.0, 0.2], "size": [1.7, 0.45, 0.04], "yaw": -18},
+      {"name": "tail", "material": "creature_pale", "shape": "box", "at": [0.0, 0.4, 0.25], "size": [0.12, 0.5, 0.03]}
+    ]},
+    {"id": "hs_mound", "group": "village", "parts": [
+      {"name": "mound", "material": "hs_soil", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.5, 0.36], "height": 0.14, "sides": 8}
+    ]},
+    {"id": "hs_sprout", "group": "village", "parts": [
+      {"name": "stem", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.1], "size": [0.04, 0.04, 0.2]},
+      {"name": "leaf_0", "material": "hs_leaf", "shape": "box", "at": [-0.07, 0.0, 0.22], "size": [0.16, 0.05, 0.03], "yaw": 30},
+      {"name": "leaf_1", "material": "hs_leaf", "shape": "box", "at": [0.07, 0.0, 0.22], "size": [0.16, 0.05, 0.03], "yaw": -30},
+      {"name": "leaf_2", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.22], "size": [0.16, 0.05, 0.03], "yaw": 90}
+    ]},
+    {"id": "hs_turnip", "group": "village", "parts": [
+      {"name": "bulb", "material": "hs_turnip", "shape": "cylinder", "at": [0.0, 0.0, 0.1], "radii": [0.1, 0.12], "height": 0.13, "sides": 8},
+      {"name": "root", "material": "hs_turnip", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.03, 0.1], "height": 0.1, "sides": 6},
+      {"name": "leaf_0", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.23], "size": [0.03, 0.22, 0.2], "yaw": 0},
+      {"name": "leaf_1", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.23], "size": [0.03, 0.22, 0.2], "yaw": 60},
+      {"name": "leaf_2", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.23], "size": [0.03, 0.22, 0.2], "yaw": 120}
+    ]},
+    {"id": "hs_cabbage", "group": "village", "parts": [
+      {"name": "heart", "material": "hs_cabbage", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.2, 0.17], "height": 0.28, "sides": 8},
+      {"name": "outer", "material": "hs_leaf", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.3, 0.2], "height": 0.16, "sides": 8},
+      {"name": "crown", "material": "hs_cabbage", "shape": "cylinder", "at": [0.0, 0.0, 0.26], "radii": [0.12, 0.05], "height": 0.06, "sides": 6}
+    ]},
+    {"id": "hs_glowcap", "group": "village", "parts": [
+      {"name": "stalk_0", "material": "hs_stalk", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.04, 0.035], "height": 0.22, "sides": 5},
+      {"name": "cap_0", "material": "glow_hs_cap", "shape": "cylinder", "at": [0.0, 0.0, 0.2], "radii": [0.17, 0.02], "height": 0.1, "sides": 7},
+      {"name": "stalk_1", "material": "hs_stalk", "shape": "cylinder", "at": [-0.2, 0.1, 0.0], "radii": [0.04, 0.035], "height": 0.14, "sides": 5},
+      {"name": "cap_1", "material": "glow_hs_cap", "shape": "cylinder", "at": [-0.2, 0.1, 0.12], "radii": [0.1, 0.02], "height": 0.1, "sides": 7},
+      {"name": "stalk_2", "material": "hs_stalk", "shape": "cylinder", "at": [0.18, -0.08, 0.0], "radii": [0.04, 0.035], "height": 0.17, "sides": 5},
+      {"name": "cap_2", "material": "glow_hs_cap", "shape": "cylinder", "at": [0.18, -0.08, 0.15], "radii": [0.12, 0.02], "height": 0.1, "sides": 7}
+    ]},
+    {"id": "hs_kelp", "group": "village", "parts": [
+      {"name": "frond_0", "material": "hs_kelp", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.035, 0.02], "height": 0.8, "sides": 5},
+      {"name": "tip_0", "material": "hs_kelp", "shape": "box", "at": [0.05, 0.0, 0.75], "size": [0.1, 0.02, 0.04], "yaw": 0},
+      {"name": "frond_1", "material": "hs_kelp", "shape": "cylinder", "at": [-0.12, 0.08, 0.0], "radii": [0.035, 0.02], "height": 0.6, "sides": 5},
+      {"name": "tip_1", "material": "hs_kelp", "shape": "box", "at": [-0.07, 0.08, 0.55], "size": [0.1, 0.02, 0.04], "yaw": 40},
+      {"name": "frond_2", "material": "hs_kelp", "shape": "cylinder", "at": [0.13, -0.06, 0.0], "radii": [0.035, 0.02], "height": 0.7, "sides": 5},
+      {"name": "tip_2", "material": "hs_kelp", "shape": "box", "at": [0.18, -0.06, 0.65], "size": [0.1, 0.02, 0.04], "yaw": 80}
+    ]},
+    {"id": "hs_eyeroot", "group": "village", "parts": [
+      {"name": "knob", "material": "hs_root", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.16, 0.13], "height": 0.2, "sides": 7},
+      {"name": "tip", "material": "hs_root", "shape": "cylinder", "at": [0.0, 0.0, 0.18], "radii": [0.1, 0.03], "height": 0.12, "sides": 6},
+      {"name": "eye_white", "material": "hs_stalk", "shape": "box", "at": [0.0, -0.14, 0.08], "size": [0.1, 0.03, 0.07]},
+      {"name": "eye_pupil", "material": "hs_eye", "shape": "box", "at": [0.0, -0.16, 0.09], "size": [0.04, 0.02, 0.04]},
+      {"name": "leaf_0", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.3], "size": [0.03, 0.2, 0.14], "yaw": 20},
+      {"name": "leaf_1", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.3], "size": [0.03, 0.2, 0.14], "yaw": 100},
+      {"name": "leaf_2", "material": "hs_leaf", "shape": "box", "at": [0.0, 0.0, 0.3], "size": [0.03, 0.2, 0.14], "yaw": 160}
+    ]},
+    {"id": "hs_fence", "group": "village", "parts": [
+      {"name": "post_0", "material": "hs_wood_dark", "shape": "box", "at": [-1.2, 0.0, 0.0], "size": [0.1, 0.1, 0.95]},
+      {"name": "post_1", "material": "hs_wood_dark", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [0.1, 0.1, 0.95]},
+      {"name": "post_2", "material": "hs_wood_dark", "shape": "box", "at": [1.2, 0.0, 0.0], "size": [0.1, 0.1, 0.95]},
+      {"name": "rail_0", "material": "hs_wood", "shape": "box", "at": [0.0, 0.0, 0.3], "size": [2.5, 0.05, 0.07]},
+      {"name": "rail_1", "material": "hs_wood", "shape": "box", "at": [0.0, 0.0, 0.65], "size": [2.5, 0.05, 0.07]}
+    ]},
+    {"id": "hs_trough", "group": "village", "parts": [
+      {"name": "log", "material": "hs_wood", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [1.2, 0.42, 0.34]},
+      {"name": "water", "material": "hs_water", "shape": "box", "at": [0.0, 0.0, 0.3], "size": [1.0, 0.28, 0.04]},
+      {"name": "leg_l", "material": "hs_wood_dark", "shape": "box", "at": [-0.5, 0.0, 0.0], "size": [0.1, 0.5, 0.1]},
+      {"name": "leg_r", "material": "hs_wood_dark", "shape": "box", "at": [0.5, 0.0, 0.0], "size": [0.1, 0.5, 0.1]}
+    ]},
+    {"id": "hs_scarecrow", "group": "village", "parts": [
+      {"name": "pole", "material": "hs_wood_dark", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [0.07, 0.07, 1.7]},
+      {"name": "arms", "material": "hs_wood", "shape": "box", "at": [0.0, 0.0, 1.3], "size": [1.2, 0.05, 0.05]},
+      {"name": "coat", "material": "hs_cloth", "shape": "box", "at": [0.0, 0.0, 0.75], "size": [0.5, 0.18, 0.7]},
+      {"name": "head", "material": "hs_straw", "shape": "cylinder", "at": [0.0, 0.0, 1.5], "radii": [0.13, 0.12], "height": 0.26, "sides": 7},
+      {"name": "eye_l", "material": "hs_eye", "shape": "box", "at": [-0.05, -0.12, 1.65], "size": [0.04, 0.02, 0.04]},
+      {"name": "eye_r", "material": "hs_eye", "shape": "box", "at": [0.05, -0.12, 1.65], "size": [0.04, 0.02, 0.04]},
+      {"name": "hat", "material": "hs_wood_dark", "shape": "cone", "at": [0, 0, 1.74], "radius": 0.26, "height": 0.2, "sides": 8}
+    ]},
+    {"id": "hs_coop", "group": "village", "parts": [
+      {"name": "body", "material": "hs_wood", "shape": "box", "at": [0.0, 0.0, 0.35], "size": [1.2, 0.9, 0.6]},
+      {"name": "roof", "material": "hs_wood_dark", "shape": "cone", "at": [0, 0, 0.95], "radius": 0.95, "height": 0.4, "sides": 4},
+      {"name": "door", "material": "hs_wood_dark", "shape": "box", "at": [0.0, -0.46, 0.4], "size": [0.3, 0.04, 0.35]},
+      {"name": "ramp", "material": "hs_wood", "shape": "box", "at": [0.0, -0.75, 0.0], "size": [0.3, 0.5, 0.04]},
+      {"name": "leg_0", "material": "hs_wood_dark", "shape": "box", "at": [-0.5, -0.35, 0.0], "size": [0.08, 0.08, 0.35]},
+      {"name": "leg_1", "material": "hs_wood_dark", "shape": "box", "at": [0.5, -0.35, 0.0], "size": [0.08, 0.08, 0.35]},
+      {"name": "leg_2", "material": "hs_wood_dark", "shape": "box", "at": [-0.5, 0.35, 0.0], "size": [0.08, 0.08, 0.35]},
+      {"name": "leg_3", "material": "hs_wood_dark", "shape": "box", "at": [0.5, 0.35, 0.0], "size": [0.08, 0.08, 0.35]}
+    ]},
+    {"id": "hs_chicken", "group": "village", "parts": [
+      {"name": "body", "material": "hs_hen", "shape": "box", "at": [0.0, 0.0, 0.14], "size": [0.24, 0.34, 0.22]},
+      {"name": "head", "material": "hs_hen", "shape": "box", "at": [0.0, -0.17, 0.3], "size": [0.1, 0.1, 0.14]},
+      {"name": "comb", "material": "hs_comb", "shape": "box", "at": [0.0, -0.17, 0.43], "size": [0.03, 0.06, 0.05]},
+      {"name": "beak", "material": "hs_straw", "shape": "box", "at": [0.0, -0.24, 0.34], "size": [0.04, 0.05, 0.03]},
+      {"name": "tail", "material": "hs_hen", "shape": "box", "at": [0.0, 0.2, 0.26], "size": [0.06, 0.12, 0.18]},
+      {"name": "legs", "material": "hs_straw", "shape": "box", "at": [0.0, 0.0, 0.0], "size": [0.12, 0.04, 0.14]}
+    ]},
+    {"id": "hs_goat", "group": "village", "parts": [
+      {"name": "body", "material": "hs_goat", "shape": "box", "at": [0.0, 0.0, 0.4], "size": [0.38, 0.85, 0.4]},
+      {"name": "neck", "material": "hs_goat", "shape": "box", "at": [0.0, -0.45, 0.62], "size": [0.16, 0.2, 0.36]},
+      {"name": "head", "material": "hs_goat", "shape": "box", "at": [0.0, -0.56, 0.68], "size": [0.14, 0.26, 0.2]},
+      {"name": "tail", "material": "hs_goat", "shape": "box", "at": [0.0, 0.45, 0.62], "size": [0.05, 0.06, 0.16]},
+      {"name": "beard", "material": "hs_cloth", "shape": "box", "at": [0.0, -0.66, 0.6], "size": [0.04, 0.05, 0.12]},
+      {"name": "leg_0", "material": "hs_goat", "shape": "box", "at": [-0.14, -0.3, 0.0], "size": [0.07, 0.07, 0.42]},
+      {"name": "leg_1", "material": "hs_goat", "shape": "box", "at": [0.14, -0.3, 0.0], "size": [0.07, 0.07, 0.42]},
+      {"name": "leg_2", "material": "hs_goat", "shape": "box", "at": [-0.14, 0.3, 0.0], "size": [0.07, 0.07, 0.42]},
+      {"name": "leg_3", "material": "hs_goat", "shape": "box", "at": [0.14, 0.3, 0.0], "size": [0.07, 0.07, 0.42]},
+      {"name": "horn_0", "material": "hs_stalk", "shape": "cone", "at": [-0.05, -0.52, 0.88], "radius": 0.03, "height": 0.16, "sides": 4},
+      {"name": "horn_1", "material": "hs_stalk", "shape": "cone", "at": [0.05, -0.52, 0.88], "radius": 0.03, "height": 0.16, "sides": 4}
+    ]},
+    {"id": "hs_cat", "group": "village", "parts": [
+      {"name": "body", "material": "hs_cat", "shape": "box", "at": [0.0, 0.0, 0.1], "size": [0.16, 0.42, 0.16]},
+      {"name": "head", "material": "hs_cat", "shape": "box", "at": [0.0, -0.26, 0.2], "size": [0.14, 0.12, 0.13]},
+      {"name": "ear_l", "material": "hs_cat", "shape": "cone", "at": [-0.04, -0.26, 0.32], "radius": 0.03, "height": 0.06, "sides": 3},
+      {"name": "ear_r", "material": "hs_cat", "shape": "cone", "at": [0.04, -0.26, 0.32], "radius": 0.03, "height": 0.06, "sides": 3},
+      {"name": "eye_l", "material": "glow_hs_moth", "shape": "box", "at": [-0.035, -0.325, 0.25], "size": [0.025, 0.01, 0.025]},
+      {"name": "eye_r", "material": "glow_hs_moth", "shape": "box", "at": [0.035, -0.325, 0.25], "size": [0.025, 0.01, 0.025]},
+      {"name": "tail", "material": "hs_cat", "shape": "box", "at": [0.0, 0.3, 0.2], "size": [0.04, 0.04, 0.22]}
+    ]},
+    {"id": "hs_lantern_moth", "group": "village", "parts": [
+      {"name": "lantern", "material": "glow_hs_moth", "shape": "cylinder", "at": [0.0, 0.0, 0.45], "radii": [0.07, 0.06], "height": 0.16, "sides": 6},
+      {"name": "cap", "material": "hs_wood_dark", "shape": "cylinder", "at": [0.0, 0.0, 0.6], "radii": [0.05, 0.02], "height": 0.05, "sides": 6},
+      {"name": "feeler_l", "material": "hs_moth_wing", "shape": "box", "at": [-0.04, -0.05, 0.64], "size": [0.01, 0.1, 0.01]},
+      {"name": "feeler_r", "material": "hs_moth_wing", "shape": "box", "at": [0.04, -0.05, 0.64], "size": [0.01, 0.1, 0.01]},
+      {"name": "wing_-1", "material": "hs_moth_wing", "shape": "box", "at": [-0.2, 0.0, 0.5], "size": [0.34, 0.2, 0.02], "yaw": -18},
+      {"name": "wing_1", "material": "hs_moth_wing", "shape": "box", "at": [0.2, 0.0, 0.5], "size": [0.34, 0.2, 0.02], "yaw": 18}
+    ]},
+    {"id": "hs_tide_hound", "group": "village", "parts": [
+      {"name": "body", "material": "hs_hound", "shape": "box", "at": [0.0, 0.0, 0.33], "size": [0.26, 0.8, 0.3]},
+      {"name": "chest", "material": "hs_hound", "shape": "box", "at": [0.0, -0.28, 0.35], "size": [0.3, 0.3, 0.36]},
+      {"name": "head", "material": "hs_hound", "shape": "box", "at": [0.0, -0.55, 0.55], "size": [0.16, 0.3, 0.17]},
+      {"name": "eye_l", "material": "glow_hs_moth", "shape": "box", "at": [-0.05, -0.69, 0.6], "size": [0.03, 0.01, 0.03]},
+      {"name": "eye_r", "material": "glow_hs_moth", "shape": "box", "at": [0.05, -0.69, 0.6], "size": [0.03, 0.01, 0.03]},
+      {"name": "tail", "material": "hs_hound", "shape": "box", "at": [0.0, 0.46, 0.4], "size": [0.05, 0.3, 0.05]},
+      {"name": "leg_0", "material": "hs_hound", "shape": "box", "at": [-0.1, -0.28, 0.0], "size": [0.07, 0.07, 0.36]},
+      {"name": "leg_1", "material": "hs_hound", "shape": "box", "at": [0.1, -0.28, 0.0], "size": [0.07, 0.07, 0.36]},
+      {"name": "leg_2", "material": "hs_hound", "shape": "box", "at": [-0.1, 0.28, 0.0], "size": [0.07, 0.07, 0.36]},
+      {"name": "leg_3", "material": "hs_hound", "shape": "box", "at": [0.1, 0.28, 0.0], "size": [0.07, 0.07, 0.36]}
+    ]},
+    {"id": "hs_jar_tentacle", "group": "village", "parts": [
+      {"name": "jar", "material": "hs_jar", "shape": "cylinder", "at": [0.0, 0.0, 0.0], "radii": [0.16, 0.16], "height": 0.34, "sides": 8},
+      {"name": "lid", "material": "hs_wood_dark", "shape": "cylinder", "at": [0.0, 0.0, 0.34], "radii": [0.12, 0.12], "height": 0.05, "sides": 8},
+      {"name": "brine", "material": "hs_water", "shape": "cylinder", "at": [0.0, 0.0, 0.02], "radii": [0.13, 0.13], "height": 0.22, "sides": 8},
+      {"name": "tentacle_0", "material": "hs_tentacle", "shape": "cylinder", "at": [0.0, 0.0, 0.04], "radii": [0.035, 0.02], "height": 0.3, "sides": 5},
+      {"name": "tentacle_1", "material": "hs_tentacle", "shape": "cylinder", "at": [-0.05, 0.04, 0.04], "radii": [0.035, 0.02], "height": 0.22, "sides": 5},
+      {"name": "tentacle_2", "material": "hs_tentacle", "shape": "cylinder", "at": [0.05, -0.03, 0.04], "radii": [0.035, 0.02], "height": 0.16, "sides": 5},
+      {"name": "eye", "material": "glow_hs_moth", "shape": "box", "at": [0.0, -0.14, 0.2], "size": [0.04, 0.01, 0.04]}
     ]}
   ]
 }

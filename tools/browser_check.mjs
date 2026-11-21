@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -248,7 +248,10 @@ async function main() {
     const seen = {};
     for (const [label, tick] of [['day', 400], ['dusk', 1070], ['night', 1250]]) {
       await nav(`?intro=0&view=3d&perf=1&fixscale=1&quality=low&tick=${tick}&cam3d=74,92,180,0#seed=1818&sanity=100`);
-      const hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
+      // the first HUD frame can report 0 before the villager buffer is filled, so wait for a non-zero count and only then accept a zero
+      const count = (t) => Number((/(\d+) villagers/.exec(t || '') || [])[1] || 0);
+      let hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => count(t) > 0 && t), 20000);
+      if (!hud) hud = await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ villagers/.test(t || '') && t), 60000);
       seen[label] = Number((/(\d+) villagers/.exec(hud || '') || [])[1] || 0);
     }
     rec('villagers: seed 1818 draws named villagers in 3D by day, at dusk and at night (perf HUD villager count above zero, most at dusk)', seen.day >= 1 && seen.dusk >= 3 && seen.night >= 1, seen);
@@ -265,6 +268,137 @@ async function main() {
     for (let i = 0; i < 12 && !(end.z < TREE.z - 0.8); i++) { await hold('w', 'KeyW', 5000); await sleep(1100); end = await camOf(); }
     const passed = end.z < TREE.z - 0.8, clearOfTrunk = Math.hypot(end.x - TREE.x, end.z - TREE.z) > 0.5 + 0.45 - 1e-3;
     rec('collision: walking straight at a tree trunk slides around it and ends past it (not stopped at the trunk)', Number.isFinite(end.z) && passed && clearOfTrunk, { tree: TREE, start, end });
+  };
+
+  /** Inventory (round 25): gather an item, open the lodging chest, take and eat bread (sanity rises), store, drop, sleep to dawn, save and reload, and the 3D view opens the satchel on I and shows the Satchel button. INVENTORY_ONLY=1 runs only this; INVENTORY_SHOT=<file.png> saves the satchel frame. */
+  const inventoryRun = async () => {
+    const q = (sel) => `document.querySelector('${sel}')`, click2 = async (sel) => { try { await ev(`${q(sel)}.click()`); } catch (e) { throw new Error(sel + ': ' + e.message); } }, count = (sel) => ev(`document.querySelectorAll('${sel}').length`), sanity = async () => Number(await text('sanityOut'));
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=40');
+    await until(() => ev(`!!document.querySelector('#invBtn') && document.readyState === 'complete'`), 30000);
+    await click2('#invBtn'); await sleep(300);
+    const opened = !(await hidden('invPanel'));
+    await click2('#invChestNext'); await sleep(200);
+    const chestRows = await count('#invChestList li');
+    await click2('#invChestList button[data-act="take"][data-id="bread"]'); await sleep(150);
+    await click2('#invChestList button[data-act="take"][data-id="tea"]'); await sleep(150);
+    const before = await sanity();
+    await click2('#invList button[data-act="use"][data-id="bread"]'); await sleep(300);
+    const after = await sanity();
+    await click2('#invList button[data-act="store"][data-id="tea"]'); await sleep(150);
+    const stored = await count('#invChestList button[data-act="take"][data-id="tea"]');
+    await click2('#invChestList button[data-act="take"][data-id="lantern_oil"]'); await sleep(150);
+    await click2('#invList button[data-act="drop"][data-id="lantern_oil"]'); await sleep(150);
+    const dropped = await count('#invList button[data-id="lantern_oil"]');
+    if (process.env.INVENTORY_SHOT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.INVENTORY_SHOT, Buffer.from(await capture(), 'base64')); }
+    const phaseBefore = await ev(`document.getElementById('clockChip').getAttribute('data-phase')`);
+    await click2('#invSleep');
+    const phaseAfter = await until(async () => { const p = await ev(`document.getElementById('clockChip').getAttribute('data-phase')`); return p === 'dawn' && p; }, 15000);
+    // gathering comes last: a clue item (a key or letter) begins the vigil, and its sandbox lock then refuses food and sleep by design
+    await click2('#invGather'); await sleep(200);
+    const gathered = await count('#invList li:not(.inv-empty)');
+    rec('inventory: gather, chest take, eat (sanity rises), store, drop and sleep to dawn', opened && gathered >= 1 && chestRows >= 3 && after > before && stored === 1 && dropped === 0 && phaseBefore === 'night' && phaseAfter === 'dawn', { opened, gathered, chestRows, before, after, stored, dropped, phaseBefore, phaseAfter });
+    const saved = await ev(`(JSON.parse(localStorage.getItem('flv.session.v1')||'{}').inv||'')`);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=40'); await sleep(500);
+    await click2('#invBtn'); await sleep(300);
+    const restored = await count('#invList li:not(.inv-empty)');
+    rec('inventory: the satchel is saved with the session and restored after a reload', /^inv1;/.test(saved) && restored >= 1, { saved: saved.slice(0, 80), restored });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&view=3d&capture=1&quality=low&tick=1300#seed=1818&sanity=60');
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    await key('i'); await sleep(300);
+    const open3d = !(await hidden('invPanel')), gatherHidden = await hidden('invGather');
+    await key('i'); await sleep(300);
+    const closed3d = await hidden('invPanel');
+    rec('inventory: in 3D the I key opens and closes the satchel (2D keeps I for the investigator) and the 2D-only buttons are hidden', open3d && closed3d && gatherHidden === true, { open3d, closed3d, gatherHidden });
+  };
+
+  /** Creatures (CREATURES_ONLY=1 runs only this; CREATURE_SHOT=<png> saves a still of the encounter with warding). ?kit=ward is the QA satchel with salt and chalk. */
+  const creaturesRun = async () => {
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300&weather=fog#seed=1818&sanity=30');
+    await ev(`localStorage.clear()`);
+    const home = await ev(`(async()=>{const c=await import('./src/creatures.js');const cat=c.parseCreatureCatalog(await (await fetch('data/creatures.json')).json());const e=c.CreatureEncounter.spawn(1818,36,36,1300,0.7,'fog',cat,null);const k=e.creatures.find(x=>x.defId==='shore_crawler');return {n:e.creatures.length,kinds:[...new Set(e.creatures.map(x=>x.defId))],x:k.homeX,z:k.homeZ}})()`);
+    rec('creatures: a foggy night at low sanity spawns a bounded set including shore-crawlers (seeded)', home.n >= 1 && home.n <= 8 && home.kinds.includes('shore_crawler'), home);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav(`?intro=0&view=3d&quality=low&tick=1300&weather=fog&kit=ward&cam3d=${home.x.toFixed(2)},${(home.z + 9).toFixed(2)},180,0#seed=1818&sanity=30`);
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    const start = Number(await text('sanityOut'));
+    await sleep(Number(process.env.CREATURE_WAIT || 6000));
+    const hurt = Number(await text('sanityOut')), noted = await text('creatureNote');
+    rec('creatures: standing near a shore-crawler costs sanity and the status line names it', hurt < start && noted.length > 0, { start, hurt, noted });
+    await key('z'); await sleep(200);
+    const salt = await text('invNote');
+    await key('v'); await sleep(200);
+    const sigil = await text('invNote');
+    await key('f'); await sleep(200);
+    const flare = await text('invNote');
+    rec('creatures: Z lays salt, V draws the chalk sigil, F fires a flare (each consumes its item or oil and says so)', /salt/i.test(salt) && /sigil/i.test(sigil) && /flare/i.test(flare), { salt, sigil, flare });
+    const sheltered0 = Number(await text('sanityOut'));
+    await sleep(Number(process.env.CREATURE_WAIT || 6000));
+    const sheltered1 = Number(await text('sanityOut'));
+    rec('creatures: inside the sigil with salt laid, the dread no longer drains', sheltered1 >= sheltered0, { sheltered0, sheltered1 });
+    if (process.env.CREATURE_SHOT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.CREATURE_SHOT, Buffer.from(await capture(), 'base64')); }
+    const meshes = await ev(`Promise.all(['shore_crawler','hollow_watcher','deep_one','cliff_flyer'].map((k)=>fetch('assets/meshes/'+k+'.glb').then((r)=>r.arrayBuffer()).then((b)=>b.byteLength)))`);
+    rec('creatures: the four creature meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
+  };
+
+  /** Homestead (HOMESTEAD_ONLY=1 runs only this; HOMESTEAD_SHOT=<png> saves a 3D still of the yard with crops and animals, PET_SHOT=<png> a close still of a pet). ?kit=farm claims the yard and fills the satchel (QA only). */
+  const homesteadRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const click2 = async (sel) => { try { await ev(`document.querySelector('${sel}').click()`); } catch (e) { throw new Error(sel + ': ' + e.message); } }, count = (sel) => ev(`document.querySelectorAll('${sel}').length`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300#seed=1818&sanity=60'); await ev(`localStorage.clear()`);
+    await nav('?intro=0&capture=1&tick=1300&kit=farm#seed=1818&sanity=60');
+    const plot = await ev(`window.flvHomestead && window.flvHomestead()`);
+    rec('homestead: a free plot is found beside the lodging house and the QA kit claims it', !!plot && plot.exists === true, plot);
+    await click2('#homeBtn'); await sleep(300);
+    const opened = !(await hidden('homePanel')), beds = await count('#homeBody ul:first-of-type li');
+    for (const sel of ['button[data-act="plant"][data-id="0:turnip"]', 'button[data-act="plant"][data-id="1:glowcap"]', 'button[data-act="plant"][data-id="2:kelp"]', 'button[data-act="plant"][data-id="3:eyeroot"]', 'button[data-act="build"][data-id="coop"]', 'button[data-act="build"][data-id="trough"]', 'button[data-act="build"][data-id="fence"]', 'button[data-act="feed"][data-id="chicken"]', 'button[data-act="feed"][data-id="lantern_moth"]', 'button[data-act="feed"][data-id="tide_hound"]']) { await click2('#homeBody ' + sel); await sleep(120); }
+    const note = await text('homeNote'), planted = await count('#homeBody button[data-act="plant"]');
+    const saved = await ev(`(JSON.parse(localStorage.getItem('flv.session.v1')||'{}').hs||'')`);
+    rec('homestead: panel opens with six beds; planting, building and feeding work and the yard is saved with the session', opened && beds === 6 && /^hs1;1;/.test(saved) && /coop/.test(saved) && /chicken/.test(saved) && /turnip\.|glowcap\./.test(saved) && note.length > 0, { opened, beds, planted, saved: saved.slice(0, 120), note });
+    const sanityBefore = Number(await text('sanityOut'));
+    await nav(`?intro=0&capture=1&tick=${3580}#seed=1818&sanity=60`);
+    await click2('#homeBtn'); await sleep(300);
+    const ripe = await count('#homeBody button[data-act="harvest"]'), eggs = await count('#homeBody button[data-act="collect"]');
+    const before = await ev(`(async()=>{const m=await import('./src/session.js');return (m.loadSession(localStorage)||{}).hs||''})()`);
+    await click2('#homeBody button[data-act="harvest"]'); await sleep(200);
+    const afterNote = await text('homeNote');
+    rec('homestead: after two village days the turnip and glowcap are ripe, the hens have laid and a harvest says so', ripe >= 2 && eggs >= 1 && /harvest/i.test(afterNote) && /^hs1;1;/.test(before), { ripe, eggs, afterNote, sanityBefore });
+    await click2('#homeBody button[data-act="collect"]'); await sleep(200);
+    await click2('#homeClose'); await sleep(200);
+    await click2('#invBtn'); await sleep(300);
+    const bag = await ev(`[...document.querySelectorAll('#invList .inv-name')].map((e)=>e.textContent).join('|')`);
+    rec('homestead: harvest and eggs land in the satchel', /Turnip|Glowcap/.test(bag) && /Egg/.test(bag), { bag });
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=1300&lang=fr&kit=farm#seed=1818&sanity=60');
+    await click2('#homeBtn'); await sleep(300);
+    const fr = await text('homeTitle'), frBtn = await ev(`document.querySelector('#homeBody button')?.textContent||''`);
+    rec('homestead: the panel is in French with the lang switch', /Ferme/.test(fr) && frBtn.length > 0, { fr, frBtn });
+    const prep = `?intro=0&view=3d&quality=low&tick=${process.env.HOME_TICK || 3580}&kit=farm`; // midday of village day 3, two days after planting: crops ripe and the yard lit
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav(prep + '#seed=1818&sanity=60'); // the session saved above (beds, structures, animals) is restored here, so the still shows a working yard
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    const pl = await ev(`window.flvHomestead()`);
+    const deg = (v) => Math.round(v * 180 / Math.PI);
+    const stand = (a, b, yawVec, h) => `${(pl.origin[0] + pl.side[0] * a + pl.dir[0] * b).toFixed(2)},${(pl.origin[1] + pl.side[1] * a + pl.dir[1] * b).toFixed(2)},${deg(Math.atan2(yawVec[0], -yawVec[1]))},${h}`;
+    const shot = (name, cam) => ({ name, q: `${prep}&cam3d=${cam}#seed=1818&sanity=60` });
+    const wanted = [shot('yard', stand(Number(process.env.HOME_A || 1.5), Number(process.env.HOME_B || 8), [-pl.dir[0], -pl.dir[1]], -14)), shot('pet', stand(Number(process.env.PET_A || 0.6), Number(process.env.PET_B || 5.2), [-pl.dir[0], -pl.dir[1]], -24))];
+    for (const w of wanted) {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(w.q);
+      await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+      await ev(`(async()=>{})()`);
+      const out = await ev(`(()=>{const h=window.flvHomestead&&window.flvHomestead();return !!h&&h.exists&&h.pieces.length>=10})()`);
+      await sleep(1500);
+      const file = w.name === 'yard' ? process.env.HOMESTEAD_SHOT : process.env.PET_SHOT;
+      const r = await ev(`(()=>{const b=document.getElementById('view3d').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height}})()`); // the still is the 3D view only, so it stays small and shows no page text
+      if (file) writeFileSync(file, Buffer.from(await capture({ format: 'png', clip: { ...r, scale: 1 } }), 'base64'));
+      rec(`homestead: 3D view of the ${w.name} renders without a warning`, out === true, { out });
+    }
+    const meshes = await ev(`Promise.all(['hs_mound','hs_turnip','hs_glowcap','hs_kelp','hs_eyeroot','hs_fence','hs_trough','hs_scarecrow','hs_coop','hs_chicken','hs_goat','hs_cat','hs_lantern_moth','hs_tide_hound','hs_jar_tentacle'].map((k)=>fetch('assets/meshes/'+k+'.glb').then((r)=>r.arrayBuffer()).then((b)=>b.byteLength)))`);
+    rec('homestead: the homestead meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
   };
 
   await send('Runtime.enable'); await send('Page.enable');
@@ -287,6 +421,9 @@ async function main() {
     if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
     if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
+    if (process.env.INVENTORY_ONLY) { await inventoryRun(); break suite; }
+    if (process.env.CREATURES_ONLY) { await creaturesRun(); break suite; }
+    if (process.env.HOMESTEAD_ONLY) { await homesteadRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
@@ -400,7 +537,7 @@ async function main() {
 
     // ?meshes=1 on the 2D board and the meshes page
     await nav('?intro=0&meshes=1#seed=1818&sanity=100');
-    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=25?n:0})()`));
+    const glbs = await until(() => ev(`(()=>{const n=performance.getEntriesByType('resource').filter((r)=>r.name.includes('.glb')).length;return n>=25?n:0})()`), 40000);
     rec('meshes: ?meshes=1 fetches all 25 original GLBs without an exception', glbs >= 25 && errs.length === 0, { glbRequests: glbs });
     await nav('meshes.html');
     let mp = await text('summary');
@@ -669,7 +806,7 @@ async function main() {
       return { panel, open, s0, s1, closed };
     };
     const plain = await talkRound('');
-    rec('villagers 2D: R opens Who is where with seven rows, the clock and a focused Talk button', plain.panel.shown && plain.panel.rows === 7 && /Day 1, dusk/.test(plain.panel.clock) && plain.panel.focus === '0', plain.panel);
+    rec('villagers 2D: R opens Who is where with 24 rows, the clock and a focused Talk button', plain.panel.shown && plain.panel.rows === 24 && /Day 1, dusk/.test(plain.panel.clock) && plain.panel.focus === '0', plain.panel);
     rec('villagers 2D: Enter on Talk opens the dialogue with a line, and Escape closes it', plain.open.shown && plain.open.name.length > 3 && plain.open.line.length > 5 && plain.closed === true, plain.open);
     rec('villagers 2D: the spoken line is announced to screen readers', plain.open.live.includes(plain.open.name), { live: plain.open.live });
     const withBad = await talkRound('&narrator=http://127.0.0.1:1/none');
@@ -679,8 +816,8 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav(`?intro=0&tick=${VTICK}&map=1&reduced=1#seed=1818&sanity=100`); await until(async () => (await vList()) > 0, 20000).catch(() => null); await sleep(500);
     const pix = await ev(`(()=>{const c=document.getElementById('view'),g=c.getContext('2d');const m=document.getElementById('minimap').getContext('2d');const count=(ctx,w,h,f)=>{const d=ctx.getImageData(0,0,w,h).data;let n=0;for(let i=0;i<d.length;i+=4)if(f(d[i],d[i+1],d[i+2]))n++;return n};return {map:count(m,168,168,(r,gg,b)=>r>235&&gg>225&&b>190&&b<215), list:document.querySelectorAll('#villagerList li').length}})()`);
-    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so the count only has to show every one of the seven villagers
-    rec('villagers 2D: minimap shows villager markers', pix.map >= pix.list * 2 && pix.list === 7, pix);
+    // markers are 2 px radius dots on the 36 cell map (about 2 cream pixels inside the outline each), so with 24 villagers on the city map the dots overlap; the check needs a roster of 24 and at least the pixels of the old seven markers (14)
+    rec('villagers 2D: minimap shows villager markers', pix.map >= 14 && pix.list === 24, pix);
     // click on a villager in the 2D canvas opens the dialogue
     const vClick = await ev(`(()=>{const c=document.getElementById('view');return c.getBoundingClientRect().toJSON()})()`);
     // 3D: stand 2.5 m south of the square villager, facing north

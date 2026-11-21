@@ -383,3 +383,18 @@ export function growCorruption(seed, gridW, gridD, level) {
   all.forEach((it, rank) => { const scale = corruptionScale(rank, all.length, level); if (scale > 0) out.push({ ...it, scale }); });
   return out;
 }
+
+// ---------- Plot edge corruption (round 25): mirrors CorruptionGrowth.GrowPlotEdge (golden "homestead"); it reuses the appear level and scale rules above ----------
+export const PLOT_EDGE_YAW_STEP = 2.1;
+const PLOT_EDGE = [['fungus_cluster', -3.8, 1.0], ['fungus_shelf', 3.9, 2.0], ['tentacle_sapling', -3.4, 4.8]];
+/** The full size candidate spots of the plot edge as [side, forward] in the plot frame, in rank order. */
+export const plotEdgeOffsets = () => PLOT_EDGE.map(([, a, b]) => [a, b]);
+/** The plot edge corruption at a growth level. side and dir are the plot's unit axes in the world as [x, z]. */
+export function growPlotEdge(originX, originZ, side, dir, level) {
+  const out = [];
+  PLOT_EDGE.forEach(([kind, a, b], rank) => {
+    const scale = corruptionScale(rank, PLOT_EDGE.length, level);
+    if (scale > 0) out.push({ kind, x: originX + side[0] * a + dir[0] * b, y: 0, z: originZ + side[1] * a + dir[1] * b, yaw: rank * PLOT_EDGE_YAW_STEP, scale });
+  });
+  return out;
+}

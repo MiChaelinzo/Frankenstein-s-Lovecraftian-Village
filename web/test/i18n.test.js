@@ -110,3 +110,18 @@ test('About credits the CC0 third party assets in English and French, with the s
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(html.includes(`<p data-i18n-html="about.thirdparty">${STRINGS.en['about.thirdparty']}</p>`));
 });
+
+test('About dialog and README carry the Support link, opened safely, in en and fr', () => {
+  const url = 'https://paypal.me/michaelinzo77';
+  const dialog = /<p data-i18n-html="about\.support">([\s\S]*?)<\/p>/.exec(html);
+  assert.ok(dialog, 'about.support paragraph missing in index.html');
+  for (const l of LANGS) {
+    const a = /<a [^>]*>/.exec(STRINGS[l]['about.support']);
+    assert.ok(a, `${l}: no link`);
+    assert.ok(a[0].includes(`href="${url}"`), `${l}: href`);
+    assert.ok(a[0].includes('target="_blank"'), `${l}: target`);
+    assert.ok(a[0].includes('rel="noopener noreferrer"'), `${l}: rel`);
+  }
+  const readme = readFileSync(join(web, '..', 'README.md'), 'utf8');
+  assert.ok(readme.includes(`](${url})`), 'README support link');
+});

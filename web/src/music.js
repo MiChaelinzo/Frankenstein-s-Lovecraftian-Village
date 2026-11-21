@@ -96,6 +96,14 @@ export function thunderParams(delayMs) {
   return { atMs: Math.max(0, num(delayMs, 400)), durMs: 2200 + 2600 * far, gain: 0.35 - 0.18 * far, filter: 'lowpass', freq: 260 - 120 * far, q: 0.7, swell: true, thump: 52 - 14 * far };
 }
 
+/** The creature telegraph cue: a low, slow swell that rises with closeness (level 0..1) and never starts abruptly. Each kind has its own pitch; the gain is capped far below the ambience so it is never loud. */
+export const CREATURE_CUE_FREQ = { shore_crawler: 48, hollow_watcher: 61, deep_one: 41, cliff_flyer: 73 };
+export const CREATURE_CUE_MAX_GAIN = 0.06, CREATURE_CUE_TIME_CONSTANT = 1.6, CREATURE_CUE_BEAT_HZ = 0.7;
+export function creatureCueParams(level, kind) {
+  const l = clamp(num(level, 0), 0, 1);
+  return { gain: CREATURE_CUE_MAX_GAIN * l * l, freq: CREATURE_CUE_FREQ[kind] || 50, beatHz: CREATURE_CUE_BEAT_HZ + 1.3 * l, timeConstant: CREATURE_CUE_TIME_CONSTANT };
+}
+
 export const BELL_PARTIALS = [[1, 1], [2.76, 0.5], [5.4, 0.28], [8.93, 0.14]]; // inharmonic ratios and relative gains
 /** Rare distant bell strikes: [{ atMs, freq, durMs, gain }], 25..70 s apart, softer at low dread. Empty under reduced motion. */
 export function bellSchedule(seed, dread, count, reduced, batch = 0) {
@@ -142,7 +150,7 @@ export function cueNotes(kind, seed = 0) {
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
   let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0, noiseBuf = null, wavesGain = null, wavesFilter = null, wavesLfo = null, coast = 0, foot = 0, noiseCursor = 0; // noiseCursor walks the noise buffer deterministically so bursts differ without randomness
-  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true }, weather = 'clear', rainGain = null, rainFilter = null;
+  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true }, weather = 'clear', rainGain = null, rainFilter = null, creatureGain = null, creatureOscA = null, creatureOscB = null, creatureLevel = 0, creatureKind = '';
 
   const apply = () => {
     if (!ctx) return;
@@ -156,6 +164,10 @@ export function createAmbient(AC, opts = {}) {
     const wa = weatherAudio(weather);
     if (noiseGain) noiseGain.gain.setTargetAtTime(windGain(dread) * clamp(num(mix.wind, 1), 0, 3) * wa.wind, t, 0.5);
     if (rainGain) { rainGain.gain.setTargetAtTime(wa.rain, t, 0.8); rainFilter.frequency.setTargetAtTime(wa.cutoff, t, 0.8); }
+    if (creatureGain) {
+      const c = creatureCueParams(creatureLevel, creatureKind);
+      creatureGain.gain.setTargetAtTime(muted ? 0 : c.gain * volume, t, c.timeConstant); creatureOscA.frequency.setTargetAtTime(c.freq, t, c.timeConstant); creatureOscB.frequency.setTargetAtTime(c.freq + c.beatHz, t, c.timeConstant);
+    }
     if (wavesGain) {
       const w = wavesLayer(coast, dread, reduced);
       wavesGain.gain.setTargetAtTime(w.gain * clamp(num(mix.waves, 1), 0, 3), t, 0.8); wavesFilter.frequency.setTargetAtTime(w.cutoff, t, 0.8); wavesLfo.gain.setTargetAtTime(w.gain * w.depth, t, 0.8);
@@ -233,6 +245,8 @@ export function createAmbient(AC, opts = {}) {
     wavesFilter = ctx.createBiquadFilter(); wavesFilter.type = 'lowpass'; wavesFilter.frequency.value = 400;
     wavesGain = ctx.createGain(); wavesGain.gain.value = 0.012;
     const wl = ctx.createOscillator(), w = wavesLayer(0, 0, reduced); wl.frequency.value = w.lfoHz; wavesLfo = ctx.createGain(); wavesLfo.gain.value = 0;
+    creatureGain = ctx.createGain(); creatureGain.gain.value = 0; creatureOscA = ctx.createOscillator(); creatureOscB = ctx.createOscillator(); creatureOscA.frequency.value = 50; creatureOscB.frequency.value = 50.7; // two close sines beat slowly: a low swell, silent until a creature is near
+    creatureOscA.connect(creatureGain); creatureOscB.connect(creatureGain); creatureGain.connect(ctx.destination); creatureOscA.start(); creatureOscB.start();
     wl.connect(wavesLfo); wavesLfo.connect(wavesGain.gain); wsrc.connect(wavesFilter); wavesFilter.connect(wavesGain); wavesGain.connect(master); wsrc.start(); wl.start();
   }
 
@@ -264,6 +278,8 @@ export function createAmbient(AC, opts = {}) {
         o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.1);
       }
     },
+    /** How near the closest creature is, 0..1, and its kind: a slow, quiet low swell that follows it (never abrupt; sound is kept under reduced motion). */
+    setCreatureProximity(level, kind) { creatureLevel = clamp(num(level, 0), 0, 1); creatureKind = String(kind || ''); apply(); },
     setDread(d) { dread = clampDread(d); apply(); },
     /** The night's weather name (clock.js WEATHER_NAMES): sets the rain hiss and wind bed. Unknown names are dry. */
     setWeather(w) { weather = String(w || 'clear'); apply(); },
@@ -279,7 +295,7 @@ export function createAmbient(AC, opts = {}) {
     /** Stop and release the AudioContext. The controller cannot be restarted afterwards. */
     dispose() {
       this.stop();
-      const c = ctx; ctx = null; master = filter = lfoGain = rainGain = rainFilter = noiseGain = noiseBuf = wavesGain = wavesFilter = wavesLfo = null; voices = [];
+      const c = ctx; ctx = null; creatureGain = creatureOscA = creatureOscB = null; master = filter = lfoGain = rainGain = rainFilter = noiseGain = noiseBuf = wavesGain = wavesFilter = wavesLfo = null; voices = [];
       c?.close?.();
     },
   };

@@ -1,7 +1,7 @@
 // Villager DOM: the Who is where list, the talk dialogue and the optional AI line. The rules come from villagers.js (Core mirror), the
 // positions from villager-view.js. Talking applies its clue and sanity effect through deps.applyEffect BEFORE any narrator request starts,
 // and the narrator text is only ever written with textContent, so an AI answer (or its failure) cannot change game state.
-import { generateRoster, talk, chat, lineKey } from './villagers.js';
+import { generateTownRoster, talk, chat, lineKey } from './villagers.js';
 import { stageOfNight, GOSSIP_MISSING } from './village-story.js';
 import { tierFor } from './core.js';
 import { phaseAt, PHASE_NAMES } from './clock.js';
@@ -21,7 +21,7 @@ export function createVillagerController(deps) {
 
   function ensureRoster() {
     const key = `${state.seed}|${state.layout.length}`;
-    if (key !== rosterKey) { rosterKey = key; chatCounts.clear(); roster = state.layout.length ? generateRoster(state.seed, state.layout) : []; }
+    if (key !== rosterKey) { rosterKey = key; chatCounts.clear(); roster = state.layout.length ? generateTownRoster(state.seed, state.layout, deps.gridW, deps.gridD) : []; }
     return roster;
   }
   const placementOf = (index) => state.villagers.find((p) => p.index === index) || null;

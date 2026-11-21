@@ -5,7 +5,7 @@ import { phaseAt as clockPhaseAt, phaseStart as clockPhaseStart, wrapTick, MINUT
 import { isStreetCell, streetsEnabled, isBuilding, facingFor } from './streets.js';
 import { buildStory, OMENS as STORY_OMENS, tierForPercent as storyTier } from './story.js';
 
-const MAX_SANITY = 100;
+export const MAX_SANITY = 100;
 
 /** Deterministic xorshift32, same integer math as SeededRandom.cs. */
 export class SeededRandom {

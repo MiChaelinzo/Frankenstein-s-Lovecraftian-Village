@@ -63,6 +63,66 @@ export const FACING_DX = [0, 1, 0, -1], FACING_DZ = [1, 0, -1, 0];
 export const facingDx = (facing) => FACING_DX[((facing % 4) + 4) % 4];
 export const facingDz = (facing) => FACING_DZ[((facing % 4) + 4) % 4];
 
+// ---------- lane routes (mirror of VillageStreets.LaneRoute): villagers walk lane centre lines, so a walk never crosses a building ----------
+const BOX_SLACK = 1e-6, EPS = 1e-9;
+
+/** True when the straight leg crosses no building box of the layout, ignoring a box the leg starts inside. Mirror of VillageStreets.LegIsClear. */
+export function legIsClear(x0, z0, x1, z1, layout) {
+  if (!layout) return true;
+  const minX = Math.min(x0, x1), maxX = Math.max(x0, x1), minZ = Math.min(z0, z1), maxZ = Math.max(z0, z1);
+  for (const p of layout) {
+    if (!isBuilding(p.sizeX, p.sizeZ)) continue;
+    if (x0 > p.x + BOX_SLACK && x0 < p.x + p.sizeX - BOX_SLACK && z0 > p.z + BOX_SLACK && z0 < p.z + p.sizeZ - BOX_SLACK) continue;
+    if (maxX > p.x + BOX_SLACK && minX < p.x + p.sizeX - BOX_SLACK && maxZ > p.z + BOX_SLACK && minZ < p.z + p.sizeZ - BOX_SLACK) return false;
+  }
+  return true;
+}
+
+// Moves a point onto a lane centre line: the nearest row or column centre on either side whose step crosses no building (ties: row, lower side); the nearest when all are blocked.
+function anchor(x, z, cols, rows, layout) {
+  let best = null, bestDist = Infinity, fallback = { x, z, onRow: true }, fallbackDist = Infinity;
+  for (let pass = 0; pass < 4; pass++) {
+    const row = pass < 2, lower = pass % 2 === 0, lanes = row ? rows : cols, v = row ? z : x;
+    let target = NaN;
+    for (const lane of lanes) {
+      const c = lane + 0.5;
+      if (lower && c <= v + EPS) target = c;
+      if (!lower && c >= v - EPS) { target = c; break; }
+    }
+    if (Number.isNaN(target)) continue;
+    const dist = Math.abs(target - v), cx = row ? x : target, cz = row ? target : z;
+    if (dist < fallbackDist - EPS) { fallbackDist = dist; fallback = { x: cx, z: cz, onRow: row }; }
+    if (dist < bestDist - EPS && legIsClear(x, z, cx, cz, layout)) { bestDist = dist; best = { x: cx, z: cz, onRow: row }; }
+  }
+  return best || fallback;
+}
+
+function bestCrossing(lanes, a, b) {
+  let best = lanes[0] + 0.5, bestCost = Infinity;
+  for (const lane of lanes) {
+    const c = lane + 0.5, cost = Math.abs(a - c) + Math.abs(b - c);
+    if (cost < bestCost - EPS) { bestCost = cost; best = c; }
+  }
+  return best;
+}
+
+/** Waypoints [[x, z], ...] in cells from one point to another along the lanes; the old x then z walk without streets. Mirror of VillageStreets.LaneRoute. */
+export function laneRoute(fromX, fromZ, toX, toZ, gridW, gridD, layout) {
+  const route = [[fromX, fromZ]];
+  const add = (x, z) => { const l = route[route.length - 1]; if (Math.abs(l[0] - x) > EPS || Math.abs(l[1] - z) > EPS) route.push([x, z]); };
+  if (!streetsEnabled(gridW, gridD)) { add(toX, fromZ); add(toX, toZ); return route; }
+  const cols = laneLines(gridW), rows = laneLines(gridD), a = anchor(fromX, fromZ, cols, rows, layout), b = anchor(toX, toZ, cols, rows, layout);
+  add(a.x, a.z);
+  if (a.onRow && b.onRow) {
+    if (Math.abs(a.z - b.z) > EPS) { const cross = bestCrossing(cols, a.x, b.x); add(cross, a.z); add(cross, b.z); }
+  } else if (!a.onRow && !b.onRow) {
+    if (Math.abs(a.x - b.x) > EPS) { const cross = bestCrossing(rows, a.z, b.z); add(a.x, cross); add(b.x, cross); }
+  } else if (a.onRow) add(b.x, a.z);
+  else add(a.x, b.z);
+  add(b.x, b.z); add(toX, toZ);
+  return route;
+}
+
 // ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect). Mirrors VillageStreets.Walkers ----------
 export const WELL_DEFLECT_LATERAL = 2, WELL_DEFLECT_RADIUS = 2.6;
 /** Lateral offset of a main lane walker distanceToWell metres from the well: normal far away, WELL_DEFLECT_LATERAL at the well, cos squared between. Mirrors VillageStreets.WellDeflected. */

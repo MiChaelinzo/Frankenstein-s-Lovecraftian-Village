@@ -88,6 +88,124 @@ namespace Frankenstein.Core
             return rects;
         }
 
+        // ---------- lane routes: how a villager walks between two points (round 25) ----------
+        /// <summary>Cells a leg may overlap a building box without counting as a crossing (floating point slack).</summary>
+        private const double BoxSlack = 1e-6;
+
+        /// <summary>
+        /// Waypoints [x, z] in cells of a walk from one point to another along the lanes. Each end first steps sideways onto the centre line of a lane
+        /// (the nearest one whose step does not cross a building of <paramref name="layout"/>; a point in front of a building is already in a lane cell), then the route
+        /// follows lane centre lines only: along the shared lane, or along one lane, across a crossing lane and along the other. Two parallel lanes are joined by the
+        /// crossing lane with the least detour. Lanes cross the whole grid, so a lane segment never meets a building. Without streets the walk is the old axis-aligned one
+        /// (x first, then z). Same inputs always give the same route.
+        /// </summary>
+        public static List<double[]> LaneRoute(double fromX, double fromZ, double toX, double toZ, int gridW, int gridD, IList<PlacedPiece> layout)
+        {
+            var route = new List<double[]>();
+            if (!Enabled(gridW, gridD))
+            {
+                route.Add(new[] { fromX, fromZ });
+                AddWaypoint(route, toX, fromZ);
+                AddWaypoint(route, toX, toZ);
+                return route;
+            }
+            var cols = LaneLines(gridW);
+            var rows = LaneLines(gridD);
+            bool fromOnRow, toOnRow;
+            double ax = fromX, az = fromZ, bx = toX, bz = toZ;
+            Anchor(ref ax, ref az, out fromOnRow, cols, rows, layout);
+            Anchor(ref bx, ref bz, out toOnRow, cols, rows, layout);
+            route.Add(new[] { fromX, fromZ });
+            AddWaypoint(route, ax, az);
+            if (fromOnRow && toOnRow)
+            {
+                if (Math.Abs(az - bz) > 1e-9)
+                {
+                    double cross = BestCrossing(cols, ax, bx);
+                    AddWaypoint(route, cross, az);
+                    AddWaypoint(route, cross, bz);
+                }
+            }
+            else if (!fromOnRow && !toOnRow)
+            {
+                if (Math.Abs(ax - bx) > 1e-9)
+                {
+                    double cross = BestCrossing(rows, az, bz);
+                    AddWaypoint(route, ax, cross);
+                    AddWaypoint(route, bx, cross);
+                }
+            }
+            else if (fromOnRow) AddWaypoint(route, bx, az);
+            else AddWaypoint(route, ax, bz);
+            AddWaypoint(route, bx, bz);
+            AddWaypoint(route, toX, toZ);
+            return route;
+        }
+
+        /// <summary>
+        /// Moves (x, z) onto a lane centre line. Candidates are the nearest row centre on each side (the step runs along z) and the nearest column centre on each side
+        /// (along x); the nearest whose step crosses no building wins, ties going to the row lane then the lower side. When every step is blocked the nearest is used.
+        /// </summary>
+        private static void Anchor(ref double x, ref double z, out bool onRow, List<int> cols, List<int> rows, IList<PlacedPiece> layout)
+        {
+            var best = new double[0];
+            double bestDist = double.MaxValue;
+            bool bestRow = true;
+            double fallbackDist = double.MaxValue, fallbackX = x, fallbackZ = z;
+            bool fallbackRow = true;
+            for (int pass = 0; pass < 4; pass++)
+            {
+                bool row = pass < 2, lower = pass % 2 == 0;
+                var lanes = row ? rows : cols;
+                double v = row ? z : x, target = double.NaN;
+                foreach (int lane in lanes)
+                {
+                    double c = lane + 0.5;
+                    if (lower && c <= v + 1e-9) target = c;
+                    if (!lower && c >= v - 1e-9) { target = c; break; }
+                }
+                if (double.IsNaN(target)) continue;
+                double dist = Math.Abs(target - v), cx = row ? x : target, cz = row ? target : z;
+                if (dist < fallbackDist - 1e-9) { fallbackDist = dist; fallbackX = cx; fallbackZ = cz; fallbackRow = row; }
+                if (dist < bestDist - 1e-9 && LegIsClear(x, z, cx, cz, layout)) { bestDist = dist; best = new[] { cx, cz }; bestRow = row; }
+            }
+            if (best.Length == 0) { x = fallbackX; z = fallbackZ; onRow = fallbackRow; return; }
+            x = best[0]; z = best[1]; onRow = bestRow;
+        }
+
+        /// <summary>True when the straight leg crosses no building box, ignoring a box the leg starts inside (a stand point pressed against a wall).</summary>
+        public static bool LegIsClear(double x0, double z0, double x1, double z1, IList<PlacedPiece> layout)
+        {
+            if (layout == null) return true;
+            double minX = Math.Min(x0, x1), maxX = Math.Max(x0, x1), minZ = Math.Min(z0, z1), maxZ = Math.Max(z0, z1);
+            foreach (var p in layout)
+            {
+                if (!IsBuilding(p.SizeX, p.SizeZ)) continue;
+                bool startsInside = x0 > p.X + BoxSlack && x0 < p.X + p.SizeX - BoxSlack && z0 > p.Z + BoxSlack && z0 < p.Z + p.SizeZ - BoxSlack;
+                if (startsInside) continue;
+                if (maxX > p.X + BoxSlack && minX < p.X + p.SizeX - BoxSlack && maxZ > p.Z + BoxSlack && minZ < p.Z + p.SizeZ - BoxSlack) return false;
+            }
+            return true;
+        }
+
+        /// <summary>Centre line (cells) of the crossing lane that adds the least walking between two coordinates; the first of equals wins.</summary>
+        private static double BestCrossing(List<int> lanes, double a, double b)
+        {
+            double best = lanes[0] + 0.5, bestCost = double.MaxValue;
+            foreach (int lane in lanes)
+            {
+                double c = lane + 0.5, cost = Math.Abs(a - c) + Math.Abs(b - c);
+                if (cost < bestCost - 1e-9) { bestCost = cost; best = c; }
+            }
+            return best;
+        }
+
+        private static void AddWaypoint(List<double[]> route, double x, double z)
+        {
+            var last = route[route.Count - 1];
+            if (Math.Abs(last[0] - x) > 1e-9 || Math.Abs(last[1] - z) > 1e-9) route.Add(new[] { x, z });
+        }
+
         // ---------- street walkers: display-only townsfolk pacing the lanes (no talk, no clue, no sanity effect) ----------
         /// <summary>Metres a walker covers per clock tick (one tick is one village minute, a real second in the session): a calm walking pace.</summary>
         public const double WalkerSpeedMin = 0.8;

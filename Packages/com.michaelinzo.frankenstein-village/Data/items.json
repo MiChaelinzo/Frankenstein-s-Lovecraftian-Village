@@ -1,0 +1,464 @@
+{
+ "version": 1,
+ "items": [
+  {
+   "id": "lantern_oil",
+   "kind": "supply",
+   "effect": "fuel",
+   "amount": 40,
+   "stack": 3,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Lantern oil",
+    "text": "A stoppered bottle of whale oil, thick as syrup. The lantern drinks it and burns steadier."
+   },
+   "fr": {
+    "name": "Huile de lanterne",
+    "text": "Une bouteille bouchee d'huile de baleine, epaisse comme un sirop. La lanterne la boit et brule plus droit."
+   }
+  },
+  {
+   "id": "salt",
+   "kind": "ward",
+   "effect": "ward",
+   "amount": 0,
+   "stack": 9,
+   "weight": 5,
+   "clue": false,
+   "en": {
+    "name": "Salt",
+    "text": "A twist of coarse grey salt. The old women say it keeps certain things from crossing a threshold."
+   },
+   "fr": {
+    "name": "Sel",
+    "text": "Un cornet de gros sel gris. Les vieilles disent qu'il empeche certaines choses de franchir un seuil."
+   }
+  },
+  {
+   "id": "candles",
+   "kind": "supply",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 9,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Candles",
+    "text": "Tallow candles, bent from a long time in a pocket. A small flame makes a small certainty."
+   },
+   "fr": {
+    "name": "Chandelles",
+    "text": "Des chandelles de suif, tordues par un long sejour en poche. Une petite flamme fait une petite certitude."
+   }
+  },
+  {
+   "id": "bread",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 6,
+   "stack": 5,
+   "weight": 5,
+   "clue": false,
+   "en": {
+    "name": "Bread",
+    "text": "A heel of dark bread, still faintly warm, though no oven has been lit today."
+   },
+   "fr": {
+    "name": "Pain",
+    "text": "Un quignon de pain noir, encore tiede, bien qu'aucun four n'ait brule aujourd'hui."
+   }
+  },
+  {
+   "id": "dried_fish",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 5,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Dried fish",
+    "text": "Salt cod stiff as a board. It tastes of the sea and of nothing you could name."
+   },
+   "fr": {
+    "name": "Poisson seche",
+    "text": "Une morue salee raide comme une planche. Elle a le gout de la mer et de rien que l'on puisse nommer."
+   }
+  },
+  {
+   "id": "tea",
+   "kind": "tea",
+   "effect": "sanity",
+   "amount": 9,
+   "stack": 3,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Tea",
+    "text": "A tin of black tea and a cup that is never quite empty. The steam steadies the hands."
+   },
+   "fr": {
+    "name": "The",
+    "text": "Une boite de the noir et une tasse jamais tout a fait vide. La vapeur calme les mains."
+   }
+  },
+  {
+   "id": "herbs",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 3,
+   "stack": 9,
+   "weight": 4,
+   "clue": false,
+   "en": {
+    "name": "Bitter herbs",
+    "text": "Rue and sea thrift tied with thread. Chewed slowly, they push the whispers back a little."
+   },
+   "fr": {
+    "name": "Herbes ameres",
+    "text": "De la rue et de l'armeria nouees d'un fil. Machees lentement, elles repoussent un peu les murmures."
+   }
+  },
+  {
+   "id": "sigil_chalk",
+   "kind": "ward",
+   "effect": "ward",
+   "amount": 0,
+   "stack": 5,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Sigil chalk",
+    "text": "A stub of white chalk, worn on one side where a hand has drawn the same mark many times."
+   },
+   "fr": {
+    "name": "Craie a sceaux",
+    "text": "Un bout de craie blanche, use d'un cote par une main qui a trace cent fois le meme signe."
+   }
+  },
+  {
+   "id": "brass_key",
+   "kind": "key",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Brass key",
+    "text": "A small brass key with a gull cut into the bow. It fits no lock you have seen yet."
+   },
+   "fr": {
+    "name": "Cle de laiton",
+    "text": "Une petite cle de laiton, une mouette gravee dans l'anneau. Elle n'ouvre aucune serrure connue."
+   }
+  },
+  {
+   "id": "iron_key",
+   "kind": "key",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Iron key",
+    "text": "A heavy iron key, cold even in the sun, with salt crusted in its teeth."
+   },
+   "fr": {
+    "name": "Cle de fer",
+    "text": "Une lourde cle de fer, froide meme au soleil, du sel incruste entre les dents."
+   }
+  },
+  {
+   "id": "harbour_letter",
+   "kind": "letter",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Harbour letter",
+    "text": "A letter never posted. It says the boats will not be going out, and asks that nobody count them."
+   },
+   "fr": {
+    "name": "Lettre du port",
+    "text": "Une lettre jamais postee. Elle dit que les barques ne sortiront pas, et demande que personne ne les compte."
+   }
+  },
+  {
+   "id": "chapel_letter",
+   "kind": "letter",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": true,
+   "en": {
+    "name": "Chapel letter",
+    "text": "A note slipped under a door: the bell rang at midnight, and the ringer was found asleep in another town."
+   },
+   "fr": {
+    "name": "Lettre de la chapelle",
+    "text": "Un mot glisse sous une porte: la cloche a sonne a minuit, et le sonneur dormait dans une autre ville."
+   }
+  },
+  {
+   "id": "gull_charm",
+   "kind": "trinket",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Bone gull charm",
+    "text": "A gull carved from bone and polished by thumbs. It is warm, and it should not be."
+   },
+   "fr": {
+    "name": "Porte-bonheur mouette",
+    "text": "Une mouette taillee dans un os et polie par des pouces. Elle est tiede, et elle ne devrait pas l'etre."
+   }
+  },
+  {
+   "id": "black_button",
+   "kind": "trinket",
+   "effect": "none",
+   "amount": 0,
+   "stack": 1,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Black button",
+    "text": "A black coat button with four holes. Four holes, and you count them again, and there are five."
+   },
+   "fr": {
+    "name": "Bouton noir",
+    "text": "Un bouton de manteau noir a quatre trous. Quatre trous, vous recomptez, et il y en a cinq."
+   }
+  },
+  {
+   "id": "timber",
+   "kind": "supply",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 3,
+   "clue": false,
+   "en": {
+    "name": "Driftwood timber",
+    "text": "Salt-grey planks, straight enough to build with. Fences and coops start as a few of these."
+   },
+   "fr": {
+    "name": "Bois flotte",
+    "text": "Des planches grises de sel, assez droites pour batir. Les clotures et les poulaillers commencent par quelques-unes."
+   }
+  },
+  {
+   "id": "seed_turnip",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Turnip seed",
+    "text": "A paper twist of small dark seeds. Turnips ask for little and forgive most things."
+   },
+   "fr": {
+    "name": "Graines de navet",
+    "text": "Un cornet de petites graines sombres. Le navet demande peu et pardonne presque tout."
+   }
+  },
+  {
+   "id": "seed_cabbage",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 2,
+   "clue": false,
+   "en": {
+    "name": "Cabbage seed",
+    "text": "Pale round seeds in a twist of newsprint. Cabbages are slow, and they keep."
+   },
+   "fr": {
+    "name": "Graines de chou",
+    "text": "Des graines rondes et pales dans un cornet de papier journal. Le chou est lent, et il se garde."
+   }
+  },
+  {
+   "id": "seed_glowcap",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Glowcap spores",
+    "text": "A pinch of grey dust that gives off a faint green light in a closed hand."
+   },
+   "fr": {
+    "name": "Spores de capuchon lumineux",
+    "text": "Une pincee de poussiere grise qui rend une faible lueur verte dans une main fermee."
+   }
+  },
+  {
+   "id": "seed_kelp",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Weeping kelp cutting",
+    "text": "A wet frond, cold to the touch, that never seems to dry however long it lies in the sun."
+   },
+   "fr": {
+    "name": "Bouture de varech pleureur",
+    "text": "Une fronde humide, froide au toucher, qui ne seche jamais, meme longtemps au soleil."
+   }
+  },
+  {
+   "id": "seed_eyeroot",
+   "kind": "seed",
+   "effect": "none",
+   "amount": 0,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Eyeroot seed",
+    "text": "A hard seed with a pale ring on one side. It is better not to hold it up to the light."
+   },
+   "fr": {
+    "name": "Graine d'oeilracine",
+    "text": "Une graine dure marquee d'un anneau pale. Mieux vaut ne pas la tenir face a la lumiere."
+   }
+  },
+  {
+   "id": "turnip",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 3,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Turnip",
+    "text": "A plain pale turnip with soil still in its creases. Plainness is a comfort here."
+   },
+   "fr": {
+    "name": "Navet",
+    "text": "Un navet pale et simple, encore de la terre dans les plis. La simplicite est un reconfort ici."
+   }
+  },
+  {
+   "id": "cabbage",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 4,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Cabbage",
+    "text": "A tight green head, heavy and cold. It smells only of cabbage, which helps."
+   },
+   "fr": {
+    "name": "Chou",
+    "text": "Une pomme verte et serree, lourde et froide. Elle ne sent que le chou, et cela aide."
+   }
+  },
+  {
+   "id": "glowcap",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 7,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Glowcap",
+    "text": "A mushroom that shines a dim green in the dark. It tastes of rain, and the whispers go quiet while you chew."
+   },
+   "fr": {
+    "name": "Capuchon lumineux",
+    "text": "Un champignon qui luit d'un vert terne dans le noir. Il a un gout de pluie, et les murmures se taisent pendant que l'on mache."
+   }
+  },
+  {
+   "id": "kelp",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 5,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Weeping kelp",
+    "text": "Long fronds that drip even when dry. Boiled, they taste of the sea and of someone else's grief."
+   },
+   "fr": {
+    "name": "Varech pleureur",
+    "text": "De longues frondes qui gouttent meme sechees. Bouillies, elles ont le gout de la mer et du chagrin d'un autre."
+   }
+  },
+  {
+   "id": "eyeroot",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 2,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Eyeroot",
+    "text": "A knobbed root that seems to watch the knife. It is edible, and it steadies the nerves a little."
+   },
+   "fr": {
+    "name": "Oeilracine",
+    "text": "Une racine noueuse qui semble suivre le couteau des yeux. Elle se mange, et calme un peu les nerfs."
+   }
+  },
+  {
+   "id": "egg",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 4,
+   "stack": 9,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Egg",
+    "text": "A brown egg, warm from the nest. Whatever else is wrong, the hens are laying."
+   },
+   "fr": {
+    "name": "Oeuf",
+    "text": "Un oeuf brun, tiede du nid. Quoi qu'il aille mal, les poules pondent."
+   }
+  },
+  {
+   "id": "goat_milk",
+   "kind": "food",
+   "effect": "sanity",
+   "amount": 6,
+   "stack": 5,
+   "weight": 1,
+   "clue": false,
+   "en": {
+    "name": "Goat milk",
+    "text": "A pail of thin sweet milk. The goat watched you the whole time it was being drawn."
+   },
+   "fr": {
+    "name": "Lait de chevre",
+    "text": "Un seau de lait fin et sucre. La chevre vous a regarde tout le temps de la traite."
+   }
+  }
+ ]
+}

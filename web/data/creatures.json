@@ -1,0 +1,93 @@
+{
+ "version": 1,
+ "creatures": [
+  {
+   "id": "shore_crawler",
+   "habitat": "shore",
+   "phase": "night",
+   "weather": "",
+   "minDread": 0,
+   "max": 3,
+   "drain": 0.8,
+   "range": 12.0,
+   "los": true,
+   "speed": 1.4,
+   "hunt": 16.0,
+   "height": 0.0,
+   "en": {
+    "name": "Shore-crawler",
+    "text": "Something pale drags itself along the tideline after dark. It does not hurry. It only keeps facing the lamps."
+   },
+   "fr": {
+    "name": "Rampant du rivage",
+    "text": "Quelque chose de pale se traine le long de la laisse de mer apres la tombee de la nuit. Il ne se presse pas. Il fait seulement face aux lampes."
+   }
+  },
+  {
+   "id": "hollow_watcher",
+   "habitat": "fog",
+   "phase": "any",
+   "weather": "fog",
+   "minDread": 15,
+   "max": 2,
+   "drain": 0.6,
+   "range": 14.0,
+   "los": true,
+   "speed": 0.8,
+   "hunt": 10.0,
+   "height": 0.0,
+   "en": {
+    "name": "Hollow-eyed watcher",
+    "text": "In the fog a tall shape stands between two houses. Its face is only two dark hollows, and they are turned toward you."
+   },
+   "fr": {
+    "name": "Guetteur aux yeux creux",
+    "text": "Dans la brume, une haute silhouette se tient entre deux maisons. Son visage n'est que deux creux sombres, et ils sont tournes vers vous."
+   }
+  },
+  {
+   "id": "deep_one",
+   "habitat": "harbour",
+   "phase": "night",
+   "weather": "",
+   "minDread": 60,
+   "max": 2,
+   "drain": 1.2,
+   "range": 14.0,
+   "los": true,
+   "speed": 1.2,
+   "hunt": 14.0,
+   "height": 0.0,
+   "en": {
+    "name": "Harbour deep-one",
+    "text": "Wet footprints climb the harbour steps. What made them breathes slowly, as if the sea were doing it from far below."
+   },
+   "fr": {
+    "name": "Profond du port",
+    "text": "Des empreintes mouillees montent les marches du port. Ce qui les a faites respire lentement, comme si la mer le faisait depuis tres loin."
+   }
+  },
+  {
+   "id": "cliff_flyer",
+   "habitat": "cliffs",
+   "phase": "dusk_night",
+   "weather": "",
+   "minDread": 30,
+   "max": 3,
+   "drain": 0.5,
+   "range": 22.0,
+   "los": true,
+   "speed": 0.0,
+   "hunt": 0.0,
+   "height": 12.0,
+   "en": {
+    "name": "Cliff flyer",
+    "text": "Thin shapes wheel above the cliffs where no gull would fly at night. Their wings make no sound at all."
+   },
+   "fr": {
+    "name": "Rodeur des falaises",
+    "text": "De minces silhouettes tournent au-dessus des falaises ou nulle mouette ne volerait la nuit. Leurs ailes ne font aucun bruit."
+   }
+  }
+ ]
+}

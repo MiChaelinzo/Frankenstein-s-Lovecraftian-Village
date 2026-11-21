@@ -131,7 +131,7 @@ namespace Frankenstein.Editor
             var root = new GameObject("Villagers");
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(OriginalVillageAssetGenerator.PrefabPathFor("villager"));
             if (prefab == null) Debug.LogWarning("[Frankenstein] Villager mesh not generated; villagers use a " + WorldScale.PersonHeight + " m capsule.");
-            var roster = VillagerRules.GenerateRoster(builder.seed, builder.Layout);
+            var roster = VillagerRules.GenerateRoster(builder.seed, builder.Layout, builder.width, builder.depth);
             foreach (var v in roster)
             {
                 GameObject body;

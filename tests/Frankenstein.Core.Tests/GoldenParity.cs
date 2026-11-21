@@ -340,6 +340,15 @@ namespace Frankenstein.Core.Tests
             AppendLore(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendItems(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendCreatures(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendHomestead(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendNames(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -932,6 +941,201 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
+        /// <summary>Top level key "items" (round 25): the item library digest, seeded ground items and chests per village (positions to 3 decimals) and a scripted inventory scenario.</summary>
+        private static void AppendItems(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = ItemCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "items.json")));
+            sb.Append("  \"items\": {\n    \"defs\": [");
+            for (int i = 0; i < lib.Items.Count; i++)
+            {
+                var d = lib.Items[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(d.Id).Append("\", \"").Append(d.Kind).Append("\", \"").Append(d.Effect).Append("\", ").Append(d.Amount).Append(", ").Append(d.Stack).Append(", ").Append(d.Weight).Append(", ").Append(d.Clue ? 1 : 0).Append(']');
+            }
+            sb.Append("],\n    \"villages\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var world = ItemWorld.Create(seed, grid, grid, layout, lib);
+                    sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"ground\": [");
+                    first = false;
+                    for (int i = 0; i < world.Ground.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append("[\"").Append(world.Ground[i].ItemId).Append("\", ").Append(world.Ground[i].Count).Append(", ")
+                          .Append(Math.Round(world.Ground[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(world.Ground[i].Z, 3).ToString("0.###", inv)).Append(']');
+                    sb.Append("], \"chests\": [");
+                    for (int i = 0; i < world.Chests.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append('[').Append(world.Chests[i].HouseIndex).Append(", ").Append(world.Chests[i].Lodging ? 1 : 0).Append(", ")
+                          .Append(Math.Round(world.Chests[i].X, 3).ToString("0.###", inv)).Append(", ").Append(Math.Round(world.Chests[i].Z, 3).ToString("0.###", inv)).Append(", \"").Append(world.Chests[i].Contents.SlotsText()).Append("\"]");
+                    sb.Append("], \"state\": \"").Append(world.Serialize(new Inventory(ItemRules.PlayerSlots))).Append("\" }");
+                }
+            sb.Append("\n    ],\n    \"scenario\": [");
+            var player = new Inventory(3);
+            var sanity = new SanityModel(50f);
+            var log = new List<string>();
+            log.Add("add bread 7 -> " + player.Add(lib, "bread", 7));
+            log.Add("add tea 3 -> " + player.Add(lib, "tea", 3));
+            log.Add("add salt 9 -> " + player.Add(lib, "salt", 9));
+            log.Add("add herbs 1 -> " + player.Add(lib, "herbs", 1));
+            log.Add("use bread -> " + UseText(player.Use(lib, "bread", sanity)) + " sanity " + sanity.Value.ToString("0.###", inv));
+            log.Add("use salt -> " + UseText(player.Use(lib, "salt", sanity)));
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)));
+            log.Add("remove bread 4 -> " + player.Remove("bread", 4));
+            player.Fuel = 70;
+            player.Add(lib, "lantern_oil", 2);
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)) + " fuel " + player.Fuel);
+            log.Add("use lantern_oil -> " + UseText(player.Use(lib, "lantern_oil", sanity)) + " fuel " + player.Fuel);
+            log.Add("slots " + player.SlotsText());
+            for (int i = 0; i < log.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(log[i]));
+            sb.Append("]\n  }\n");
+        }
+
+        private static string UseText(ItemUseResult r)
+        {
+            return (r.Used ? "used" : "refused " + r.Reason) + " s" + r.SanityDelta + " f" + r.FuelDelta;
+        }
+
+        /// <summary>Top level key "creatures" (round 25): the data digest, seeded spawns per village and condition, and a scripted encounter with every counter.</summary>
+        private static void AppendCreatures(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var lib = CreatureCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "creatures.json")));
+            var items = ItemCatalog.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "items.json")));
+            int night = GameClock.PhaseStart(DayPhase.Night) + 60, dusk = GameClock.PhaseStart(DayPhase.Dusk) + 5, day = GameClock.PhaseStart(DayPhase.Day) + 10;
+            sb.Append("  \"creatures\": {\n    \"defs\": [");
+            for (int i = 0; i < lib.Defs.Count; i++)
+            {
+                var d = lib.Defs[i];
+                sb.Append(i > 0 ? ", " : "").Append("[\"").Append(d.Id).Append("\", \"").Append(d.Habitat).Append("\", \"").Append(d.Phase).Append("\", \"").Append(d.Weather).Append("\", ").Append(d.MinDread).Append(", ").Append(d.Max).Append(", ")
+                  .Append(d.Drain.ToString("0.###", inv)).Append(", ").Append(d.Range.ToString("0.###", inv)).Append(", ").Append(d.NeedsLos ? 1 : 0).Append(", ").Append(d.Speed.ToString("0.###", inv)).Append(", ")
+                  .Append(d.Hunt.ToString("0.###", inv)).Append(", ").Append(d.Height.ToString("0.###", inv)).Append(']');
+            }
+            sb.Append("],\n    \"spawns\": [");
+            var conditions = new[] { new object[] { night, 1.0, "fog" }, new object[] { night, 0.0, "clear" }, new object[] { dusk, 0.5, "clear" }, new object[] { day, 0.5, "mist" } };
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var solids = LoreBookRules.SolidProps(LoreBookRules.AllDressing(seed, grid, grid, layout));
+                    Func<double, double, bool> blocked = (x, z) => LoreBookRules.IsBlocked(x, z, layout, solids, seed, grid, grid);
+                    foreach (var c in conditions)
+                    {
+                        var enc = CreatureEncounter.Spawn(seed, grid, grid, (int)c[0], (double)c[1], (string)c[2], lib, blocked);
+                        sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"tick\": ").Append((int)c[0]).Append(", \"dread\": ").Append(((double)c[1]).ToString("0.###", inv))
+                          .Append(", \"weather\": \"").Append((string)c[2]).Append("\", \"creatures\": [");
+                        first = false;
+                        for (int i = 0; i < enc.Creatures.Count; i++) sb.Append(i > 0 ? ", " : "").Append('"').Append(enc.Describe(enc.Creatures[i])).Append('"');
+                        sb.Append("] }");
+                    }
+                }
+            sb.Append("\n    ],\n    \"scenario\": [");
+            var scene = CreatureEncounter.Spawn(1818, 24, 24, night, 1.0, "fog", lib, null);
+            var player = new Inventory(12);
+            player.Add(items, "salt", 2);
+            player.Add(items, "sigil_chalk", 1);
+            Func<double, double, bool> wall = (x, z) => x > 20 && x < 22 && z > 0 && z < 40;
+            var log = new List<string>();
+            var target = scene.Creatures[0];
+            double px = target.X + 9.0, pz = target.Z;
+            log.Add("spawned " + string.Join(";", scene.Creatures.Select(scene.Describe)));
+            Action<string, CreatureStep> note = (label, r) => log.Add(label + " drain " + r.Drain.ToString("0.####", inv) + " burn " + r.FuelBurn + " tele " + r.Telegraph.ToString("0.####", inv) + " near " + r.Nearest + " pushed " + (r.Pushed ? 1 : 0) + " blocked " + (r.Blocked ? 1 : 0) + " at " + scene.Describe(target));
+            int tick = night;
+            for (int i = 0; i < 4; i++) note("walk" + i, scene.Step(0.5, px, pz, tick, 0, wall));
+            for (int i = 0; i < 3; i++) note("lantern" + i, scene.Step(1.0, target.X + 5.0, target.Z, tick, player.Fuel, wall));
+            log.Add("salt " + (scene.PlaceSalt(player, target.X + 8.0, target.Z, -1, 0, tick) == "" ? "ok" : "no") + " left " + player.Count("salt"));
+            for (int i = 0; i < 3; i++) note("salted" + i, scene.Step(0.5, target.X + 8.0, target.Z, tick, 0, wall));
+            log.Add("sigil " + (scene.PlaceSigil(player, target.X + 12.0, target.Z, tick) == "" ? "ok" : "no") + " again " + scene.PlaceSigil(player, target.X, target.Z, tick));
+            for (int i = 0; i < 3; i++) note("sigil" + i, scene.Step(0.5, target.X + 12.0, target.Z, tick, 0, wall));
+            log.Add("flare " + scene.UseFlare(player, tick) + " fuel " + player.Fuel + " again " + scene.UseFlare(player, tick + 1));
+            note("flared", scene.Step(1.0, target.X + 6.0, target.Z, tick + 1, 0, wall));
+            tick += CreatureRules.SaltMinutes;
+            note("later", scene.Step(0.5, target.X + 8.0, target.Z, tick, 0, wall));
+            log.Add("wards " + scene.Wards.Count + " fuelDebt " + scene.FuelDebt.ToString("0.####", inv));
+            for (int i = 0; i < log.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(log[i]));
+            sb.Append("]\n  }\n");
+        }
+
+        /// <summary>Three decimals without a negative zero, so the golden file never holds "-0".</summary>
+        private static string F3(double v)
+        {
+            var s = v.ToString("0.###", CultureInfo.InvariantCulture);
+            return s == "-0" ? "0" : s;
+        }
+
+        /// <summary>Top level key "homestead" (round 25): the data digest, the plot per golden village (origin and first bed to 3 decimals, plot edge corruption at every level) and a scripted homestead scenario.</summary>
+        private static void AppendHomestead(StringBuilder sb, PrefabCatalog cat)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var items = ItemCatalog.Parse(File.ReadAllText(Path.Combine(data, "items.json")));
+            var lib = HomesteadCatalog.Parse(File.ReadAllText(Path.Combine(data, "homestead.json")), items);
+            sb.Append("  \"homestead\": {\n    \"defs\": [");
+            var defs = new List<string>();
+            foreach (var c in lib.Crops) defs.Add("crop " + c.Id + " " + c.Kind + " " + c.SeedItem + " " + c.HarvestItem + " " + c.GrowDays + " " + c.Yield);
+            foreach (var s in lib.Structures) defs.Add("structure " + s.Id + " " + s.Cost);
+            foreach (var r in lib.Residents) defs.Add("animal " + r.Id + " " + r.Group + " " + r.FoodItem + " " + r.Shelter + " " + r.FedDays + " " + r.Sanity + " " + (r.Produce.Length == 0 ? "-" : r.Produce) + " " + r.Every + " " + r.Cap + " " + r.Count);
+            foreach (var s in lib.Starter) defs.Add("starter " + s.Id + " " + s.Count);
+            for (int i = 0; i < defs.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(defs[i]));
+            sb.Append("],\n    \"plots\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, 16 })
+                {
+                    var layout = VillageLayoutGenerator.Generate(cat, grid, grid, grid == 24 ? 40 : 20, seed);
+                    var plot = HomesteadPlot.Create(seed, grid, grid, layout, ItemWorld.Create(seed, grid, grid, layout, items));
+                    sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"exists\": ").Append(plot.Exists ? 1 : 0);
+                    first = false;
+                    sb.Append(", \"origin\": [").Append(F3(plot.OriginX)).Append(", ").Append(F3(plot.OriginZ)).Append("], \"dir\": [").Append(F3(plot.DirX)).Append(", ").Append(F3(plot.DirZ)).Append("], \"bed5\": [");
+                    if (plot.Exists) sb.Append(F3(plot.Beds[5][0])).Append(", ").Append(F3(plot.Beds[5][1]));
+                    sb.Append("], \"edge\": [");
+                    for (int level = 0; level <= CorruptionGrowth.Levels; level++)
+                    {
+                        var edge = CorruptionGrowth.GrowPlotEdge(plot.OriginX, plot.OriginZ, plot.SideX, plot.SideZ, plot.DirX, plot.DirZ, level);
+                        sb.Append(level > 0 ? ", " : "").Append('"');
+                        for (int i = 0; i < edge.Count; i++) sb.Append(i > 0 ? ";" : "").Append(edge[i].Kind).Append(' ').Append(F3(edge[i].X)).Append(' ').Append(F3(edge[i].Z)).Append(' ').Append(F3(edge[i].Yaw)).Append(' ').Append(F3(edge[i].Scale));
+                        sb.Append('"');
+                    }
+                    sb.Append("] }");
+                }
+            sb.Append("\n    ],\n    \"scenario\": [");
+            var scene = ItemWorld.Create(1818, 24, 24, VillageLayoutGenerator.Generate(cat, 24, 24, 40, 1818), items);
+            var scLayout = VillageLayoutGenerator.Generate(cat, 24, 24, 40, 1818);
+            var h = new Homestead(lib, HomesteadPlot.Create(1818, 24, 24, scLayout, scene));
+            var player = new Inventory(ItemRules.PlayerSlots);
+            var log = new List<string>();
+            Func<string, HomesteadResult, string> res = (label, r) => label + " " + (r.Ok ? "ok" : r.Reason) + " " + r.Count;
+            int day = GameClock.MinutesPerDay, t = GameClock.SessionStartTick;
+            log.Add(res("plant early", h.Plant(0, "turnip", t, player)));
+            log.Add(res("claim", h.Claim(t, player, items)));
+            log.Add(res("claim again", h.Claim(t, player, items)));
+            log.Add(res("plant turnip", h.Plant(0, "turnip", t, player)));
+            log.Add(res("plant glowcap", h.Plant(1, "glowcap", t, player)));
+            log.Add(res("build coop", h.Build("coop", player)));
+            log.Add(res("build coop again", h.Build("coop", player)));
+            log.Add(res("build trough", h.Build("trough", player)));
+            log.Add(res("build scarecrow", h.Build("scarecrow", player)));
+            log.Add(res("build fence", h.Build("fence", player)));
+            player.Add(items, "turnip", 1); player.Add(items, "kelp", 1);
+            log.Add(res("adopt chicken", h.Feed("chicken", t, player)));
+            log.Add(res("adopt jar", h.Feed("jar_tentacle", t, player)));
+            foreach (int days in new[] { 0, 1, 2, 3 })
+            {
+                int now = t + days * day;
+                log.Add("day " + days + " stages " + h.StageOf(0, now) + h.StageOf(1, now) + h.StageOf(2, now) + " chickenFed " + h.FedPercent(lib.FindResident("chicken"), t, now) + " mood " + h.Mood(lib.FindResident("chicken"), t, now, 0) + "/" + h.Mood(lib.FindResident("jar_tentacle"), t, now, 3)
+                    + " eggs " + h.ProduceReady(lib.FindResident("chicken"), h.Residents[0], now) + " sanity " + h.DailySanity(now, days));
+            }
+            log.Add(res("collect", h.Collect("chicken", t + 3 * day, player, items)));
+            log.Add(res("harvest turnip", h.Harvest(0, t + 3 * day, 4, player, items)));
+            log.Add(res("harvest glowcap", h.Harvest(1, t + 3 * day, 4, player, items)));
+            log.Add("yields " + h.YieldAt(lib.FindCrop("turnip"), 3) + h.YieldAt(lib.FindCrop("kelp"), 3) + h.YieldAt(lib.FindCrop("eyeroot"), 2));
+            log.Add("bag " + player.SlotsText());
+            log.Add("save " + h.Serialize());
+            for (int i = 0; i < log.Count; i++) sb.Append(i > 0 ? ", " : "").Append(JsonSerializer.Serialize(log[i]));
+            sb.Append("]\n  }\n");
+        }
+
         /// <summary>Top level key "names": per city seed, the English and French name of every layout piece and of every landmark (round 24).</summary>
         private static void AppendNames(StringBuilder sb, PrefabCatalog cat)
         {
@@ -1025,8 +1229,24 @@ namespace Frankenstein.Core.Tests
             foreach (var seed in new[] { 1, 1818 })
             {
                 var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
-                var roster = VillagerRules.GenerateRoster(seed, layout);
-                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"presence\": [");
+                var roster = VillagerRules.GenerateRoster(seed, layout, grid, grid);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"roster\": [");
+                for (int i = 0; i < roster.Count; i++)
+                    sb.Append(i == 0 ? "" : ", ").Append('[').Append(Q(roster[i].Name)).Append(", ").Append((int)roster[i].Role).Append(", ").Append((int)roster[i].Disposition).Append(", ").Append(roster[i].HomeIndex).Append(", ").Append(roster[i].WorkIndex).Append(']');
+                sb.Append("], \"routes\": [");
+                bool firstRoute = true;
+                foreach (var v in roster)
+                {
+                    var home = VillagerRules.StandPoint(v, VillagerPlaceKind.Home, layout, grid, grid, seed);
+                    foreach (var kind in new[] { VillagerPlaceKind.Workplace, VillagerPlaceKind.Square, VillagerPlaceKind.Shore })
+                    {
+                        var to = VillagerRules.StandPoint(v, kind, layout, grid, grid, seed);
+                        var route = VillageStreets.LaneRoute(home.X, home.Z, to.X, to.Z, grid, grid, layout);
+                        sb.Append(firstRoute ? "" : ", ").Append("[").Append(string.Join(", ", route.Select(w => R(w[0]) + ", " + R(w[1])))).Append("]");
+                        firstRoute = false;
+                    }
+                }
+                sb.Append("], \"presence\": [");
                 first = false;
                 bool firstRow = true;
                 foreach (var v in roster)

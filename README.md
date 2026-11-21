@@ -70,6 +70,59 @@ Dynamic resolution steps the render scale down by 0.25 when the average frame is
 
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
+### Round 25 controls
+| Key | 3D view | 2D view |
+|-----|---------|---------|
+| `I` | open the satchel | sends the investigator (use the Satchel button) |
+| `E` | pick up, read or open what you face | endure the night |
+| `Z` | lay a salt line | not available |
+| `V` | draw a chalk sigil | not available |
+| `F` | fire a flare | not available |
+| Homestead button | plant, feed, build and harvest within 12 m of the yard | marks only |
+
+Touch has a Bag button and the pad uses left stick press for the satchel. The help overlay and the tour (`?tour=1`) cover the satchel, wards and homestead in English and French.
+
+### Creatures and sanity exposure (round 25)
+Pale things walk the village after dark. They are seeded (same seed, phase, weather and dread give the same creatures), capped at 8 at once, and never jump out at you.
+
+| Creature | Where and when | Drain at point blank | Reach |
+|----------|----------------|----------------------|-------|
+| Shore-crawler | the beach, at night | 0.8 sanity per second | 12 m, needs line of sight |
+| Hollow-eyed watcher | between the houses, in fog or mist, dread 15% or more | 0.6 | 14 m, needs line of sight |
+| Harbour deep-one | the harbour, at night, dread 60% or more | 1.2 | 14 m, needs line of sight |
+| Cliff flyer | over the cliffs, dusk and night, dread 30% or more | 0.5 | 22 m, needs line of sight |
+
+- Sanity is only lost inside a creature's reach and with a clear line of sight (buildings and props block it), falling off linearly with distance. All creatures together never take more than 2 sanity per second. The loss goes through the normal `SanityModel`.
+- **Lantern**: any creature within 7 m is pushed back and cannot drain you, at a cost of about 1 lantern oil per 2 seconds. With no oil it does nothing.
+- **Salt line** (Z in 3D, or the satchel button): one salt makes a 6 m line ahead of you for 180 game minutes. Creatures cannot cross it and it breaks their gaze.
+- **Chalk sigil** (V): one sigil chalk makes a 4 m circle for 360 game minutes. Creatures cannot enter it and you take no drain inside.
+- **Flare** (F): the last resort, 30 oil, a strong 16 m push for 20 game minutes, then a 120 minute cooldown.
+- The warning comes slowly: the fog thickens, the held lantern gutters (it only dims steadily with reduced motion) and a very quiet low swell rises. Nothing sudden, nothing loud.
+- Creatures act in the 3D view only (the 2D map shows pale marks; it has no player position). While a vigil is live the creatures rest, because the vigil lock owns sanity changes. Wards are not saved with the session. The rules live in Core `CreatureRules.cs` and `Data/creatures.json` (en and fr); `web/src/creatures.js` mirrors them.
+
+### Homestead, farming, animals and pets (round 25)
+The yard beside your lodging house can be claimed from the Homestead button. Claiming it hands you seeds and timber.
+
+| Part | What it does |
+|------|--------------|
+| Beds (6) | Plant a seed; it sprouts the next village day and ripens after 2 to 4 days. Harvest puts the crop and one seed back in the satchel. |
+| Crops | Turnips and cabbages; glowcap mushrooms, weeping kelp and eyeroot are eldritch: they give one more when the village is afraid (corruption level 3 or more), while plain crops give one less unless a scarecrow stands. |
+| Structures | Fence, trough, scarecrow and coop, paid in timber. A trough keeps animals fed a day longer. |
+| Animals | Chickens (eggs, need a coop), goat (milk, needs a fence), cat (company). |
+| Pets | Lantern moth (eats glowcaps, coop), tide hound (dried fish, fence), tentacle in a jar (weeping kelp, trough). |
+
+- Feeding an animal its food adopts it. Each resident has two needs, food and its shelter. Its mood is content, uneasy or distressed. Once a village day the moods move sanity, content ones up and distressed ones down, at most 6 points either way. While a vigil is live this waits, because the vigil lock owns sanity.
+- The yard edge grows fungi and a tentacle sapling with dread and night, using the same Core `CorruptionGrowth` rules as the rest of the village.
+- In 3D the yard answers only within 12 m. The 2D map shows small marks. Everything is saved with the session. Rules: Core `HomesteadRules.cs` and `Data/homestead.json` (en and fr), mirrored by `web/src/homestead.js`.
+
+![The homestead yard with crops, a coop, chickens and a tide hound](docs/media/homestead_yard.png)
+![A lantern moth pet in the yard](docs/media/homestead_pet.png)
+
+### More villagers and lane walks (round 25)
+The 36 by 36 city has 24 villagers: the seven principals (names, story and journals unchanged) plus 17 townsfolk spread by district (harbour 3, old town 5, chapel hill 2, market 4, fishers' row 3). They keep the Core schedules of their role and talk and chat like the principals (the lamplighter and keeper stay unique). Walks now follow the lane centre lines of `VillageStreets` (`LaneRoute`), so no route crosses a building; a test checks this on five seeds in C# and JS. The 3D view draws a villager only within the tier draw distance and the fog. Smaller villages keep seven villagers.
+
+![A busier street in the city](docs/media/round25-busy-streets.png)
+
 ### Honest quality bar
 **WebGL1 limits (round 22):** the 3D view is WebGL1 only, with no extensions required. That means no `dFdx` derivatives (bump is two albedo taps), no float render targets (so no real HDR bloom, the post pass works on 8 bit), no instancing (props are merged into chunked buffers), no shadow maps, at most 8 lantern lights per pixel, and a fixed texture unit budget. The Dredge and Silent Hill look is created with fog, a curve grade, rim light and window mood inside those limits, so it is a mood study, not a copy of those games. Measured only on SwiftShader (software GL); real GPU frame times are Unverified.
 
@@ -199,7 +252,13 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Area | Status | Evidence |
 |------|--------|----------|
 | Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 159 passing property tests (including the Vigil rules, sandbox lock and `VigilStrings` drift test) |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 408 passing, including golden parity with C# output |
+| Creatures: seeded spawns, bounded count, exposure by range and line of sight, lantern, salt line, chalk sigil and flare (`CreatureRules.cs`, `creatures.js`) | Verified | `CreatureTests.cs` (10 tests), golden key `creatures` checked by `web/test/creatures.test.js`, `creature-ui.test.js`, and `CREATURES_ONLY=1 node tools/browser_check.mjs` (6 checks, SwiftShader Chrome) |
+| Creature look and feel: the four meshes, fog and lantern telegraph, quiet audio cue, ground wards | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/creature_warding.png` is one still; the sound has only been checked as parameters, nobody has listened to it; a real GPU was not used |
+| Homestead: plot, crops by village day, structures, needs, mood and daily sanity, harvest and produce into the inventory, save string (`HomesteadRules.cs`, `homestead.js`) | Verified | `HomesteadTests.cs` (15 tests), golden key `homestead` checked by `web/test/homestead.test.js`, `homestead-ui.test.js`, and `HOMESTEAD_ONLY=1 node tools/browser_check.mjs` (9 checks, SwiftShader Chrome) |
+| Homestead look: 17 meshes, yard rendering, 2D marks | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/homestead_yard.png` and `homestead_pet.png` were viewed and show the beds, crops, coop, fence, trough, chickens, tide hound and lantern moth; 2D marks only checked for no errors; a real GPU was not used |
+| Unity hook `HomesteadBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
+| Unity hook `CreatureExposureBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 622 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 0 warnings against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
@@ -361,6 +420,11 @@ Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](C
 
 ## Built with Kiro
 Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script (side-by-side web and Unity, under 3:00): [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Recording setup: [docs/RECORDING.md](docs/RECORDING.md). Unity pack exploration script: [docs/PACK_EXPLORATION.md](docs/PACK_EXPLORATION.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
+
+## Support the project
+Optional: [paypal.me/michaelinzo77](https://paypal.me/michaelinzo77). The demo stays free. Plan for any future in-game purchases: [docs/PAYMENTS_PLAN.md](docs/PAYMENTS_PLAN.md).
+
+Soutenir le projet (facultatif, la demo reste gratuite) : [paypal.me/michaelinzo77](https://paypal.me/michaelinzo77).
 
 ## License
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).

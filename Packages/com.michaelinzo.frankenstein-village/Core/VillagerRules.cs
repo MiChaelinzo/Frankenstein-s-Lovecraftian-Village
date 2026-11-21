@@ -204,6 +204,82 @@ namespace Frankenstein.Core
             return roster;
         }
 
+        // ---------- townsfolk: extra residents by district (round 25) ----------
+        /// <summary>Seed stream of the townsfolk, separate from the principals so their names and homes never change.</summary>
+        public const int ResidentStream = 0x7e51d;
+
+        /// <summary>
+        /// Roles of the extra residents of each district, in roster order (<see cref="VillageDistricts"/> order: harbour, old town, chapel hill, market, fishers' row).
+        /// Only roles that can share a routine are used: the lamplighter and the keeper are unique, so the patrol and the lighthouse stay theirs.
+        /// </summary>
+        private static readonly VillagerRole[][] ResidentRoles =
+        {
+            new[] { VillagerRole.Fisher, VillagerRole.Fisher, VillagerRole.Widow },
+            new[] { VillagerRole.Widow, VillagerRole.Child, VillagerRole.Innkeeper, VillagerRole.Fisher, VillagerRole.Child },
+            new[] { VillagerRole.Priest, VillagerRole.Widow },
+            new[] { VillagerRole.Innkeeper, VillagerRole.Child, VillagerRole.Widow, VillagerRole.Fisher },
+            new[] { VillagerRole.Fisher, VillagerRole.Child, VillagerRole.Widow },
+        };
+
+        /// <summary>
+        /// The principals of <see cref="GenerateRoster(int, IList{PlacedPiece})"/> (indexes 0 to 6, unchanged) followed by the townsfolk of the city:
+        /// extra residents per district, each living in a house of their district and working at the role's usual piece (the district's own when it has one).
+        /// A grid smaller than <see cref="VillageDistricts.CityGrid"/> has no townsfolk. Index equals position in the list.
+        /// </summary>
+        public static List<Villager> GenerateRoster(int seed, IList<PlacedPiece> layout, int gridW, int gridD)
+        {
+            var roster = GenerateRoster(seed, layout);
+            if (gridW < VillageDistricts.CityGrid || gridD < VillageDistricts.CityGrid) return roster;
+            var rng = new SeededRandom(seed ^ ResidentStream);
+            var taken = new HashSet<string>();
+            foreach (var p in roster) taken.Add(p.Name);
+            var houses = PiecesWithPrefix(layout, "house");
+            for (int d = 0; d < VillageDistricts.Count; d++)
+            {
+                var districtHouses = InDistrict(layout, houses, seed, gridW, gridD, d);
+                foreach (var role in ResidentRoles[d])
+                {
+                    string name;
+                    do { name = FirstNames[rng.Next(FirstNames.Length)] + " " + LastNames[rng.Next(LastNames.Length)]; }
+                    while (!taken.Add(name));
+                    var disposition = Dispositions[(int)role][rng.Next(2)];
+                    int home = Pick(districtHouses.Count > 0 ? districtHouses : houses.Count > 0 ? houses : AllPieces(layout), rng);
+                    int work = -1;
+                    if (role == VillagerRole.Innkeeper)
+                    {
+                        var others = new List<int>(districtHouses.Count > 0 ? districtHouses : houses);
+                        others.Remove(home);
+                        work = Pick(others.Count > 0 ? others : houses, rng);
+                    }
+                    else
+                    {
+                        foreach (var id in WorkPieceIds[(int)role])
+                        {
+                            var matches = PiecesWithPrefix(layout, id);
+                            if (matches.Count == 0) continue;
+                            var local = InDistrict(layout, matches, seed, gridW, gridD, d);
+                            work = Pick(local.Count > 0 ? local : matches, rng);
+                            break;
+                        }
+                    }
+                    if (work < 0) work = home;
+                    roster.Add(new Villager { Index = roster.Count, Name = name, Role = role, Disposition = disposition, HomeIndex = home, WorkIndex = work });
+                }
+            }
+            return roster;
+        }
+
+        private static List<int> InDistrict(IList<PlacedPiece> layout, List<int> candidates, int seed, int gridW, int gridD, int district)
+        {
+            var list = new List<int>();
+            foreach (int i in candidates)
+            {
+                var p = layout[i];
+                if (VillageDistricts.At(seed, gridW, gridD, p.X + p.SizeX / 2, p.Z + p.SizeZ / 2) == district) list.Add(i);
+            }
+            return list;
+        }
+
         private static List<int> PiecesWithPrefix(IList<PlacedPiece> layout, string prefix)
         {
             var list = new List<int>();
@@ -428,8 +504,8 @@ namespace Frankenstein.Core
         private static double Clamp01(double x) { return Math.Max(0.0, Math.Min(1.0, x)); }
 
         /// <summary>
-        /// Where the villager is at an exact tick. A change of stop starts a <see cref="WalkMinutes"/> walk from the old point to the new one along the x axis first, then z
-        /// (an axis-aligned route; it is not snapped to the lanes of <see cref="VillageStreets"/>). A villager stepping out of a door fades in over the first
+        /// Where the villager is at an exact tick. A change of stop starts a <see cref="WalkMinutes"/> walk from the old point to the new one along <see cref="VillageStreets.LaneRoute"/>
+        /// (lane centre lines, so it never crosses a building; without streets the old x then z walk). A villager stepping out of a door fades in over the first
         /// <see cref="DoorFadeFraction"/> of the walk. At home, villagers go indoors after <see cref="SleepMinute"/> minutes of night (fading over <see cref="DoorFadeMinutes"/>) and come out at dawn.
         /// </summary>
         public static VillagerPresence PresenceAt(IList<Villager> roster, Villager v, double tick, float dread, IList<PlacedPiece> layout, int gridW, int gridD, int seed)
@@ -446,13 +522,22 @@ namespace Frankenstein.Core
                 if (SameStop(before, StopAt(roster, v, changeTick, dread))) continue;
                 double progress = (tick - changeTick) / WalkMinutes;
                 var from = StopPoint(roster, v, before, changeTick - 1, layout, gridW, gridD, seed);
-                double dx = pt.X - from.X, dz = pt.Z - from.Z, ax = Math.Abs(dx), total = ax + Math.Abs(dz);
+                var route = VillageStreets.LaneRoute(from.X, from.Z, pt.X, pt.Z, gridW, gridD, layout);
+                double total = 0.0;
+                for (int i = 1; i < route.Count; i++) total += Math.Abs(route[i][0] - route[i - 1][0]) + Math.Abs(route[i][1] - route[i - 1][1]);
                 if (total < 1e-9) break;
-                double s = progress * total;
+                double s = progress * total, left = s;
                 result.Walking = true;
                 result.Stride = s;
-                if (s < ax) { result.X = from.X + Math.Sign(dx) * s; result.Z = from.Z; result.FaceDx = Math.Sign(dx); result.FaceDz = 0.0; }
-                else { result.X = pt.X; result.Z = from.Z + Math.Sign(dz) * (s - ax); result.FaceDx = 0.0; result.FaceDz = Math.Sign(dz); }
+                for (int i = 1; i < route.Count; i++)
+                {
+                    double sx = route[i][0] - route[i - 1][0], sz = route[i][1] - route[i - 1][1], len = Math.Abs(sx) + Math.Abs(sz);
+                    if (left >= len && i < route.Count - 1) { left -= len; continue; }
+                    double step = Math.Min(left, len);
+                    result.X = route[i - 1][0] + Math.Sign(sx) * step; result.Z = route[i - 1][1] + Math.Sign(sz) * step;
+                    result.FaceDx = Math.Sign(sx); result.FaceDz = Math.Sign(sz);
+                    break;
+                }
                 if (IsDoor(before.Kind)) result.Fade = Math.Min(result.Fade, Clamp01(progress / DoorFadeFraction));
                 return Finish(result);
             }

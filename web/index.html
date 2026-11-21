@@ -56,6 +56,30 @@
             <p id="loreEffect" class="stats"></p>
             <button id="loreClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
+          <div id="homePanel" class="inv-dialog" role="dialog" aria-labelledby="homeTitle" hidden>
+            <h2 id="homeTitle" data-i18n="home.title">Homestead</h2>
+            <div id="homeBody"></div>
+            <p id="homeNote" class="stats" role="status" aria-live="polite"></p>
+            <button id="homeClose" type="button" data-i18n="home.close">Close (Esc)</button>
+          </div>
+          <div id="invPanel" class="inv-dialog" role="dialog" aria-labelledby="invTitle" hidden>
+            <h2 id="invTitle" data-i18n="inv.title">Satchel</h2>
+            <p id="invFuel" class="stats" role="status"></p>
+            <ul id="invList" class="inv-list" aria-label="Your items" data-i18n-aria="inv.list"></ul>
+            <h3 id="invChestTitle" hidden></h3>
+            <ul id="invChestList" class="inv-list" aria-label="Chest contents" data-i18n-aria="inv.chestlist" hidden></ul>
+            <p id="invNote" class="stats" role="status" aria-live="polite"></p>
+            <p id="creatureNote" class="stats creature-note" role="status" aria-live="polite"></p>
+            <div class="row">
+              <button id="invGather" type="button" data-i18n="inv.gather">Gather next item</button>
+              <button id="invChestNext" type="button" data-i18n="inv.chestnext">Open next chest</button>
+              <button id="invSalt" type="button" data-i18n="creature.btn.salt">Lay salt line (Z)</button>
+              <button id="invSigil" type="button" data-i18n="creature.btn.sigil">Draw chalk sigil (V)</button>
+              <button id="invFlare" type="button" data-i18n="creature.btn.flare">Fire flare (F)</button>
+              <button id="invSleep" type="button" data-i18n="inv.sleep" hidden>Sleep until morning</button>
+              <button id="invClose" type="button" data-i18n="inv.close">Close (Esc)</button>
+            </div>
+          </div>
           <div id="toastLive" class="sr-only" role="status" aria-live="polite"></div>
           <div id="perfHud" class="perf-hud" aria-hidden="true" hidden></div>
           <div id="cinemaCaption" class="cinema-caption" role="status" aria-live="polite" aria-label="Cinematic caption" data-i18n-aria="aria.caption" hidden></div>
@@ -69,6 +93,7 @@
             <button id="touchTalk" type="button" data-i18n="touch.talk">Talk</button>
             <button id="touchChat" type="button" data-i18n="touch.chat">Chat</button>
             <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
+            <button id="touchBag" type="button" data-i18n="touch.bag">Bag</button>
             <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
             <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
           </div>
@@ -138,6 +163,8 @@
             <input id="seed" type="number" step="1" value="1818">
             <button id="reroll" type="button" data-i18n="btn.reroll">Stitch a new village</button>
             <button id="share" type="button" data-i18n="btn.share">Copy share link</button>
+            <button id="invBtn" type="button" aria-haspopup="dialog" data-i18n="btn.inventory">Satchel</button>
+            <button id="homeBtn" type="button" aria-haspopup="dialog" data-i18n="btn.homestead">Homestead</button>
             <button id="helpBtn" type="button" aria-haspopup="dialog" data-i18n="btn.help">Help (?)</button>
           </div>
           <div class="row">
@@ -277,8 +304,8 @@
     <h2 id="helpTitle" data-i18n="help.title">How to play</h2>
     <p id="helpDevice" class="stats" role="status"></p>
     <div id="helpDevices" class="help-devices">
-      <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen, B door, X whisper, Y candle, Start story, Select cinematic, left trigger chat.</p>
-      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, touch devices (or ?touch=1) show a stick to walk, a pad to look and Interact, Talk, Chat, Lantern, Endure and Help buttons; dragging the view itself works too.</p>
+      <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen (pick up in 3D), B door, X whisper, Y candle, Start story, Select cinematic, left trigger chat, left stick press satchel, right stick press gather next item (2D).</p>
+      <p data-device="touch" data-i18n="help.touch">Touch: swipe sideways to pick a landmark, up for a candle, down for a whisper. In 3D, touch devices (or ?touch=1) show a stick to walk, a pad to look and Interact, Talk, Chat, Lantern, Bag, Endure and Help buttons; dragging the view itself works too.</p>
     </div>
     <div class="help-groups">
       <section class="help-group">
@@ -286,7 +313,10 @@
         <ul>
           <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
           <li data-i18n-html="keys.church"><kbd>Q</kbd> enter the church</li>
-          <li data-i18n-html="keys.lore"><kbd>J</kbd> read the next lore book (2D view; in 3D press <kbd>E</kbd> at a glowing book)</li>
+          <li data-i18n-html="keys.lore"><kbd>J</kbd> read the next lore book (2D view; in 3D press <kbd>E</kbd> at a glowing book, <kbd>E</kbd> picks up whatever you face)</li>
+          <li data-i18n-html="keys.creatures"><kbd>Z</kbd> lay salt, <kbd>V</kbd> draw a chalk sigil, <kbd>F</kbd> fire a flare (3D). Creatures drain sanity only within reach and in line of sight; the lantern, salt, chalk and flare hold them off. The satchel has the same buttons for touch and pad.</li>
+          <li data-i18n-html="keys.inventory"><kbd>I</kbd> open the satchel in 3D (2D: the Satchel button, since <kbd>I</kbd> sends the investigator there). In 3D, <kbd>E</kbd> picks up, reads or opens whatever you face, the nearest thing wins; pad: stick press</li>
+          <li data-i18n-html="keys.homestead">Homestead button: plant, feed, build and harvest at your yard (3D, within 12 m of the plot). Animals and pets need food and shelter each village day.</li>
           <li data-i18n-html="keys.chat"><kbd>C</kbd> chat with the nearest villager for a hint (3D: in range, villagers before books; again for the next topic)</li>
           <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>
           <li data-i18n-html="keys.endure"><kbd>E</kbd> endure the night once enough clues are heard (2D view)</li>
@@ -352,6 +382,7 @@
     <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo runs on original Blender meshes, procedural textures and an original procedural soundtrack, with no pack needed (the pack only appears with ?pack=1 on your own machine). Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
     <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: twenty five low-poly models made for this project, drawn by a small software projector.</p>
     <p data-i18n-html="about.thirdparty">The 3D view also loads four CC0 photo textures (stone, slate, cobbles, mud) and two CC0 props (a barrel and a bench) from <a href="https://polyhaven.com">Poly Haven</a>, by Charlotte Baglioni, Rob Tuytel, Serhii Khromov and Kirill Sannikov. Its three timber houses are built from the CC0 <a href="https://quaternius.itch.io/medieval-village-megakit">Medieval Village MegaKit</a> by Quaternius. Sources and licences: <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/THIRD_PARTY_ASSETS.md">THIRD_PARTY_ASSETS.md</a>. #thirdparty=0 keeps only the original textures and meshes.</p>
+    <p data-i18n-html="about.support">Support the project: <a href="https://paypal.me/michaelinzo77" target="_blank" rel="noopener noreferrer">paypal.me/michaelinzo77</a>. Optional, and the demo stays free.</p>
     <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
   </dialog>
   <dialog id="ending" class="about ending" aria-labelledby="endingTitle" aria-describedby="endingEpitaph">

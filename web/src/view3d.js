@@ -6,7 +6,7 @@ import { composeDressing, growCorruption, corruptionLevel, dressingBoxes, DRESSI
 import { landmarkDressing, landmarkPathDressing, hillHeight as landmarkHillHeight, hillPathZ, groundHeight, HILL_RX, HILL_RZ, HILL_FOOT } from './landmarks.js';
 import { streetSurfaces, facingYaw } from './streets.js';
 import { beamYaw, beamDirection, lighthouseSite, beamStrengthFor, BEAM_COLOR, LIGHTHOUSE_HALO_SCALE, HALF_ANGLE as BEAM_HALF_ANGLE, LAMP_HEIGHT as BEAM_LAMP_HEIGHT, BEAM_LENGTH } from './lighthouse.js';
-import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS } from './glb.js';
+import { appendMeshVertices, loadMeshSet, loadThirdPartyModels, loadAlienModels, atlasModel, shrinkUv, ATLAS_GRID, VERTEX_FLOATS, KINDS } from './glb.js';
 import { validateAlienManifest } from './pack.js';
 import { proceduralTexture } from './proc-textures.js';
 import { mapGamepad, padAxes3d, snapshotPad, touchDrive, combineDrive, isTap, lookDelta } from './input.js';
@@ -19,6 +19,7 @@ import {
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
+const PICKUP_PICK_RADIUS = 0.5; // metres: items and chests lie on the ground like books
 const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
@@ -58,6 +59,20 @@ function pushBook(out, x, z, id, read = false) {
   if (read) { quad(0.26, 0.18, 0.07, 0.12, [0.32, 0.28, 0.2], 0); return; } // a read book keeps its cover and dull pages but loses the glow and the light shaft
   quad(0.26, 0.18, 0.07, 0.12, [0.95, 0.82, 0.5], 1);
   pushFrustum(out, x - 0.025, z - 0.025, x + 0.025, z + 0.025, 0.12, 0.8, 0.4, [0.95, 0.82, 0.5], 1, 0);
+}
+
+/** A found item (a small bundle with a teal glint) or a chest (a dark wooden box with a lid and a latch; the lodging chest's latch glows warm). Yaw comes from the id. */
+function pushPickup(out, x, z, id, chest, lodging) {
+  const turn = ((id.charCodeAt(id.length - 1) * 5 + id.charCodeAt(0) * 3) % 8) / 8 * Math.PI, c = Math.cos(turn), s = Math.sin(turn);
+  const box = (hx, hz, y0, y1, color, glow) => { const pts = [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]].map(([dx, dz]) => [x + dx * c - dz * s, z + dx * s + dz * c]); pushFrustum(out, Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1])), y0, y1, 1, color, glow, 0); };
+  if (chest) {
+    box(0.42, 0.28, 0, 0.42, [0.22, 0.13, 0.07], 0);
+    box(0.44, 0.3, 0.42, 0.52, [0.3, 0.19, 0.1], 0);
+    box(0.06, 0.32, 0.18, 0.34, lodging ? [0.95, 0.7, 0.35] : [0.55, 0.5, 0.4], lodging ? 1 : 0);
+    return;
+  }
+  box(0.16, 0.12, 0, 0.13, [0.28, 0.24, 0.18], 0);
+  box(0.1, 0.07, 0.13, 0.2, [0.45, 0.78, 0.74], 1);
 }
 
 // Frustum from a rectangle on the ground: the top rectangle is the base scaled about its centre by `taper` (0 = pyramid, 1 = box, >1 = flares out).
@@ -243,6 +258,59 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
 }
 
 
+// ---------- creatures: pale shapes that stand, crawl or wheel; their sway is the vertex shader's hanging-prop sway ----------
+
+export const CREATURE_SWAY_PHASE = 2000;   // vertex phase of the hanging-prop sway (the shader swings these more with height); the shader's uSway is 0 under reduced motion
+export const CREATURE_GLOW = 0.45;         // dim, steady eyes
+export const FLYER_ORBIT_M = 3.0, FLYER_ORBIT_RAD_PER_SEC = 0.35;
+
+/**
+ * Vertices for the creatures (metres): each faces the player (facing = sin yaw, cos yaw like the villagers), flyers hang at their mesh height and wheel slowly in a small circle
+ * (still under reduced motion). entries: { id, kind, pos: [x, y, z], yaw, height, phase }; models: Map kind -> model. Pure and deterministic. Empty without the meshes.
+ */
+export const MAX_PLAYER_DT = 0.25; // seconds: a stalled frame never makes a creature jump
+export const CREATURE_FOG_GAIN = 0.6, CREATURE_FLICKER_DEPTH = 0.35, CREATURE_STEADY_DIM = 0.12;
+/** The held lantern's brightness factor while a creature is near: it gutters with closeness; under reduced motion it only dims a little, steadily. */
+export const creatureFlicker = (near, timeSec, reduced) => (reduced ? 1 - CREATURE_STEADY_DIM * near : 1 - CREATURE_FLICKER_DEPTH * near * (0.5 + 0.5 * Math.sin(timeSec * 23)));
+export const WARD_KEYS = Object.freeze({ KeyZ: 'salt', KeyV: 'sigil', KeyF: 'flare' });
+export function buildCreatures({ creatures, models, timeSec = 0, reduced = false }) {
+  const out = [];
+  if (!models) return new Float32Array(0);
+  for (const c of creatures || []) {
+    const model = models.get(c.kind);
+    if (!model) continue;
+    const a = reduced ? 0 : timeSec * FLYER_ORBIT_RAD_PER_SEC + c.phase, wheel = c.height > 0 ? FLYER_ORBIT_M : 0;
+    const x = c.pos[0] + Math.cos(a) * wheel, z = c.pos[2] + Math.sin(a) * wheel, yaw = wheel ? a + Math.PI / 2 : c.yaw;
+    appendMeshVertices(out, model, null, CELL, { glow: CREATURE_GLOW, phase: CREATURE_SWAY_PHASE + c.phase, scale: 1, at: [x, z], rot: yaw, lift: c.height });
+  }
+  return new Float32Array(out);
+}
+
+export const WARD_LIFT_M = 0.04, SALT_WIDTH_M = 0.2, SIGIL_LINE_M = 0.16, SIGIL_SEGMENTS = 20, WARD_GLOW = 0.25, WARD_COLOR = [0.86, 0.85, 0.8];
+/**
+ * Flat chalk and salt on the ground (metres): a salt line is a strip along its segment, a sigil is a ring with four spokes. entries: { kind: 'salt' | 'sigil', ax, az, bx, bz, radius }.
+ * Pure, static, no motion (so nothing to reduce). Same 11 floats per vertex as the meshes.
+ */
+export function buildWards(wards) {
+  const out = [], y = WARD_LIFT_M;
+  const strip = (x0, z0, x1, z1, w) => {
+    const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz) || 1, nx = -dz / len * w / 2, nz = dx / len * w / 2;
+    const q = [[x0 - nx, z0 - nz], [x1 - nx, z1 - nz], [x1 + nx, z1 + nz], [x0 + nx, z0 + nz]];
+    for (const i of [0, 1, 2, 0, 2, 3]) out.push(q[i][0], y, q[i][1], 0, 1, 0, WARD_COLOR[0], WARD_COLOR[1], WARD_COLOR[2], WARD_GLOW, 0);
+  };
+  for (const w of wards || []) {
+    if (w.kind === 'salt') strip(w.ax, w.az, w.bx, w.bz, SALT_WIDTH_M);
+    else {
+      for (let i = 0; i < SIGIL_SEGMENTS; i++) {
+        const a0 = i / SIGIL_SEGMENTS * Math.PI * 2, a1 = (i + 1) / SIGIL_SEGMENTS * Math.PI * 2;
+        strip(w.ax + Math.cos(a0) * w.radius, w.az + Math.sin(a0) * w.radius, w.ax + Math.cos(a1) * w.radius, w.az + Math.sin(a1) * w.radius, SIGIL_LINE_M);
+      }
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; strip(w.ax, w.az, w.ax + Math.cos(a) * w.radius, w.az + Math.sin(a) * w.radius, SIGIL_LINE_M); }
+    }
+  }
+  return new Float32Array(out);
+}
+
 // ---------- the lighthouse beam: crossed soft sheets turning with the Core clock ----------
 
 /** Floats per beam vertex: x, y, z and the alpha of the sheet there (bright on the axis, zero at the edges and the far end). */
@@ -335,7 +403,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], corruption = 0 }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [] }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -354,7 +422,9 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   const landmarkItems = [...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)];
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
+  if (homestead.length) batchProps(out, uv, homestead.map((h) => ({ y: 0, ...h })), meshes, cell); // the yard: beds, crops, structures, animals and pets, plus the plot edge corruption (all static between actions)
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
+  for (const q of pickups) pushPickup(out, q.pos[0], q.pos[2], q.id, !!q.chest, !!q.lodging);
   while (uv.length < (out.length / VERTEX_FLOATS) * 2) uv.push(-1, -1); // books come after the last textured prop; without this padding partitionChunks drops the uv reorder and every textured vertex samples the wrong texel
   const t = terrainRects(gridW, gridD, seed, cell), g = t.ground, ground = [], sea = [];
   const gc = groundTint ? groundTint.map((v) => (v / 255) * 0.7) : [0.2, 0.21, 0.17];
@@ -997,7 +1067,9 @@ async function loadAlienPack(meshes) {
 /** Capture stills are rendered at one fixed moment so every effect (ripples, fireflies, grain) is visible and repeatable. */
 const STILL_TIME = 3.7;
 let meshPromise = null;
-const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', ...DRESSING_KINDS], console.warn, 'data/village_shapes.json'));
+/** The homestead meshes (round 25, tools/blender/author_homestead_shapes.py): every glb kind that starts with hs_. */
+export const HOMESTEAD_KINDS = KINDS.filter((k) => k.startsWith('hs_'));
+const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis), 'assets/meshes/', [...new Set(Object.values(MESH_FOR)), ...LAMP_KINDS, 'boat', 'dock', 'fence', 'cliff_rock', 'villager', 'shore_crawler', 'hollow_watcher', 'deep_one', 'cliff_flyer', ...DRESSING_KINDS, ...HOMESTEAD_KINDS], console.warn, 'data/village_shapes.json'));
 
 /**
  * getScene() -> { layout, lamps: [{id, pos, lit}] (vigil lanterns that can be lit), seed, gridW, gridD, dread, night: {number, sky, weather}, categoryOf(id), labelFor(piece, kind), tintFor(id), groundTint,
@@ -1007,7 +1079,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, onPlayer = null, onWard = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
@@ -1023,10 +1095,10 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), corruptionLevel(s.dread, s.night.number)].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || ''].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], corruption: corruptionLevel(s.dread, s.night.number) });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])] });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1076,6 +1148,13 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (bHit && (!hit || bHit.distance <= hit.distance + 0.6)) {
       const b = bs[bHit.index];
       return { piece: { id: 'book', bookId: b.id, read: !!b.read }, kind: 'book', distance: bHit.distance, inRange: InteractionRules.inRange(bHit.distance) };
+    }
+    // Found items and chests share the view ray too.
+    const qs = s.pickups || [];
+    const qHit = qs.length ? pickLamp(origin, ray, qs, 60, PICKUP_PICK_RADIUS) : null;
+    if (qHit && (!hit || qHit.distance <= hit.distance + 0.6)) {
+      const q = qs[qHit.index];
+      return { piece: { id: 'pickup', pickupId: q.id, label: q.label, lodging: !!q.lodging }, kind: q.chest ? 'chest' : 'item', distance: qHit.distance, inRange: InteractionRules.inRange(qHit.distance) };
     }
     if (!hit || hit.index >= layoutCount) return null; // a dressing prop only blocks the view
     const piece = s.layout[hit.index], kind = InteractionRules.kindForCategory(s.categoryOf(piece.id));
@@ -1127,6 +1206,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       if (acts.includes('chat')) chatNearest();
       else if (acts.includes('talk')) talkNearest();
       else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
+      if (acts.includes('inventory') && onInventory) onInventory();
       if (acts.includes('whisper')) onExit();
     }
     return inp;
@@ -1153,6 +1233,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       if (onStep && !s.fly && footfall(prevPhase, bobPhase)) onStep(surfaceAt(cam.x, cam.z, s.gridW, s.gridD, s.seed));
     }
     if (onCoast && !s.fly) { const c = Math.round(coastCloseness(cam.x, cam.z, s.gridW, s.gridD, s.seed) * 10) / 10; if (c !== coastAt) { coastAt = c; onCoast(c); } }
+    if (onPlayer && !s.fly) onPlayer({ x: cam.x, z: cam.z, yaw: cam.yaw, dt: Math.min(dt, MAX_PLAYER_DT) });
     const padOn = navigator.getGamepads && Array.from(navigator.getGamepads() || []).some(Boolean);
     const animated = !reduced && !capture;
     if (s.fly) updatePromptOff();
@@ -1213,18 +1294,19 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     const fogs = fogLayers({ dread: s.dread, weather: s.night.weather, timeSec: time, reduced }); fogs.density *= day.fogScale; fogs.ground *= day.fogScale;
     const hc = !!highContrast(), cf = closeFog({ fog: sk.fog, dread: s.dread, tier, w: day.w }); // Silent Hill style close fog: denser by tier, colour from the sky
     fogs.density *= cf.density; fogs.ground *= cf.ground; fogs.groundHeight *= cf.groundHeight;
+    const near = Math.max(0, Math.min(1, s.creatureNear || 0)); fogs.density *= 1 + CREATURE_FOG_GAIN * near; fogs.ground *= 1 + CREATURE_FOG_GAIN * near; // a creature close by: the fog thickens
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
-    const seen = fogCullDistance(fogs.density); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), vkey = `${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), all = new Float32Array(v3.length + birds.length); all.set(v3); all.set(birds, v3.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
+    const seen = Math.min(fogCullDistance(fogs.density), tier.drawDistance); // villagers lost in the fog are not rebuilt or drawn
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd = buildWards(s.wards), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
       const pool = lanternPool(lanternState(l, s.lamps), s.dread);
       return { pos: l.pos, radius: l.radius * wlook.pool, color: pool.color.map((v) => v * pool.gain * day.lampGain * k) };
     });
-    const k0 = lanternFlicker(0.7, time, s.dread, reduced);
+    const k0 = lanternFlicker(0.7, time, s.dread, reduced) * creatureFlicker(near, time, reduced);
     const basis = cameraBasis(eye), [hx, hy, hz] = HELD_LANTERN_OFFSET, heldAt = [0, 1, 2].map((c) => [eye.x, eye.y, eye.z][c] + basis.r[c] * hx + basis.u[c] * (hy + 0.1) + basis.f[c] * hz);
     renderer.setHeld(s.fly ? new Float32Array(0) : buildHeldLantern({ eye, basis, swingPhase: bobPhase, reduced })); // no hand in the fly-through
     lit.push({ pos: s.fly ? [eye.x + fwd[0] * 0.4, eye.y - 0.25, eye.z + fwd[2] * 0.4] : heldAt, radius: carried.radius, color: carried.color.map((v) => v * 0.9 * k0 * day.lampGain) });
@@ -1249,6 +1331,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
     if (!active || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Escape') { if (locked) document.exitPointerLock(); else onExit(); e.preventDefault(); return; }
     if (e.code === 'KeyC') { chatNearest(); e.preventDefault(); return; }
+    if (onWard && WARD_KEYS[e.code]) { onWard(WARD_KEYS[e.code]); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { interact(centerRay()); e.preventDefault(); return; }
     if (KEY_MOVE[e.code]) { keys.add(e.code); e.preventDefault(); wake(); }
   };

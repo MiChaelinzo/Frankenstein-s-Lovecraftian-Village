@@ -19,6 +19,10 @@ Use `--kinds well,lamp` to limit the set. Blender is GPL and is not vendored; do
 
 The seven committed GLBs in `web/assets/meshes/` are each under 200 KB (the validator enforces this and that `.glb` files live only there). Never commit pack-derived output.
 
+The four creature kinds (shore crawler, hollow watcher, deep one, cliff flyer) are authored by `author_creature_shapes.py --apply` and then exported with `gen_meshes.py --kinds shore_crawler,hollow_watcher,deep_one,cliff_flyer`.
+
+The 17 homestead kinds (`hs_mound`, `hs_sprout`, five crops, fence, trough, scarecrow, coop, chicken, goat, cat, lantern moth, tide hound, jar tentacle) are authored by `author_homestead_shapes.py --apply` and exported with `gen_meshes.py --kinds hs_mound,...` (each GLB 2 to 11 KB).
+
 The seven corruption kinds (tentacle trees, fungi, organic spires) are authored by `author_corruption_shapes.py --apply`, which writes their parts into the shapes file and the web copy. On a bare Linux box Blender may need `LD_LIBRARY_PATH` pointing at extracted X11 libraries.
 
 The six landmark kinds (shipwreck, abbey arch, wall and pillar, marsh pool, path stone) are authored by `author_landmark_shapes.py --apply` the same way. Write the GLBs to `pack-scratch/` (it is git ignored), then copy them to `web/assets/meshes/`.

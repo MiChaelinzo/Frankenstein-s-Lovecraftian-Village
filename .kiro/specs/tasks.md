@@ -154,29 +154,35 @@ Triage of look bugs seen in round 22 stills (none are regressions unless noted):
 ## Round 24: larger world (FEAT-006)
 Done (Verified by C# and JS parity tests, golden `landmarks`/`names`/`story`, and `LANDMARK_ONLY` browser check): standing stones, hidden cove, ritual site and catacomb entrance as Core landmarks 7 to 10 (`VillageLandmarks`), with names (en, fr), legends, two lore books each (one with a clue), three original meshes and footprints.
 - [x] 128. Standing stones, hidden cove, ritual site, catacomb entrance (a gate with steps; no interior)
-- [ ] 129. Forest region. Goal: a dense oak and dead tree belt inland past the grove. Inputs: seed, grid, `InlandToWorld`. Outputs: a landmark id `forest`, seeded tree and log placement, a lit path, name and legend, one lore book. Failure: trees blocking a landmark centre or a lit path; overlap with another landmark. Tests: separation and centre walkable for 8 seeds and grids 24 and 36, golden parity, frame triangle budget.
-- [ ] 130. Swamp boardwalk. Goal: a plank path of `dock`-like boards across the marsh pools. Inputs: marsh anchors. Outputs: walkable plank items, a lantern every 14 m, a book at the far end. Failure: planks over pools that block walking; z-fighting with pools. Tests: planks stay inside the marsh radius, collision free, golden parity.
+- [ ] 129. Forest region. Goal: a dense oak and dead tree belt inland past the grove. Inputs: seed, grid, `InlandToWorld`. Outputs: a landmark id `forest`, seeded tree and log placement, a lit path, name and legend, one lore book. Failure: trees blocking a landmark centre or a lit path; overlap with another landmark. Tests: separation and centre walkable for 8 seeds and grids 24 and 36, golden parity, frame triangle budget. Deferred in round 25: needs Core, golden, JS, 3D mesh and separation checks against the homestead plot, chests and ground items, which did not fit cleanly after the survival work; no third party asset was used.
+- [ ] 130. Swamp boardwalk. Goal: a plank path of `dock`-like boards across the marsh pools. Inputs: marsh anchors. Outputs: walkable plank items, a lantern every 14 m, a book at the far end. Failure: planks over pools that block walking; z-fighting with pools. Tests: planks stay inside the marsh radius, collision free, golden parity. Deferred in round 25: depends on task 129 and on the same homestead and item separation checks.
 - [ ] 131. Fishing village district. Goal: a second small harbour of cottages, nets and boats beyond the cliffs. Inputs: coast frame, cove anchor. Outputs: landmark id, cottages from existing kinds, a legend. Failure: overlap with cliffs, cove or wreck; cottages inside the sea. Tests: separation, walk bounds, parity.
 - [ ] 132. Cliff monastery. Goal: a ruined monastery on the cliff top reached by a stair. Inputs: cliff anchors, `GroundHeight`. Outputs: an elevated platform, wall and arch props, a lore book. Failure: stair steeper than the walk step limit; unreachable platform. Tests: reachability by path, height continuity, parity.
 - [ ] 133. Catacomb interior. Goal: a descending corridor behind the gate with three clue chambers. Inputs: `CatacombSite`. Outputs: an interior scene state, exit back to the gate, clues. Failure: falling out of bounds, no way back. Tests: enter and leave round trip, clue ids unique.
 - [ ] 134. Lit paths to the four new places (not drawn yet; they are reached over open ground).
 
 Round 24 leftovers (open, from FEAT-007):
-- [ ] 135. Villager routes snapped to `VillageStreets` lanes (routes are axis-aligned today).
+- [x] 135. Villager routes snapped to `VillageStreets` lanes (routes are axis-aligned today).
 - [ ] 136. Unity: the scene builder places no lore books, so the story is not passed to `LoreBookRules.Place`; add lore and story libraries to the builder and wire them.
 - [ ] 137. Evaluate a CC0 rigged villager (for example a Quaternius character) against the CPU leg swing; not downloaded yet.
 - [ ] 138. Unity: names of the new landmarks and the lighthouse beam in the scene.
 - [ ] 139. The dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced; find the prop or close it.
-- [ ] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
+- [x] 140. Villager routes are axis aligned and are not snapped to street lanes, so a route can cross a prop. Add a test that no route segment intersects a building box, then snap routes to lanes if it fails.
+
+## Round 25: survival and homestead (done, see FEAT-008 in the feature files)
+- [x] 141. Baseline green on `feat/round25` (Verified: node 570, dotnet 244, UnityCompileCheck 0/0)
+- [x] 142. Asset licence audit of the author's itch.io links in `docs/ASSET_LICENCE_AUDIT.md`, Support link (About, README, en and fr) and `docs/PAYMENTS_PLAN.md` (plan only, no function, no secret)
+- [x] 143. Inventory and items, monsters and sanity exposure, homestead, more villagers (done; forest and swamp tasks 129 and 130 deferred; see the round 25 feature files under `.agents/tasks/task-round25-survival-homestead/`)
 
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
 - Round 23: the look bug fixes, bigger city, `C` key citizen chat, lore books and a first larger world (tasks 119 to 127).
 - Round 24: living village (names, narrative, 3D polish, lighthouse beam, CC0 houses) and a larger world (task 128 done, 129 to 134 open).
-- Round 25: inventory and items (finding and storing, sleep and food sanity recovery) and the open world tasks above.
-- Round 26: economy, shops, buy/sell, the horror restaurant.
-- Round 27: monsters on the ground and in the sky, sanity exposure over time.
-- Round 28: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
-- Round 29: lore, stories and adventures.
-- Round 30: procedural regions beyond the village.
-- Round 31: Unity parity, performance and polish.
+- Round 25: survival and homestead: inventory and items, monsters and sanity exposure, a homestead, more villagers, licence audit, Support link and payments plan.
+- Round 26: voxel world spec (a voxel terrain and building layer; write the spec in Core terms first: seed, chunk, edit log, determinism), then the open world tasks 129 to 134.
+- Round 27: economy, shops, buy/sell and the horror restaurant.
+- Round 28: real-money checkout from `docs/PAYMENTS_PLAN.md` (PayPal Orders v2 behind a same-origin Vercel function, author-set env vars, cosmetic only), sandbox first.
+- Round 29: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
+- Round 30: lore, stories and adventures.
+- Round 31: procedural regions beyond the village.
+- Round 32: Unity parity, performance and polish.

@@ -142,6 +142,7 @@ Add the demo video link and a screenshot or clip. Check that the Kiro handle is 
   - [ ] Unity segment only if you ran the package yourself (otherwise say Unverified)
   - [ ] Side-by-side format: web left, Unity right, seed 1818 on both (DEMO_SCRIPT "Matching seeds"); recording setup in `docs/RECORDING.md`; Unity path in `docs/PACK_EXPLORATION.md`
   - [ ] No DLNK trailer footage, no copyrighted music, own footage only, DLNK credited on the closing card
+  - [ ] Optional round 25 shots (satchel, wards, homestead, busier streets) from the "Round 25 shots" section of `docs/DEMO_SCRIPT.md`; say the creatures and homestead hooks in Unity are compile checked only
   - [ ] Say on camera that the Unity package is compile checked only and Unverified at runtime unless you ran it
   - [ ] Older sub-timings below are superseded by the shot list in `docs/DEMO_SCRIPT.md`
   - [ ] 0:15-0:40 `.kiro` folder shown on GitHub

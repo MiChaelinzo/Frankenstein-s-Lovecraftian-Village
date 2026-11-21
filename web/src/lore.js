@@ -54,10 +54,10 @@ export function isBlocked(x, z, layout, boxes, seed, gridW, gridD) {
 }
 
 /** The spots in front of a building (street side), each with the lateral alternatives. */
-function frontSpots(p) {
+export function frontSpots(p, laterals = LATERAL) {
   const yaw = facingYaw(p.facing | 0), dirX = Math.sin(yaw), dirZ = Math.cos(yaw), sideX = Math.cos(yaw), sideZ = -Math.sin(yaw);
   const half = ((p.facing | 0) % 2 === 0 ? p.sizeZ : p.sizeX) * CELL_M / 2, cx = (p.x + p.sizeX / 2) * CELL_M, cz = (p.z + p.sizeZ / 2) * CELL_M, d = half + HOUSE_BOOK_OFFSET;
-  return LATERAL.map((lat) => [cx + dirX * d + sideX * lat, cz + dirZ * d + sideZ * lat]);
+  return laterals.map((lat) => [cx + dirX * d + sideX * lat, cz + dirZ * d + sideZ * lat]);
 }
 
 function spotsFor(place, seed, gridW, gridD, buildings, items, rng) {

@@ -10,6 +10,8 @@ import {
   carriesLitLantern,
 } from '../src/villagers.js';
 import { standingPoint, presenceAt } from '../src/villager-view.js';
+import { laneRoute, isBuilding } from '../src/streets.js';
+import { generateTownRoster } from '../src/villagers.js';
 import { villagerTalkCountsAsClue } from '../src/core.js';
 import { STRINGS } from '../src/i18n.js';
 import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
@@ -138,12 +140,36 @@ test('chat is deterministic, wraps topics and only lucid villagers hint', () => 
 test('presence on the 36 by 36 city matches C# (the scale where villagers used to vanish)', () => {
   const cat = new PrefabCatalog(JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries);
   for (const c of fullGolden.cityPresence.cases) {
-    const layout = generateCityLayout(cat, CITY_GRID, CITY_GRID, CITY_PIECES, c.seed), roster = generateRoster(c.seed, layout), rows = [];
+    const layout = generateCityLayout(cat, CITY_GRID, CITY_GRID, CITY_PIECES, c.seed), roster = generateTownRoster(c.seed, layout, CITY_GRID, CITY_GRID), rows = [];
+    assert.deepEqual(roster.map((v) => [v.name, v.role, v.disposition, v.homeIndex, v.workIndex]), c.roster, `city roster ${c.seed}`);
+    const routes = [];
+    for (const v of roster) {
+      const home = standingPoint(v, 0, layout, CITY_GRID, CITY_GRID, c.seed);
+      for (const kind of [1, 2, 3]) { const to = standingPoint(v, kind, layout, CITY_GRID, CITY_GRID, c.seed); routes.push(laneRoute(home.x, home.z, to.x, to.z, CITY_GRID, CITY_GRID, layout).flat()); }
+    }
+    assert.deepEqual(routes, c.routes, `city routes ${c.seed}`);
     for (const v of roster) for (const t of PRESENCE_TICKS) for (const d of PRESENCE_DREADS) {
       const r = presenceAt(roster, v, t, d, layout, CITY_GRID, CITY_GRID, c.seed);
       rows.push([r.gone ? 1 : 0, r.walking ? 1 : 0, r.indoors ? 1 : 0, r.stop, r.placeKind, r.x, r.z, r.faceDx, r.faceDz, r.stride, r.fade]);
     }
     assert.equal(rows.length, c.presence.length, `city rows ${c.seed}`);
     rows.forEach((row, i) => row.forEach((x, j) => assert.ok(Math.abs(x - c.presence[i][j]) < 1e-9, `city ${c.seed} row ${i} col ${j}: ${x} vs ${c.presence[i][j]}`)));
+  }
+});
+
+test('townsfolk raise the city roster and no lane route crosses a building (spec 135, 140)', () => {
+  const cat = new PrefabCatalog(JSON.parse(readFileSync(join(here, '..', 'data', 'village_catalog.json'), 'utf8')).entries);
+  const hits = (x0, z0, x1, z1, p) => Math.max(x0, x1) > p.x + 1e-6 && Math.min(x0, x1) < p.x + p.sizeX - 1e-6 && Math.max(z0, z1) > p.z + 1e-6 && Math.min(z0, z1) < p.z + p.sizeZ - 1e-6;
+  for (const seed of [1, 2, 7, 42, 1818]) {
+    const layout = generateCityLayout(cat, CITY_GRID, CITY_GRID, CITY_PIECES, seed), roster = generateTownRoster(seed, layout, CITY_GRID, CITY_GRID);
+    assert.ok(roster.length >= 21);
+    assert.equal(new Set(roster.map((v) => v.name)).size, roster.length);
+    assert.equal(generateTownRoster(seed, layout, 24, 24).length, 7);
+    const buildings = layout.filter((p) => isBuilding(p.sizeX, p.sizeZ)), pts = [];
+    for (const v of roster) for (const k of [0, 1, 2]) pts.push(standingPoint(v, k, layout, CITY_GRID, CITY_GRID, seed));
+    for (const a of pts) for (const b of pts) {
+      const route = laneRoute(a.x, a.z, b.x, b.z, CITY_GRID, CITY_GRID, layout), obstacles = buildings.filter((q) => !hits(a.x, a.z, a.x, a.z, q) && !hits(b.x, b.z, b.x, b.z, q));
+      for (let i = 1; i < route.length; i++) for (const p of obstacles) assert.ok(!hits(route[i - 1][0], route[i - 1][1], route[i][0], route[i][1], p), `seed ${seed} crosses ${p.id}`);
+    }
   }
 });

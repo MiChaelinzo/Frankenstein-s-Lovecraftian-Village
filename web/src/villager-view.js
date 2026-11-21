@@ -4,7 +4,7 @@ import { ROLE_IDS, PLACE_KIND_NAMES, BEHAVIOR_NAMES, locationAt, behaviorAt, cau
 import { phaseAt, dayNumber, lanternsLit, wrapTick, phaseStart, MINUTES_PER_DAY, PHASE_NAMES, SESSION_START_TICK } from './clock.js';
 import { coastSide } from './view3d-math.js';
 
-import { streetsEnabled, facingDx, facingDz } from './streets.js';
+import { streetsEnabled, facingDx, facingDz, laneRoute } from './streets.js';
 export const SECONDS_PER_TICK = 1;        // session clock: one real second is one village minute
 export const START_TICK = SESSION_START_TICK; // a session starts at the heart of dusk (Core GameClock.SessionStartTick)
 export const FRONT_OFFSET = 0.45;         // cells in front of a building's south wall
@@ -87,7 +87,7 @@ export function stopPoint(roster, v, stop, tick, layout, gridW, gridD, seed) {
 
 /**
  * Where a villager is at an exact tick: { gone, walking, indoors, stop, placeKind, x, z, faceDx, faceDz, stride, fade }.
- * A change of stop starts a WALK_MINUTES walk along x then z (axis-aligned, not snapped to lanes); leaving a door fades in over the first tenth;
+ * A change of stop starts a WALK_MINUTES walk along the lane route (streets.js laneRoute; x then z without streets); leaving a door fades in over the first tenth;
  * at home villagers go indoors SLEEP_MINUTE minutes into the night and come out at dawn. Mirror of VillagerRules.PresenceAt.
  */
 export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed) {
@@ -99,12 +99,20 @@ export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed) {
     const changeTick = t0 - k, before = stopAt(roster, v, changeTick - 1, dread);
     if (sameStop(before, stopAt(roster, v, changeTick, dread))) continue;
     const progress = (tick - changeTick) / WALK_MINUTES, from = stopPoint(roster, v, before, changeTick - 1, layout, gridW, gridD, seed);
-    const dx = pt.x - from.x, dz = pt.z - from.z, ax = Math.abs(dx), total = ax + Math.abs(dz);
+    const route = laneRoute(from.x, from.z, pt.x, pt.z, gridW, gridD, layout);
+    let total = 0;
+    for (let i = 1; i < route.length; i++) total += Math.abs(route[i][0] - route[i - 1][0]) + Math.abs(route[i][1] - route[i - 1][1]);
     if (total < 1e-9) break;
     const s = progress * total;
+    let left = s;
     out.walking = true; out.stride = s;
-    if (s < ax) { out.x = from.x + Math.sign(dx) * s; out.z = from.z; out.faceDx = Math.sign(dx); out.faceDz = 0; }
-    else { out.x = pt.x; out.z = from.z + Math.sign(dz) * (s - ax); out.faceDx = 0; out.faceDz = Math.sign(dz); }
+    for (let i = 1; i < route.length; i++) {
+      const sx = route[i][0] - route[i - 1][0], sz = route[i][1] - route[i - 1][1], len = Math.abs(sx) + Math.abs(sz);
+      if (left >= len && i < route.length - 1) { left -= len; continue; }
+      const step = Math.min(left, len);
+      out.x = route[i - 1][0] + Math.sign(sx) * step; out.z = route[i - 1][1] + Math.sign(sz) * step; out.faceDx = Math.sign(sx); out.faceDz = Math.sign(sz);
+      break;
+    }
     if (isDoor(before.kind)) out.fade = Math.min(out.fade, clamp01(progress / DOOR_FADE_FRACTION));
     out.indoors = out.fade < 0.02;
     return out;
