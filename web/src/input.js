@@ -7,7 +7,7 @@ export const SWIPE_MAX_MS = 800;
 // Standard gamepad layout button index -> action. Actions fire once per press (edge triggered).
 export const BUTTON_ACTIONS = {
   0: 'listen', 1: 'door', 2: 'whisper', 3: 'candle', 4: 'focusPrev', 5: 'focusNext',
-  6: 'chat', 7: 'talk', 8: 'cinematic', 9: 'story', 10: 'inventory', 11: 'gather', 12: 'prevBeat', 13: 'nextBeat', 14: 'focusPrev', 15: 'focusNext',
+  6: 'chat', 7: 'talk', 8: 'cinematic', 9: 'story', 10: 'inventory', 11: 'gather', 12: 'prevBeat', 13: 'nextBeat', 14: 'focusPrev', 15: 'focusNext', 16: 'board',
 };
 
 const pressed = (snap, i) => !!(snap && snap.buttons && snap.buttons[i]);
@@ -117,4 +117,4 @@ export function stickDrive(center, cur) {
 export const lookDelta = (dx, dy) => (Number.isFinite(dx) && Number.isFinite(dy) ? { dx: dx * TOUCH_LOOK_GAIN, dy: dy * TOUCH_LOOK_GAIN } : { dx: 0, dy: 0 });
 
 /** Touch button id -> action name. interact, talk, chat and lantern reuse BUTTON_ACTIONS names; endure and help are app-level. */
-export const TOUCH_BUTTON_ACTIONS = { interact: 'listen', talk: 'talk', chat: 'chat', lantern: 'candle', bag: 'inventory', endure: 'endure', help: 'help' };
+export const TOUCH_BUTTON_ACTIONS = { interact: 'listen', talk: 'talk', chat: 'chat', lantern: 'candle', bag: 'inventory', board: 'board', endure: 'endure', help: 'help' };

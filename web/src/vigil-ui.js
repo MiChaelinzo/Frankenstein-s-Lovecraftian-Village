@@ -77,6 +77,7 @@ export function createVigilController(deps) {
     if (!live()) return false;
     progress.arm(); begin(); renderLock();
     if (!vigil.recordClue(sourceId)) { $('vigilNote').textContent = tr('vigil.clue.again'); return false; }
+    deps.onClue?.(sourceId); // optional: the investigation board keeps every clue found
     const text = tr('vigil.clue', { n: vigil.nightClueIds.size, target: vigil.clueTarget });
     $('vigilNote').textContent = text; announce(text);
     if (vigil.canEndureNight) $('vigilNote').textContent = `${text} ${tr('vigil.endure.ready')}`;

@@ -102,7 +102,11 @@ export function createCreatureController(deps) {
     return r;
   }
   /** Ward action by name (the satchel buttons and the 3D keys). */
-  const ward = (kind) => (kind === 'salt' ? laySalt() : kind === 'sigil' ? drawSigil() : kind === 'flare' ? fireFlare() : 'unknown');
+  const ward = (kind) => {
+    const r = kind === 'salt' ? laySalt() : kind === 'sigil' ? drawSigil() : kind === 'flare' ? fireFlare() : 'unknown';
+    if (r === '' && kind !== 'flare') deps.onWard?.(kind); // a ward really laid (not refused): villagers in view may take note
+    return r;
+  };
 
   $('invSalt')?.addEventListener?.('click', layNow('salt'));
   $('invSigil')?.addEventListener?.('click', layNow('sigil'));

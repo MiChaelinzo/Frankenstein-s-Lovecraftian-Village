@@ -13,7 +13,7 @@ import {
 import { nextBeat, prevBeat, nightStartIndex } from './story.js';
 import { createAmbient } from './music.js';
 import { audioMix } from './daylight.js';
-import { WEATHER_NAMES } from './clock.js';
+import { WEATHER_NAMES, phaseAt } from './clock.js';
 import { shouldShowTitle, BACKDROP_BEATS } from './title.js';
 import {
   THEMES, THEME_GROUPS, parseTheme, parseCamera, effectiveCamera, cameraOverridden,
@@ -29,6 +29,9 @@ import { createLoreController } from './lore-ui.js';
 import { createInventoryController } from './inventory-ui.js';
 import { createCreatureController } from './creature-ui.js';
 import { createHomesteadController } from './homestead-ui.js';
+import { createBoardController, BOARD_KEY } from './board-ui.js';
+import { createSocietyController } from './society-ui.js';
+import { parseStatementLibrary } from './investigation.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
 import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -153,8 +156,8 @@ const view3d = createView3d({
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.beam ? 'beam' : 'no beam'} | ${c.held ? 'held lantern' : 'no hand'} | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   alienPack: () => pack.want,
-  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); } },
-  onInventory: () => inventory.toggle(),
+  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen() || board.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); board.close(); } },
+  onInventory: () => inventory.toggle(), onBoard: () => board.toggle(),
   onPlayer: (p) => { creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
@@ -216,6 +219,7 @@ async function loadCatalog() {
   try { inventory.setCatalog(await (await fetch('data/items.json')).json()); } catch (err) { console.warn(`[items] could not load data/items.json, no items this session: ${err.message}`); }
   try { homestead.setCatalog(await (await fetch('data/homestead.json')).json()); } catch (err) { console.warn(`[homestead] could not load data/homestead.json, no yard this session: ${err.message}`); }
   try { creatures.setCatalog(await (await fetch('data/creatures.json')).json()); } catch (err) { console.warn(`[creatures] could not load data/creatures.json, no creatures this session: ${err.message}`); }
+  try { const statements = await (await fetch('data/statements.json')).json(); board.setStatements(statements); society.setStatements(parseStatementLibrary(statements)); } catch (err) { console.warn(`[board] could not load data/statements.json, the investigation board stays closed and villagers say nothing authored this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -419,7 +423,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot(), ...board.snapshot(), ...society.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -430,7 +434,7 @@ function applySession(s) {
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   progress.restore(v); progress.update();
-  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); }
+  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); board.restore(v); society.restore(v); }
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -567,6 +571,7 @@ function tryDoor(p) {
   const behavior = doorOmen(state.sanity.dread, p.key, 0, attempt, state.seed);
   const text = doorMessageL(doorMessage(behavior, p.key), lang);
   state.shakes.set(p.key, { behavior, at: performance.now() });
+  society.noteDoor(state.layout.indexOf(p), phaseAt(clockTick())); // a door tried at night: the house's owner knows
   showToast(text, behavior >= 2);
   if (view3d.active) { $('narration').textContent = text; $('narration').style.opacity = 1; }
   announce(`${text} (${doorName(lang, behavior)})`);
@@ -634,7 +639,7 @@ const vigil = createVigilController({
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
-  syncUi: () => syncUi(), pushHash: () => pushHash(),
+  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
   exit3d: () => { if (view3d.active) setView3d(false); },
   reroll: () => rerollVillage(),
@@ -652,8 +657,16 @@ function currentStory() {
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
-  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); }, journal: (text) => log('lore', text), story: () => currentStory(),
+  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); board.sync(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
+});
+// Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
+const society = createSocietyController({ state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+// Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
+const board = createBoardController({
+  $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
+  reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; },
+  onChange: () => autosave(),
 });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
@@ -665,6 +678,7 @@ const inventory = createInventoryController({
 // Creatures: seeded by Core rules (creatures.js) for the phase, weather and dread; exposure is 3D only (the 2D map shows marks). The vigil lock keeps its own sanity rules, so they rest during a live vigil.
 const creatures = createCreatureController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, inventory, announce: (text) => announce(text), journal: (text) => log('lore', text), allows: (id) => vigil.allows(id), sanity: () => state.sanity,
+  onWard: () => { const c = view3d.active ? view3d.camera : null; if (c) society.noteWard({ x: c.x, z: c.z }, villagerScene(state.villagers || [], CELL)); },
   onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); }, tickNow: clockTickExact, weather: () => withWeather(currentNight() || {}).weather || 'clear', camera: () => (view3d.active ? view3d.camera : null),
 });
 // Homestead: the yard beside the lodging house by Core rules (homestead.js): crops by village day, animals and pets with needs and mood, daily sanity. 2D shows marks, 3D the meshes.
@@ -680,7 +694,8 @@ const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
-  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage),
+  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => { society.noteChat(i, result); board.noteChat(i, result, night); },
+  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), statementText: (id) => society.statementText(id, lang),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
@@ -716,7 +731,7 @@ function renderDistrictChip() {
   chip.hidden = !id && !lm;
 }
 renderClockChip(); renderDistrictChip();
-setInterval(() => { if (document.hidden) return; homestead.update(); vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } chronicle.refresh(); }, 1000);
+setInterval(() => { if (document.hidden) return; if (view3d.active && view3d.camera) society.watch({ x: view3d.camera.x, z: view3d.camera.z }, villagerScene(state.villagers || [], CELL)); homestead.update(); vigil.watchClock(clockTick()); renderClockChip(); renderDistrictChip(); if (villagers.refresh()) { drawMinimap(); mark(); } chronicle.refresh(); }, 1000);
 // Title screen backdrop: the existing deterministic 3D fly-through at the renderer's adaptive scale (no second renderer), or the 2D
 // map with a slow CSS drift. Both stop the moment the player chooses a view.
 let backdropKind = null, backdropT0 = 0;
@@ -779,7 +794,7 @@ $('homeBtn').addEventListener('click', () => homestead.toggle());
 // On-screen 3D controls: they call the same candle/endure/help paths as the keys and buttons, so the vigil sandbox lock applies.
 const touchControls = createTouchControls({
   doc: document, view3d, query: location.search + location.hash, coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints || 0,
-  actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
+  actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), board: () => board.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
 });
 $('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
@@ -921,6 +936,7 @@ function doAction(raw) {
     case 'talk': if (villagers.isOpen()) villagers.close(); else villagers.talkNext(); break;
     case 'chat': villagers.chatNext(); break;
     case 'inventory': inventory.toggle(); break;
+    case 'board': board.toggle(); break;
     case 'gather': inventory.open(); inventory.gatherNext(); break;
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
@@ -957,11 +973,12 @@ addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === '?' && !helpIsOpen && !titleOpen() && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { setHelp(true); return; }
+  if (e.key === BOARD_KEY && !board.isOpen() && !titleOpen() && !helpIsOpen && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { board.open(); e.preventDefault(); return; } // the board closes itself (capture listener); every letter is taken, so it is a punctuation key
   if ((e.key === 'i' || e.key === 'I') && view3d.active && !titleOpen() && !helpIsOpen && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { inventory.toggle(); return; } // 3D: I is the satchel; in 2D I keeps sending the investigator
   if (view3d.active) return; // the 3D view owns WASD, E and Escape while open
   if (titleOpen()) return;
   if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
-  if (aboutOpen() || helpIsOpen || vigil.endingOpen()) return;
+  if (aboutOpen() || helpIsOpen || vigil.endingOpen() || board.isOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
@@ -1063,7 +1080,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); board.restore(saved); society.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

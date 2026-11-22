@@ -1,0 +1,247 @@
+{
+ "version": 1,
+ "statements": [
+  {
+   "id": "j_fisher_out",
+   "source": "journal",
+   "role": "fisher",
+   "ref": "",
+   "place": "cliffs",
+   "night": 1,
+   "minute": 1200,
+   "en": "I rowed out past the bell buoy and saw the lighthouse lamp go dark under the cliffs.",
+   "fr": "J'ai rame au-dela de la bouee a cloche et j'ai vu la lampe du phare s'eteindre sous les falaises."
+  },
+  {
+   "id": "c_fisher_home",
+   "source": "chat",
+   "role": "fisher",
+   "ref": "",
+   "place": "home",
+   "night": 1,
+   "minute": 1200,
+   "en": "I was home mending nets all that night, and I never touched the boat.",
+   "fr": "J'etais chez moi a raccommoder mes filets toute la nuit, et je n'ai pas touche au bateau."
+  },
+  {
+   "id": "j_priest_bell",
+   "source": "journal",
+   "role": "priest",
+   "ref": "",
+   "place": "abbey",
+   "night": 2,
+   "minute": 1320,
+   "en": "I rang the bell at midnight and heard the answer from the abbey ruins.",
+   "fr": "J'ai sonne la cloche a minuit et j'ai entendu la reponse venir des ruines de l'abbaye."
+  },
+  {
+   "id": "c_innkeeper_bell",
+   "source": "chat",
+   "role": "innkeeper",
+   "ref": "",
+   "place": "home",
+   "night": 2,
+   "minute": 1320,
+   "en": "The bell stayed silent all night. I would have heard it from the inn.",
+   "fr": "La cloche est restee muette toute la nuit. Je l'aurais entendue depuis l'auberge."
+  },
+  {
+   "id": "j_lamplighter_lit",
+   "source": "journal",
+   "role": "lamplighter",
+   "ref": "",
+   "place": "home",
+   "night": 2,
+   "minute": 1100,
+   "en": "Every lamp on the harbour road was lit before dusk ended. I counted them twice.",
+   "fr": "Chaque lampe de la route du port etait allumee avant la fin du crepuscule. Je les ai comptees deux fois."
+  },
+  {
+   "id": "l_harbour_dark",
+   "source": "lore",
+   "role": "",
+   "ref": "b26",
+   "place": "",
+   "night": 2,
+   "minute": 1200,
+   "en": "The net mender's rhyme says the harbour road lay dark that night, lamp after lamp.",
+   "fr": "La comptine du raccommodeur de filets dit que la route du port etait noire cette nuit-la, lampe apres lampe."
+  },
+  {
+   "id": "j_keeper_beam",
+   "source": "journal",
+   "role": "lighthouse_keeper",
+   "ref": "",
+   "place": "cliffs",
+   "night": 3,
+   "minute": 1260,
+   "en": "When the beam turned I saw someone walking the cliff path, slowly, without a lantern.",
+   "fr": "Quand le faisceau a tourne, j'ai vu quelqu'un marcher sur le sentier des falaises, lentement, sans lanterne."
+  },
+  {
+   "id": "c_child_shape",
+   "source": "chat",
+   "role": "child",
+   "ref": "",
+   "place": "cemetery",
+   "night": 3,
+   "minute": 1260,
+   "en": "I saw a tall shape in the cemetery and I told nobody, because nobody listens.",
+   "fr": "J'ai vu une grande forme au cimetiere et je ne l'ai dit a personne, car personne n'ecoute."
+  },
+  {
+   "id": "j_widow_neighbour",
+   "source": "journal",
+   "role": "widow",
+   "ref": "",
+   "place": "home",
+   "night": 3,
+   "minute": 1380,
+   "en": "My neighbour never left the house. I watched his lamp until dawn.",
+   "fr": "Mon voisin n'est jamais sorti de chez lui. J'ai veille sa lampe jusqu'a l'aube."
+  },
+  {
+   "id": "c_priest_empty",
+   "source": "chat",
+   "role": "priest",
+   "ref": "",
+   "place": "home",
+   "night": 4,
+   "minute": 1140,
+   "en": "The church has been empty for weeks. Nobody comes to pray any more.",
+   "fr": "L'eglise est vide depuis des semaines. Plus personne ne vient prier."
+  },
+  {
+   "id": "j_priest_pews",
+   "source": "journal",
+   "role": "priest",
+   "ref": "",
+   "place": "home",
+   "night": 4,
+   "minute": 1140,
+   "en": "Every pew was full at the evening office, and every face was turned to the sea.",
+   "fr": "Chaque banc etait plein a l'office du soir, et chaque visage etait tourne vers la mer."
+  },
+  {
+   "id": "k_ritual_boots",
+   "source": "clue",
+   "role": "",
+   "ref": "book@b39",
+   "place": "ritual_site",
+   "night": 4,
+   "minute": 1400,
+   "en": "The burnt page lay among small boot prints that end at the ritual site.",
+   "fr": "La page brulee gisait parmi de petites empreintes de bottes qui s'arretent au site rituel."
+  },
+  {
+   "id": "lie_saw_nothing",
+   "source": "chat",
+   "role": "",
+   "ref": "",
+   "place": "",
+   "night": 0,
+   "minute": 1200,
+   "en": "I saw nothing. Nothing at all happened here.",
+   "fr": "Je n'ai rien vu. Rien du tout ne s'est passe ici."
+  },
+  {
+   "id": "lie_was_asleep",
+   "source": "chat",
+   "role": "",
+   "ref": "",
+   "place": "home",
+   "night": 0,
+   "minute": 1260,
+   "en": "I was asleep in my bed before the lamps were lit.",
+   "fr": "Je dormais dans mon lit avant l'allumage des lampes."
+  },
+  {
+   "id": "lie_blame_neighbour",
+   "source": "chat",
+   "role": "",
+   "ref": "",
+   "place": "home",
+   "night": 0,
+   "minute": 1320,
+   "en": "Ask my neighbour where he goes after dark, not me.",
+   "fr": "Demandez a mon voisin ou il va apres la tombee de la nuit, pas a moi."
+  },
+  {
+   "id": "lie_not_me",
+   "source": "chat",
+   "role": "",
+   "ref": "",
+   "place": "",
+   "night": 0,
+   "minute": 1380,
+   "en": "It was not me. I was never near the place.",
+   "fr": "Ce n'etait pas moi. Je n'etais jamais pres de cet endroit."
+  }
+ ],
+ "contradictions": [
+  {
+   "id": "fisher_night_out",
+   "a": "j_fisher_out",
+   "b": "c_fisher_home",
+   "needs": "none",
+   "en": "The fisher's log puts him on the water, yet he says he stayed home.",
+   "fr": "Le journal du pecheur le place sur l'eau, mais il dit etre reste chez lui."
+  },
+  {
+   "id": "bell_rang_silent",
+   "a": "j_priest_bell",
+   "b": "c_innkeeper_bell",
+   "needs": "none",
+   "en": "The priest rang a bell that the innkeeper never heard.",
+   "fr": "Le pretre a sonne une cloche que l'aubergiste n'a jamais entendue."
+  },
+  {
+   "id": "harbour_lamps",
+   "a": "j_lamplighter_lit",
+   "b": "l_harbour_dark",
+   "needs": "none",
+   "en": "The lamplighter counted the lamps lit, but the rhyme says they were dark.",
+   "fr": "L'allumeur a compte les lampes allumees, mais la comptine dit qu'elles etaient noires."
+  },
+  {
+   "id": "walker_on_cliff",
+   "a": "lie_was_asleep",
+   "b": "j_keeper_beam",
+   "needs": "none",
+   "en": "Someone who claims to have slept was seen walking the cliff path.",
+   "fr": "Quelqu'un qui pretend avoir dormi a ete vu sur le sentier des falaises."
+  },
+  {
+   "id": "tall_shape",
+   "a": "lie_saw_nothing",
+   "b": "c_child_shape",
+   "needs": "none",
+   "en": "One villager saw nothing, yet a child saw a tall shape at the graves.",
+   "fr": "Un villageois n'a rien vu, pourtant un enfant a vu une grande forme aux tombes."
+  },
+  {
+   "id": "neighbour_lamp",
+   "a": "lie_blame_neighbour",
+   "b": "j_widow_neighbour",
+   "needs": "none",
+   "en": "The blamed neighbour was watched at home until dawn.",
+   "fr": "Le voisin accuse a ete observe chez lui jusqu'a l'aube."
+  },
+  {
+   "id": "small_boots",
+   "a": "lie_not_me",
+   "b": "k_ritual_boots",
+   "needs": "none",
+   "en": "Someone swears they were never near the ritual site, but small boots led there.",
+   "fr": "Quelqu'un jure ne jamais etre alle pres du site rituel, mais de petites bottes y menent."
+  },
+  {
+   "id": "priest_pews",
+   "a": "j_priest_pews",
+   "b": "c_priest_empty",
+   "needs": "corrupted_speaker",
+   "en": "The priest's old journal describes full pews, but his words now describe an empty church. The rot has changed him.",
+   "fr": "Le journal ancien du pretre decrit des bancs pleins, mais ses mots decrivent maintenant une eglise vide. La pourriture l'a change."
+  }
+ ]
+}

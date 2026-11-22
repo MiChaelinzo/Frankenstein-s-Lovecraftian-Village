@@ -174,12 +174,40 @@ Round 24 leftovers (open, from FEAT-007):
 - [x] 142. Asset licence audit of the author's itch.io links in `docs/ASSET_LICENCE_AUDIT.md`, Support link (About, README, en and fr) and `docs/PAYMENTS_PLAN.md` (plan only, no function, no secret)
 - [x] 143. Inventory and items, monsters and sanity exposure, homestead, more villagers (done; forest and swamp tasks 129 and 130 deferred; see the round 25 feature files under `.agents/tasks/task-round25-survival-homestead/`)
 
+## Round 26: investigation and trust (done, see FEAT-001 to FEAT-007 under `.agents/tasks/task-round26-investigation-trust/`)
+One shared society and case model: Core `VillageSociety.cs`, `InvestigationModel.cs`, `Data/statements.json`; web `society.js`, `society-ui.js`, `investigation.js`, `board-ui.js`, `corruption-tell.js`.
+- [x] 144. Society model: trust, suspicion and corruption spread along family and neighbour links (Verified: dotnet and node tests, golden)
+- [x] 145. Investigation model: cards, links, 8 authored contradiction pairs, timeline (Verified: dotnet, node, golden, data drift check)
+- [x] 146. Investigation board panel, key `;`, pad, touch, aria-live, high contrast (Partially Verified: `SOCIETY_ONLY` browser check on SwiftShader and stills)
+- [x] 147. Trust line in dialogue and cards, corruption tell in 2D and 3D (Partially Verified: SwiftShader only; the 2D tell is subtle at normal zoom)
+- [x] 148. Unity hooks `VillageBuilder.storyData`, `VillagerAgent.Corruption` (Unverified at runtime: compile check only)
+- [ ] 149. Wire `return_item`. Goal: giving a found item back to its owner counts as a society action. Inputs: item id, owner villager, `InventoryRules`. Outputs: a `SocietyAction` of kind `return_item` in the action log. Failure: an item with no owner, a repeat farming trust. Tests: a game event test, repeat counts less, save and load round trip. Status: Unverified, the Core rule exists but no game event raises it.
+- [ ] 150. Wire `return_journal`. Goal: bringing a villager's journal page back to the family. Inputs: lore id `j..`, villager. Outputs: a `return_journal` action. Failure: returning to the wrong family; double credit. Tests: event test, family half effect, save round trip. Status: Unverified, no game event yet.
+- [ ] 151. Wire `seen_near_body`. Goal: being near a victim when a villager looks counts against the player. Inputs: victim location, villager presence (`PresenceAt`), line of sight. Outputs: a `seen_near_body` action. Failure: firing while no villager can see; unfair on first visit. Tests: presence and distance cases, determinism for a seed. Status: Unverified, no game event yet.
+- [ ] 152. Wire `fight_creature_in_view`. Goal: a ward or flare used with a villager watching changes trust. Inputs: `CreatureRules` events, villager presence. Outputs: a `fight_creature_in_view` action. Failure: counting a creature that is out of range. Tests: ward use with and without a witness. Status: Unverified, no game event yet.
+- [ ] 153. Make the 2D corruption tell easier to read at normal zoom. Goal: the lean and aura read without zooming in. Inputs: `tellFor` stage. Outputs: a larger 2D aura or marker, still static under reduced motion. Failure: a flash or a brightness spike. Tests: a drawing check at default zoom, reduced motion check. Status: the 2D tell is subtle (Partially Verified).
+
+## Roadmap (author plan, five rounds)
+The author's order after round 26. Item 1 is done; items 2 to 5 are spec tasks only and nothing in them is started. All Unverified.
+1. Done (round 26): investigation board, trust and suspicion, NPC corruption spreading.
+2. Round 27: Mythos Simulation Engine (below).
+3. Round 28: branching quests with multiple endings.
+4. Round 29: world map, mines and dimensional spaces.
+5. Round 30: Victorian UI reskin, accessibility and horror-intensity settings.
+
+- [ ] 154. Mythos Simulation Engine. Goal: the village advances in the background (cult plans, rituals, omens, villager fates) from seed and elapsed nights. Inputs: seed, night, `VillageSociety` state, `DreadEvents`, `CorruptionGrowth`. Outputs: a deterministic list of world events per night in Core with a JS mirror, shown through existing chronicle, board and omen channels. Failure: two runs with one seed differ; events contradicting the authored statements; unbounded event counts. Tests: same seed gives same events, bounded count, golden parity, board reads events as timeline entries.
+- [ ] 155. Branching quests with multiple endings. Goal: quests with choices that lead to at least three endings. Inputs: quest data (JSON), clue ids, society standing, sanity. Outputs: a Core quest state machine, ending ids, journal entries. Failure: unreachable ending, a dead end with no way to finish, an ending that ignores the Vigil rules. Tests: every ending reachable by a scripted path, no dead state, deterministic replay from a choice log, en and fr drift.
+- [ ] 156. World map, mines and dimensional spaces. Goal: a map of regions and two kinds of interior spaces (mines, dimensional rooms) that obey the same rules. Inputs: landmarks, `VillageLandmarks`, region seeds, `GroundHeight`. Outputs: a map panel, entrances, interior scene states, a way back. Failure: falling out of bounds, no way back, landmark overlap. Tests: enter and leave round trip, region bounds, seed determinism, triangle budget. Builds on the open tasks 129 to 134.
+- [ ] 157. Victorian UI reskin, accessibility and horror-intensity settings. Goal: a period look for panels and a settings screen with a horror-intensity level (affects creature visibility, fog, tell strength, sound level) plus accessibility options. Inputs: existing quality tiers, reduced motion, high contrast. Outputs: a settings panel, saved settings, Core intensity multipliers. Failure: an intensity setting that changes deterministic outputs (it may scale presentation only), low contrast text, a lost keyboard path. Tests: contrast ratio check, keyboard walk through, same seed and intensity gives same output, presentation-only check.
+
+Reconciliation with the older Roadmap below: the old round 26 (voxel world spec and the open world tasks 129 to 134) and rounds 27 to 32 shift later. The author roadmap items take rounds 27 to 30; the voxel spec, economy, payments, relationships and AI chat, lore, procedural regions and Unity parity follow after round 30 in their old order. The design brief in `docs/DESIGN_BRIEF_ROADMAP.md` is vision framing only.
+
 ## Roadmap
 - Round 22: foreground fill, Dredge and Silent Hill mood, 2D parity (done, see above).
 - Round 23: the look bug fixes, bigger city, `C` key citizen chat, lore books and a first larger world (tasks 119 to 127).
 - Round 24: living village (names, narrative, 3D polish, lighthouse beam, CC0 houses) and a larger world (task 128 done, 129 to 134 open).
 - Round 25: survival and homestead: inventory and items, monsters and sanity exposure, a homestead, more villagers, licence audit, Support link and payments plan.
-- Round 26: voxel world spec (a voxel terrain and building layer; write the spec in Core terms first: seed, chunk, edit log, determinism), then the open world tasks 129 to 134.
+- Round 26 (done, investigation and trust; the voxel spec below moved after round 30, see the author roadmap above): voxel world spec (a voxel terrain and building layer; write the spec in Core terms first: seed, chunk, edit log, determinism), then the open world tasks 129 to 134.
 - Round 27: economy, shops, buy/sell and the horror restaurant.
 - Round 28: real-money checkout from `docs/PAYMENTS_PLAN.md` (PayPal Orders v2 behind a same-origin Vercel function, author-set env vars, cosmetic only), sandbox first.
 - Round 29: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.

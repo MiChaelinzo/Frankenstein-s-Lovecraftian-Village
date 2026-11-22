@@ -6,7 +6,7 @@ const STOPPED = { forward: 0, strafe: 0 };
 
 /**
  * root: the dock element. view3d: { setTouchDrive, addTouchLook, interactCenter }.
- * actions: { candle(), inventory(), endure(), help() } supplied by the app so the vigil lock and sandbox rules apply unchanged.
+ * actions: { candle(), inventory(), board(), endure(), help() } supplied by the app so the vigil lock and sandbox rules apply unchanged.
  * Returns { sync(open) } where open says whether the 3D view is on; the dock shows only then, and only when the rule allows it.
  */
 export function createTouchControls({ doc, view3d, actions, query, coarse, maxTouchPoints, onTouch = () => {} }) {
@@ -45,7 +45,7 @@ export function createTouchControls({ doc, view3d, actions, query, coarse, maxTo
   const endLook = (e) => { if (lookPointer === e.pointerId) { lookPointer = null; last = null; } };
   lookPad.addEventListener('pointerup', endLook); lookPad.addEventListener('pointercancel', endLook);
 
-  const run = { listen: () => view3d.interactCenter(), talk: () => view3d.talkNearest(), chat: () => view3d.chatNearest(), candle: () => actions.candle(), inventory: () => actions.inventory(), endure: () => actions.endure(), help: () => actions.help() };
+  const run = { listen: () => view3d.interactCenter(), talk: () => view3d.talkNearest(), chat: () => view3d.chatNearest(), candle: () => actions.candle(), inventory: () => actions.inventory(), board: () => actions.board(), endure: () => actions.endure(), help: () => actions.help() };
   for (const [id, action] of Object.entries(TOUCH_BUTTON_ACTIONS)) {
     $(`touch${id[0].toUpperCase()}${id.slice(1)}`).addEventListener('click', () => { onTouch(); run[action](); });
   }

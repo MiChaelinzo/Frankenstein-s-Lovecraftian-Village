@@ -364,6 +364,12 @@ namespace Frankenstein.Core.Tests
             AppendStory(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendSociety(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendInvestigation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -1310,6 +1316,96 @@ namespace Frankenstein.Core.Tests
                 sb.Append(", \"rumors\": [").Append(string.Join(", ", rumors)).Append(']');
                 var placed = LoreBookRules.Place(seed, grid, grid, layout, lore, story);
                 sb.Append(", \"placed\": [").Append(string.Join(", ", placed.Select(p => "[" + Q(p.BookId) + ", " + Q(p.Place) + ", " + Math.Round(p.X, 3).ToString("0.###", inv) + ", " + Math.Round(p.Z, 3).ToString("0.###", inv) + "]"))).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "society" (round 26): per city seed the patient zero, spread delays, fates, opinions after a fixed log, corruption grid and trust gated chat.</summary>
+        private static void AppendSociety(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var log = new[]
+            {
+                new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 }, new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.SeenNearBody, Subject = VillageSociety.AllVillagers }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 3 },
+                new SocietyAction { Kind = SocietyActionKind.NightIntrusion, Subject = 0 }, new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 },
+                new SocietyAction { Kind = SocietyActionKind.SeenAtRitualSite, Subject = 4 }, new SocietyAction { Kind = SocietyActionKind.WardCreatureInView, Subject = 5 },
+                new SocietyAction { Kind = SocietyActionKind.FightCreatureInView, Subject = 6 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 3 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 5 },
+            };
+            sb.Append("  \"society\": {\n    \"log\": [").Append(string.Join(", ", log.Select(a => "[" + (int)a.Kind + ", " + a.Subject + "]"))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var op = soc.OpinionsAfter(log);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"zero\": ").Append(soc.PatientZero);
+                sb.Append(", \"neighbour\": [").Append(string.Join(", ", soc.Neighbour)).Append(']');
+                sb.Append(", \"delay\": [").Append(string.Join(", ", soc.SpreadDelay.Select(d => d == VillageSociety.Unreachable ? -1 : d))).Append(']');
+                sb.Append(", \"fate\": [").Append(string.Join(", ", soc.Fate.Select(f => (int)f))).Append(']');
+                sb.Append(", \"trust\": [").Append(string.Join(", ", op.Trust)).Append(']');
+                sb.Append(", \"suspicion\": [").Append(string.Join(", ", op.Suspicion)).Append(']');
+                var grid2 = new List<string>();
+                foreach (var night in new[] { 1, 3, 5, 9 })
+                    foreach (var dread in new[] { 0f, 0.25f, 0.5f, 0.75f, 1f })
+                        foreach (var ritual in new[] { 0, 2, 5 })
+                            grid2.Add("[" + night + ", " + dread.ToString("0.##", CultureInfo.InvariantCulture) + ", " + ritual + ", [" + string.Join(", ", roster.Select(v => soc.CorruptionLevel(v.Index, night, dread, ritual))) + "], ["
+                                      + string.Join(", ", roster.Select(v => (int)soc.CorruptionAt(v.Index, night, dread, ritual))) + "]]");
+                sb.Append(", \"corruption\": [").Append(string.Join(", ", grid2)).Append(']');
+                var chats = new List<string>();
+                foreach (var v in roster)
+                    for (int night = 1; night <= 6; night++)
+                        for (int topic = 0; topic < VillagerRules.ChatTopics; topic++)
+                        {
+                            var st = soc.StandingOf(v.Index, op, night, 0.25f, 1);
+                            var r = VillagerRules.Chat(seed, v, 600, 0.25f, night, topic, 2, 1, 80, st);
+                            chats.Add("[" + v.Index + ", " + night + ", " + topic + ", " + (int)st.Tier + ", " + (int)st.Corruption + ", " + (r.Available ? 1 : 0) + ", " + (int)r.Behavior + ", " + Q(r.HintId) + ", "
+                                      + (r.StrongHint ? 1 : 0) + ", " + (r.Withheld ? 1 : 0) + ", " + Q(r.LieStatementId) + ", " + (r.ColdLine ? 1 : 0) + ", " + r.LineVariant + "]");
+                        }
+                sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "investigation" (round 26): per city seed and two fixed evidence scenarios, the board cards, links, contradictions and timeline.</summary>
+        private static void AppendInvestigation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            sb.Append("  \"investigation\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"scenarios\": [");
+                first = false;
+                var scenarios = new[] { new InvestigationEvidence(), InvestigationModelTests.RichEvidence() };
+                var stages = new CorruptionStage[roster.Count];
+                stages[1] = CorruptionStage.Corrupted;
+                for (int s = 0; s < scenarios.Length; s++)
+                {
+                    var board = InvestigationRules.Build(story, lore, statements, scenarios[s], stages);
+                    sb.Append(s == 0 ? "\n        " : ",\n        ").Append("{ \"cards\": [")
+                      .Append(string.Join(", ", board.Cards.Select(c => "[" + (int)c.Kind + ", " + Q(c.Id) + ", " + (c.Revealed ? 1 : 0) + ", " + (c.Invalidated ? 1 : 0) + "]")))
+                      .Append("], \"links\": [").Append(string.Join(", ", board.Links.Select(l => "[" + (int)l.Kind + ", " + Q(l.From) + ", " + Q(l.To) + ", " + (l.Revealed ? 1 : 0) + "]")))
+                      .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Select(c => "[" + Q(c.PairId) + ", " + Q(c.CardA) + ", " + Q(c.CardB) + "]")))
+                      .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }");
+                }
+                sb.Append("\n      ] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

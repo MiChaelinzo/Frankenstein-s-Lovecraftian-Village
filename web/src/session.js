@@ -7,8 +7,10 @@ const THEME_RE = /^[a-z0-9_-]{1,32}$/;
 const int = (v) => (typeof v === 'number' || typeof v === 'string') && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
 const VIGIL_RE = /^vigil1;[0-9;,A-Za-z_@.\-]{0,600}$/;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
-const LORE_RE = /^b\d{2}$/;
+const LORE_RE = /^[bjp]\d{2}$/; // b: found books, j: villager journals, p: missing person pages (lore-ui.js LORE_ID_RE); before round 26 only b was kept, so journals read were lost on reload
 const HS_RE = /^hs1;[0-9a-z_:,.;\-]{0,600}$/; // Added in round 25 (see homestead.js); Homestead.tryRestore validates the rest
+const BOARD_RE = /^bd1;[0-9,]{0,300};[A-Za-z0-9_@:.,\-]{0,5000};[0-9a-z_:,]{0,2500}$/; // Added in round 26 (see board-ui.js); parseBoardEvidence validates item by item
+const SOCIETY_RE = /^sc1;[0-9:,\-]{0,1500}$/; // Added in round 26 (see society-ui.js); parseSocietyLog validates item by item
 const INV_RE = /^inv1;[0-9a-z_:,.;\/]{0,1200}$/; // Added in round 25 (see inventory.js); ItemWorld.tryRestore validates the rest
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
@@ -37,6 +39,10 @@ export function parseSession(input) {
     inv: typeof o.inv === 'string' && INV_RE.test(o.inv) ? o.inv : '',
     // Added in round 25: the homestead (claimed yard, beds, structures, animals) as one string.
     hs: typeof o.hs === 'string' && HS_RE.test(o.hs) ? o.hs : '',
+    // Added in round 26: the investigation board evidence (people met, clues, statements heard) as one string; older saves load as empty.
+    board: typeof o.board === 'string' && BOARD_RE.test(o.board) ? o.board : '',
+    // Added in round 26: what the player did that villagers noticed (trust, suspicion and corruption spread); older saves load as empty.
+    society: typeof o.society === 'string' && SOCIETY_RE.test(o.society) ? o.society : '',
     // Added in round 17: the compact VigilState string. Anything that is not that shape is dropped (VigilState.tryRestore validates the rest).
     vigil: typeof o.vigil === 'string' && VIGIL_RE.test(o.vigil) ? o.vigil : '',
   };
