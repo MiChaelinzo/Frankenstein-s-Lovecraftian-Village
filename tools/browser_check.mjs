@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -401,6 +401,103 @@ async function main() {
     rec('homestead: the homestead meshes load and each is under 200 KB', meshes.every((n) => n > 1000 && n < 200 * 1024), { meshes });
   };
 
+  /** Society (round 26: investigation board, trust in chat, corruption tells; SOCIETY_ONLY=1 runs only this). Seed 1818 at night 3, sanity 40, dusk tick 900: villagers 2 (innkeeper) and 3 (lamplighter) are Corrupted but not yet Missing (found with web/src/society.js, see CHANGELOG).
+   * SOCIETY_SHOT_DIR=<dir> saves board.png, chat.png, corrupt2d.png and corrupt3d.png (the 2D one is a 3x close crop around the cold lantern). SOCIETY_PERF=1 also records frame timing per quality tier with the board closed and open. */
+  const societyRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.SOCIETY_SHOT_DIR || '';
+    const save = async (name, params) => { if (shotDir) writeFileSync(join(shotDir, name), Buffer.from(await capture(params), 'base64')); };
+    const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=3';
+    const SESSION = { seed: 1818, sanity: 40, night: 2, lore: ['j01', 'j02'], board: 'bd1;0,1,2,3;;2:c_innkeeper_bell:2' }; // fisher and priest journals read, the innkeeper heard on the bell
+    const fresh = async (query, hash, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + hash); await sleep(800);
+    };
+    const boardCount = () => ev(`({cards:document.querySelectorAll('#boardCards .board-card').length, strings:document.querySelectorAll('#boardLines .board-string').length, flagged:document.querySelectorAll('#boardCards .board-contradiction').length, marks:document.querySelectorAll('#boardLines .board-contradiction-mark').length, open:!document.getElementById('boardPanel').hidden, note:document.getElementById('boardNote').textContent})`);
+    // ---- board ----
+    await fresh(Q, H, null);
+    await key(';', 'Semicolon', 186, ';'); await sleep(500);
+    const empty = await boardCount();
+    await special('Escape', 27); await sleep(300);
+    rec('board: the key ; opens the board with no evidence and shows no link and no contradiction', empty.open && empty.cards > 0 && empty.strings === 0 && empty.flagged === 0, empty);
+    await fresh(Q, H, SESSION);
+    await key(';', 'Semicolon', 186, ';'); await sleep(600);
+    const full = await boardCount();
+    rec('board: with evidence the red strings are revealed and one contradiction is marked on two cards', full.open && full.strings >= 2 && full.strings > empty.strings && full.flagged === 2 && full.marks === 1, full);
+    const focusId = () => ev(`document.activeElement && document.activeElement.getAttribute('data-card')`);
+    const f0 = await focusId(); await special('ArrowRight', 39); await sleep(200); const f1 = await focusId();
+    rec('board: arrow keys move the focus between cards', !!f0 && !!f1 && f0 !== f1, { f0, f1 });
+    await ev(`document.querySelector('#boardCards .board-contradiction').focus()`); await special('Enter', 13, '\r'); await sleep(300);
+    const detail = await text('boardDetail');
+    rec('board: Enter inspects a card in the contradiction and the detail line gives the reason', /contradict|never heard|bell/i.test(detail), { detail });
+    await ev(`(()=>{const s=document.getElementById('boardScroll');s.scrollLeft=s.scrollWidth})()`); await sleep(200);
+    await save('board.png', { format: 'png' });
+    await special('Escape', 27); await sleep(300);
+    rec('board: Escape closes the board and returns the toggle state', (await hidden('boardPanel')) === true && (await ev(`document.getElementById('boardToggle').getAttribute('aria-expanded')`)) === 'false', {});
+    const kept = await ev(`JSON.parse(localStorage.getItem('flv.session.v1')||'{}').board||''`);
+    rec('board: the evidence is saved with the session', /^bd1;/.test(kept) && /c_innkeeper_bell/.test(kept), { kept });
+    // ---- trust in chat ----
+    await fresh(Q, H, SESSION);
+    const seen = [];
+    for (let i = 0; i < 8; i++) {
+      await key('c'); await sleep(400);
+      const row = await ev(`({shown:!document.getElementById('villagerDialog').hidden, name:document.getElementById('villagerName').textContent, trust:document.getElementById('villagerTrust').textContent, trustHidden:document.getElementById('villagerTrust').hidden, aria:document.getElementById('villagerTrust').getAttribute('aria-label')})`);
+      seen.push(row);
+      if (/cold|Cold/.test(row.trust) && !process.env.__chatShot) { process.env.__chatShot = '1'; await save('chat.png', { format: 'png' }); }
+      await special('Escape', 27); await sleep(200);
+    }
+    delete process.env.__chatShot;
+    const withTrust = seen.filter((r) => r.shown && !r.trustHidden && r.trust.length > 2 && r.aria);
+    rec('trust: every chat with a villager of the story roster shows a trust indicator with an accessible label (townsfolk outside it show none)', seen.length === 8 && withTrust.length >= 6 && seen.filter((r) => r.shown && r.trust === '').every((r) => r.trustHidden), { sample: seen.slice(0, 3), shown: withTrust.length });
+    rec('trust: a corrupted villager is marked cold in the chat dialogue', seen.some((r) => /cold/i.test(r.trust)), { texts: [...new Set(seen.map((r) => r.name + ': ' + r.trust))] });
+    // ---- corruption tell, 2D ----
+    // Pixels are counted on a real screenshot of the element (a WebGL canvas cannot be read back directly), decoded in the page.
+    const tealPixels = async (elementId, test) => {
+      const r = await ev(`(()=>{const b=document.getElementById('${elementId}').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height}})()`);
+      const data = await capture({ format: 'png', clip: { ...r, scale: 1 } });
+      return ev(`new Promise((res)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);const d=g.getImageData(0,0,c.width,c.height).data;let n=0,sx=0,sy=0;for(let i=0,p=0;i<d.length;i+=4,p++){if(${test}){n++;sx+=p%c.width;sy+=Math.floor(p/c.width)}}res({n,x:n?Math.round(sx/n):0,y:n?Math.round(sy/n):0,w:c.width,h:c.height})};im.src='data:image/png;base64,${data}'})`);
+    };
+    const TEAL = process.env.TEAL_TEST || 'd[i+1]-d[i]>=20&&d[i+2]-d[i]>=15&&d[i+1]>=90'; // cold lantern glow: a sea green that no warm lantern, window or fire produces
+    await fresh(Q + '&reduced=1', H, null);
+    const corrupt2d = await tealPixels('view', TEAL);
+    await fresh(Q + '&reduced=1', '#seed=1818&sanity=100&night=1', null);
+    const clean2d = await tealPixels('view', TEAL);
+    rec('corruption 2D: a corrupted villager adds sea green lantern pixels that the same village without corruption does not have', corrupt2d.n > clean2d.n + 3, { corrupt2d, clean2d });
+    await fresh(Q + '&reduced=1', H, null);
+    if (shotDir && corrupt2d.n) {
+      const r = await ev(`(()=>{const b=document.getElementById('view').getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height,cw:document.getElementById('view').width}})()`), k = r.w / r.cw;
+      const clip = { x: Math.max(0, r.x + (corrupt2d.x - 90) * k), y: Math.max(0, r.y + (corrupt2d.y - 70) * k), width: 180 * k, height: 140 * k, scale: 3 };
+      await save('corrupt2d.png', { format: 'png', clip });
+    }
+    // ---- corruption tell, 3D ----
+    const CAM = '&cam3d=141.6,59.6,0,-6';
+    await fresh(Q + '&view=3d&grain=0', H + CAM, null); await sleep(2500);
+    // The tell dims the coat toward a cold blue grey (COLD_TINT) that nothing else in this warm dusk frame has; counted on a screenshot of the 3D view. The lean and lantern hue are checked by the still and by web/test/society-ui.test.js.
+    const COAT = process.env.COAT_TEST || 'd[i+2]>=d[i]+25&&d[i+2]>=d[i+1]+5';
+    const frame = async (hash) => { await fresh(Q + '&view=3d&grain=0', hash + CAM, null); await sleep(2500); return tealPixels('view3d', COAT); };
+    const corrupt3d = await frame(H), clean3d = await frame('#seed=1818&sanity=100&night=1');
+    rec('corruption 3D: the corrupted villager in front of the camera adds cold blue grey coat pixels that the same view without corruption does not have', corrupt3d.n > clean3d.n + 500, { corrupt3d, clean3d });
+    await fresh(Q + '&view=3d&grain=0', H + CAM, null); await sleep(2500);
+    await save('corrupt3d.png', { format: 'png', clip: { ...(await ev(`(()=>{const b=document.getElementById('view3d').getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height}})()`)), scale: 1 } });
+    if (process.env.SOCIETY_PERF) {
+      const out = {};
+      for (const q of ['low', 'medium', 'high']) for (const boardOpen of [false, true]) {
+        await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+        await nav(`${Q}&view=3d&perf=1&fixscale=1&quality=${q}${H}${CAM}`);
+        await until(() => ev(`(document.getElementById('perfHud')||{}).textContent`).then((t) => /\d+ tris/.test(t || '') && t), 60000); await sleep(4000);
+        if (boardOpen) { await ev(`document.getElementById('boardToggle').click()`); await sleep(500); }
+        await ev(`window.__ft=[];(function t(ts){window.__ft.push(ts);if(window.__ft.length<80)requestAnimationFrame(t)})(performance.now())`);
+        await until(() => ev(`window.__ft.length`).then((n) => n >= 80), 120000);
+        const hudT = await ev(`(document.getElementById('perfHud')||{}).textContent`);
+        out[`${q}-${boardOpen ? 'board open' : 'board closed'}`] = { ...frameStats(await ev(`window.__ft`)), js: (/([\d.]+) ms js/.exec(hudT || '') || [])[1] || null };
+      }
+      rec('society perf: every tier renders frames with corrupted villagers in view, board closed and open (SwiftShader, indicative only)', Object.values(out).every((s) => s.frames > 10), out);
+    }
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -425,6 +522,7 @@ async function main() {
     if (process.env.CREATURES_ONLY) { await creaturesRun(); break suite; }
     if (process.env.HOMESTEAD_ONLY) { await homesteadRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
+    if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
@@ -896,6 +994,7 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' }); await sleep(200);
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
     rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()).m > 5, { lum: await meanLum() });
+    await societyRun();
   }
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }

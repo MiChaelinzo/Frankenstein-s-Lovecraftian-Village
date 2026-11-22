@@ -59,7 +59,7 @@ test('old saves without codex or achievements still load, junk ids are dropped',
   assert.deepEqual(v.ach, ['abyss']);
   assert.deepEqual(parseSession({ seed: 5, sanity: 80, codex: 'oops', ach: { a: 1 } }).codex, []);
   assert.deepEqual(old.lore, []);
-  assert.deepEqual(parseSession({ seed: 5, sanity: 80, lore: ['b01', 'b01', 'evil', 'b123', 4, 'b30'] }).lore, ['b01', 'b30']);
+  assert.deepEqual(parseSession({ seed: 5, sanity: 80, lore: ['b01', 'b01', 'evil', 'b123', 4, 'b30', 'j02', 'p07', 'x01'] }).lore, ['b01', 'b30', 'j02', 'p07']);
   assert.deepEqual(parseSession(serializeSession(good)), good);
 });
 
