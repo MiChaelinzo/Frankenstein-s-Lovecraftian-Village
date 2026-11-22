@@ -367,6 +367,9 @@ namespace Frankenstein.Core.Tests
             AppendSociety(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendInvestigation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -1368,6 +1371,41 @@ namespace Frankenstein.Core.Tests
                                       + (r.StrongHint ? 1 : 0) + ", " + (r.Withheld ? 1 : 0) + ", " + Q(r.LieStatementId) + ", " + (r.ColdLine ? 1 : 0) + ", " + r.LineVariant + "]");
                         }
                 sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "investigation" (round 26): per city seed and two fixed evidence scenarios, the board cards, links, contradictions and timeline.</summary>
+        private static void AppendInvestigation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            sb.Append("  \"investigation\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"scenarios\": [");
+                first = false;
+                var scenarios = new[] { new InvestigationEvidence(), InvestigationModelTests.RichEvidence() };
+                var stages = new CorruptionStage[roster.Count];
+                stages[1] = CorruptionStage.Corrupted;
+                for (int s = 0; s < scenarios.Length; s++)
+                {
+                    var board = InvestigationRules.Build(story, lore, statements, scenarios[s], stages);
+                    sb.Append(s == 0 ? "\n        " : ",\n        ").Append("{ \"cards\": [")
+                      .Append(string.Join(", ", board.Cards.Select(c => "[" + (int)c.Kind + ", " + Q(c.Id) + ", " + (c.Revealed ? 1 : 0) + ", " + (c.Invalidated ? 1 : 0) + "]")))
+                      .Append("], \"links\": [").Append(string.Join(", ", board.Links.Select(l => "[" + (int)l.Kind + ", " + Q(l.From) + ", " + Q(l.To) + ", " + (l.Revealed ? 1 : 0) + "]")))
+                      .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Select(c => "[" + Q(c.PairId) + ", " + Q(c.CardA) + ", " + Q(c.CardB) + "]")))
+                      .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }");
+                }
+                sb.Append("\n      ] }");
             }
             sb.Append("\n    ]\n  }\n");
         }
