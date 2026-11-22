@@ -433,7 +433,7 @@ async function main() {
     await ev(`document.querySelector('#boardCards .board-contradiction').focus()`); await special('Enter', 13, '\r'); await sleep(300);
     const detail = await text('boardDetail');
     rec('board: Enter inspects a card in the contradiction and the detail line gives the reason', /contradict|never heard|bell/i.test(detail), { detail });
-    await ev(`(()=>{const s=document.getElementById('boardScroll');s.scrollLeft=s.scrollWidth})()`); await sleep(200);
+    await ev(`(()=>{const s=document.getElementById('boardScroll');s.scrollLeft=0})()`); await sleep(200);
     await save('board.png', { format: 'png' });
     await special('Escape', 27); await sleep(300);
     rec('board: Escape closes the board and returns the toggle state', (await hidden('boardPanel')) === true && (await ev(`document.getElementById('boardToggle').getAttribute('aria-expanded')`)) === 'false', {});

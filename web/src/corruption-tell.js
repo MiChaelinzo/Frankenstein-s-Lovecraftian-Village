@@ -13,9 +13,9 @@ const NO_TELL = Object.freeze({ stage: CORRUPTION_NONE, lean: 0, aura: 0, tint: 
 const TELLS = [
   NO_TELL,
   Object.freeze({ stage: CORRUPTION_UNEASY, lean: 0.03, aura: 0, tint: 0, lantern: false }),
-  Object.freeze({ stage: CORRUPTION_CORRUPTED, lean: 0.09, aura: 0.16, tint: 0.25, lantern: true }),
-  Object.freeze({ stage: CORRUPTION_CULTIST, lean: 0.14, aura: 0.24, tint: 0.4, lantern: true }),
-  Object.freeze({ stage: CORRUPTION_MISSING, lean: 0.14, aura: 0.24, tint: 0.4, lantern: true }),
+  Object.freeze({ stage: CORRUPTION_CORRUPTED, lean: 0.12, aura: 0.24, tint: 0.25, lantern: true }),
+  Object.freeze({ stage: CORRUPTION_CULTIST, lean: 0.18, aura: 0.34, tint: 0.4, lantern: true }),
+  Object.freeze({ stage: CORRUPTION_MISSING, lean: 0.18, aura: 0.34, tint: 0.4, lantern: true }),
 ];
 
 /**

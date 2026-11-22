@@ -165,3 +165,12 @@ test('en and fr board strings exist, match placeholders and carry no em dash', (
     assert.ok(!STRINGS.en[k].includes('\u2014') && !STRINGS.fr[k].includes('\u2014'), k);
   }
 });
+
+test('the board note and the contradiction badge use singular and plural forms in en and fr', () => {
+  assert.equal(t('board.contradictions.one', 'en', { n: 1 }), '1 contradiction');
+  assert.equal(t('board.contradictions.other', 'en', { n: 2 }), '2 contradictions');
+  assert.equal(t('board.strings.one', 'fr', { n: 1 }), '1 fil tendu');
+  assert.equal(t('board.strings.other', 'fr', { n: 7 }), '7 fils tendus');
+  assert.match(t('board.note', 'en', { s: '7 strings', c: '1 contradiction' }), /7 strings drawn, 1 contradiction\./);
+  assert.ok(t('board.contradiction.label', 'fr') !== 'board.contradiction.label');
+});

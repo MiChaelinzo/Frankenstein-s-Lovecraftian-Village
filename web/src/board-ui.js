@@ -10,7 +10,7 @@ import { MINUTES_PER_DAY } from './clock.js';
 export const BOARD_KEY = ';'; // every letter is taken by the main key switch, so the board uses a punctuation key that is unshifted on QWERTY and AZERTY
 export const BOARD_SAVE_TAG = 'bd1';
 export const COLUMN_KINDS = [CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT];
-export const CARD_W = 168, CARD_H = 48, GAP_X = 36, GAP_Y = 14, PAD = 12; // pixels of the board canvas
+export const CARD_W = 148, CARD_H = 48, GAP_X = 24, GAP_Y = 22, PAD = 12; // pixels of the board canvas
 export const MAX_MET = 64, MAX_CLUES = 120, MAX_HEARD = 80;
 export const UNKNOWN_TITLE = '???';
 export const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -166,6 +166,9 @@ export function createBoardController(deps) {
     return Number.isInteger(t) ? t : null;
   }
 
+  /** One or other form of a counted phrase: English counts 1 as singular, French counts 0 and 1. */
+  const plural = (key, n) => tr(`${key}.${n === 1 || (lang() === 'fr' && n === 0) ? 'one' : 'other'}`, { n });
+
   function render() {
     const m = current(), cardsEl = $('boardCards'), linesEl = $('boardLines'), timelineEl = $('boardTimeline'), note = $('boardNote');
     if (!cardsEl || !linesEl || !timelineEl) return;
@@ -173,7 +176,7 @@ export function createBoardController(deps) {
     if (!m) { if (note) note.textContent = tr('board.unavailable'); layout = null; return; }
     const shown = visibleCards(m.cards), shownIds = new Set(shown.map((c) => c.id));
     layout = layoutBoard(shown);
-    if (note) note.textContent = tr('board.note', { n: m.links.filter((l) => l.revealed).length, c: m.contradictions.length });
+    if (note) note.textContent = tr('board.note', { s: plural('board.strings', m.links.filter((l) => l.revealed).length), c: plural('board.contradictions', m.contradictions.length) });
     const wrap = $('boardWrap');
     if (wrap) { wrap.style.setProperty('width', `${layout.width}px`); wrap.style.setProperty('height', `${layout.height}px`); }
     linesEl.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
@@ -191,7 +194,7 @@ export function createBoardController(deps) {
       flagged.add(c.cardA); flagged.add(c.cardB);
       const a = centre(c.cardA), b = centre(c.cardB), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       linesEl.append(svgNode('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'board-contradiction-string' }));
-      const badge = svgNode('text', { x: mx, y: my, class: 'board-contradiction-mark', 'text-anchor': 'middle' }); badge.textContent = '!'; linesEl.append(badge);
+      const badge = svgNode('text', { x: mx, y: my + 4, class: 'board-contradiction-mark', 'text-anchor': 'middle' }); badge.textContent = `! ${tr('board.contradiction.label')}`; linesEl.append(svgNode('rect', { x: mx - 60, y: my - 9, width: 120, height: 18, rx: 3, class: 'board-contradiction-badge' }), badge);
     }
     for (const c of shown) {
       const slot = layout.slots.get(c.id), title = titleOf(c.id), contradictory = flagged.has(c.id);

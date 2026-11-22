@@ -220,7 +220,7 @@ export function createRenderer(env) {
     const sway = reduceMotion ? 0 : Math.sin(time / 900 + v.index * 1.7) * 0.8, tan = Math.tan(tell.lean), at = (h) => sway + tan * h; // lean grows with height, so the head leads the feet
     const coat = mix([54, 46, 40], [40, 10, 14], dread), tinted = tell.tint > 0 ? mix(coat, [82, 112, 116], tell.tint) : coat;
     glow(s.x, s.y, 9, '0,0,0', 0.35);
-    if (tell.aura > 0) glow(s.x + at(9), s.y - 9, 20, AURA_RGB, auraAlpha(tell, time));
+    if (tell.aura > 0) { const aa = auraAlpha(tell, time); glow(s.x + at(9), s.y - 9, 26, AURA_RGB, aa); ctx.strokeStyle = `rgba(${AURA_RGB},${Math.min(0.6, aa * 1.6).toFixed(3)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(s.x + at(9), s.y - 9, 15, 0, 7); ctx.stroke(); } // dim ring marks the aura edge on a small figure; no flashing
     poly([{ x: s.x - 4.2 + at(0), y: s.y }, { x: s.x + 4.2 + at(0), y: s.y }, { x: s.x + 2 + at(13), y: s.y - 13 }, { x: s.x - 2 + at(13), y: s.y - 13 }], tinted);
     ctx.fillStyle = 'rgba(214,190,160,.95)'; ctx.beginPath(); ctx.arc(s.x + at(15.5), s.y - 15.5, 2.4, 0, 7); ctx.fill();
     ctx.fillStyle = tinted; ctx.beginPath(); ctx.moveTo(s.x - 3 + at(15), s.y - 15); ctx.lineTo(s.x + at(21), s.y - 21); ctx.lineTo(s.x + 3 + at(15), s.y - 15); ctx.fill();
