@@ -368,3 +368,9 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - `619f511` docs: forest and swamp boardwalk (tasks 129, 130) deferred with reason
 - Closing run (FEAT-008): dotnet 289, node 622, browser check 105 of 105 on the last of three full runs (logs `/projects/sandbox/browser_check_r25_final*.log`, not committed). Earlier runs found two stale 2D villager checks (seven rows, seven markers, now 24) and a racy villager count read, fixed in `tools/browser_check.mjs`; one run also missed the `?meshes=1` GLB count within 12 s (timeout raised to 40 s, cause not isolated, likely load timing). SwiftShader only. Unverified: Unity runtime, real GPU.
 - Review fixes run: node 626 (4 new sleep tests), dotnet 289 re-run in the review-fix session, validate_repo OK. browser_check not re-run.
+
+## Round 26, FEAT-006
+- Checks: dotnet 310, node 673, tools tests OK, validate_repo OK, UnityCompileCheck 0 warnings 0 errors, browser check 115 of 115 (log `/projects/sandbox/browser_check_round26.log`, not committed). SwiftShader only.
+- Frame timing with corrupted villagers in view (seed 1818, night 3, sanity 40, `?perf=1&fixscale=1`, 80 frames): low closed 16.3 ms (61.4 fps, 9.0 ms js), low board open 16.4 ms (60.8 fps, 18.1 ms js); medium closed 16.3 ms (12.8 ms js), open 16.3 ms (9.0 ms js); high closed 16.5 ms (9.2 ms js), open 16.4 ms (9.6 ms js). Frames sit at the 60 Hz cap, so the js column is the only varied number and one sample per cell is noisy (low open 18.1 ms js was a single sample). Indicative only, not a GPU result.
+- Finding: session saves dropped `j..` and `p..` lore ids (fixed). Unverified: Unity runtime, real GPU, the 2D figure at normal zoom.
+

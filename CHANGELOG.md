@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 26 (FEAT-006): Unity hooks, browser checks, stills
+- Unity (compile check only, runtime behaviour Unverified): `VillageBuilder.storyData` builds Core `VillageSociety` (`Society`, `StoryRoster`); `VillagerAgent.Corruption` asks Core for the stage, hides a Missing villager and tints the lantern of a Corrupted or later one. No rule lives in the MonoBehaviours.
+- Fixed: the session save dropped villager journals (`j..`) and missing person pages (`p..`) because `session.js` only accepted `b..` ids, so journal evidence on the board was lost on reload. Test added. Cache `flv-shell-v55`.
+- `tools/browser_check.mjs` section `SOCIETY_ONLY=1` (board open, arrows, strings, contradiction, save; trust in chat; corruption tell in 2D and 3D; `SOCIETY_PERF=1` per tier timing; `SOCIETY_SHOT_DIR` saves stills). Also part of the full run: 115 of 115 passed.
+- Stills in `docs/media`: `r26-board.png`, `r26-trust-chat.png`, `r26-corrupt-2d.png`, `r26-corrupt-3d.png`.
+
 ### Round 26 (FEAT-005): trust and corruption shown in dialogue, cards and villagers
 - Web `society-ui.js`: action log (polite chat, a door tried at night, the ritual site seen, a ward laid with a villager in view), trust and suspicion per villager, corruption stage per night from dread, night and ritual stage. Saved as the `society` field (`sc1;kind:subject,...`); older saves load empty. Not wired because no such event exists yet: item or journal return, near a body, fighting a creature.
 - Villagers use `CombinedBehavior` (placements, talk and chat); suspicious villagers withhold or lie, trusting ones add what they saw; authored `c_*` chat statements are heard deterministically and reach the board. The board now loads `data/statements.json` (it was never fetched before).
