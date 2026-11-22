@@ -2,16 +2,17 @@
 // The DOM glue lives in tour-ui.js. Each step points at one control by element id; text comes from i18n keys tour.<id> and tour.<id>.d.
 import { queryParam } from './util.js';
 export const TOUR_STEPS = [
-  { id: 'view', target: 'view', ms: 6000 },
+  { id: 'view', target: 'view', ms: 5000 },
   { id: 'seed', target: 'seed', ms: 5000 },
-  { id: 'sanity', target: 'sanity', ms: 6000 },
+  { id: 'sanity', target: 'sanity', ms: 5000 },
   { id: 'story', target: 'storyOpen', ms: 5000 },
   { id: 'nights', target: 'night', ms: 5000 },
   { id: 'buildings', target: 'theme', ms: 5000 },
   { id: 'cinematic', target: 'cinemaToggle', ms: 5000 },
   { id: 'codex', target: 'codexToggle', ms: 6000 },
   { id: 'satchel', target: 'invBtn', ms: 5000 },
-  { id: 'homestead', target: 'homeBtn', ms: 5000 },
+  { id: 'board', target: 'boardToggle', ms: 4000 },
+  { id: 'homestead', target: 'homeBtn', ms: 4000 },
   { id: 'stitch', target: 'stitchToggle', ms: 6000 },
   { id: 'contrast', target: 'contrastToggle', ms: 5000 },
   { id: 'daily', target: 'dailyBtn', ms: 5000 },

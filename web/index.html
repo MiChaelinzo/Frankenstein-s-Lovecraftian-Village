@@ -56,6 +56,19 @@
             <p id="loreEffect" class="stats"></p>
             <button id="loreClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
+          <div id="boardPanel" class="board-dialog" role="dialog" aria-labelledby="boardTitle" hidden>
+            <h2 id="boardTitle" data-i18n="board.title">Investigation board</h2>
+            <p id="boardNote" class="stats"></p>
+            <p id="boardHelp" class="stats" data-i18n="board.help">Arrow keys move between cards, Enter inspects one, Esc closes.</p>
+            <p id="boardLive" class="sr-only" role="status" aria-live="polite"></p>
+            <div id="boardScroll" class="board-scroll">
+              <div id="boardWrap" class="board-wrap"><svg id="boardLines" class="board-lines" aria-hidden="true" focusable="false"></svg><div id="boardCards" role="group" aria-label="Cards" data-i18n-aria="board.cards"></div></div>
+            </div>
+            <p id="boardDetail" class="stats board-detail"></p>
+            <h3 data-i18n="board.timeline">Timeline</h3>
+            <ol id="boardTimeline" class="board-timeline" aria-label="Timeline" data-i18n-aria="board.timeline"></ol>
+            <button id="boardClose" type="button" data-i18n="board.close">Close (Esc)</button>
+          </div>
           <div id="homePanel" class="inv-dialog" role="dialog" aria-labelledby="homeTitle" hidden>
             <h2 id="homeTitle" data-i18n="home.title">Homestead</h2>
             <div id="homeBody"></div>
@@ -94,6 +107,7 @@
             <button id="touchChat" type="button" data-i18n="touch.chat">Chat</button>
             <button id="touchLantern" type="button" data-i18n="touch.lantern">Lantern</button>
             <button id="touchBag" type="button" data-i18n="touch.bag">Bag</button>
+            <button id="touchBoard" type="button" data-i18n="touch.board">Board</button>
             <button id="touchEndure" type="button" data-i18n="touch.endure" hidden>Endure</button>
             <button id="touchHelp" type="button" data-i18n="touch.help">Help</button>
           </div>
@@ -164,6 +178,7 @@
             <button id="reroll" type="button" data-i18n="btn.reroll">Stitch a new village</button>
             <button id="share" type="button" data-i18n="btn.share">Copy share link</button>
             <button id="invBtn" type="button" aria-haspopup="dialog" data-i18n="btn.inventory">Satchel</button>
+            <button id="boardToggle" type="button" aria-haspopup="dialog" aria-expanded="false" data-i18n="btn.board">Board (;)</button>
             <button id="homeBtn" type="button" aria-haspopup="dialog" data-i18n="btn.homestead">Homestead</button>
             <button id="helpBtn" type="button" aria-haspopup="dialog" data-i18n="btn.help">Help (?)</button>
           </div>
@@ -316,6 +331,7 @@
           <li data-i18n-html="keys.lore"><kbd>J</kbd> read the next lore book (2D view; in 3D press <kbd>E</kbd> at a glowing book, <kbd>E</kbd> picks up whatever you face)</li>
           <li data-i18n-html="keys.creatures"><kbd>Z</kbd> lay salt, <kbd>V</kbd> draw a chalk sigil, <kbd>F</kbd> fire a flare (3D). Creatures drain sanity only within reach and in line of sight; the lantern, salt, chalk and flare hold them off. The satchel has the same buttons for touch and pad.</li>
           <li data-i18n-html="keys.inventory"><kbd>I</kbd> open the satchel in 3D (2D: the Satchel button, since <kbd>I</kbd> sends the investigator there). In 3D, <kbd>E</kbd> picks up, reads or opens whatever you face, the nearest thing wins; pad: stick press</li>
+          <li data-i18n-html="keys.board"><kbd>;</kbd> open the investigation board: cards, strings and contradictions from what you have found (arrow keys move, Enter inspects, Esc closes; pad: Home button; touch: Board). It is an aid only and changes no clue, sanity or ending</li>
           <li data-i18n-html="keys.homestead">Homestead button: plant, feed, build and harvest at your yard (3D, within 12 m of the plot). Animals and pets need food and shelter each village day.</li>
           <li data-i18n-html="keys.chat"><kbd>C</kbd> chat with the nearest villager for a hint (3D: in range, villagers before books; again for the next topic)</li>
           <li data-i18n-html="keys.candle"><kbd>L</kbd> light the next lantern</li>

@@ -197,6 +197,40 @@ html.reduced .loading-ink { animation: none; }
 .vigil-lock { margin: 0 0 4px; font-style: italic; color: #b7a88a; }
 
 /* On-screen touch controls (3D view, touch devices or ?touch=1). In normal flow under the view, so they never cover the caption or the objective. */
+/* Round 26: investigation board. Cards sit on a fixed grid (board-ui.js sets left/top); strings are SVG lines. Static unless a string carries .board-draw. */
+.board-dialog { position: absolute; left: 50%; top: 6%; transform: translateX(-50%); width: min(920px, 96%); max-height: 88%; overflow-y: auto; padding: 14px 16px; background: #1b1713; color: #eadfc6; border: 1px solid #6b5230; box-shadow: 0 0 24px #000; z-index: 8; }
+.board-dialog[hidden] { display: none; }
+.board-dialog h2 { margin: 0 0 6px; font-size: 1.1rem; color: #e3d3aa; }
+.board-dialog h3 { margin: 10px 0 4px; font-size: .95rem; color: #c9b583; }
+.board-dialog button { min-height: 32px; background: #3a2610; color: #f2e6c8; border: 1px solid #1c1206; }
+.board-scroll { overflow: auto; max-height: 46vh; border: 1px solid #3a2e1e; background: #14110e; }
+.board-wrap { position: relative; min-width: 100%; }
+.board-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
+.board-string { stroke: #b34a3c; stroke-width: 1.5; opacity: .85; }
+.board-draw { stroke-dasharray: 600; stroke-dashoffset: 600; animation: board-draw .6s ease-out forwards; }
+@keyframes board-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .board-draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; } }
+html.reduced .board-draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+.board-contradiction-string { stroke: #ff6b6b; stroke-width: 2; stroke-dasharray: 6 4; }
+.board-contradiction-mark { fill: #ff6b6b; font-size: 18px; font-weight: bold; }
+.board-card { position: absolute; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 2px 8px; overflow: hidden; text-align: left; background: #2a2118; color: #eadfc6; border: 1px solid #6b5230; font-size: .78rem; line-height: 1.15; }
+.board-card-kind { font-size: .66rem; color: #c9b583; text-transform: uppercase; }
+.board-card-title { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.board-unknown { opacity: .6; }
+.board-contradiction { border-color: #ff6b6b; border-width: 2px; }
+.board-invalid .board-card-title { text-decoration: line-through; }
+.board-card:focus-visible { outline: 3px solid #ffe08a; outline-offset: 2px; }
+.board-timeline { margin: 0; padding-left: 20px; font-size: .85rem; }
+.board-detail { min-height: 1.4em; }
+html.hc .board-dialog { background: #000; color: #fff; border: 2px solid #fff; box-shadow: none; }
+html.hc .board-dialog h2, html.hc .board-dialog h3, html.hc .board-card-kind { color: #fff; }
+html.hc .board-dialog button, html.hc .board-card { background: #000; color: #fff; border: 2px solid #fff; }
+html.hc .board-scroll { background: #000; border-color: #fff; }
+html.hc .board-string { stroke: #fff; opacity: 1; }
+html.hc .board-contradiction-string, html.hc .board-contradiction-mark { stroke: #ff9a9a; fill: #ff9a9a; }
+html.hc .board-contradiction { border-color: #ff9a9a; }
+html.hc .board-unknown { opacity: 1; border-style: dashed; }
+
 .touch-dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; touch-action: none; user-select: none; }
 .touch-dock[hidden], html.cinema .touch-dock { display: none; }
 .touch-stick, .touch-look { position: relative; flex: 0 0 auto; width: 120px; height: 120px; border-radius: 50%; border: 2px solid #5b6f66; background: #0b1012cc; touch-action: none; display: flex; align-items: center; justify-content: center; color: #9fb3aa; font-size: .8rem; }

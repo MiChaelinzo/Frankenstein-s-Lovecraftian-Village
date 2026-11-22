@@ -93,6 +93,7 @@ export function createVillagerController(deps) {
     const line = tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
     if (!result.available) { deps.announce(line); showDialog(p, result, line); openFor = -1; return result; }
     openFor = index; cursor = index;
+    deps.onMet?.(index);
     deps.applyEffect(result, p); // clue and sanity first, from Core only; nothing below can change them
     showDialog(p, result, line);
     deps.announce(`${v.name}: ${line}`);
@@ -131,7 +132,7 @@ export function createVillagerController(deps) {
     if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
     else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
-    if (result.available) chatCounts.set(index, topic + 1);
+    if (result.available) { chatCounts.set(index, topic + 1); deps.onChat?.(index, result, night); }
     openFor = result.available ? index : -1; cursor = index; talkId++;
     showDialog(p, result, line, result.hintId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');
     deps.announce(`${v.name}: ${line}`);

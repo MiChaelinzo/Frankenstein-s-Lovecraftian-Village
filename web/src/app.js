@@ -29,6 +29,7 @@ import { createLoreController } from './lore-ui.js';
 import { createInventoryController } from './inventory-ui.js';
 import { createCreatureController } from './creature-ui.js';
 import { createHomesteadController } from './homestead-ui.js';
+import { createBoardController, BOARD_KEY } from './board-ui.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
 import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
@@ -153,8 +154,8 @@ const view3d = createView3d({
   onPerf: (st, c) => { if (perfOn) $('perfHud').textContent = `3D ${perfText(st)} | ${Math.round(((c.buildingDrawn ?? c.building) + c.ground + c.sea + c.coast + c.tentacle) / 3)} tris | ${c.halo} halos | ${c.beam ? 'beam' : 'no beam'} | ${c.held ? 'held lantern' : 'no hand'} | ${c.people ?? 0} villagers | ${c.tier} x${(c.scale ?? 1).toFixed(2)} ${c.size || ''}`; },
   packTextures: () => (pack.want && pack.roles ? texturePlan(pack.roles) : null),
   alienPack: () => pack.want,
-  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); } },
-  onInventory: () => inventory.toggle(),
+  onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen() || board.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); board.close(); } },
+  onInventory: () => inventory.toggle(), onBoard: () => board.toggle(),
   onPlayer: (p) => { creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
@@ -419,7 +420,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot(), ...board.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -430,7 +431,7 @@ function applySession(s) {
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   progress.restore(v); progress.update();
-  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); }
+  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); board.restore(v); }
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -634,7 +635,7 @@ const vigil = createVigilController({
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
-  syncUi: () => syncUi(), pushHash: () => pushHash(),
+  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
   exit3d: () => { if (view3d.active) setView3d(false); },
   reroll: () => rerollVillage(),
@@ -652,8 +653,14 @@ function currentStory() {
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
-  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); }, journal: (text) => log('lore', text), story: () => currentStory(),
+  onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); board.sync(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
+});
+// Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
+const board = createBoardController({
+  $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
+  reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => null, // FEAT-005 supplies the corruption stages
+  onChange: () => autosave(),
 });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
@@ -680,7 +687,7 @@ const villagers = createVillagerController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
-  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage),
+  onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => board.noteChat(i, result, night),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
@@ -779,7 +786,7 @@ $('homeBtn').addEventListener('click', () => homestead.toggle());
 // On-screen 3D controls: they call the same candle/endure/help paths as the keys and buttons, so the vigil sandbox lock applies.
 const touchControls = createTouchControls({
   doc: document, view3d, query: location.search + location.hash, coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints || 0,
-  actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
+  actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), board: () => board.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
 });
 $('helpClose').addEventListener('click', () => setHelp(false));
 $('aboutBtn').addEventListener('click', () => setAbout(true));
@@ -921,6 +928,7 @@ function doAction(raw) {
     case 'talk': if (villagers.isOpen()) villagers.close(); else villagers.talkNext(); break;
     case 'chat': villagers.chatNext(); break;
     case 'inventory': inventory.toggle(); break;
+    case 'board': board.toggle(); break;
     case 'gather': inventory.open(); inventory.gatherNext(); break;
     case 'focusNext': setFocus(wrapIndex(state.focus, n, 1)); break;
     case 'focusPrev': setFocus(wrapIndex(state.focus < 0 ? 0 : state.focus, n, -1)); break;
@@ -957,11 +965,12 @@ addEventListener('keydown', (e) => {
   setDevice('keyboard');
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === '?' && !helpIsOpen && !titleOpen() && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { setHelp(true); return; }
+  if (e.key === BOARD_KEY && !board.isOpen() && !titleOpen() && !helpIsOpen && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { board.open(); e.preventDefault(); return; } // the board closes itself (capture listener); every letter is taken, so it is a punctuation key
   if ((e.key === 'i' || e.key === 'I') && view3d.active && !titleOpen() && !helpIsOpen && !(e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName))) { inventory.toggle(); return; } // 3D: I is the satchel; in 2D I keeps sending the investigator
   if (view3d.active) return; // the 3D view owns WASD, E and Escape while open
   if (titleOpen()) return;
   if (tourOpen()) { if (e.key === 'Escape') closeTour(); return; }
-  if (aboutOpen() || helpIsOpen || vigil.endingOpen()) return;
+  if (aboutOpen() || helpIsOpen || vigil.endingOpen() || board.isOpen()) return;
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   if (cine.on) { if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') setCinematic(false); return; }
@@ -1063,7 +1072,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); board.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

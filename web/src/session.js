@@ -9,6 +9,7 @@ const VIGIL_RE = /^vigil1;[0-9;,A-Za-z_@.\-]{0,600}$/;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
 const LORE_RE = /^b\d{2}$/;
 const HS_RE = /^hs1;[0-9a-z_:,.;\-]{0,600}$/; // Added in round 25 (see homestead.js); Homestead.tryRestore validates the rest
+const BOARD_RE = /^bd1;[0-9,]{0,300};[A-Za-z0-9_@:.,\-]{0,5000};[0-9a-z_:,]{0,2500}$/; // Added in round 26 (see board-ui.js); parseBoardEvidence validates item by item
 const INV_RE = /^inv1;[0-9a-z_:,.;\/]{0,1200}$/; // Added in round 25 (see inventory.js); ItemWorld.tryRestore validates the rest
 
 /** Validates untrusted input (object or JSON text). Returns a clean session or null. night and beat are 0-based. */
@@ -37,6 +38,8 @@ export function parseSession(input) {
     inv: typeof o.inv === 'string' && INV_RE.test(o.inv) ? o.inv : '',
     // Added in round 25: the homestead (claimed yard, beds, structures, animals) as one string.
     hs: typeof o.hs === 'string' && HS_RE.test(o.hs) ? o.hs : '',
+    // Added in round 26: the investigation board evidence (people met, clues, statements heard) as one string; older saves load as empty.
+    board: typeof o.board === 'string' && BOARD_RE.test(o.board) ? o.board : '',
     // Added in round 17: the compact VigilState string. Anything that is not that shape is dropped (VigilState.tryRestore validates the rest).
     vigil: typeof o.vigil === 'string' && VIGIL_RE.test(o.vigil) ? o.vigil : '',
   };

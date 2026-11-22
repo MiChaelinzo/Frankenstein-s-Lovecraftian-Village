@@ -1079,7 +1079,7 @@ const loadMeshesOnce = () => (meshPromise ||= loadMeshSet(fetch.bind(globalThis)
  * thirdParty: false keeps only the original procedural textures and Blender meshes (?thirdparty=0), else the CC0 upgrade loads lazily after the meshes.
  * onInteract(piece, kind) applies the sanity change and shows the line; onExit() leaves the view; notice(key) reports status text.
  */
-export function createView3d({ canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, onPlayer = null, onWard = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
+export function createView3d({ onBoard = null, canvas, prompt, getScene, onInteract, onExit, notice, reduced = false, capture = false, grain = true, camParam = null, packTextures = () => null, alienPack = () => false, post = true, thirdParty = true, onPerf = null, fixedScale = false, onStep = null, onCoast = null, onThunder = null, modal = null, onInventory = null, onPlayer = null, onWard = null, quality = 'medium', onGpu = null, highContrast = () => false, now = () => performance.now() }) {
   let gl = null, renderer = null, active = false, rafId = 0, running = false;
   let lighthouse = { x: 0, z: 0 }; // ground position of the lighthouse lamp, set with each world build
   let layoutCount = 0, cam = null, world = null, worldKey = '', boxes = [], bounds = null, meshes = null, lights = [], rainKey = '', lastHalos = null, lastFlies = null;
@@ -1207,6 +1207,7 @@ export function createView3d({ canvas, prompt, getScene, onInteract, onExit, not
       else if (acts.includes('talk')) talkNearest();
       else if (acts.includes('listen') || acts.includes('door')) interact(centerRay());
       if (acts.includes('inventory') && onInventory) onInventory();
+      if (acts.includes('board') && onBoard) onBoard();
       if (acts.includes('whisper')) onExit();
     }
     return inp;

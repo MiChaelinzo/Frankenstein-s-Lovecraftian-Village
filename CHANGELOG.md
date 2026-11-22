@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 26 (FEAT-004): investigation board panel
+- Web `board-ui.js`: DOM board over `investigation.js` (cards by type in columns, SVG strings between revealed links, dashed contradiction strings with a marker, timeline list). Key `;` (every letter was already taken), pad button 16 (Home), touch Board button, Board button. Arrow keys move between cards, Enter inspects, Esc closes, Tab is trapped, an `aria-live` region announces new strings and contradictions, `html.hc` styles, strings are static under reduced motion, no per-frame work (it redraws only on evidence change while open).
+- Evidence: lore reads (`lore.js`), vigil clues (`onClue`), villagers talked or chatted with, and chat statements (`lieStatementId`). Saved as the `board` field of the session (`bd1;...`, old saves load empty). Chat statements other than lies are not produced by any chat yet; unmet corruption stages come in FEAT-005.
+- en/fr strings, help overlay, tour step, README controls, `sw.js` precache and cache `flv-shell-v53`. The board changes no clue, sanity, Vigil win or ending.
+
 ### Round 26 (FEAT-003): investigation model with authored contradictions and timeline
 - Core `InvestigationModel.cs` (`InvestigationRules`, `StatementLibrary`, `InvestigationBoard`, `BoardCard`, `BoardLink`, `TimelineEvent`) and `Data/statements.json` (en and fr, 16 statements from chat, journal, lore and clue, 8 authored contradiction pairs). Cards: suspect, victim, location (round 24 names), clue, event. Links: villager-home, villager-family, villager-journal, villager-missing, landmark-legend, clue-subject. A link is revealed only once its evidence is found (villager met, page or journal read, clue found).
 - Contradictions come only from the authored pairs and show once both statements are revealed. The four `VillageSociety.LieStatementIds` are authored statements, each paired with a counterpart. One pair applies only when the speaker's `CorruptionStage` is Corrupted or worse, and statements of corrupted speakers are marked invalidated. The timeline orders revealed statements by night, clock minute, statement id, villager. Read-only over Vigil clue ids; Vigil win and endings untouched.
