@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Frankenstein.Core;
 using UnityEngine;
@@ -26,6 +27,8 @@ namespace Frankenstein.Runtime
         public bool buildOnStart = true;
         [Tooltip("Optional Data/names.json. When set, every building gets its seeded name (Core VillageNames) in prompts and narration.")]
         public TextAsset namesData;
+        [Tooltip("Optional Data/story.json. When set, Society is built from the story (Core VillageSociety): trust, suspicion and corruption spread. Compile checked only; runtime behaviour is Unverified in Unity.")]
+        public TextAsset storyData;
 
         private List<PlacedPiece> _layout;
 
@@ -52,6 +55,37 @@ namespace Frankenstein.Runtime
         }
 
         private List<LocalizedName> _names;
+
+        private VillageSociety _society;
+        private List<Villager> _storyRoster;
+
+        /// <summary>The seven principals the story is about (the same roster slice the web demo uses), or empty without a layout.</summary>
+        public IList<Villager> StoryRoster
+        {
+            get
+            {
+                if (_storyRoster == null && Layout != null)
+                {
+                    var all = VillagerRules.GenerateRoster(seed, Layout, width, depth);
+                    _storyRoster = all.GetRange(0, Math.Min(VillagerRules.RoleCount, all.Count));
+                }
+                return _storyRoster ?? new List<Villager>();
+            }
+        }
+
+        /// <summary>Core VillageSociety built from the story data, or null without story data or a layout. Core decides links, trust and corruption; this only builds it once.</summary>
+        public VillageSociety Society
+        {
+            get
+            {
+                if (_society == null && storyData != null && Layout != null)
+                {
+                    var story = VillageStory.Build(StoryLibrary.Parse(storyData.text), seed, Layout, StoryRoster, Names(), CampaignGenerator.Generate(seed).VillageName);
+                    _society = VillageSociety.Build(story, Layout);
+                }
+                return _society;
+            }
+        }
 
         private List<LocalizedName> Names()
         {

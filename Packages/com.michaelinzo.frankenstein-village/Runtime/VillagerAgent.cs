@@ -21,6 +21,10 @@ namespace Frankenstein.Runtime
         public ProgressionTracker tracker;
         public WalkthroughController walkthrough;
         public DreadHud hud;
+        [Tooltip("Optional: the ritual stage the village has reached (0 to 5), fed to Core corruption. Set by the scene; Core decides what it means.")]
+        public int ritualStage;
+        [Tooltip("Lantern colour of a Corrupted or later villager (Core VillageSociety decides who; this is only the colour).")]
+        public Color corruptedLanternColor = new Color(0.55f, 0.86f, 0.78f);
         public Light lantern;
         [Tooltip("Villager wording language, a key of Core VillagerStrings (en or fr).")]
         public string language = "en";
@@ -44,6 +48,18 @@ namespace Frankenstein.Runtime
 
         private int Tick { get { return clock != null ? clock.Tick : GameClock.SessionStartTick; } }
         private List<Villager> _roster;
+        /// <summary>Corruption stage Core gives this villager tonight (None when the builder has no story data or the villager is a townsperson outside the story roster).</summary>
+        public CorruptionStage Corruption
+        {
+            get
+            {
+                var society = village != null ? village.Society : null;
+                if (society == null || Villager == null || rosterIndex >= society.Roster.Count) return CorruptionStage.None;
+                int night = walkthrough != null ? walkthrough.NightIndex + 1 : 1;
+                return society.CorruptionAt(rosterIndex, night, Dread, ritualStage);
+            }
+        }
+
         private float Dread { get { return director != null ? director.Sanity.Dread : 0f; } }
 
         /// <summary>True while Core places the villager somewhere (not vanished).</summary>
@@ -62,9 +78,16 @@ namespace Frankenstein.Runtime
             if (v == null) return;
             var presence = PresenceNow();
             bool visible = !presence.Gone && !presence.Indoors; // Core hides villagers who are vanished or indoors behind their door
+            var stage = Corruption; // Core: a Missing villager has vanished
+            bool gone = presence.Gone || stage == CorruptionStage.Missing;
+            visible = visible && stage != CorruptionStage.Missing;
             if (_renderers != null) foreach (var r in _renderers) r.enabled = visible;
-            if (lantern != null) lantern.enabled = visible && VillagerRules.CarriesLitLantern(v, Tick);
-            if (presence.Gone) return;
+            if (lantern != null)
+            {
+                lantern.enabled = visible && VillagerRules.CarriesLitLantern(v, Tick);
+                if (VillageSociety.ColdLine(stage)) lantern.color = corruptedLanternColor;
+            }
+            if (gone) return;
             // Core already walks the villager between stops (VillagerRules.PresenceAt), so the body follows its point instead of choosing a route.
             transform.position = village.CellToWorld(presence.X, presence.Z);
             if (presence.FaceDx != 0.0 || presence.FaceDz != 0.0) transform.rotation = Quaternion.Euler(0f, (float)Math.Atan2(presence.FaceDx, presence.FaceDz) * Mathf.Rad2Deg, 0f);
