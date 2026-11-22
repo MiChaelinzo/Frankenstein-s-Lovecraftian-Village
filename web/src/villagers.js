@@ -118,17 +118,18 @@ export function dreadSeverity(dread) {
   return tier >= 1 ? 1 : 0;
 }
 
-export function behaviorAt(v, tick, dread) {
+/** Optional stage is the villager's corruption stage (society.js): the behaviour is the stronger of the dread behaviour and the corruption one (Core CombinedBehavior). */
+export function behaviorAt(v, tick, dread, stage = 0) {
   let s = dreadSeverity(dread);
   if (s >= 4) return 4;
   if (v.disposition === 2 && s > 0) s = Math.min(MAX_VISIBLE_SEVERITY, s + 1);
   if (isDaylight(phaseAt(tick))) s = Math.max(0, s - DAYLIGHT_RELIEF);
-  return s;
+  return stage > 0 ? combinedBehavior(s, stage) : s;
 }
 export const causeOf = (behavior) => BEHAVIOR_CAUSES[behavior];
 
-export function locationAt(v, tick, dread) {
-  switch (behaviorAt(v, tick, dread)) {
+export function locationAt(v, tick, dread, stage = 0) {
+  switch (behaviorAt(v, tick, dread, stage)) {
     case 4: return { kind: GONE, pieceIndex: -1 };
     case 1: return resolve(v, HOME);
     case 2: return resolve(v, SHORE);
@@ -144,9 +145,9 @@ const ROLE_FISHER = 0, ROLE_INNKEEPER = 2, ROLE_LAMPLIGHTER = 3, ROLE_KEEPER = 4
 const ownerOf = (roster, role, fallback) => (roster && role < roster.length ? roster[role] : fallback);
 
 /** The stop a villager heads for at a whole tick: { kind, owner }. Only a Normal villager gathers (market by day, inn and chapel at dusk, lamplighter patrol at night). */
-export function stopAt(roster, v, tick, dread) {
-  const place = locationAt(v, tick, dread);
-  if (place.kind === GONE || behaviorAt(v, tick, dread) !== 0) return { kind: place.kind === GONE ? SQUARE : place.kind, owner: -1 };
+export function stopAt(roster, v, tick, dread, stage = 0) {
+  const place = locationAt(v, tick, dread, stage);
+  if (place.kind === GONE || behaviorAt(v, tick, dread, stage) !== 0) return { kind: place.kind === GONE ? SQUARE : place.kind, owner: -1 };
   const phase = phaseAt(tick), minute = wrapTick(tick) - phaseStart(phase);
   if (phase === PHASE_DAY && minute >= MARKET_START_MINUTE && minute < MARKET_END_MINUTE && (v.role === ROLE_FISHER || v.role === ROLE_WIDOW || v.role === ROLE_CHILD)) return { kind: SQUARE, owner: -1 };
   if (phase === PHASE_DUSK && (v.role === ROLE_FISHER || v.role === ROLE_KEEPER)) return { kind: STOP_INN, owner: ownerOf(roster, ROLE_INNKEEPER, v).index };

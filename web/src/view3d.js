@@ -19,6 +19,7 @@ import {
   LIFE, LIFE_KIND, lifeParams, lifeSeeds, chimneySites,
 } from './view3d-math.js';
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
+import { tellFor, applyTell3d } from './corruption-tell.js';
 const PICKUP_PICK_RADIUS = 0.5; // metres: items and chests lie on the ground like books
 const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
@@ -245,7 +246,7 @@ export function poseWalker(out, from, cx, cz, yaw, stride, fade, reduced = false
 }
 
 /** Vertices for the villagers (metres). Idle sway turns each figure slightly; walking villagers swing their legs and bob; reduced motion holds the pose still. Empty without the mesh. */
-export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, reduced = false }) {
+export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, reduced = false, tier = null }) {
   const out = [];
   if (!model) return new Float32Array(0);
   const t = Math.floor(timeSec / VILLAGER_SWAY_STEP) * VILLAGER_SWAY_STEP;
@@ -253,6 +254,7 @@ export function buildVillagers({ villagers, model, cell = CELL, timeSec = 0, red
     const walking = !!v.walking, fade = v.fade ?? 1, sway = reduced || walking ? 0 : Math.sin(t * 0.9 + v.id * 1.7) * VILLAGER_SWAY_RAD, rot = v.yaw + sway, first = out.length;
     appendMeshVertices(out, model, null, cell, { glow: v.lantern ? 1 : 0.12, phase: v.id * 1.3, scale: VILLAGER_HEIGHT_SCALE, at: [v.pos[0], v.pos[2]], rot });
     if (walking || fade < 1) poseWalker(out, first, v.pos[0], v.pos[2], rot, walking ? v.stride || 0 : 0, fade, reduced);
+    if (v.corruption > 0) applyTell3d(out, first, v.pos[0], v.pos[2], rot, tellFor(v.corruption, { reduced, tier })); // corruption: lean, dimmed coat and a cold lantern; static, never a flash
   }
   return new Float32Array(out);
 }
@@ -1299,8 +1301,8 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = Math.min(fogCullDistance(fogs.density), tier.drawDistance); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd = buildWards(s.wards), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${v.corruption | 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced, tier }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd = buildWards(s.wards), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);

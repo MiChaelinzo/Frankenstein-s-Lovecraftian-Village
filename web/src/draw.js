@@ -9,6 +9,7 @@ import { meshKindFor, themeColors, themeRole, effectiveCamera, cameraProfile, de
 import { lerp, mix } from './util.js';
 import { kindName } from './i18n-text.js';
 import { placeName } from './names.js';
+import { tellFor, auraAlpha, AURA_RGB, COLD_LANTERN_CSS } from './corruption-tell.js';
 
 /**
  * Dredge and Silent Hill mood for the 2D view (docs/ART_DIRECTION.md): mossy damp ground, grey green close fog, a cold top and warm low grade.
@@ -34,6 +35,7 @@ export function createRenderer(env) {
   const { canvas, ctx, state, cam, pack, tex, V, GRID_W, GRID_D, reduceMotion, currentNight, lang, $, meshes } = env;
   const { resolvePattern, surf, hintLabel, paintSurface } = tex;
   const TW = V.tw, TH = V.th;
+  let tellTier = null; // the quality tier of the frame being drawn, read by drawVillager (Low draws no aura)
   const BOARD_CY = V.oy + ((GRID_W + GRID_D) * TH) / 4;
   // Quality tier (quality.js sky2d): layered dusk sky, ridge, clouds, cast shadows and window light spill. Off on Low, which keeps the flat look.
   let fancy = true;
@@ -214,16 +216,18 @@ export function createRenderer(env) {
   // A villager: darker coat, hood, and a carried lantern that burns after dusk. Idle sway only without reduced motion.
   function drawVillager(pos, dread, time) {
     const v = pos.villager, s = iso(pos.x, pos.z);
-    const sway = reduceMotion ? 0 : Math.sin(time / 900 + v.index * 1.7) * 0.8;
-    const coat = mix([54, 46, 40], [40, 10, 14], dread);
+    const tell = tellFor(v.corruption | 0, { reduced: reduceMotion, tier: tellTier }); // corruption tell: posture lean, cold aura and a changed lantern (corruption-tell.js); static under reduced motion
+    const sway = reduceMotion ? 0 : Math.sin(time / 900 + v.index * 1.7) * 0.8, tan = Math.tan(tell.lean), at = (h) => sway + tan * h; // lean grows with height, so the head leads the feet
+    const coat = mix([54, 46, 40], [40, 10, 14], dread), tinted = tell.tint > 0 ? mix(coat, [82, 112, 116], tell.tint) : coat;
     glow(s.x, s.y, 9, '0,0,0', 0.35);
-    poly([{ x: s.x - 4.2 + sway, y: s.y }, { x: s.x + 4.2 + sway, y: s.y }, { x: s.x + 2 + sway, y: s.y - 13 }, { x: s.x - 2 + sway, y: s.y - 13 }], coat);
-    ctx.fillStyle = 'rgba(214,190,160,.95)'; ctx.beginPath(); ctx.arc(s.x + sway, s.y - 15.5, 2.4, 0, 7); ctx.fill();
-    ctx.fillStyle = coat; ctx.beginPath(); ctx.moveTo(s.x - 3 + sway, s.y - 15); ctx.lineTo(s.x + sway, s.y - 21); ctx.lineTo(s.x + 3 + sway, s.y - 15); ctx.fill();
-    const lx = s.x + 6 + sway, ly = s.y - 8;
-    ctx.strokeStyle = 'rgba(40,30,20,.9)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(s.x + 2 + sway, s.y - 10); ctx.lineTo(lx, ly - 2); ctx.stroke();
-    ctx.fillStyle = v.lantern ? (dread > 0.67 ? 'rgb(255,120,70)' : 'rgb(255,214,140)') : 'rgb(110,100,84)'; ctx.fillRect(lx - 1.5, ly - 1, 3, 4);
-    if (v.lantern) glow(lx, ly + 1, 16, '255,190,110', 0.6);
+    if (tell.aura > 0) glow(s.x + at(9), s.y - 9, 20, AURA_RGB, auraAlpha(tell, time));
+    poly([{ x: s.x - 4.2 + at(0), y: s.y }, { x: s.x + 4.2 + at(0), y: s.y }, { x: s.x + 2 + at(13), y: s.y - 13 }, { x: s.x - 2 + at(13), y: s.y - 13 }], tinted);
+    ctx.fillStyle = 'rgba(214,190,160,.95)'; ctx.beginPath(); ctx.arc(s.x + at(15.5), s.y - 15.5, 2.4, 0, 7); ctx.fill();
+    ctx.fillStyle = tinted; ctx.beginPath(); ctx.moveTo(s.x - 3 + at(15), s.y - 15); ctx.lineTo(s.x + at(21), s.y - 21); ctx.lineTo(s.x + 3 + at(15), s.y - 15); ctx.fill();
+    const lx = s.x + 6 + at(8), ly = s.y - 8;
+    ctx.strokeStyle = 'rgba(40,30,20,.9)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(s.x + 2 + at(10), s.y - 10); ctx.lineTo(lx, ly - 2); ctx.stroke();
+    ctx.fillStyle = v.lantern ? (tell.lantern ? COLD_LANTERN_CSS : dread > 0.67 ? 'rgb(255,120,70)' : 'rgb(255,214,140)') : 'rgb(110,100,84)'; ctx.fillRect(lx - 1.5, ly - 1, 3, 4);
+    if (v.lantern) glow(lx, ly + 1, 16, tell.lantern ? AURA_RGB : '255,190,110', 0.6);
   }
   // A creature mark on the map: a pale, faceless silhouette per kind (low crawler, tall shroud, hunched figure, a pair of wings). No motion beyond a slow sway, none under reduced motion.
   function drawCreature(pos, dread, time) {
@@ -615,6 +619,7 @@ export function createRenderer(env) {
   const active = [];
 
   function drawScene(now, real, dread, tier) {
+    tellTier = tier;
     const time = reduceMotion ? 0 : now;
     const { eye: eyeT, tentacle: tentT } = omenTargets(tier);
     state.eye = reduceMotion || state.snap ? eyeT : state.eye + (eyeT - state.eye) * 0.06;

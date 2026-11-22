@@ -90,14 +90,14 @@ export function stopPoint(roster, v, stop, tick, layout, gridW, gridD, seed) {
  * A change of stop starts a WALK_MINUTES walk along the lane route (streets.js laneRoute; x then z without streets); leaving a door fades in over the first tenth;
  * at home villagers go indoors SLEEP_MINUTE minutes into the night and come out at dawn. Mirror of VillagerRules.PresenceAt.
  */
-export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed) {
+export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed, stage = 0) {
   const t0 = Math.floor(tick);
-  if (behaviorAt(v, t0, dread) === 4) return { gone: true, walking: false, indoors: false, stop: SQUARE, placeKind: GONE, x: 0, z: 0, faceDx: 0, faceDz: 0, stride: 0, fade: 1 };
-  const cur = stopAt(roster, v, t0, dread), pt = stopPoint(roster, v, cur, tick, layout, gridW, gridD, seed);
+  if (behaviorAt(v, t0, dread, stage) === 4) return { gone: true, walking: false, indoors: false, stop: SQUARE, placeKind: GONE, x: 0, z: 0, faceDx: 0, faceDz: 0, stride: 0, fade: 1 };
+  const cur = stopAt(roster, v, t0, dread, stage), pt = stopPoint(roster, v, cur, tick, layout, gridW, gridD, seed);
   const out = { gone: false, walking: false, indoors: false, stop: cur.kind, placeKind: placeOfStop(cur.kind), x: pt.x, z: pt.z, faceDx: pt.faceDx, faceDz: pt.faceDz, stride: 0, fade: 1 };
   for (let k = 0; k < WALK_MINUTES; k++) {
-    const changeTick = t0 - k, before = stopAt(roster, v, changeTick - 1, dread);
-    if (sameStop(before, stopAt(roster, v, changeTick, dread))) continue;
+    const changeTick = t0 - k, before = stopAt(roster, v, changeTick - 1, dread, stage);
+    if (sameStop(before, stopAt(roster, v, changeTick, dread, stage))) continue;
     const progress = (tick - changeTick) / WALK_MINUTES, from = stopPoint(roster, v, before, changeTick - 1, layout, gridW, gridD, seed);
     const route = laneRoute(from.x, from.z, pt.x, pt.z, gridW, gridD, layout);
     let total = 0;
@@ -131,11 +131,11 @@ export function presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed) {
  * tick may be fractional (smooth walking). indoors: behind a door, listed but not drawn; walking, stride (cells walked) and fade (0 through the door, 1 in view) drive the 3D figure.
  * lantern is true when the carried lantern burns (not in daylight; the lamplighter always carries a lit one).
  */
-export function villagerPlacements({ roster, layout, tick, dread, gridW, gridD, seed }) {
+export function villagerPlacements({ roster, layout, tick, dread, gridW, gridD, seed, stageOf = null }) {
   const whole = Math.floor(tick);
   return roster.map((v) => {
-    const behavior = behaviorAt(v, whole, dread), pr = presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed), roleId = ROLE_IDS[v.role];
-    const base = { index: v.index, name: v.name, role: v.role, roleId, behavior, behaviorName: BEHAVIOR_NAMES[behavior], cause: causeOf(behavior), placeKind: pr.placeKind, placeName: PLACE_KIND_NAMES[pr.placeKind] };
+    const stage = stageOf ? stageOf(v.index) | 0 : 0, behavior = behaviorAt(v, whole, dread, stage), pr = presenceAt(roster, v, tick, dread, layout, gridW, gridD, seed, stage), roleId = ROLE_IDS[v.role];
+    const base = { index: v.index, corruption: stage, name: v.name, role: v.role, roleId, behavior, behaviorName: BEHAVIOR_NAMES[behavior], cause: causeOf(behavior), placeKind: pr.placeKind, placeName: PLACE_KIND_NAMES[pr.placeKind] };
     if (pr.gone) return { ...base, gone: true, indoors: false, walking: false, fade: 1, stride: 0, x: 0, z: 0, yaw: 0, lantern: false };
     return { ...base, gone: false, indoors: pr.indoors, walking: pr.walking, fade: pr.fade, stride: pr.stride, x: pr.x, z: pr.z, yaw: yawToward(pr.faceDx, pr.faceDz), lantern: carriesLitLantern(v, whole) };
   });
@@ -155,7 +155,7 @@ export function villagerMarkers(placements, gridW, gridD, size) {
 /** 3D scene entries (metres) for the renderer and the view ray picker. */
 export function villagerScene(placements, cell) {
   return placements.filter((p) => !p.gone && !p.indoors).map((p) => ({
-    id: p.index, name: p.name, roleId: p.roleId, pos: [p.x * cell, TALK_PICK_HEIGHT, p.z * cell], yaw: p.yaw, lantern: p.lantern, behavior: p.behavior, walking: !!p.walking, stride: (p.stride || 0) * cell, fade: p.fade ?? 1,
+    id: p.index, name: p.name, roleId: p.roleId, pos: [p.x * cell, TALK_PICK_HEIGHT, p.z * cell], yaw: p.yaw, lantern: p.lantern, behavior: p.behavior, corruption: p.corruption | 0, walking: !!p.walking, stride: (p.stride || 0) * cell, fade: p.fade ?? 1,
   }));
 }
 

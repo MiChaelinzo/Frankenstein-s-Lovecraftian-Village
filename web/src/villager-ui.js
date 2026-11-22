@@ -2,6 +2,7 @@
 // positions from villager-view.js. Talking applies its clue and sanity effect through deps.applyEffect BEFORE any narrator request starts,
 // and the narrator text is only ever written with textContent, so an AI answer (or its failure) cannot change game state.
 import { generateTownRoster, talk, chat, lineKey } from './villagers.js';
+import { combinedBehavior, coldLine } from './society.js';
 import { stageOfNight, GOSSIP_MISSING } from './village-story.js';
 import { tierFor } from './core.js';
 import { phaseAt, PHASE_NAMES } from './clock.js';
@@ -10,6 +11,7 @@ import { buildVillagerRequest, fetchVillagerLine } from './villager-narrator.js'
 import { esc } from './util.js';
 
 /**
+ * Optional society deps (Round 26): standing(index) -> { tier, corruption } or null, stageOf(index) -> corruption stage, chatStatement(index, night, result) -> authored statement or null, onChat(index, result, night).
  * deps: { $, tr, lang, chatNeeds() -> { cluesLeft, lampsLeft, sanity } (what the vigil still needs), state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
  *   story() -> the village story or null, onGossip(missingId, stage), narratorUrl, fetchImpl, exitPointerLock(), onChange() }
  * state.villagers (placements) is kept current for the 2D and 3D renderers.
@@ -28,7 +30,7 @@ export function createVillagerController(deps) {
 
   /** Placements at an exact (fractional) tick, so 3D figures walk smoothly between the whole-minute refreshes. */
   function placementsAt(tickExact) {
-    return villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick: tickExact, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed });
+    return villagerPlacements({ roster: ensureRoster(), layout: state.layout, tick: tickExact, dread: state.sanity.dread, gridW: deps.gridW, gridD: deps.gridD, seed: state.seed, stageOf: deps.stageOf || null });
   }
   state.placementsAt = placementsAt;
 
@@ -36,7 +38,7 @@ export function createVillagerController(deps) {
   function refresh() {
     const tick = deps.tickNow();
     const next = placementsAt(deps.tickExact ? deps.tickExact() : tick);
-    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.lantern ? 1 : 0}:${p.indoors ? 1 : 0}`).join('|');
+    const sig = (list) => list.map((p) => `${p.index}:${p.gone ? 'g' : `${p.x.toFixed(2)},${p.z.toFixed(2)}`}:${p.behavior}:${p.corruption | 0}:${p.lantern ? 1 : 0}:${p.indoors ? 1 : 0}`).join('|');
     const changed = sig(next) !== sig(state.villagers);
     state.villagers = next;
     renderPanel(tick);
@@ -67,6 +69,14 @@ export function createVillagerController(deps) {
     return panelOn;
   }
 
+  /** Subtle trust line for the dialogue: { text, aria } from the villager's tier, plus a cold-voice cue once corruption shows. Empty for townsfolk outside the story. */
+  function trustParts(index) {
+    const st = deps.standing ? deps.standing(index) : null;
+    if (!st) return { text: '', aria: '' };
+    const cold = coldLine(st.corruption || 0), text = [tr(`society.trust.${st.tier}`), cold ? tr('society.cold') : ''].filter(Boolean).join(' ');
+    return { text, aria: tr('society.trust.aria', { text }) };
+  }
+
   function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
     $('villagerName').textContent = p.name;
@@ -78,6 +88,8 @@ export function createVillagerController(deps) {
     if (result.sanityDelta !== 0) effect.push(tr('villagerui.effect.sanity', { n: result.sanityDelta }));
     if (result.rumor && result.yieldsClue) effect.push(`${tr('label.rumor')}: ${result.rumor}`);
     $('villagerEffect').textContent = effectText === null ? effect.join(' ') : effectText;
+    const trust = $('villagerTrust');
+    if (trust) { const t = trustParts(p.index); trust.textContent = t.text; trust.setAttribute?.('aria-label', t.aria); trust.hidden = !t.text; }
     dlg.hidden = false;
     deps.exitPointerLock?.();
     returnFocus = deps.activeElement ? deps.activeElement() : null;
@@ -90,7 +102,9 @@ export function createVillagerController(deps) {
     if (!v || !p) return null;
     const tick = deps.tickNow(), night = state.night + 1;
     const result = talk(state.seed, v, tick, state.sanity.dread, state.campaign, night);
-    const line = tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    const stage = deps.stageOf ? deps.stageOf(index) | 0 : 0, shown = combinedBehavior(result.behavior, stage); // a corrupted villager shows the stronger behaviour; the clue and sanity result stay Core's
+    if (shown === 4) result.available = false;
+    const line = tr(lineKey(v, shown, result.lineVariant), { name: v.name });
     if (!result.available) { deps.announce(line); showDialog(p, result, line); openFor = -1; return result; }
     openFor = index; cursor = index;
     deps.onMet?.(index);
@@ -127,14 +141,19 @@ export function createVillagerController(deps) {
     const night = state.night + 1;
     if (night !== chatNight) { chatNight = night; chatCounts.clear(); } // topics restart each night, so the first chat of a night is always topic 0
     const topic = chatCounts.get(index) || 0, need = deps.chatNeeds();
-    const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity);
+    const standing = deps.standing ? deps.standing(index) : null;
+    const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity, standing || undefined);
+    const authored = deps.chatStatement ? deps.chatStatement(index, night, result) : null, spoken = result.lieStatementId ? deps.statementText?.(result.lieStatementId) : '';
     let line;
-    if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
+    if (result.withheld) line = tr('society.chat.withheld', { name: v.name });
+    else if (spoken) line = spoken;
+    else if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
     else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
-    if (result.available) { chatCounts.set(index, topic + 1); deps.onChat?.(index, result, night); }
+    if (authored && result.hintId) line += ` ${authored.text[deps.lang] || authored.text.en}`; // what this villager says they saw, after the hint
+    if (result.available) { chatCounts.set(index, topic + 1); deps.onChat?.(index, authored && !result.lieStatementId ? { ...result, lieStatementId: authored.id } : result, night); }
     openFor = result.available ? index : -1; cursor = index; talkId++;
-    showDialog(p, result, line, result.hintId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');
+    showDialog(p, result, line, result.hintId || result.withheld || result.lieStatementId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');
     deps.announce(`${v.name}: ${line}`);
     return result;
   }

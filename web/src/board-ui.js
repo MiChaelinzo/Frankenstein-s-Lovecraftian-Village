@@ -3,7 +3,7 @@
 // Nothing runs per frame: the board is recomputed when evidence changes and redrawn only while it is open.
 import {
   buildBoard, cardTitle, parseStatementLibrary, emptyEvidence,
-  CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT,
+  CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT, SUSPECT_PREFIX,
 } from './investigation.js';
 import { MINUTES_PER_DAY } from './clock.js';
 
@@ -79,7 +79,7 @@ export function parseBoardEvidence(text) {
 const linkKey = (l) => `${l.kind}|${l.from}|${l.to}`;
 
 /**
- * deps: { $, doc, tr, lang, state (seed), story() -> village story or null, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null,
+ * deps: { $, doc, tr, lang, state (seed), story() -> village story or null, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
  *   announce(text), exitPointerLock(), activeElement(), keyTarget, reduceMotion, onChange?() }
  */
 export function createBoardController(deps) {
@@ -159,6 +159,13 @@ export function createBoardController(deps) {
   const clear = (el) => { if (el.replaceChildren) el.replaceChildren(); else el.textContent = ''; };
   let cardNodes = new Map();
 
+  /** Trust tier toward the player for a revealed suspect card (met villagers only, so the board does not leak what the player has not learned); null otherwise. */
+  function trustOf(card) {
+    if (!deps.trust || card.kind !== CARD_SUSPECT || !card.revealed || !card.id.startsWith(SUSPECT_PREFIX)) return null;
+    const t = deps.trust(Number(card.id.slice(SUSPECT_PREFIX.length)));
+    return Number.isInteger(t) ? t : null;
+  }
+
   function render() {
     const m = current(), cardsEl = $('boardCards'), linesEl = $('boardLines'), timelineEl = $('boardTimeline'), note = $('boardNote');
     if (!cardsEl || !linesEl || !timelineEl) return;
@@ -188,10 +195,12 @@ export function createBoardController(deps) {
     }
     for (const c of shown) {
       const slot = layout.slots.get(c.id), title = titleOf(c.id), contradictory = flagged.has(c.id);
-      const label = [tr(`board.kind.${c.kind}`), title, contradictory ? tr('board.flag.contradiction') : '', c.invalidated ? tr('board.flag.invalid') : ''].filter(Boolean).join(', ');
+      const trust = trustOf(c), trustText = trust === null ? '' : tr(`society.trust.${trust}`);
+      const label = [tr(`board.kind.${c.kind}`), title, trustText ? tr('society.card.aria', { text: trustText }) : '', contradictory ? tr('board.flag.contradiction') : '', c.invalidated ? tr('board.flag.invalid') : ''].filter(Boolean).join(', ');
       const b = node('button', { type: 'button', class: `board-card board-kind-${c.kind}${c.revealed ? '' : ' board-unknown'}${contradictory ? ' board-contradiction' : ''}${c.invalidated ? ' board-invalid' : ''}`, 'data-card': c.id, 'aria-label': label, tabindex: '-1' });
       b.style.setProperty('left', `${slot.x}px`); b.style.setProperty('top', `${slot.y}px`); b.style.setProperty('width', `${CARD_W}px`); b.style.setProperty('height', `${CARD_H}px`);
       b.append(node('span', { class: 'board-card-kind' }, tr(`board.kind.${c.kind}`)), node('span', { class: 'board-card-title' }, title));
+      if (trust !== null) b.append(node('span', { class: `board-card-trust board-trust-${trust}`, 'aria-hidden': 'true' }, tr(`society.trust.short.${trust}`)));
       b.addEventListener('click', () => inspect(c.id));
       cardsEl.append(b); cardNodes.set(c.id, b);
     }

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 26 (FEAT-005): trust and corruption shown in dialogue, cards and villagers
+- Web `society-ui.js`: action log (polite chat, a door tried at night, the ritual site seen, a ward laid with a villager in view), trust and suspicion per villager, corruption stage per night from dread, night and ritual stage. Saved as the `society` field (`sc1;kind:subject,...`); older saves load empty. Not wired because no such event exists yet: item or journal return, near a body, fighting a creature.
+- Villagers use `CombinedBehavior` (placements, talk and chat); suspicious villagers withhold or lie, trusting ones add what they saw; authored `c_*` chat statements are heard deterministically and reach the board. The board now loads `data/statements.json` (it was never fetched before).
+- Trust line in the talk and chat dialogue and on suspect cards (en/fr, aria). Corruption tell in 2D and 3D (`corruption-tell.js`): lean, cold aura, changed lantern; static under reduced motion, no aura on Low. Documented in `docs/ART_DIRECTION.md`. Cache `flv-shell-v54`.
+
 ### Round 26 (FEAT-004): investigation board panel
 - Web `board-ui.js`: DOM board over `investigation.js` (cards by type in columns, SVG strings between revealed links, dashed contradiction strings with a marker, timeline list). Key `;` (every letter was already taken), pad button 16 (Home), touch Board button, Board button. Arrow keys move between cards, Enter inspects, Esc closes, Tab is trapped, an `aria-live` region announces new strings and contradictions, `html.hc` styles, strings are static under reduced motion, no per-frame work (it redraws only on evidence change while open).
 - Evidence: lore reads (`lore.js`), vigil clues (`onClue`), villagers talked or chatted with, and chat statements (`lieStatementId`). Saved as the `board` field of the session (`bd1;...`, old saves load empty). Chat statements other than lies are not produced by any chat yet; unmet corruption stages come in FEAT-005.

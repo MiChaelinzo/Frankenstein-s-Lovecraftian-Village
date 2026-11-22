@@ -11,8 +11,8 @@
       "vectors": 588
     },
     "js": {
-      "count": 73,
-      "tests": 76
+      "count": 75,
+      "tests": 77
     },
     "kiro": {
       "count": 3,
@@ -21,7 +21,7 @@
       "tasksTotal": 146
     },
     "pwa": {
-      "count": 167
+      "count": 169
     },
     "unity": {
       "bridges": 4,
