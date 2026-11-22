@@ -70,6 +70,14 @@ namespace Frankenstein.Core
         /// <summary>Stable hint id such as "clues_seek"; clients map it to wording. Empty when none.</summary>
         public string HintId;
         public int LineVariant;
+        /// <summary>Set by the trust overload of Chat: a trusting villager gives the hint in full (the client shows the stronger wording).</summary>
+        public bool StrongHint;
+        /// <summary>Set by the trust overload: a suspicious villager kept the hint back (HintId is then empty).</summary>
+        public bool Withheld;
+        /// <summary>Authored id of a lie a suspicious villager told instead of the hint, for the investigation board. "" otherwise.</summary>
+        public string LieStatementId;
+        /// <summary>Set by the trust overload: a corrupted villager speaks the colder variant of the line.</summary>
+        public bool ColdLine;
     }
 
     /// <summary>
@@ -591,7 +599,7 @@ namespace Frankenstein.Core
         {
             var talk = Talk(seed, v, tick, dread, null, night);
             int t = ((topic % ChatTopics) + ChatTopics) % ChatTopics;
-            var result = new VillagerChatResult { Available = talk.Available, Behavior = talk.Behavior, Topic = t, HintId = "" };
+            var result = new VillagerChatResult { Available = talk.Available, Behavior = talk.Behavior, Topic = t, HintId = "", LieStatementId = "" };
             if (!talk.Available) return result;
             result.LineVariant = new SeededRandom(seed ^ (v.Index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).Next(LineVariants);
             if (talk.Behavior != VillagerBehavior.Normal) return result;
@@ -599,6 +607,33 @@ namespace Frankenstein.Core
                           : t == 1 ? (lampsLeft > 0 ? "lamps_light" : "lamps_done")
                           : t == 2 ? (sanity < VigilRules.SteadySanity ? "sanity_low" : "sanity_steady")
                           : "village";
+            return result;
+        }
+
+        /// <summary>
+        /// Chat with the villager's social standing (<see cref="VillageSociety"/>). Without any standing change this equals <see cref="Chat(int, Villager, int, float, int, int, int, int, int)"/>.
+        /// Corruption can worsen the behavior (never improve it) and a vanished villager is gone. A lucid villager then answers by tier: trusting gives a strong hint,
+        /// neutral the usual hint, suspicious withholds it or tells a lie flagged by LieStatementId.
+        /// </summary>
+        public static VillagerChatResult Chat(int seed, Villager v, int tick, float dread, int night, int topic, int cluesLeft, int lampsLeft, int sanity, SocialStanding standing)
+        {
+            var result = Chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity);
+            result.ColdLine = VillageSociety.ColdLine(standing.Corruption);
+            var combined = VillageSociety.CombinedBehavior(result.Behavior, standing.Corruption);
+            if (combined != result.Behavior)
+            {
+                result.Behavior = combined;
+                result.HintId = "";
+                if (combined == VillagerBehavior.Vanished) result.Available = false;
+            }
+            if (!result.Available || result.HintId.Length == 0) return result;
+            if (standing.Tier == TrustTier.Trusting) result.StrongHint = true;
+            else if (standing.Tier == TrustTier.Suspicious)
+            {
+                result.LieStatementId = VillageSociety.SuspiciousStatement(seed, v.Index, night, result.Topic);
+                result.Withheld = result.LieStatementId.Length == 0;
+                result.HintId = "";
+            }
             return result;
         }
     }

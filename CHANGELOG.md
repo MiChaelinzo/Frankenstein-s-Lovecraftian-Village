@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 26 (FEAT-002): society model, trust, suspicion and corruption spread
+- Core `VillageSociety.cs` (`VillageSociety`, `SocietyAction`, `SocietyActionKind`, `TrustTier`, `CorruptionStage`, `SocialStanding`): links from `VillageStory` families and the nearest neighbour by home. Trust and suspicion (per mille, clamped to 0..1000) follow from the seed and an ordered action log (chat politely, return an item or journal, seen near a body or at a ritual site, night intrusion, warding or fighting a creature in view). Family members feel half of an action and the neighbour a quarter. A repeat counts less, and a trust gain is halved while the villager is already suspicious, so log order matters.
+- Corruption starts at a seed-chosen patient zero and spreads only along family (1 night) and neighbour (2 nights) links. Its level grows with dread, night and ritual stage, giving the stages none, uneasy, corrupted and a fixed late fate (cultist or missing). Stages map onto `VillagerBehavior` (window, sea, phrase, vanished).
+- `VillagerRules.Chat` gained an overload with a `SocialStanding`. The existing overload and its golden data are unchanged. Trusting villagers set `StrongHint`. Suspicious ones withhold (`Withheld`) or lie with an authored `LieStatementId` (`lie_saw_nothing`, `lie_was_asleep`, `lie_blame_neighbour`, `lie_not_me`) for the investigation board. Corrupted villagers set `ColdLine`.
+- JS mirror `web/src/society.js` and an optional `standing` argument on `villagers.js` `chat`. Golden key `society`. Tests: `VillageSocietyTests.cs` (10), `web/test/society.test.js` (4). Cache `flv-shell-v51`. Verified: dotnet 299 pass, node 633 pass, validate_repo OK, UnityCompileCheck 0 warnings and 0 errors. Unverified: no UI or Unity runtime uses it yet (later features).
+
 ### Round 25 review fixes
 - Sleeping now checks `sanity_keys` as well as `night_step`, refuses on a frozen `?tick=` clock, and clears its guard in a `finally` so a failed completion cannot disable sleep. `skipClock` refuses a second concurrent skip (Endure and sleep can no longer interleave). `Inventory.use` uses the exported `MAX_SANITY` instead of the literal 100 (Core already used `SanityModel.Max`). Verified: node 626 pass (4 new tests), dotnet 289 pass (Core unchanged), validate_repo OK; browser_check and Unity not re-run.
 

@@ -2,6 +2,7 @@
 import { SeededRandom, sanitizeDread, tierFor, villagerTalkCountsAsClue, InteractionRules, VIGIL_STEADY_SANITY } from './core.js';
 import { districtAt, CITY_GRID, DISTRICT_IDS } from './districts.js';
 import { phaseAt, isDaylight, lanternsLit, phaseStart, wrapTick } from './clock.js';
+import { combinedBehavior, coldLine, suspiciousStatement, TIER_TRUSTING, TIER_SUSPICIOUS } from './society.js';
 
 export const ROLE_IDS = ['fisher', 'priest', 'innkeeper', 'lamplighter', 'lighthouse_keeper', 'widow', 'child'];
 export const DISPOSITION_NAMES = ['kind', 'wary', 'haunted', 'closed'];
@@ -194,15 +195,37 @@ const CHAT_SEEKING = ['clues_seek', 'lamps_light', 'sanity_low'], CHAT_DONE = ['
 /**
  * Chat (the C key), mirror of VillagerRules.Chat: topic 0 clues, 1 lanterns, 2 sanity, 3 village story. Availability and behavior come from talk();
  * only a lucid (Normal) villager gives a hint, otherwise hintId is '' and the UI shows the usual talk line. No state changes.
+ * Optional standing { tier, corruption } from society.js mirrors the trust overload: corruption can worsen the behavior (vanished means unavailable)
+ * and sets coldLine; a lucid trusting villager gives a strongHint, a suspicious one withholds or tells a lie flagged by lieStatementId. Without standing the
+ * result equals the plain chat.
  */
-export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity) {
+export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity, standing) {
   const t = ((topic % CHAT_TOPICS) + CHAT_TOPICS) % CHAT_TOPICS, base = talk(seed, v, tick, dread, null, night);
-  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0 };
-  if (!base.available) return result;
+  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0, strongHint: false, withheld: false, lieStatementId: '', coldLine: false };
+  if (!base.available) return withStanding(result, seed, v, night, standing);
   result.lineVariant = new SeededRandom(seed ^ (v.index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).next(LINE_VARIANTS);
-  if (base.behavior !== 0) return result;
-  if (t === 3) { result.hintId = 'village'; return result; }
-  const needs = t === 0 ? cluesLeft > 0 : t === 1 ? lampsLeft > 0 : sanity < VIGIL_STEADY_SANITY;
-  result.hintId = (needs ? CHAT_SEEKING : CHAT_DONE)[t];
+  if (base.behavior === 0) {
+    if (t === 3) result.hintId = 'village';
+    else result.hintId = ((t === 0 ? cluesLeft > 0 : t === 1 ? lampsLeft > 0 : sanity < VIGIL_STEADY_SANITY) ? CHAT_SEEKING : CHAT_DONE)[t];
+  }
+  return withStanding(result, seed, v, night, standing);
+}
+
+function withStanding(result, seed, v, night, standing) {
+  if (!standing) return result;
+  result.coldLine = coldLine(standing.corruption || 0);
+  const combined = combinedBehavior(result.behavior, standing.corruption || 0);
+  if (combined !== result.behavior) {
+    result.behavior = combined;
+    result.hintId = '';
+    if (combined === 4) result.available = false;
+  }
+  if (!result.available || !result.hintId) return result;
+  if (standing.tier === TIER_TRUSTING) result.strongHint = true;
+  else if (standing.tier === TIER_SUSPICIOUS) {
+    result.lieStatementId = suspiciousStatement(seed, v.index, night, result.topic);
+    result.withheld = result.lieStatementId === '';
+    result.hintId = '';
+  }
   return result;
 }
