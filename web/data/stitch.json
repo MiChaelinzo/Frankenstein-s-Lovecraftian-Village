@@ -4,10 +4,10 @@
       "count": 1
     },
     "core": {
-      "count": 45
+      "count": 47
     },
     "golden": {
-      "count": 39,
+      "count": 40,
       "vectors": 588
     },
     "js": {

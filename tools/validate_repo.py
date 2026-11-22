@@ -99,6 +99,8 @@ if os.path.isfile("web/data/names.json") and not filecmp.cmp("web/data/names.jso
     errors.append("web/data/names.json differs from Packages/com.michaelinzo.frankenstein-village/Data/names.json")
 if os.path.isfile("web/data/statements.json") and not filecmp.cmp("web/data/statements.json", "Packages/com.michaelinzo.frankenstein-village/Data/statements.json", shallow=False):
     errors.append("web/data/statements.json differs from Packages/com.michaelinzo.frankenstein-village/Data/statements.json")
+if os.path.isfile("web/data/mythos.json") and not filecmp.cmp("web/data/mythos.json", "Packages/com.michaelinzo.frankenstein-village/Data/mythos.json", shallow=False):
+    errors.append("web/data/mythos.json differs from Packages/com.michaelinzo.frankenstein-village/Data/mythos.json")
 if os.path.isfile("web/data/story.json") and not filecmp.cmp("web/data/story.json", "Packages/com.michaelinzo.frankenstein-village/Data/story.json", shallow=False):
     errors.append("web/data/story.json differs from Packages/com.michaelinzo.frankenstein-village/Data/story.json")
 if os.path.isfile("web/data/village_shapes.json") and not filecmp.cmp("web/data/village_shapes.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json", shallow=False):
