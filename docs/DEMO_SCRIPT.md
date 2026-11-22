@@ -104,3 +104,9 @@ Tips: record at 1080p, upload to YouTube or Vimeo as public, no copyrighted musi
 - Wards: `?view=3d&intro=0&caption=0&kit=ward` at night, press `Z` to lay salt. Say: "Nothing crosses the salt, and nothing sees through it." Creatures are quiet by design, so do not promise a jump scare.
 - Homestead: `?view=3d&intro=0&caption=0&kit=farm`, open the Homestead button within 12 m of the yard and plant a seed. Stills: `docs/media/homestead_yard.png`.
 - A busier street: 24 villagers by district, see `docs/media/round25-busy-streets.png`. All of this is the web demo; the Unity hooks are compile checked only and Unverified at runtime.
+
+## Round 26 shots (optional, 10 s each)
+- Board: `?view=3d&intro=0&caption=0&tick=900#seed=1818&sanity=40`, read a lore book or two, press `;`. Say: "Every string is evidence you found. Red dashes mark two statements that cannot both be true." Still: `docs/media/r26-board.png`.
+- Trust: press `C` near a villager; the dialogue shows a trust line. Say: "Be polite, be seen at a ritual site, and what they tell you changes." Still: `docs/media/r26-trust-chat.png`.
+- Corruption tell: night 3, sanity 40 (`docs/media/r26-corrupt-3d.png`, `r26-corrupt-2d.png`). Say: "A corrupted villager leans, carries a cold aura and a changed lantern. No flash, no sound." The 2D tell is subtle; the 3D one reads better. Software GL only; four actions have no game event yet, so do not promise them.
+

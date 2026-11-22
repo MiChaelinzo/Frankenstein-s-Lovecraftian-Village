@@ -249,3 +249,11 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Debt, small: villager routes are axis-aligned and not snapped to `VillageStreets` lanes; the Unity scene builder places no lore books, so it cannot yet pass the story; landmark names still have a fallback copy in `VillageLandmarks`; the dark box beside the held lantern in `round23-city-old-town.jpg` was not reproduced.
 - Risk: the 80% frame triangle budget limits dressing of the new landmarks (the ritual site has one sapling and two fungi).
 - Status: Core and JS Verified (dotnet, node, golden, browser checks); look Partially Verified (SwiftShader); Unity Unverified.
+
+## Round 26: society and case model
+- Boundary kept: who trusts whom, who is suspicious and how corruption spreads are Core rules (`VillageSociety.cs`), built on `VillageStory` families and `VillagerRules`, not a parallel villager system. The case file (cards, links, contradictions, timeline) is Core `InvestigationModel.cs` over `Data/statements.json`. JS mirrors them (`society.js`, `investigation.js`) and golden keys pin both. The web adds only presentation (`board-ui.js`, `society-ui.js`, `corruption-tell.js`).
+- One shared model: the board, the dialogue lines, the villager figures and the Unity hooks all read the same stage and standing values. The board is read-only over Vigil clue ids, so the Vigil win and endings are untouched.
+- Determinism: trust, suspicion and corruption follow from the seed and an ordered action log (log order matters by design). Contradictions come only from authored pairs.
+- Debt: four actions (`return_item`, `return_journal`, `seen_near_body`, `fight_creature_in_view`) have Core rules but no game event raises them. The statements file is a byte copy in `Data/` and `web/data/` (drift checked). Unity hooks are compile checked only.
+- Status: Core and JS Verified (dotnet, node, golden); board and tell Partially Verified (SwiftShader browser check and stills); Unity runtime Unverified.
+

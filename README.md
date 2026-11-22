@@ -70,6 +70,13 @@ Dynamic resolution steps the render scale down by 0.25 when the average frame is
 
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
+### Round 26 controls
+| Input | What it does |
+|-------|--------------|
+| `;` (pad: Home button 16, touch: Board button) | open or close the investigation board |
+| Arrow keys, `Enter`, `Esc`, `Tab` (on the board) | move between cards, inspect a card, close, stay inside the panel |
+| `C` | talk to a villager; trust and suspicion change what they say |
+
 ### Round 25 controls
 | Key | 3D view | 2D view |
 |-----|---------|---------|
@@ -279,6 +286,11 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Walking collision around trunks (Core `WalkCollision` round obstacles, `resolveCollisions`) | Verified | dotnet and node tests; `COLLISION_ONLY` browser check walks straight at a tree and ends past it. Still `docs/media/round24-tree-walk-around.jpg` is Partially Verified (SwiftShader); no before still exists, the root cause (canopy-sized box) is fixed in code |
 | CC0 Quaternius houses (`house_a`, `house_b`, `cottage_tall`, [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)) | Partially Verified | Licence read from the kit (`License_Standard.txt`, CC0); node and Python tests for budgets, fallbacks and atlas uv; look seen only in SwiftShader stills (`round24-kit-houses-*.jpg`). Rigged villagers were not evaluated (Unverified) |
 | Larger world: standing stones, hidden cove, ritual site, catacomb entrance (landmarks 7 to 10) | Verified | dotnet 244 and node 568 tests with golden parity, `LANDMARK_ONLY` browser check (ten chips en and fr). Forest, swamp boardwalk, fishing village, cliff monastery and the catacomb interior are not built (spec tasks 129 to 134) |
+| Society model: trust, suspicion and corruption spread along family and neighbour links (`VillageSociety.cs`, `society.js`) | Verified | dotnet and node tests with golden parity (dotnet 310, node 673 at the round 26 close) |
+| Investigation model: cards, links, authored contradictions, timeline (`InvestigationModel.cs`, `investigation.js`, `Data/statements.json`) | Verified | `InvestigationModelTests.cs`, `investigation.test.js`, golden key `investigation`, data copy drift checked by `validate_repo.py` |
+| Board panel, trust lines and corruption tell in 2D and 3D (`board-ui.js`, `society-ui.js`, `corruption-tell.js`) | Partially Verified | `SOCIETY_ONLY` browser check (SwiftShader headless Chrome, 115 of 115 in the full run) and four stills in `docs/media`; no real GPU, the 2D tell is subtle at normal zoom |
+| Society actions `return_item`, `return_journal`, `seen_near_body`, `fight_creature_in_view` | Unverified | The Core rules exist and are tested, but no game event raises them yet (open spec tasks in `.kiro/specs/tasks.md`) |
+| Unity hooks for society and corruption (`VillageBuilder`, `VillagerAgent`) | Unverified | Compile check only (0 warnings, 0 errors); never run in Unity |
 | Local Alien Terrain horror area (`?pack=1`, `tools/build_alien_pack.py`) | Partially Verified | Offline tests with synthetic GLBs (14 Python, node loader and fallback tests); the real pack look was seen only in SwiftShader stills kept git-ignored; real GPU and Unity runtime Unverified |
 | Per-tier frame time of the 36 by 36 city | Partially Verified | SwiftShader `TIER_ONLY`: mid-city 410/480/516 ms (Low/Medium/High) against 268/330/353 ms before the city (different spot); the halo cull gave no speedup; real GPU Unverified |
 | Web 3D CC0 materials and props (`web/assets/third_party`, [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)) | Partially Verified | glb texture and node reading, prop fitting, atlas uv, budgets, fallbacks with `[third-party]` warnings and the service worker exclusion by node tests (`web/test/third-party.test.js`); the manifest and size rules by `tools/test_third_party_assets.py`. The look is seen only in SwiftShader screenshots (`docs/media/materials-before.png`, `docs/media/materials-after.png`); real GPUs Unverified |
