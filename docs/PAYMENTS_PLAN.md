@@ -1,36 +1,19 @@
-# Payments plan (not built)
+# PayPal support and membership
 
-Status: **plan only. No code, serverless function or key exists for payments.** The only live element is the Support link to <https://paypal.me/michaelinzo77> in the About dialog and the README (en and fr). That link is a plain external link: it takes no money inside the game and unlocks nothing.
+The About dialog in the browser demo offers a one-time donation link and a PayPal-hosted monthly subscription flow. The Unity Editor exposes the same support page through **Tools > Frankenstein > Open Support Page**. Payments are optional; the game and demo remain free.
 
-## Goal
-Let a player buy optional cosmetic items (for example a lantern colour) with real money, without changing any gameplay rule, sanity value or seed output.
+## Membership scope
+This is recurring development support only. It creates no player account, grants no in-game items or features, and does not change gameplay, determinism, dread, sanity, or seed output. A client-side approval message is not proof of server-verified payment and must never be used to unlock anything.
 
-## Rules that must hold
-- Cosmetic only. Core determinism, dread and sanity never read an entitlement.
-- No secret in the repository, the browser, logs or CI output. The PayPal client secret and webhook id live only as Vercel environment variables that the author sets in the Vercel dashboard.
-- The browser never decides that a payment succeeded. The server does.
-- The demo stays fully playable and free without paying.
+## PayPal Sandbox setup
+1. In the PayPal Developer Dashboard, create a Sandbox REST app and a monthly subscription product/plan. Set the amount and billing interval on the plan.
+2. In `web/src/paypal-config.js`, set `PAYPAL_CLIENT_ID` to the app's **Sandbox client ID**, `PAYPAL_PLAN_ID` to the Sandbox plan ID, and keep `PAYPAL_ENVIRONMENT` as `sandbox` while testing.
+3. Test with a PayPal Sandbox buyer account. Do not use a live client ID or real buyer account for sandbox tests.
+4. For production, create and verify a live plan, use its live client ID and plan ID, and set `PAYPAL_ENVIRONMENT` to `live` only after you have tested the flow. The amount and interval are controlled by the PayPal plan.
 
-## Design
-1. **Orders**: PayPal Orders v2. A same-origin Vercel serverless function (for example `/api/orders`) creates the order with the price taken from a server-side catalogue, never from the request body.
-2. **Capture**: a second same-origin function (`/api/orders/capture`) captures the order server-side and checks status `COMPLETED`, amount, currency and the catalogue item.
-3. **Webhook**: a function receives PayPal webhooks and verifies the signature with PayPal's verify-webhook-signature API before trusting the event. It handles completed, refunded and reversed payments.
-4. **Entitlement store**: a small server-side store keyed by an opaque player token (for example Vercel KV or another managed store the author chooses), holding item ids. The client asks `/api/entitlements` and only changes the look of an item.
-5. **Idempotency**: PayPal order id is the key, so a retried capture or a repeated webhook grants an item once.
-6. **Client**: loads the PayPal button only after the player opens the shop, with a strict Content Security Policy that allows PayPal and nothing else new.
+The browser SDK requires only the public client ID and plan ID. **Do not add a client secret, webhook secret, or access token to this static demo or its repository.** A client secret is not needed for this hosted subscription flow. PayPal processes checkout; the project does not store payment details or claim membership status from the browser callback. If the product later grants benefits, it needs an authenticated player identity, server-side subscription verification, verified webhooks, and durable entitlement storage before any feature is gated.
 
-## Sandbox first
-Build and test against PayPal sandbox accounts and sandbox credentials. Switch to live credentials only after the author has tested capture, refund and webhook flows end to end and completed the duties below.
+The PayPal.Me donation link is a separate one-time support option. It does not implement Sandbox recurring billing.
 
-## Author's legal and business duties (not code)
-- Refund policy and how refunds revoke an entitlement.
-- Tax and VAT handling, invoices, and business registration where required.
-- Terms of sale, privacy notice and consumer rights for the player's country.
-- Age rules: do not sell to children without the consent the law requires, and decide whether to gate purchases by age.
-- PayPal account and merchant agreement compliance, and chargeback handling.
-
-## Failure conditions to test
-Amount tampering, replayed capture, forged webhook, webhook before capture, refund after grant, store outage (the player keeps free items, the game keeps running), and a missing environment variable (the shop hides itself and logs a clear server-side error).
-
-## Not in scope here
-Real-money checkout is a later round (see `.kiro/specs/tasks.md`). Nothing in this document is Verified; it is a design.
+## Author's business duties
+Before accepting live payments, review PayPal's merchant terms, cancellation and refund handling, consumer rights, taxes/VAT, invoicing, privacy disclosures, age requirements, and any business registration obligations that apply to you.

@@ -12,6 +12,12 @@ namespace Frankenstein.Editor
     {
         public const string DemoUrl = "https://frankensteinlovecraftianvillage.vercel.app/";
 
+        [MenuItem("Tools/Frankenstein/Open Support Page")]
+        public static void OpenSupportPage()
+        {
+            Application.OpenURL(DemoUrl + "?support=1");
+        }
+
         [MenuItem("Tools/Frankenstein/Copy Matching Web Demo URL")]
         public static void Copy()
         {

@@ -40,6 +40,7 @@ import { minimapModel } from './minimap.js';
 import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } from './names.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
+import { mountPayPalSubscription } from './paypal.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
@@ -763,7 +764,7 @@ function setAbout(on) {
   const d = $('about');
   aboutIsOpen = on;
   if (on) pauseTour(); else resumeTour();
-  if (on) { if (d.showModal) d.showModal(); else d.setAttribute?.('open', ''); $('aboutClose').focus?.(); }
+  if (on) { if (d.showModal) d.showModal(); else { d.setAttribute?.('open', ''); $('aboutTitle').focus?.(); } }
   else if (d.close) d.close(); else d.removeAttribute?.('open');
 }
 $('about').addEventListener('close', () => { aboutIsOpen = false; resumeTour(); });
@@ -797,8 +798,10 @@ const touchControls = createTouchControls({
   actions: { candle: () => doCandle(), inventory: () => inventory.toggle(), board: () => board.toggle(), endure: () => vigil.endure(), help: () => setHelp(true) }, onTouch: () => setDevice('touch'),
 });
 $('helpClose').addEventListener('click', () => setHelp(false));
-$('aboutBtn').addEventListener('click', () => setAbout(true));
-$('aboutClose').addEventListener('click', () => setAbout(false));
+  $('aboutBtn').addEventListener('click', () => setAbout(true));
+  $('aboutClose').addEventListener('click', () => setAbout(false));
+  $('paypalLoad').addEventListener('click', () => mountPayPalSubscription($('paypalButtons'), $('paypalStatus'), tr));
+  if (new URLSearchParams(location.search).get('support') === '1') setAbout(true);
 
 canvas.addEventListener('click', (e) => {
   if (state.dlnk) return; // scene mode draws schematic solids instead of the village; do not select hidden pieces
