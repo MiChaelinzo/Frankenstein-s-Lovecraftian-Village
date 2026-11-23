@@ -70,6 +70,9 @@ Dynamic resolution steps the render scale down by 0.25 when the average frame is
 
 Round 20 stills (seed 1818, SwiftShader, `?caption=0&grain=0`): left column top, the scale fix (the same camera before and after: a 1.7 m person against houses with a 9.0 to 9.7 m ridge, about 5 times the person, so the person no longer reads as a giant); then streets, a lane and the square with the church rise; per-day weather; seeded birds. Photo materials and two props are CC0 (see Credits).
 
+### Mythos simulation (round 27)
+The village now acts in the background. From the seed and the night, cults recruit corrupted villagers, secrets come out, omens press on both, and rumors spread between villagers and distort on the way. Villagers can tell you a rumor, the truth behind it, or a cult tie; the board shows them as Event cards (a distorted rumor contradicts the secret it distorts), and the chronicle lists only what you heard. It changes no Vigil rule or ending. Status: Core and JS Verified (golden parity); browser check Partially Verified (SwiftShader); Unity runtime Unverified. Not built: the night tick summary and everything from round 28 (Knowledge System and the roadmap in `.kiro/specs/tasks.md`).
+
 ### Round 26 controls
 | Input | What it does |
 |-------|--------------|
@@ -259,16 +262,17 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 159 passing property tests (including the Vigil rules, sandbox lock and `VigilStrings` drift test) |
+| Core (`Packages/com.michaelinzo.frankenstein-village/Core`): layout, catalog, sanity, dread, events, report, matcher, DLNK policy, progression rules | Verified | `dotnet test tests/Frankenstein.Core.Tests`: 328 passing tests (including the Vigil rules, sandbox lock and `VigilStrings` drift test) |
 | Creatures: seeded spawns, bounded count, exposure by range and line of sight, lantern, salt line, chalk sigil and flare (`CreatureRules.cs`, `creatures.js`) | Verified | `CreatureTests.cs` (10 tests), golden key `creatures` checked by `web/test/creatures.test.js`, `creature-ui.test.js`, and `CREATURES_ONLY=1 node tools/browser_check.mjs` (6 checks, SwiftShader Chrome) |
 | Creature look and feel: the four meshes, fog and lantern telegraph, quiet audio cue, ground wards | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/creature_warding.png` is one still; the sound has only been checked as parameters, nobody has listened to it; a real GPU was not used |
 | Homestead: plot, crops by village day, structures, needs, mood and daily sanity, harvest and produce into the inventory, save string (`HomesteadRules.cs`, `homestead.js`) | Verified | `HomesteadTests.cs` (15 tests), golden key `homestead` checked by `web/test/homestead.test.js`, `homestead-ui.test.js`, and `HOMESTEAD_ONLY=1 node tools/browser_check.mjs` (9 checks, SwiftShader Chrome) |
 | Homestead look: 17 meshes, yard rendering, 2D marks | Partially Verified | meshes load and are under 200 KB (checked); `docs/media/homestead_yard.png` and `homestead_pet.png` were viewed and show the beds, crops, coop, fence, trough, chickens, tide hound and lantern moth; 2D marks only checked for no errors; a real GPU was not used |
 | Unity hook `HomesteadBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
 | Unity hook `CreatureExposureBehaviour` | Partially Verified | compiles in `tests/UnityCompileCheck` against stubs; never run in Unity |
-| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 622 passing, including golden parity with C# output |
+| JS port (`web/src/core.js` and pure modules) | Verified | `node --test "web/test/*.test.js"`: 685 passing, including golden parity with C# output |
 | Repo guardrails (`tools/validate_repo.py`) and Python tools | Verified | `python3 tools/validate_repo.py` and `tools/test_*.py` run locally; `ci.yml` has never been observed running on GitHub |
 | Parity self-test page (`web/selftest.html`) | Partially Verified | Checked once in headless Chromium (`docs/media/selftest.png`); not re-run for every change, run it yourself over HTTP |
+| Mythos simulation (cults, secrets, omens, rumors; Core `MythosSimulation.cs`, `MythosFeeds.cs`, web `mythos.js`, board, society, chronicle wiring) | Verified | dotnet 328 and node 685 tests with golden key `mythos` (seeds 1, 42, 1818), determinism, replay equals incremental and null-feed unchanged tests; `MYTHOS_ONLY=1` browser check 7 of 7 on SwiftShader (Partially Verified); Unity runtime Unverified. The night tick summary and the Knowledge System are specs only (Unverified) |
 | Unity Runtime and Editor scripts compile (`tests/UnityCompileCheck`) | Partially Verified | `dotnet build`: 0 errors, 0 warnings against hand-written stubs; proves syntax and types only, not Unity behavior or real API fidelity |
 | Unity Vigil (`VigilDirector`, `ProgressionTracker` forwarding, `DreadHud` objective, Endure button and ending panel, generated scene) | Partially Verified | Compile-checked (`dotnet build tests/UnityCompileCheck`: 0 errors, 0 warnings); the Unity runtime behaviour is Unverified, never run in Unity. Core rules (`VigilRules`, `VigilState`, `CountsAsClue`, `AllowsSandboxAction`) and wording (`VigilStrings` vs `web/src/i18n.js`) are Verified by dotnet tests |
 | Vigil and the clock (watch at dusk and night, Endure to dawn, missed dawn, wait for dusk) | Verified | Core `VigilRules` and `VigilState.ResolveDawn` by dotnet property tests and golden `vigil.clock`; web by node tests and `tools/browser_check.mjs` (`clock vigil: ...`); Unity `VigilDirector` clock path compile checked only (runtime Unverified) |

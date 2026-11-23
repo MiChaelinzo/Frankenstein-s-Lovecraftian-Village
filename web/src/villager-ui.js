@@ -11,6 +11,7 @@ import { buildVillagerRequest, fetchVillagerLine } from './villager-narrator.js'
 import { esc } from './util.js';
 
 /**
+ * Optional mythos deps (Round 27): mythosChat(index, night, result) -> [{ id, text }] told in this chat, onMythos(index, ids, night).
  * Optional society deps (Round 26): standing(index) -> { tier, corruption } or null, stageOf(index) -> corruption stage, chatStatement(index, night, result) -> authored statement or null, onChat(index, result, night).
  * deps: { $, tr, lang, chatNeeds() -> { cluesLeft, lampsLeft, sanity } (what the vigil still needs), state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
  *   story() -> the village story or null, onGossip(missingId, stage), narratorUrl, fetchImpl, exitPointerLock(), onChange() }
@@ -150,7 +151,10 @@ export function createVillagerController(deps) {
     else if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
     else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    const told = deps.mythosChat ? deps.mythosChat(index, night, result) : [];
+    if (told.length) line += ` ${told.map((t) => t.text).join(' ')}`; // what the background simulation lets this villager honestly say (rumor, its truth, a cult tie)
     if (authored && result.hintId) line += ` ${authored.text[deps.lang] || authored.text.en}`; // what this villager says they saw, after the hint
+    if (told.length) deps.onMythos?.(index, told.map((t) => t.id), night);
     if (result.available) { chatCounts.set(index, topic + 1); deps.onChat?.(index, authored && !result.lieStatementId ? { ...result, lieStatementId: authored.id } : result, night); }
     openFor = result.available ? index : -1; cursor = index; talkId++;
     showDialog(p, result, line, result.hintId || result.withheld || result.lieStatementId ? tr('villagerui.chat.topic', { topic: tr(`villagerui.chat.topic.${result.topic}`) }) : '');

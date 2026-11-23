@@ -220,6 +220,7 @@ async function loadCatalog() {
   try { homestead.setCatalog(await (await fetch('data/homestead.json')).json()); } catch (err) { console.warn(`[homestead] could not load data/homestead.json, no yard this session: ${err.message}`); }
   try { creatures.setCatalog(await (await fetch('data/creatures.json')).json()); } catch (err) { console.warn(`[creatures] could not load data/creatures.json, no creatures this session: ${err.message}`); }
   try { const statements = await (await fetch('data/statements.json')).json(); board.setStatements(statements); society.setStatements(parseStatementLibrary(statements)); } catch (err) { console.warn(`[board] could not load data/statements.json, the investigation board stays closed and villagers say nothing authored this session: ${err.message}`); }
+  try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -665,7 +666,7 @@ const society = createSocietyController({ state, story: () => currentStory(), gr
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
-  reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; },
+  reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
   onChange: () => autosave(),
 });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
@@ -695,7 +696,7 @@ const villagers = createVillagerController({
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
   onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => { society.noteChat(i, result); board.noteChat(i, result, night); },
-  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), statementText: (id) => society.statementText(id, lang),
+  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
@@ -703,6 +704,7 @@ storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and jour
 const chronicle = createChronicleController({
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
+  mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
 });
 // HUD clock chip and the first-play hint (dismissal is kept for the browser session; stills with ?capture=1 never show it).
 function renderClockChip() {

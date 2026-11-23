@@ -370,6 +370,9 @@ namespace Frankenstein.Core.Tests
             AppendInvestigation(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendMythos(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -1406,6 +1409,55 @@ namespace Frankenstein.Core.Tests
                       .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }");
                 }
                 sb.Append("\n      ] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "mythos" (round 27): per city seed, the simulation over twelve nights of fixed dread and ritual inputs, the society pressure and a board with every statement heard.</summary>
+        private static void AppendMythos(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            var mythos = MythosSimulationTests.Library();
+            var inputs = MythosSimulationTests.GridInputs();
+            sb.Append("  \"mythos\": {\n    \"nights\": ").Append(MythosSimulationTests.Nights).Append(",\n    \"dread\": [").Append(string.Join(", ", inputs.DreadPermille))
+              .Append("],\n    \"ritual\": [").Append(string.Join(", ", inputs.RitualStage)).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"cults\": [").Append(string.Join(", ", state.Cults.Select(c => "[" + Q(c.Id) + ", " + c.Founder + "]")));
+                sb.Append("], \"secrets\": [").Append(string.Join(", ", state.SecretKind)).Append("], \"exposedNight\": [").Append(string.Join(", ", state.ExposedNight)).Append("], \"nights\": [");
+                for (int i = 0; i < state.Nights.Count; i++)
+                {
+                    var n = state.Nights[i];
+                    sb.Append(i > 0 ? ",\n        " : "\n        ").Append("{ \"events\": [").Append(string.Join(", ", n.Events.Select(e => "[" + (int)e.Kind + ", " + e.Subject + ", " + e.Other + ", " + Q(e.Key) + "]")))
+                      .Append("], \"members\": [").Append(string.Join(", ", n.CultMembers.Select(m => "[" + string.Join(", ", m) + "]")))
+                      .Append("], \"exposed\": [").Append(string.Join(", ", n.Exposed))
+                      .Append("], \"rumors\": [").Append(string.Join(", ", n.Rumors.Select(r => "[" + r.Id + ", " + (int)r.Source + ", " + r.Subject + ", " + r.Origin + ", " + Q(r.Key) + ", " + r.Stage + ", " + r.Tier + ", ["
+                          + string.Join(", ", r.Holders.Select(h => "[" + h.Villager + ", " + h.Distortion + ", " + h.Night + "]")) + "]]"))).Append("] }");
+                }
+                var feed = new MythosFeed { Library = mythos, State = state, Night = MythosSimulationTests.Nights };
+                var pressure = MythosSociety.SuspicionPressure(feed.Current, roster.Count);
+                var log = new[] { new SocietyAction { Kind = SocietyActionKind.SeenNearBody, Subject = 1 }, new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 2 } };
+                var heard = MythosSimulationTests.HearAll(feed);
+                var board = InvestigationRules.Build(story, lore, statements, heard, null, feed);
+                sb.Append("\n      ], \"pressure\": [").Append(string.Join(", ", pressure)).Append("], \"suspicion\": [").Append(string.Join(", ", soc.OpinionsAfter(log, pressure).Suspicion))
+                  .Append("], \"statements\": [").Append(string.Join(", ", MythosRules.Statements(feed).Select(s => "[" + Q(s.Id) + ", " + (int)s.Kind + ", " + s.Subject + ", " + s.Night + ", " + s.Minute + ", " + Q(MythosRules.Text(feed, story, s, s.Rumor != null && MythosRules.IsDistorted(s.Rumor, heard.Heard.First(h => h.StatementId == s.Id).Villager), "en")) + ", "
+                      + Q(MythosRules.Text(feed, story, s, s.Rumor != null && MythosRules.IsDistorted(s.Rumor, heard.Heard.First(h => h.StatementId == s.Id).Villager), "fr")) + "]")))
+                  .Append("], \"board\": { \"cards\": [").Append(string.Join(", ", board.Cards.Where(c => c.Key.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.Id) + ", " + (c.Invalidated ? 1 : 0) + "]")))
+                  .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Where(c => c.PairId.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.PairId) + ", " + Q(c.CardA) + ", " + Q(c.CardB) + "]")))
+                  .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Where(e => e.StatementId.StartsWith(MythosRules.IdPrefix)).Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] } }");
             }
             sb.Append("\n    ]\n  }\n");
         }

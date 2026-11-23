@@ -191,6 +191,18 @@ namespace Frankenstein.Core
             return o;
         }
 
+        /// <summary>
+        /// <see cref="OpinionsAfter(IList{SocietyAction})"/> with extra suspicion per villager on top (see <see cref="MythosSociety.SuspicionPressure"/>), clamped to [0, Scale].
+        /// A null or short array adds nothing for the missing entries, so the result then equals the plain overload.
+        /// </summary>
+        public SocietyOpinions OpinionsAfter(IList<SocietyAction> log, IList<int> extraSuspicion)
+        {
+            var o = OpinionsAfter(log);
+            if (extraSuspicion == null) return o;
+            for (int i = 0; i < o.Suspicion.Length && i < extraSuspicion.Count; i++) o.Suspicion[i] = Clamp(o.Suspicion[i] + extraSuspicion[i]);
+            return o;
+        }
+
         private static void Apply(SocietyOpinions o, int who, int kind, int divisor, int share)
         {
             int dt = ActionTrust[kind] / (divisor * share), ds = ActionSuspicion[kind] / (divisor * share);

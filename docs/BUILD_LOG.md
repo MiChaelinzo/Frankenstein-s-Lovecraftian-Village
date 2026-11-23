@@ -385,3 +385,12 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Frame timing with corrupted villagers in view (seed 1818, night 3, sanity 40, `?perf=1&fixscale=1`, 80 frames): low closed 16.3 ms (61.4 fps, 9.0 ms js), low board open 16.4 ms (60.8 fps, 18.1 ms js); medium closed 16.3 ms (12.8 ms js), open 16.3 ms (9.0 ms js); high closed 16.5 ms (9.2 ms js), open 16.4 ms (9.6 ms js). Frames sit at the 60 Hz cap, so the js column is the only varied number and one sample per cell is noisy (low open 18.1 ms js was a single sample). Indicative only, not a GPU result.
 - Finding: session saves dropped `j..` and `p..` lore ids (fixed). Unverified: Unity runtime, real GPU, the 2D figure at normal zoom.
 
+## Round 27 commits (Mythos simulation, branch feat/round27, from `git log main..HEAD`)
+- `c72103c` feat: wire Mythos simulation into board, society, rumors and chronicle
+- `bb89b4f` feat: port Mythos simulation to JS with golden parity
+- `be23af4` feat: add Mythos simulation engine to Core
+- The docs commit follows these in `git log`.
+
+## Round 27, FEAT-004
+- Checks: dotnet 328, node 685, tools tests and validate_repo OK, browser check `MYTHOS_ONLY=1` 7 of 7 (SwiftShader, log not committed). The full browser run and UnityCompileCheck were not repeated in this docs step.
+- Unverified: Unity runtime, real GPU, the night tick summary and every roadmap item from round 28.

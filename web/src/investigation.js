@@ -6,6 +6,7 @@ import { landmarkTitle } from './names.js';
 import { MINUTES_PER_DAY } from './clock.js';
 import { CLUE_ID_PREFIX } from './lore.js';
 import { CORRUPTION_CORRUPTED } from './society.js';
+import { ID_PREFIX as MYTHOS_ID_PREFIX, mythosStatements, mythosText, isDistorted, truthStatementId } from './mythos.js';
 
 export const SOURCE_IDS = ['chat', 'journal', 'lore', 'clue'];
 export const NEEDS_IDS = ['none', 'corrupted_speaker'];
@@ -98,7 +99,7 @@ export function orderTimeline(events) {
 }
 
 /** Builds the board for the current evidence; corruption is the stage of each villager by roster index (or null). */
-export function buildBoard(story, lore, statements, evidence, corruption = null) {
+export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null) {
   const cards = [], links = [], contradictions = [], index = new Map(), roster = story.roster;
   const addCard = (kind, id, key, revealed) => {
     const existing = index.get(id);
@@ -178,11 +179,26 @@ export function buildBoard(story, lore, statements, evidence, corruption = null)
     if (c.needs === NEEDS_CORRUPTED_SPEAKER && !isCorrupted(stageOf(corruption, speakerOf(statements.find(c.b), roster, evidence)))) continue;
     contradictions.push({ pairId: c.id, cardA: eventId(c.a), cardB: eventId(c.b) });
   }
+  if (mythos && mythos.current) addMythos(contradictions, mythos, evidence, corruption, addCard, events);
   return { cards, links, contradictions, timeline: orderTimeline(events) };
 }
 
+/** Round 27: an Event card for every mythos statement the player heard. A rumor passed on distorted is invalidated and contradicts the statement it distorts once that is heard too. */
+function addMythos(contradictions, mythos, evidence, corruption, addCard, events) {
+  for (const s of mythosStatements(mythos)) {
+    const h = heardIndex(evidence, s.id);
+    if (h < 0) continue;
+    const speaker = evidence.heard[h].villager, distorted = isDistorted(s.rumor, speaker);
+    addCard(CARD_EVENT, eventId(s.id), s.id, true).invalidated = isCorrupted(stageOf(corruption, speaker)) || distorted;
+    events.push({ statementId: s.id, villager: speaker, night: s.night, minute: s.minute });
+    if (!s.rumor || !distorted) continue;
+    const truth = truthStatementId(s.rumor);
+    if (truth && heardIndex(evidence, truth) >= 0) contradictions.push({ pairId: `${s.id}~${truth}`, cardA: eventId(s.id), cardB: eventId(truth) });
+  }
+}
+
 /** The text a card shows in a language, from the story's own names (round 24 seeded landmark names through nameLib when given). */
-export function cardTitle(card, story, lore, statements, nameLib, lang) {
+export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null) {
   const pick = (t) => (t ? t[lang] || t.en : '');
   switch (card.kind) {
     case CARD_SUSPECT: return story.roster[Number(card.key)].name;
@@ -197,6 +213,8 @@ export function cardTitle(card, story, lore, statements, nameLib, lang) {
       const book = lore.find(card.key.startsWith(CLUE_ID_PREFIX) ? card.key.slice(CLUE_ID_PREFIX.length) : card.key);
       return book ? story.bookTitle(book, lang) : card.key;
     }
-    default: { const s = statements.find(card.key); return s ? pick(s.text) : card.key; }
+    default: {
+      if (mythos && card.key.startsWith(MYTHOS_ID_PREFIX)) { const ms = mythosStatements(mythos).find((x) => x.id === card.key); if (ms) return mythosText(mythos, story, ms, card.invalidated, lang); }
+      const s = statements.find(card.key); return s ? pick(s.text) : card.key; }
   }
 }

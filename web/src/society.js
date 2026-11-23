@@ -105,7 +105,7 @@ export function buildSociety(story, layout) {
   const society = {
     seed, roster, familyLinks, neighbour, patientZero, spreadDelay, fate,
     /** Trust and suspicion after an ordered log of { kind, subject }. Repeats count less; a trust gain is halved while already suspicious. */
-    opinionsAfter(log) {
+    opinionsAfter(log, extraSuspicion = null) {
       const o = { trust: roster.map((v, i) => clamp(START_TRUST[v.disposition] + new SeededRandom(seed ^ JITTER_STREAM ^ Math.imul(i, INDEX_STEP)).next(2 * JITTER_RANGE + 1) - JITTER_RANGE)), suspicion: new Array(n).fill(0) };
       const repeats = new Map();
       for (const a of log || []) {
@@ -121,6 +121,8 @@ export function buildSociety(story, layout) {
         const nb = neighbour[a.subject];
         if (nb >= 0 && !familyLinks[a.subject].includes(nb)) apply(o, nb, kind, divisor, NEIGHBOUR_SHARE);
       }
+      // Round 27: extra suspicion per villager on top (mythos.js suspicionPressure). Null or short adds nothing, so the result equals the plain call.
+      if (extraSuspicion) for (let i = 0; i < n && i < extraSuspicion.length; i++) o.suspicion[i] = clamp(o.suspicion[i] + extraSuspicion[i]);
       return o;
     },
     corruptionLevel(index, night, dread, ritualStage) {

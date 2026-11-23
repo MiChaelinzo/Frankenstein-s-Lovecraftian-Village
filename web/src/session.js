@@ -9,7 +9,7 @@ const VIGIL_RE = /^vigil1;[0-9;,A-Za-z_@.\-]{0,600}$/;
 const CODEX_RE = /^(s[0-8]|o[1-3])$/;
 const LORE_RE = /^[bjp]\d{2}$/; // b: found books, j: villager journals, p: missing person pages (lore-ui.js LORE_ID_RE); before round 26 only b was kept, so journals read were lost on reload
 const HS_RE = /^hs1;[0-9a-z_:,.;\-]{0,600}$/; // Added in round 25 (see homestead.js); Homestead.tryRestore validates the rest
-const BOARD_RE = /^bd1;[0-9,]{0,300};[A-Za-z0-9_@:.,\-]{0,5000};[0-9a-z_:,]{0,2500}$/; // Added in round 26 (see board-ui.js); parseBoardEvidence validates item by item
+const BOARD_RE = /^bd1;[0-9,]{0,300};[A-Za-z0-9_@:.,\-]{0,5000};[0-9a-z_:.,]{0,2500}$/; // Added in round 26 (see board-ui.js); parseBoardEvidence validates item by item
 const SOCIETY_RE = /^sc1;[0-9:,\-]{0,1500}$/; // Added in round 26 (see society-ui.js); parseSocietyLog validates item by item
 const INV_RE = /^inv1;[0-9a-z_:,.;\/]{0,1200}$/; // Added in round 25 (see inventory.js); ItemWorld.tryRestore validates the rest
 

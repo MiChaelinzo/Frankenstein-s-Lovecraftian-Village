@@ -286,6 +286,16 @@ namespace Frankenstein.Core
         /// <summary>Builds the board for the current evidence. <paramref name="corruption"/> is the stage of each villager by roster index (null: nobody is corrupted).</summary>
         public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption)
         {
+            return Build(story, lore, statements, evidence, corruption, null);
+        }
+
+        /// <summary>
+        /// <see cref="Build(VillageStory, LoreLibrary, StatementLibrary, InvestigationEvidence, IList{CorruptionStage})"/> plus the mythos: an Event card for every mythos statement the player
+        /// heard (exposed secrets, cult members, omens, rumors), on the timeline. A rumor the speaker passed on distorted is Invalidated and contradicts the statement it distorts once that one is known too.
+        /// With a null <paramref name="mythos"/> the board is exactly the one without it.
+        /// </summary>
+        public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos)
+        {
             var board = new InvestigationBoard();
             var roster = story.Roster;
             var cardIndex = new Dictionary<string, BoardCard>();
@@ -394,11 +404,39 @@ namespace Frankenstein.Core
                 if (c.Needs == ContradictionNeeds.CorruptedSpeaker && !Corrupted(StageOf(corruption, SpeakerOf(statements.Find(c.B), roster, evidence)))) continue;
                 board.Contradictions.Add(new BoardContradiction { PairId = c.Id, CardA = EventId(c.A), CardB = EventId(c.B) });
             }
+            if (mythos != null && mythos.Current != null) AddMythos(board, mythos, evidence, corruption, addCard, events);
             return board;
+        }
+
+        private static void AddMythos(InvestigationBoard board, MythosFeed mythos, InvestigationEvidence evidence, IList<CorruptionStage> corruption,
+                                      Func<BoardCardKind, string, string, bool, BoardCard> addCard, List<TimelineEvent> events)
+        {
+            var heard = new HashSet<string>();
+            foreach (var s in MythosRules.Statements(mythos))
+            {
+                int h = HeardIndex(evidence, s.Id);
+                if (h < 0) continue;
+                int speaker = evidence.Heard[h].Villager;
+                var card = addCard(BoardCardKind.Event, EventId(s.Id), s.Id, true);
+                card.Invalidated = Corrupted(StageOf(corruption, speaker)) || (s.Rumor != null && MythosRules.IsDistorted(s.Rumor, speaker));
+                heard.Add(s.Id);
+                events.Add(new TimelineEvent { StatementId = s.Id, Villager = speaker, Night = s.Night, Minute = s.Minute });
+                if (s.Rumor == null || !MythosRules.IsDistorted(s.Rumor, speaker)) continue;
+                string truth = MythosRules.TruthStatementId(s.Rumor);
+                if (truth.Length > 0 && HeardIndex(evidence, truth) >= 0)
+                    board.Contradictions.Add(new BoardContradiction { PairId = s.Id + "~" + truth, CardA = EventId(s.Id), CardB = EventId(truth) });
+            }
+            board.Timeline = OrderTimeline(events);
         }
 
         /// <summary>The text a card shows in a language, built from the story's own names (round 24 seeded names through <paramref name="nameLib"/> when given).</summary>
         public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang)
+        {
+            return CardTitle(card, story, lore, statements, nameLib, lang, null);
+        }
+
+        /// <summary>As above; an Event card of a mythos statement takes its wording from <paramref name="mythos"/>.</summary>
+        public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang, MythosFeed mythos)
         {
             switch (card.Kind)
             {
@@ -420,6 +458,8 @@ namespace Frankenstein.Core
                     var book = lore.Find(card.Key.StartsWith(LoreBookRules.ClueIdPrefix, StringComparison.Ordinal) ? card.Key.Substring(LoreBookRules.ClueIdPrefix.Length) : card.Key);
                     return book == null ? card.Key : story.BookTitle(book, lang);
                 default:
+                    if (mythos != null && card.Key.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal))
+                        foreach (var ms in MythosRules.Statements(mythos)) if (ms.Id == card.Key) return MythosRules.Text(mythos, story, ms, card.Invalidated, lang);
                     var s = statements.Find(card.Key);
                     return s == null ? card.Key : s.Text.Get(lang);
             }

@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 27 (review fixes)
+- Fixed: the mythos replay no longer raises tonight to the live dread and ritual stage. Every night uses the fixed schedule, so a statement heard on night N is identical on night N+1 (rumor holders only grow). The schedule moved into Core (`MythosInputs.Schedule`) with the same vectors in C# and JS tests, plus a replay N then N+1 test.
+- Removed the unused `Suspicion` input of the simulation (C# and JS). Society still reads the mythos through `SuspicionPressure`.
+- `noteMythos` keeps only ids the current mythos feed holds, so unknown ids cannot use up heard slots.
+- `mythosChat` (who tells what) stays web-only and is documented as such. Housekeeping that rode with the feature: `BOARD_RE` widening in `session.js`, the `sw.js` cache bump (now `flv-shell-v57`) and the `stitch.json` counts.
+
+### Round 27 (FEAT-004): docs, labels and roadmap specs
+- README, `docs/BUILD_LOG.md`, `docs/ARCHITECTURE_AUDIT.md` and `.kiro/specs` record the Mythos Simulation MVP with honest labels: Core and JS Verified (dotnet 328, node 685), `MYTHOS_ONLY` browser check 7 of 7 (Partially Verified, SwiftShader), Unity runtime Unverified.
+- Spec only, not built: the night tick summary (task 154a) and, from round 28, the Knowledge System (five tiers, power at a sanity cost, tier 5 makes reality unreliable), evidence confidence, a wider trust network (fear, faith, loyalty, obsession), a Dynamic Horror Director without jump scares, branching investigations (Theory, Evidence, Conclusion), missing person outcomes, four new places and a Victorian UI reskin. Future monetization uses server-side environment variables only; no payment credential is stored in the repository.
+
+### Round 27 (FEAT-003): Mythos simulation in the browser
+- `web/src/mythos.js` mirrors `Core/MythosSimulation.cs` and `Core/MythosFeeds.cs` (golden key `mythos`, all three seeds equal). `investigation.js` (`buildBoard`, `cardTitle`) and `society.js` (`opinionsAfter(log, extra)`) take the optional mythos feed or pressure; without it their output is unchanged (test).
+- Wiring: `society-ui.js` replays the mythos for the current night (one fixed schedule for every night, so what was heard stays true) and lets a lucid villager tell a rumor, the truth behind it when they started it, and a cult tie in a village chat. `board-ui.js` shows them as Event cards (distorted rumors are marked invalid and contradict the secret or omen they distort), `chronicle-ui.js` has a Mythos section limited to what was heard, strings in en and fr.
+- Save: heard mythos ids are stored in the existing `board` string with `.` instead of `:` (`mythos.secret.4`), validated item by item; `session.js` accepts `.` there. Nothing else new is saved.
+- Cache `flv-shell-v56` (adds `src/mythos.js`, `data/mythos.json`). CSP unchanged.
+- `tools/browser_check.mjs` section `MYTHOS_ONLY=1` (board cards, save, chronicle empty and filled, en and fr).
+
 ### Round 26 (FEAT-006): Unity hooks, browser checks, stills
 - Unity (compile check only, runtime behaviour Unverified): `VillageBuilder.storyData` builds Core `VillageSociety` (`Society`, `StoryRoster`); `VillagerAgent.Corruption` asks Core for the stage, hides a Missing villager and tints the lantern of a Corrupted or later one. No rule lives in the MonoBehaviours.
 - Fixed: the session save dropped villager journals (`j..`) and missing person pages (`p..`) because `session.js` only accepted `b..` ids, so journal evidence on the board was lost on reload. Test added. Cache `flv-shell-v55`.

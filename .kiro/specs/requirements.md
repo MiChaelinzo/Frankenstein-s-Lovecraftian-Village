@@ -104,3 +104,13 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - The Vigil is the game loop: per night a clue target and three lanterns, endure the night, sanity carried between five nights, six endings, an integer score and a result code. Rules live in Core and are mirrored in JS with golden parity; the web only draws them.
 - Stills: `?caption=0` hides the cinematic caption and `?grain=0` removes film grain, so a share image or README screenshot is clean.
 - The 3D post pass (bloom, vignette, grain, chroma) falls back to direct rendering when the governor scale is low, with `?post=0`, or when the shader fails, with a console warning.
+
+## Round 27: Mythos Simulation MVP
+- Goal: the village advances in the background from the seed and the night number: cults recruit corrupted villagers, secrets come out, seeded omens press on both, rumors travel family and neighbour links and may distort.
+- Inputs: the village seed, `VillageSociety`, `VillageStory`, `Data/mythos.json` (en and fr), and per night `dreadPermille`, `ritualStage` and optional per villager `suspicion`.
+- Outputs: per night a `MythosNight` (events, cult members per cult, exposed secrets, rumors with holders, truth and distortion), identical in C# (`MythosSimulation.Run`) and JS (`web/src/mythos.js`). Feeds: Event cards and rumor versus truth contradictions on the board, suspicion pressure on `OpinionsAfter`, rumor lines, and a chronicle Mythos section limited to what the player heard.
+- Constraints: a pure function with no hidden state (replay of nights 1..N equals the first N of a longer run); integer arithmetic; XOR-seed streams; a villager is in at most one cult and a cult member never leaves; an exposed secret stays exposed; no output of an existing golden key changes; a null mythos feed leaves old outputs unchanged.
+- Failure conditions: a malformed `mythos.json` raises a `FormatException` that names the field; a night past the simulated range clamps; an input array past its end reads the last value and an empty one reads 0.
+- Test cases: `MythosSimulationTests.cs`, `web/test/mythos.test.js`, golden key `mythos` (seeds 1, 42, 1818), data drift check in `tools/validate_repo.py`, browser check `MYTHOS_ONLY=1`.
+- Night tick summary (`{"night": 14, "cultGrowth": 2, "rumorsAdded": 4, "missingPersons": 1, "newOmen": "black_tide", "realityShift": 3}`) is a spec only (task 154a), not built.
+- Status: Core and JS Verified (dotnet 328, node 685, golden); browser check Partially Verified (7 of 7 on SwiftShader, `MYTHOS_ONLY` only); Unity runtime Unverified.

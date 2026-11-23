@@ -257,3 +257,7 @@ Status: design written before code. Core rules, C# property tests and golden par
 - Debt: four actions (`return_item`, `return_journal`, `seen_near_body`, `fight_creature_in_view`) have Core rules but no game event raises them. The statements file is a byte copy in `Data/` and `web/data/` (drift checked). Unity hooks are compile checked only.
 - Status: Core and JS Verified (dotnet, node, golden); board and tell Partially Verified (SwiftShader browser check and stills); Unity runtime Unverified.
 
+## Round 27: Mythos simulation
+- Boundary kept: cults, secrets, omens and rumors are Core rules (`MythosSimulation.cs`, `MythosFeeds.cs`) over `VillageSociety` and `VillageStory`, with data in `Data/mythos.json`. The web mirrors them (`mythos.js`) and adds presentation only (`society-ui.js`, `board-ui.js`, `chronicle-ui.js`). No hidden state: the engine replays from seed and inputs.
+- Debt: the night tick summary record, a persistent missing person count and the reality state are specs (task 154a), not built. `mythos.json` is a byte copy in `Data/` and `web/data/` (drift checked). Heard mythos ids use `.` in the save string because `:` is the board separator.
+- Status: Core and JS Verified (dotnet 328, node 685, golden); board and chronicle Partially Verified (`MYTHOS_ONLY` 7 of 7, SwiftShader); Unity runtime Unverified.
