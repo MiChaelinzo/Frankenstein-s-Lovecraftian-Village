@@ -6,6 +6,7 @@ import {
   CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT, SUSPECT_PREFIX,
 } from './investigation.js';
 import { MINUTES_PER_DAY } from './clock.js';
+import { mythosStatements } from './mythos.js';
 
 export const BOARD_KEY = ';'; // every letter is taken by the main key switch, so the board uses a punctuation key that is unshifted on QWERTY and AZERTY
 export const BOARD_SAVE_TAG = 'bd1';
@@ -156,13 +157,14 @@ export function createBoardController(deps) {
     ensureSeed(); evidence.heard.push({ villager: index, statementId: id, night: Math.max(1, Math.min(9, night | 0)) }); version++; sync();
   }
 
-  /** Mythos statements a villager told in a chat (ids from society.mythosChat). Only ids the board can show are kept. */
+  /** Mythos statements a villager told in a chat (ids from society.mythosChat). Only ids the current mythos feed holds are kept, so unknown ids never use up heard slots. */
   function noteMythos(index, ids, night) {
     if (!Array.isArray(ids)) return;
     ensureSeed();
+    const feed = deps.mythos && deps.mythos(), known = feed ? new Set(mythosStatements(feed).map((m) => m.id)) : null;
     let added = false;
     for (const id of ids) {
-      if (typeof id !== 'string' || !MYTHOS_ID_RE.test(id) || evidence.heard.some((h) => h.statementId === id) || evidence.heard.length >= MAX_HEARD) continue;
+      if (typeof id !== 'string' || !MYTHOS_ID_RE.test(id) || !known || !known.has(id) || evidence.heard.some((h) => h.statementId === id) || evidence.heard.length >= MAX_HEARD) continue;
       evidence.heard.push({ villager: index, statementId: id, night: Math.max(1, Math.min(9, night | 0)) }); added = true;
     }
     if (added) { version++; sync(); }

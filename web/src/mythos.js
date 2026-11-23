@@ -11,7 +11,7 @@ export const [SOURCE_SECRET, SOURCE_COSMIC, SOURCE_MISSING] = [0, 1, 2];
 export const [EVENT_CULT_FOUNDED, EVENT_CULT_JOINED, EVENT_SECRET_EXPOSED, EVENT_RUMOR_STARTED, EVENT_COSMIC_OMEN] = [0, 1, 2, 3, 4];
 
 export const CULT_STREAM = 0x43554c, FOUNDER_STREAM = 0x464f55, JOIN_STREAM = 0x4a4f4e, SECRET_STREAM = 0x534543, OMEN_STREAM = 0x4f4d4e, RUMOR_PICK_STREAM = 0x52504b, RUMOR_ORIGIN_STREAM = 0x524f52, DISTORT_STREAM = 0x444953;
-export const MAX_CULTS = 3, SECRET_FREE_OUT_OF = 3, START_EXPOSURE_RANGE = 300, SUSPICION_SHARE = 20, CULT_NEIGHBOUR_PRESSURE = 40;
+export const MAX_CULTS = 3, SECRET_FREE_OUT_OF = 3, START_EXPOSURE_RANGE = 300, CULT_NEIGHBOUR_PRESSURE = 40;
 export const EVENT_BASE_CHANCE = 150, EVENT_INTENSITY_DIVISOR = 2, RITUAL_INTENSITY_STEP = 100, JOIN_BOOST_MAX = 100, EXPOSURE_BOOST_MAX = 60, DISTORT_OUT_OF = 4;
 const HOP_DISTORT_SALT = 7919;
 
@@ -76,6 +76,18 @@ export function parseMythosLibrary(input) {
     lib.rumors.push(line);
   }
   return lib;
+}
+
+export const DREAD_PER_NIGHT = 100;
+
+/**
+ * The fixed schedule a play session replays the village on (Core MythosInputs.Schedule): night k has dread 100 * k per mille (capped) and ritual stage k - 1 (capped).
+ * It never reads live values, so a statement heard on night N is recomputed identically on every later night.
+ */
+export function mythosSchedule(nights) {
+  const n = Math.max(0, nights | 0), dreadPermille = [], ritualStage = [];
+  for (let k = 1; k <= n; k++) { dreadPermille.push(Math.min(SCALE, DREAD_PER_NIGHT * k)); ritualStage.push(Math.min(MAX_RITUAL_STAGE, k - 1)); }
+  return { dreadPermille, ritualStage };
 }
 
 /** Value of a per night input array at a night: clamps the night, an empty or missing array reads 0. */
@@ -203,7 +215,7 @@ function snapshot(state, cultOf, events, rumors, night, n) {
 }
 
 /**
- * Replays nights 1..throughNight with no hidden state. society comes from buildSociety, story from buildStory, inputs is { dreadPermille: [], ritualStage: [], suspicion?: [] }.
+ * Replays nights 1..throughNight with no hidden state. society comes from buildSociety, story from buildStory, inputs is { dreadPermille: [], ritualStage: [] }.
  * Returns { seed, cults, secretKind, exposedNight, nights, atNight(n) }.
  */
 export function runMythos(society, story, lib, inputs, throughNight) {
@@ -240,7 +252,6 @@ export function runMythos(society, story, lib, inputs, throughNight) {
       if (state.secretKind[i] < 0 || state.exposedNight[i] > 0) continue;
       let pressure = lib.secrets[state.secretKind[i]].pressure + exposureBoost;
       for (const j of graph.neighbours[i]) {
-        if (inputs.suspicion && j < inputs.suspicion.length) pressure += Math.trunc(inputs.suspicion[j] / SUSPICION_SHARE);
         if (cultOf[j] >= 0) pressure += CULT_NEIGHBOUR_PRESSURE;
       }
       meter[i] += pressure;

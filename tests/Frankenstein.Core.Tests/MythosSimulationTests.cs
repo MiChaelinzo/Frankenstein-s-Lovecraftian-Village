@@ -165,15 +165,36 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
-        public void Suspicion_and_omens_make_secrets_come_out_sooner()
+        public void Schedule_is_fixed_and_matches_the_web_vectors()
         {
-            var calm = new MythosInputs { DreadPermille = new[] { 0 }, RitualStage = new[] { 0 } };
-            var s0 = Run(42, calm, Nights, out var soc, out _);
-            var tense = new MythosInputs { DreadPermille = new[] { 0 }, RitualStage = new[] { 0 }, Suspicion = Enumerable.Repeat(VillageSociety.Scale, soc.Roster.Count).ToArray() };
-            var s1 = Run(42, tense, Nights, out _, out _);
-            Assert.True(s1.ExposedNight.Count(x => x > 0) >= s0.ExposedNight.Count(x => x > 0));
-            for (int v = 0; v < s0.ExposedNight.Length; v++)
-                if (s0.ExposedNight[v] > 0) Assert.InRange(s1.ExposedNight[v], 1, s0.ExposedNight[v]);
+            var sch = MythosInputs.Schedule(7);
+            Assert.Equal(new[] { 100, 200, 300, 400, 500, 600, 700 }, sch.DreadPermille);
+            Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 5 }, sch.RitualStage);
+            Assert.Equal(new[] { 1000, 1000, 1000 }, MythosInputs.Schedule(12).DreadPermille.Skip(9).ToArray());
+            Assert.Empty(MythosInputs.Schedule(0).DreadPermille);
+        }
+
+        [Fact]
+        public void Everything_heard_on_night_N_is_unchanged_when_replayed_for_night_N_plus_1()
+        {
+            foreach (var seed in Seeds)
+            {
+                var soc = VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                for (int n = 1; n < 11; n++)
+                {
+                    var today = MythosRules.Statements(new MythosFeed { Library = Library(), State = MythosSimulation.Run(soc, story, Library(), MythosInputs.Schedule(n), n), Night = n });
+                    var tomorrow = MythosRules.Statements(new MythosFeed { Library = Library(), State = MythosSimulation.Run(soc, story, Library(), MythosInputs.Schedule(n + 1), n + 1), Night = n + 1 });
+                    foreach (var m in today)
+                    {
+                        var same = tomorrow.Single(x => x.Id == m.Id);
+                        Assert.Equal((m.Kind, m.Subject, m.Night, m.Minute), (same.Kind, same.Subject, same.Night, same.Minute));
+                        if (m.Rumor == null) continue;
+                        Assert.Equal((m.Rumor.Origin, m.Rumor.Key), (same.Rumor.Origin, same.Rumor.Key));
+                        foreach (var h in m.Rumor.Holders)
+                            Assert.Contains(same.Rumor.Holders, x => x.Villager == h.Villager && x.Distortion == h.Distortion && x.Night == h.Night);
+                    }
+                }
+            }
         }
 
         [Fact]

@@ -4,12 +4,10 @@ import { buildSociety, ACTION_IDS, ALL_VILLAGERS, CHAT_POLITE, SEEN_AT_RITUAL_SI
 import { landmarkAt } from './landmarks.js';
 import { SOURCE_CHAT } from './investigation.js';
 import { ROLE_IDS } from './villagers.js';
-import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosStatements, mythosText, isDistorted, truthStatementId, suspicionPressure, cultId } from './mythos.js';
-import { SCALE, MAX_RITUAL_STAGE } from './society.js';
+import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosStatements, mythosText, isDistorted, truthStatementId, suspicionPressure, cultId, mythosSchedule } from './mythos.js';
 
 export const SOCIETY_SAVE_TAG = 'sc1', MAX_LOG = 150;
 export const WITNESS_RADIUS_M = 14;     // a villager this close (metres) sees what the player does
-export const DREAD_PER_NIGHT = 100; // the mythos replays past nights on this fixed schedule (dread per mille 100 * night, ritual stage night - 1), so what was heard stays true; tonight also reads the live values
 export const NIGHT_PHASE = 3;            // clock.js phase index of the night
 const SAVE_ENTRY_RE = /^(\d{1,2}):(-?\d{1,3})$/;
 
@@ -39,14 +37,6 @@ export function authoredChatStatement(statements, roleId, night, result, tier) {
   if (!statements || !result || !result.available || result.behavior !== 0 || result.withheld || tier === TIER_SUSPICIOUS) return null;
   if (!(result.hintId === 'village' || (tier === TIER_TRUSTING && result.hintId))) return null;
   return statements.statements.find((s) => s.source === SOURCE_CHAT && s.role === roleId && s.night >= 1 && s.night <= night) || null;
-}
-
-/** Per night inputs of the mythos replay through `night` (1-based): the fixed schedule, with tonight raised to the live dread (per mille) and ritual stage. */
-export function mythosInputsFor(night, liveDread, liveRitual) {
-  const dread = [], ritual = [];
-  for (let k = 1; k <= night; k++) { dread.push(Math.min(SCALE, DREAD_PER_NIGHT * k)); ritual.push(Math.min(MAX_RITUAL_STAGE, k - 1)); }
-  if (night >= 1) { dread[night - 1] = Math.max(dread[night - 1], liveDread); ritual[night - 1] = Math.max(ritual[night - 1], Math.min(MAX_RITUAL_STAGE, liveRitual)); }
-  return { dreadPermille: dread, ritualStage: ritual };
 }
 
 /** Index of the nearest villager (scene entries { id, pos }) within WITNESS_RADIUS_M of a point in metres, or -1. Ties go to the earlier entry (roster order). */
@@ -85,12 +75,12 @@ export function createSocietyController(deps) {
   /** Stage of one roster index; 0 for townsfolk beyond the story roster. */
   const stageOf = (index) => stages()[index] || 0;
 
-  /** The mythos feed (Core MythosSimulation mirror) for the current night, or null without a society or data. Recomputed only when the night, dread or ritual stage changed. */
+  /** The mythos feed (Core MythosSimulation mirror) for the current night, or null without a society or data. Replayed on the fixed Core schedule (mythosSchedule), so it changes only with the night and what was heard stays true. */
   function mythosFeed() {
     const s = society();
     if (!s || !mythosLib || !s.roster.length) return null;
-    const live = dreadPermille(state.sanity.dread), key = `${state.seed}|${night()}|${live}|${state.ritualStage}|${s.roster.length}`;
-    if (key !== mythosKey) { mythosKey = key; mythosCache = buildMythosFeed(mythosLib, runMythos(s, deps.story(), mythosLib, mythosInputsFor(night(), live, state.ritualStage), night()), night()); }
+    const key = `${state.seed}|${night()}|${s.roster.length}`;
+    if (key !== mythosKey) { mythosKey = key; mythosCache = buildMythosFeed(mythosLib, runMythos(s, deps.story(), mythosLib, mythosSchedule(night()), night()), night()); }
     return mythosCache;
   }
 

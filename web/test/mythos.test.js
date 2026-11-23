@@ -13,12 +13,11 @@ import { parseLoreLibrary } from '../src/lore.js';
 import { buildSociety, SEEN_NEAR_BODY, CHAT_POLITE } from '../src/society.js';
 import { parseStatementLibrary, emptyEvidence, buildBoard, cardTitle } from '../src/investigation.js';
 import {
-  parseMythosLibrary, runMythos, buildMythosFeed, mythosStatements, mythosText, isDistorted, suspicionPressure, inputAt, rumorDelays, buildGraph, ID_PREFIX,
+  parseMythosLibrary, runMythos, buildMythosFeed, mythosStatements, mythosText, isDistorted, suspicionPressure, mythosSchedule, inputAt, rumorDelays, buildGraph, ID_PREFIX,
   EVENT_COSMIC_OMEN, MAX_CULTS,
 } from '../src/mythos.js';
 import { UNREACHABLE } from '../src/society.js';
 import { serializeBoardEvidence, parseBoardEvidence } from '../src/board-ui.js';
-import { mythosInputsFor } from '../src/society-ui.js';
 import { chronicleModel } from '../src/chronicle-ui.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
@@ -149,13 +148,30 @@ test('heard mythos ids survive the save string and bad ones are dropped', () => 
   assert.equal(parseBoardEvidence('bd1;;;1:mythos.bogus.4:2,1:mythos:secret:4:2,1:mythos.secret.99999:2').heard.length, 0);
 });
 
-test('the replay schedule is fixed for past nights and tonight only rises with live values', () => {
-  const calm = mythosInputsFor(4, 0, 0), live = mythosInputsFor(4, 950, 5);
-  assert.deepEqual(calm.dreadPermille, [100, 200, 300, 400]);
-  assert.deepEqual(calm.ritualStage, [0, 1, 2, 3]);
-  assert.deepEqual(live.dreadPermille.slice(0, 3), calm.dreadPermille.slice(0, 3));
-  assert.equal(live.dreadPermille[3], 950);
-  assert.equal(live.ritualStage[3], 5);
+test('the replay schedule matches Core MythosInputs.Schedule', () => {
+  const sch = mythosSchedule(7);
+  assert.deepEqual(sch.dreadPermille, [100, 200, 300, 400, 500, 600, 700]);
+  assert.deepEqual(sch.ritualStage, [0, 1, 2, 3, 4, 5, 5]);
+  assert.deepEqual(mythosSchedule(12).dreadPermille.slice(9), [1000, 1000, 1000]);
+  assert.deepEqual(mythosSchedule(0), { dreadPermille: [], ritualStage: [] });
+});
+
+test('everything heard on night N exists unchanged when the village is replayed for night N+1', () => {
+  for (const seed of [1, 42, 1818]) {
+    const w = worldOf(seed);
+    for (let n = 1; n < 11; n++) {
+      const a = mythosStatements(buildMythosFeed(mythos, runMythos(w.society, w.story, mythos, mythosSchedule(n), n), n));
+      const b = mythosStatements(buildMythosFeed(mythos, runMythos(w.society, w.story, mythos, mythosSchedule(n + 1), n + 1), n + 1));
+      for (const m of a) {
+        const same = b.find((x) => x.id === m.id), where = `seed ${seed} night ${n} ${m.id}`;
+        assert.ok(same, where);
+        assert.deepEqual([same.kind, same.subject, same.night, same.minute], [m.kind, m.subject, m.night, m.minute], where);
+        if (!m.rumor) continue;
+        assert.deepEqual([same.rumor.origin, same.rumor.key], [m.rumor.origin, m.rumor.key], where);
+        for (const h of m.rumor.holders) assert.ok(same.rumor.holders.some((x) => x.villager === h.villager && x.distortion === h.distortion && x.night === h.night), where);
+      }
+    }
+  }
 });
 
 test('the chronicle lists only the mythos statements the player heard', () => {

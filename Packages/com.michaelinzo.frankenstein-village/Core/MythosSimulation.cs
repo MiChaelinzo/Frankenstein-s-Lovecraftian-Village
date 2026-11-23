@@ -191,8 +191,25 @@ namespace Frankenstein.Core
     {
         public int[] DreadPermille;
         public int[] RitualStage;
-        /// <summary>Optional suspicion of each villager (per mille), usually from <see cref="VillageSociety.OpinionsAfter"/>. Raises how fast the secrets of their neighbours come out.</summary>
-        public int[] Suspicion;
+
+        /// <summary>Dread per mille added by each night of the fixed replay schedule.</summary>
+        public const int DreadPerNight = 100;
+
+        /// <summary>
+        /// The fixed schedule a play session replays the village on: night k has dread 100 * k per mille (capped at 1000) and ritual stage k - 1 (capped at the maximum).
+        /// It never reads live values, so a statement heard on night N is recomputed identically on every later night.
+        /// </summary>
+        public static MythosInputs Schedule(int nights)
+        {
+            int n = Math.Max(0, nights);
+            var inputs = new MythosInputs { DreadPermille = new int[n], RitualStage = new int[n] };
+            for (int k = 1; k <= n; k++)
+            {
+                inputs.DreadPermille[k - 1] = Math.Min(VillageSociety.Scale, DreadPerNight * k);
+                inputs.RitualStage[k - 1] = Math.Min(VillageSociety.MaxRitualStage, k - 1);
+            }
+            return inputs;
+        }
 
         public static int At(int[] values, int night)
         {
@@ -233,7 +250,6 @@ namespace Frankenstein.Core
         /// <summary>The hidden exposure of a secret starts in [0, StartExposureRange).</summary>
         public const int StartExposureRange = 300;
         /// <summary>Linked villagers' suspicion is divided by this before it adds to exposure pressure.</summary>
-        public const int SuspicionShare = 20;
         /// <summary>Pressure each cult member linked to the secret holder adds.</summary>
         public const int CultNeighbourPressure = 40;
         /// <summary>An omen happens when a roll in [0, Scale) is under EventBaseChance + intensity / EventIntensityDivisor.</summary>
@@ -289,7 +305,6 @@ namespace Frankenstein.Core
                     int pressure = lib.Secrets[state.SecretKind[i]].Pressure + exposureBoost;
                     foreach (int j in links.Neighbours[i])
                     {
-                        if (inputs.Suspicion != null && j < inputs.Suspicion.Length) pressure += inputs.Suspicion[j] / SuspicionShare;
                         if (cultOf[j] >= 0) pressure += CultNeighbourPressure;
                     }
                     meter[i] += pressure;
