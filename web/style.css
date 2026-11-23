@@ -109,9 +109,16 @@ html.hc .jtabs [role=tab] { border-color: #888; color: #fff; }
 .jbadge[hidden] { display: none; }
 
 /* About dialog and judge tour */
-.about { max-width: 34rem; padding: 22px 26px; border: 1px solid var(--moss); background: #060b0c; color: var(--ink); }
-.about::backdrop { background: rgba(2,4,5,.85); }
-.about p { font-size: 1rem; }
+  .about { max-width: 34rem; max-height: min(88vh, 52rem); overflow-y: auto; padding: 22px 26px; border: 1px solid var(--moss); background: #060b0c; color: var(--ink); }
+  .about::backdrop { background: rgba(2,4,5,.85); }
+  .about p { font-size: 1rem; }
+  .support-membership { margin: 16px 0; padding: 14px; border: 1px solid #34463e; background: #0c1312; }
+  .support-membership summary { cursor: pointer; color: var(--moss); font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif; }
+  .support-membership summary:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+  .support-membership p { margin: 6px 0; }
+  #paypalButtons { max-width: 24rem; min-height: 2px; margin: 12px 0; }
+  #paypalStatus { min-height: 1.4em; }
+  @media (max-width: 480px) { .about { width: min(94vw, 34rem); padding: 18px; } }
 .tour { position: fixed; left: 50%; bottom: 12px; max-height: calc(100vh - 24px); overflow-y: auto; box-sizing: border-box; transform: translateX(-50%); z-index: 40; width: min(36rem, calc(100vw - 24px)); padding: 14px 18px; background: #060b0c; border: 1px solid var(--moss); box-shadow: 0 0 30px rgba(0,0,0,.9); }
 .tour[hidden] { display: none; }
 .tour h2 { color: #e6eee9; }

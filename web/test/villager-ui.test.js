@@ -208,7 +208,7 @@ test('markup: dialogue, panel and talk button exist; index.html declares aria an
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   for (const id of ['villagerDialog', 'villagerName', 'villagerLine', 'villagerClose', 'villagerPanel', 'villagerList', 'villagerClock', 'villagerToggle', 'touchTalk']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /id="villagerDialog"[^>]*role="dialog"[^>]*hidden/);
-  for (const f of ['../_headers', '../../vercel.json', '../../netlify.toml']) assert.match(readFileSync(new URL(f, import.meta.url), 'utf8'), /connect-src 'self' https:[;"\s]/, f);
+  for (const f of ['../_headers', '../../vercel.json', '../../netlify.toml']) assert.match(readFileSync(new URL(f, import.meta.url), 'utf8'), /connect-src 'self'[^;]*https:\/\/\*\.paypal\.com/, f);
 });
 
 test('chat topics restart when the village or the night changes', () => {

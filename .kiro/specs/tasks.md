@@ -209,7 +209,7 @@ Reconciliation with the older Roadmap below: the old round 26 (voxel world spec 
 - Round 25: survival and homestead: inventory and items, monsters and sanity exposure, a homestead, more villagers, licence audit, Support link and payments plan.
 - Round 26 (done, investigation and trust; the voxel spec below moved after round 30, see the author roadmap above): voxel world spec (a voxel terrain and building layer; write the spec in Core terms first: seed, chunk, edit log, determinism), then the open world tasks 129 to 134.
 - Round 27: economy, shops, buy/sell and the horror restaurant.
-- Round 28: real-money checkout from `docs/PAYMENTS_PLAN.md` (PayPal Orders v2 behind a same-origin Vercel function, author-set env vars, cosmetic only), sandbox first.
+  - Round 28: PayPal.Me donations and client-hosted PayPal Sandbox monthly development support; no membership entitlements or in-game paywall. Setup in `docs/PAYMENTS_PLAN.md`.
 - Round 29: relationships, AI chat for villagers and talking objects (wells, stones, houses) via a same-origin Vercel serverless function whose LLM key the author sets as a Vercel env var, never committed, with deterministic fallback.
 - Round 30: lore, stories and adventures.
 - Round 31: procedural regions beyond the village.

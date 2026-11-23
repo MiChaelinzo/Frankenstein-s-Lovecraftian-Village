@@ -125,3 +125,20 @@ test('About dialog and README carry the Support link, opened safely, in en and f
   const readme = readFileSync(join(web, '..', 'README.md'), 'utf8');
   assert.ok(readme.includes(`](${url})`), 'README support link');
 });
+
+test('monthly support is opt-in, sandbox-configurable and does not promise game entitlements', () => {
+  for (const l of LANGS) {
+    assert.match(STRINGS[l]['about.membership.description'], /game features|fonction du jeu/);
+    assert.match(STRINGS[l]['about.membership.plan'], /PayPal/);
+  }
+  assert.match(html, /id="paypalLoad"/);
+  assert.match(html, /id="paypalButtons"/);
+  assert.match(html, /id="paypalStatus"[^>]*aria-live="polite"/);
+  const config = readFileSync(join(web, 'src', 'paypal-config.js'), 'utf8');
+  assert.match(config, /PAYPAL_CLIENT_ID = ''/);
+  assert.match(config, /PAYPAL_PLAN_ID = ''/);
+  assert.doesNotMatch(config, /client.secret|access.token|webhook/i);
+  const unityMenu = readFileSync(join(web, '..', 'Packages/com.michaelinzo.frankenstein-village/Editor/WebDemoUrlMenu.cs'), 'utf8');
+  assert.match(unityMenu, /Open Support Page/);
+  assert.match(unityMenu, /\?support=1/);
+});
