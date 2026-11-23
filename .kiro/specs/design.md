@@ -111,3 +111,15 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Presentation (web only, `web/src/daylight.js`).** Keyframes by minute blend the existing night look (unchanged at full night) toward an overcast day: a cold rose dawn mist, a grey-blue day, a dusk that burns amber into bruised violet and indigo. The sun disc takes the moon's place by day; fog thins by day; lantern light fades to a tenth by day without popping; the ambient mix lifts wind and waves and silences whispers in daylight. Smooth between minutes (`sessionTickExact`), and the Endure skip is animated unless motion is reduced. Unity mirrors the idea with `Runtime/DayNightDirector.cs` driven by Core `GameClock.DaylightPercent`.
 
+## Round 27: Mythos Simulation MVP
+**Goal.** A background engine that makes the village act between the player's visits, as systems rather than scripted events.
+
+**Inputs.** Seed, `VillageSociety` (corruption stage per night, family and neighbour links), `VillageStory`, `MythosLibrary` parsed from `Data/mythos.json`, `MythosInputs` (dread per mille, ritual stage, optional suspicion).
+
+**Rule.** `MythosSimulation.Run(society, story, lib, inputs, throughNight)` replays nights 1..N. A night: seeded omen (chance from dread and ritual stage, raising cult joining and secret exposure the night after), cult joins when a villager reaches the Cultist stage (nearest member link, else seeded), secret exposure pressure (suspicion of neighbours, cult density, omen boost) and one new rumor (source secret, omen or missing person) that spreads hop by hop with a delay per link and distorts with chance 1 in 4 per hop. `MythosFeeds.cs` turns the result into statement ids `mythos:secret:<v>`, `mythos:rumor:<night>`, `mythos:omen:<night>`, `mythos:cult:<v>` for the board, and `MythosSociety.SuspicionPressure` for society. JS mirror in `web/src/mythos.js`; UI wiring in `society-ui.js` (tonight is raised to the live dread and ritual stage, past nights stay fixed so what was heard stays true), `board-ui.js` and `chronicle-ui.js`. Save: heard mythos ids ride in the existing `board` string with `.` instead of `:`.
+
+**Outputs.** Deterministic per night state; golden key `mythos`.
+
+**Failure conditions.** See requirements, Round 27. The night tick summary record and the reality state are not built (task 154a).
+
+**Test cases.** `MythosSimulationTests.cs` (determinism, different seeds differ, monotone cults and exposure, replay equals incremental, valid holders, hop delay, one cult per villager), `web/test/mythos.test.js`, `MYTHOS_ONLY` browser check. Status: Core and JS Verified; browser Partially Verified; Unity runtime Unverified.
