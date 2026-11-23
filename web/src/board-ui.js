@@ -16,6 +16,8 @@ export const UNKNOWN_TITLE = '???';
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 const CLUE_ID_RE = /^[A-Za-z0-9_@:.\-]{1,40}$/;
 const STATEMENT_ID_RE = /^[a-z0-9_]{1,40}$/;
+const MYTHOS_ID_RE = /^mythos:(secret|rumor|omen|cult):\d{1,3}$/;      // statement ids of the mythos feed (mythos.js)
+const MYTHOS_SAVED_RE = /^mythos\.(secret|rumor|omen|cult)\.\d{1,3}$/; // the same ids in a save string, where ':' separates fields
 const SHELL_KINDS = [CARD_SUSPECT, CARD_VICTIM]; // shown as ??? before they are found, so the player sees how many people there are
 const clockText = (minute) => `${String(Math.floor(minute / 60) % 24).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
@@ -56,7 +58,7 @@ export const ARROW_DIRS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left',
 
 /** Compact save string: bd1;<met roster indices>;<clue ids>;<villager:statementId:night heard entries>. Commas separate items. */
 export function serializeBoardEvidence(e) {
-  const heard = e.heard.slice(0, MAX_HEARD).map((h) => `${h.villager}:${h.statementId}:${h.night}`);
+  const heard = e.heard.slice(0, MAX_HEARD).map((h) => `${h.villager}:${h.statementId.replace(/:/g, '.')}:${h.night}`);
   return [BOARD_SAVE_TAG, [...e.met].sort((a, b) => a - b).slice(0, MAX_MET).join(','), [...e.clueIds].sort().slice(0, MAX_CLUES).join(','), heard.join(',')].join(';');
 }
 
@@ -69,8 +71,8 @@ export function parseBoardEvidence(text) {
   for (const s of parts[1].split(',')) { const n = Number(s); if (s !== '' && Number.isInteger(n) && n >= 0 && n < MAX_MET) e.met.add(n); }
   for (const s of parts[2].split(',')) if (CLUE_ID_RE.test(s) && e.clueIds.size < MAX_CLUES) e.clueIds.add(s);
   for (const s of parts[3].split(',')) {
-    const [v, id, n] = s.split(':'), villager = Number(v), night = Number(n);
-    if (Number.isInteger(villager) && villager >= 0 && villager < MAX_MET && STATEMENT_ID_RE.test(id || '') && Number.isInteger(night) && night >= 1 && night <= 9 && e.heard.length < MAX_HEARD
+    const [v, saved, n] = s.split(':'), villager = Number(v), night = Number(n), id = MYTHOS_SAVED_RE.test(saved || '') ? saved.replace(/\./g, ':') : saved;
+    if (Number.isInteger(villager) && villager >= 0 && villager < MAX_MET && (STATEMENT_ID_RE.test(id || '') || MYTHOS_ID_RE.test(id || '')) && Number.isInteger(night) && night >= 1 && night <= 9 && e.heard.length < MAX_HEARD
       && !e.heard.some((h) => h.statementId === id)) e.heard.push({ villager, statementId: id, night });
   }
   return e;
@@ -79,7 +81,7 @@ export function parseBoardEvidence(text) {
 const linkKey = (l) => `${l.kind}|${l.from}|${l.to}`;
 
 /**
- * deps: { $, doc, tr, lang, state (seed), story() -> village story or null, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
+ * deps: { $, doc, tr, lang, state (seed), story() -> village story or null, mythos?() -> mythos feed or null, mythosKey?() -> string that changes with the feed, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
  *   announce(text), exitPointerLock(), activeElement(), keyTarget, reduceMotion, onChange?() }
  */
 export function createBoardController(deps) {
@@ -104,15 +106,22 @@ export function createBoardController(deps) {
     const story = deps.story ? deps.story() : null, lib = library();
     if (!story || !lib || !statements) return null;
     const read = deps.lore ? deps.lore.readIds().size : 0, corruption = deps.corruption ? deps.corruption() : null;
-    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}`;
+    const feed = deps.mythos ? deps.mythos() : null, mythosKey = feed && deps.mythosKey ? deps.mythosKey() : '';
+    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}`;
     if (key !== modelKey || !model) {
       modelKey = key;
-      model = buildBoard(story, lib, statements, clone(), corruption);
-      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang()) : UNKNOWN_TITLE]));
+      model = buildBoard(story, lib, statements, clone(), corruption, feed);
+      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed) : UNKNOWN_TITLE]));
     }
     return model;
   }
   const titleOf = (id) => titles.get(id) || id;
+
+  /** Why two statements contradict: the authored reason, or the mythos reason for a distorted rumor against what it distorts. */
+  function reasonOf(pairId) {
+    const def = statements.contradictions.find((x) => x.id === pairId), feed = pairId.startsWith('mythos:') && deps.mythos ? deps.mythos() : null, t = def ? def.reason : feed ? feed.library.contradictionReason : null;
+    return t ? t[lang()] || t.en : '';
+  }
 
   /** Announces links and contradictions that appeared since the last look. The first look after a load or a new seed only records what is already known. */
   function announceNew(m) {
@@ -122,8 +131,7 @@ export function createBoardController(deps) {
       for (const l of m.links) if (l.revealed && !seenLinks.has(linkKey(l))) messages.push(tr('board.link.new', { a: titleOf(l.from), b: titleOf(l.to) }));
       for (const c of m.contradictions) {
         if (seenContradictions.has(c.pairId)) continue;
-        const def = statements.contradictions.find((x) => x.id === c.pairId);
-        messages.push(tr('board.contradiction.new', { a: titleOf(c.cardA), b: titleOf(c.cardB), reason: def ? def.reason[lang()] || def.reason.en : '' }));
+        messages.push(tr('board.contradiction.new', { a: titleOf(c.cardA), b: titleOf(c.cardB), reason: reasonOf(c.pairId) }));
       }
       if (messages.length) { const text = messages.join(' '); const live = $('boardLive'); if (live) live.textContent = text; deps.announce?.(text); }
     }
@@ -146,6 +154,18 @@ export function createBoardController(deps) {
     const id = result && result.lieStatementId;
     if (!id || !STATEMENT_ID_RE.test(id) || evidence.heard.some((h) => h.statementId === id) || evidence.heard.length >= MAX_HEARD) return;
     ensureSeed(); evidence.heard.push({ villager: index, statementId: id, night: Math.max(1, Math.min(9, night | 0)) }); version++; sync();
+  }
+
+  /** Mythos statements a villager told in a chat (ids from society.mythosChat). Only ids the board can show are kept. */
+  function noteMythos(index, ids, night) {
+    if (!Array.isArray(ids)) return;
+    ensureSeed();
+    let added = false;
+    for (const id of ids) {
+      if (typeof id !== 'string' || !MYTHOS_ID_RE.test(id) || evidence.heard.some((h) => h.statementId === id) || evidence.heard.length >= MAX_HEARD) continue;
+      evidence.heard.push({ villager: index, statementId: id, night: Math.max(1, Math.min(9, night | 0)) }); added = true;
+    }
+    if (added) { version++; sync(); }
   }
 
   // ---- DOM ----
@@ -223,7 +243,7 @@ export function createBoardController(deps) {
     selected = id;
     const linked = [];
     for (const l of m.links) { if (!l.revealed) continue; if (l.from === id) linked.push(titleOf(l.to)); else if (l.to === id) linked.push(titleOf(l.from)); }
-    const reasons = m.contradictions.filter((c) => c.cardA === id || c.cardB === id).map((c) => { const d = statements.contradictions.find((x) => x.id === c.pairId); return d ? d.reason[lang()] || d.reason.en : ''; });
+    const reasons = m.contradictions.filter((c) => c.cardA === id || c.cardB === id).map((c) => reasonOf(c.pairId));
     const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r }))];
     const text = parts.join(' ');
     const el = $('boardDetail'); if (el) el.textContent = text;
@@ -281,7 +301,7 @@ export function createBoardController(deps) {
   $('boardToggle')?.addEventListener?.('click', toggle);
 
   return {
-    setStatements, noteMet, noteClue, noteChat, sync, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
+    setStatements, noteMet, noteClue, noteChat, noteMythos, sync, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
     evidence: () => clone(), cardTitle: titleOf,
     snapshot: () => { ensureSeed(); return { board: serializeBoardEvidence(evidence) }; },
     restore(s) {

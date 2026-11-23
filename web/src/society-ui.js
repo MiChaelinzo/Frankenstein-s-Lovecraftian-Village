@@ -4,9 +4,12 @@ import { buildSociety, ACTION_IDS, ALL_VILLAGERS, CHAT_POLITE, SEEN_AT_RITUAL_SI
 import { landmarkAt } from './landmarks.js';
 import { SOURCE_CHAT } from './investigation.js';
 import { ROLE_IDS } from './villagers.js';
+import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosStatements, mythosText, isDistorted, truthStatementId, suspicionPressure, cultId } from './mythos.js';
+import { SCALE, MAX_RITUAL_STAGE } from './society.js';
 
 export const SOCIETY_SAVE_TAG = 'sc1', MAX_LOG = 150;
 export const WITNESS_RADIUS_M = 14;     // a villager this close (metres) sees what the player does
+export const DREAD_PER_NIGHT = 100; // the mythos replays past nights on this fixed schedule (dread per mille 100 * night, ritual stage night - 1), so what was heard stays true; tonight also reads the live values
 export const NIGHT_PHASE = 3;            // clock.js phase index of the night
 const SAVE_ENTRY_RE = /^(\d{1,2}):(-?\d{1,3})$/;
 
@@ -38,6 +41,14 @@ export function authoredChatStatement(statements, roleId, night, result, tier) {
   return statements.statements.find((s) => s.source === SOURCE_CHAT && s.role === roleId && s.night >= 1 && s.night <= night) || null;
 }
 
+/** Per night inputs of the mythos replay through `night` (1-based): the fixed schedule, with tonight raised to the live dread (per mille) and ritual stage. */
+export function mythosInputsFor(night, liveDread, liveRitual) {
+  const dread = [], ritual = [];
+  for (let k = 1; k <= night; k++) { dread.push(Math.min(SCALE, DREAD_PER_NIGHT * k)); ritual.push(Math.min(MAX_RITUAL_STAGE, k - 1)); }
+  if (night >= 1) { dread[night - 1] = Math.max(dread[night - 1], liveDread); ritual[night - 1] = Math.max(ritual[night - 1], Math.min(MAX_RITUAL_STAGE, liveRitual)); }
+  return { dreadPermille: dread, ritualStage: ritual };
+}
+
 /** Index of the nearest villager (scene entries { id, pos }) within WITNESS_RADIUS_M of a point in metres, or -1. Ties go to the earlier entry (roster order). */
 export function nearestWitness(scene, x, z) {
   let best = -1, bestD = WITNESS_RADIUS_M;
@@ -51,13 +62,13 @@ export function nearestWitness(scene, x, z) {
  */
 export function createSocietyController(deps) {
   const { state } = deps;
-  let log = [], statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, stageKey = '', stageList = [];
+  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, stageKey = '', stageList = [];
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
 
   function society() {
     const story = deps.story ? deps.story() : null;
     if (!story) return null;
-    if (story !== builtStory || state.layout !== builtLayout) { built = buildSociety(story, state.layout); builtStory = story; builtLayout = state.layout; opinions = null; stageKey = ''; }
+    if (story !== builtStory || state.layout !== builtLayout) { built = buildSociety(story, state.layout); builtStory = story; builtLayout = state.layout; opinions = null; stageKey = ''; mythosKey = ''; graph = null; }
     return built;
   }
   const night = () => state.night + 1;
@@ -74,11 +85,40 @@ export function createSocietyController(deps) {
   /** Stage of one roster index; 0 for townsfolk beyond the story roster. */
   const stageOf = (index) => stages()[index] || 0;
 
+  /** The mythos feed (Core MythosSimulation mirror) for the current night, or null without a society or data. Recomputed only when the night, dread or ritual stage changed. */
+  function mythosFeed() {
+    const s = society();
+    if (!s || !mythosLib || !s.roster.length) return null;
+    const live = dreadPermille(state.sanity.dread), key = `${state.seed}|${night()}|${live}|${state.ritualStage}|${s.roster.length}`;
+    if (key !== mythosKey) { mythosKey = key; mythosCache = buildMythosFeed(mythosLib, runMythos(s, deps.story(), mythosLib, mythosInputsFor(night(), live, state.ritualStage), night()), night()); }
+    return mythosCache;
+  }
+
   function currentOpinions() {
     const s = society();
     if (!s) return null;
-    if (!opinions || opinionsLen !== log.length) { opinions = s.opinionsAfter(log); opinionsLen = log.length; }
+    const feed = mythosFeed(), key = feed ? mythosKey : '';
+    if (!opinions || opinionsLen !== log.length || opinionsKey !== key) { opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; }
     return opinions;
+  }
+
+  /**
+   * What a lucid villager can tell the player in a village chat, as [{ id, text }] mythos statements (ids as in mythos.js): the newest rumor they hold, the truth behind it when they
+   * started it, and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat, so the player only learns what a villager could honestly say.
+   */
+  function mythosChat(index, night1, result, lang) {
+    const s = society(), feed = mythosFeed(), st = standing(index);
+    if (!s || !feed || !st || !result || !result.available || result.behavior !== 0 || result.withheld || st.tier === TIER_SUSPICIOUS) return [];
+    if (!(result.hintId === 'village' || (st.tier === TIER_TRUSTING && result.hintId))) return [];
+    const all = mythosStatements(feed), ids = [];
+    let rumor = null;
+    for (const m of all) if (m.rumor && m.night <= night1 && m.rumor.holders.some((h) => h.villager === index)) rumor = m;
+    if (rumor) { ids.push(rumor.id); if (rumor.rumor.origin === index && truthStatementId(rumor.rumor)) ids.push(truthStatementId(rumor.rumor)); }
+    if (!graph) graph = buildGraph(s);
+    const members = new Set(feed.current.cultMembers.flat());
+    const tie = graph.neighbours[index].find((j) => members.has(j) && all.some((m) => m.id === cultId(j)));
+    if (tie !== undefined) ids.push(cultId(tie));
+    return ids.filter((id) => all.some((m) => m.id === id)).map((id) => { const m = all.find((x) => x.id === id); return { id, text: mythosText(feed, deps.story(), m, isDistorted(m.rumor, index), lang) }; });
   }
 
   /** { tier, corruption } for villagers.js chat(), or null for someone outside the story roster. */
@@ -129,6 +169,9 @@ export function createSocietyController(deps) {
 
   return {
     setStatements(lib) { statements = lib || null; },
+    /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
+    setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; opinions = null; },
+    mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
     stages, stageOf, standing, record, noteChat, watch, noteDoor, noteWard,
     /** Text of an authored statement (a lie or a chat statement) in a language, or ''. */
     statementText: (id, lang) => { const st = statements && statements.find(id); return st ? st.text[lang] || st.text.en : ''; },

@@ -14,9 +14,12 @@ import { buildSociety, SEEN_NEAR_BODY, CHAT_POLITE } from '../src/society.js';
 import { parseStatementLibrary, emptyEvidence, buildBoard, cardTitle } from '../src/investigation.js';
 import {
   parseMythosLibrary, runMythos, buildMythosFeed, mythosStatements, mythosText, isDistorted, suspicionPressure, inputAt, rumorDelays, buildGraph, ID_PREFIX,
-  EVENT_COSMIC_OMEN, EVENT_RUMOR_STARTED, SOURCE_SECRET, MAX_CULTS,
+  EVENT_COSMIC_OMEN, MAX_CULTS,
 } from '../src/mythos.js';
 import { UNREACHABLE } from '../src/society.js';
+import { serializeBoardEvidence, parseBoardEvidence } from '../src/board-ui.js';
+import { mythosInputsFor } from '../src/society-ui.js';
+import { chronicleModel } from '../src/chronicle-ui.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).mythos;
@@ -118,15 +121,16 @@ test('rumor delays reach the origin at zero and unreachable villagers stay unrea
   assert.ok(d.every((x) => x === UNREACHABLE || x >= 0));
 });
 
-test('a distorted secret rumor contradicts the exposed secret once both are heard', () => {
-  let pairs = 0;
+test('every mythos contradiction pairs a rumor with the secret or omen it distorts', () => {
   for (const seed of [1, 42, 1818]) {
-    const w = worldOf(seed), feed = buildMythosFeed(mythos, run(w), golden.nights), heard = hearAll(feed);
-    for (const s of mythosStatements(feed)) if (s.rumor && s.rumor.source === SOURCE_SECRET && s.kind === EVENT_RUMOR_STARTED && isDistorted(s.rumor, heard.heard.find((h) => h.statementId === s.id).villager)) pairs++;
-    const board = buildBoard(w.story, lore, statements, heard, null, feed);
-    for (const c of board.contradictions.filter((x) => x.pairId.startsWith(ID_PREFIX))) assert.ok(c.pairId.includes('~'));
+    const w = worldOf(seed), feed = buildMythosFeed(mythos, run(w), golden.nights), board = buildBoard(w.story, lore, statements, hearAll(feed), null, feed);
+    for (const c of board.contradictions.filter((x) => x.pairId.startsWith(ID_PREFIX))) {
+      const [rumor, truth] = c.pairId.split('~');
+      assert.match(rumor, /^mythos:rumor:\d+$/);
+      assert.match(truth, /^mythos:(secret|omen):\d+$/);
+      assert.deepEqual([c.cardA, c.cardB], [`event:${rumor}`, `event:${truth}`]);
+    }
   }
-  assert.ok(pairs >= 0);
 });
 
 test('the data parser names the offending field', () => {
@@ -134,4 +138,33 @@ test('the data parser names the offending field', () => {
   assert.throws(() => parseMythosLibrary({ ...data, secrets: [{ id: 'x', en: 'a', fr: 'b' }] }), /pressure/);
   assert.throws(() => parseMythosLibrary({ ...data, cults: data.cults.slice(0, 1) }), /cults/);
   assert.throws(() => parseMythosLibrary({ ...data, cultLine: { en: 'x' } }), /cultLine lacks fr/);
+});
+
+test('heard mythos ids survive the save string and bad ones are dropped', () => {
+  const e = emptyEvidence();
+  e.heard.push({ villager: 4, statementId: 'mythos:secret:4', night: 5 }, { villager: 2, statementId: 'c_fisher_home', night: 1 });
+  const saved = serializeBoardEvidence(e);
+  assert.match(saved, /mythos\.secret\.4/);
+  assert.deepEqual(parseBoardEvidence(saved).heard, e.heard);
+  assert.equal(parseBoardEvidence('bd1;;;1:mythos.bogus.4:2,1:mythos:secret:4:2,1:mythos.secret.99999:2').heard.length, 0);
+});
+
+test('the replay schedule is fixed for past nights and tonight only rises with live values', () => {
+  const calm = mythosInputsFor(4, 0, 0), live = mythosInputsFor(4, 950, 5);
+  assert.deepEqual(calm.dreadPermille, [100, 200, 300, 400]);
+  assert.deepEqual(calm.ritualStage, [0, 1, 2, 3]);
+  assert.deepEqual(live.dreadPermille.slice(0, 3), calm.dreadPermille.slice(0, 3));
+  assert.equal(live.dreadPermille[3], 950);
+  assert.equal(live.ritualStage[3], 5);
+});
+
+test('the chronicle lists only the mythos statements the player heard', () => {
+  const w = worldOf(1818), feed = buildMythosFeed(mythos, run(w), golden.nights), all = mythosStatements(feed);
+  const ctx = { night: 12, nights: 12, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
+  assert.equal(chronicleModel(w.story, 'en', { ...ctx, mythosHeard: new Map() }).mythos.length, 0);
+  assert.equal(chronicleModel(w.story, 'en', ctx).mythos.length, 0);
+  const one = all[all.length - 1], m = chronicleModel(w.story, 'en', { ...ctx, mythosHeard: new Map([[one.id, 0]]) }).mythos;
+  assert.equal(m.length, 1);
+  assert.equal(m[0].id, one.id);
+  assert.ok(m[0].text.length > 0);
 });

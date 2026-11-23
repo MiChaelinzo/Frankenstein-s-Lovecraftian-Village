@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -498,6 +498,39 @@ async function main() {
     }
   };
 
+  /** Mythos (round 27: the background simulation feeding the board and the chronicle; MYTHOS_ONLY=1 runs only this). Seed 1818 at night 5 (found with web/src/mythos.js, see CHANGELOG): two cults (the Lamp Wardens and the Salt Congregation), the secrets of villagers 1 and 4 out on night 5 (villager 4 saw a body carried to the water), and a missing person rumor from villager 4. The saved board holds what four villagers told the player. */
+  const mythosRun = async () => {
+    const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=5';
+    const SESSION = { seed: 1818, sanity: 40, night: 4, lore: [], board: 'bd1;0,1,2,4;;4:mythos.secret.4:5,4:mythos.rumor.5:5,2:mythos.cult.1:5,0:mythos.omen.5:5' };
+    const fresh = async (query, hash, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + hash); await sleep(1200);
+    };
+    const cards = () => ev(`[...document.querySelectorAll('#boardCards .board-card')].filter((b)=>b.getAttribute('data-card').startsWith('event:mythos:')).map((b)=>b.getAttribute('data-card')+'|'+b.getAttribute('aria-label'))`);
+    const chronicle = () => ev(`({items:[...document.querySelectorAll('#chronicleMythos li')].map((l)=>l.getAttribute('data-mythos')+'|'+l.textContent), empty:!document.querySelector('#chronicleMythos li')&&(document.getElementById('chronicleMythos')||{}).textContent||''})`);
+    await fresh(Q, H, null);
+    await key(';', 'Semicolon', 186, ';'); await sleep(500);
+    rec('mythos: with nothing heard the board shows no mythos card', (await cards()).length === 0, await cards());
+    await fresh(Q, H, SESSION);
+    await key(';', 'Semicolon', 186, ';'); await sleep(600);
+    const got = await cards();
+    rec('mythos: the board shows an event card for the exposed secret, the rumor, the cult member and the omen the player heard, with readable labels', got.length === 4 && got.some((c) => /Ignatius Grimsby saw a body/.test(c)) && got.some((c) => /Salt Congregation/.test(c)) && got.some((c) => /Eliot Ashby/.test(c)), got);
+    const kept = await ev(`JSON.parse(localStorage.getItem('flv.session.v1')||'{}').board||''`);
+    rec('mythos: the heard statements are saved with the session and survive a reload', /mythos\.secret\.4/.test(kept) && /mythos\.cult\.1/.test(kept), { kept });
+    await fresh(Q + '&chronicle=1', H, null); await sleep(500);
+    const none = await chronicle();
+    rec('mythos: the chronicle shows an empty Mythos section until the player has heard something', none.items.length === 0 && /Nothing has been whispered/.test(none.empty), none);
+    for (const lang of ['en', 'fr']) {
+      await fresh(Q + `&chronicle=1&lang=${lang}`, H, SESSION); await sleep(500);
+      const c = await chronicle();
+      const expect = lang === 'en' ? [/Salt Congregation/, /Ignatius Grimsby saw a body/, /Eliot Ashby/, /tide came in twice/] : [/Congregation du Sel/, /Ignatius Grimsby/, /Eliot Ashby/, /maree/i];
+      rec(`mythos: the chronicle lists the cult, the secret, the rumor and the omen the player heard, in ${lang === 'en' ? 'English' : 'French'}`, c.items.length === 4 && expect.every((re) => c.items.some((i) => re.test(i))), c);
+    }
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -523,6 +556,7 @@ async function main() {
     if (process.env.HOMESTEAD_ONLY) { await homesteadRun(); break suite; }
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
+    if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
