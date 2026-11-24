@@ -381,3 +381,100 @@ html.hc .villager-dialog { background: #000; border: 2px solid #ffffff; }
 .view-setting input { flex: 1; min-width: 80px; }
 .view-setting output { min-width: 4.5em; text-align: right; color: var(--dim); }
 .quality-out { margin: 2px 0 6px; font-size: .8rem; color: var(--dim); }
+
+/* ---------- round 33 Victorian reskin (spec 165): extends the round 29 layer above. Aged paper, maritime brass, dark wood and ink annotations.
+   CSS gradients only (no images, no fonts, no inline styles, CSP unchanged). Every colour pair used for text is checked in web/test/victorian-theme.test.js (4.5:1 minimum). ---------- */
+:root { --v-wood: #1a1209; --v-wood-hi: #2a1c10; --v-brass: #c9a24d; --v-brass-dim: #8c6d2c; --v-paper: #e6d8b5; --v-paper-deep: #cdb98a;
+  --v-ink: #2b1d0e; --v-ink-soft: #5a3f1c; --v-ink-blue: #22365a; --v-ink-red: #7a1f1a; --v-on-wood: #eadfc6; --v-on-wood-dim: #c4b48c;
+  --v-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', serif; }
+/* dark wood grain: fine vertical rules over a warm gradient */
+button, a.btn { background-image: repeating-linear-gradient(90deg, rgba(255,230,170,.025) 0 1px, transparent 1px 5px), linear-gradient(180deg, #1c150d, #130e08); border-color: var(--v-brass-dim); color: var(--v-on-wood); }
+button:hover, a.btn:hover { background-color: var(--v-wood-hi); border-color: var(--v-brass); }
+button:focus-visible, a.btn:focus-visible, .board-card:focus-visible { outline: 3px solid var(--v-brass); outline-offset: 2px; }
+.cta.recommended { background-image: linear-gradient(180deg, #3b2a12, #24180a); border-color: var(--v-brass); color: #f6ecd2; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(201,162,77,.35), 0 0 22px rgba(201,162,77,.25); }
+/* title screen: brass-cornered wood plaque with a ruled inner border */
+.title-card { background-image: repeating-linear-gradient(90deg, rgba(255,230,170,.02) 0 1px, transparent 1px 6px), linear-gradient(180deg, rgba(34,24,13,.93), rgba(20,14,8,.95)); border: 2px solid var(--v-brass-dim); border-radius: 3px;
+  box-shadow: 0 0 0 1px #000, 0 0 0 5px rgba(20,14,8,.9), 0 0 0 6px var(--v-brass-dim), 0 24px 70px rgba(0,0,0,.85), inset 0 0 70px rgba(0,0,0,.45); font-family: var(--v-serif); overflow-wrap: anywhere; hyphens: auto; }
+.title-card h2 { color: #f1e6c8; text-shadow: 0 0 24px rgba(201,162,77,.35), 0 2px 0 #000; }
+.title-card h2::after { background: linear-gradient(90deg, transparent, var(--v-brass), transparent); }
+.title-village { color: var(--v-brass); }
+.title-pitch { color: var(--v-on-wood); }
+.title-rumor { color: var(--v-on-wood-dim); }
+.title-lang button[aria-pressed="true"] { border-color: var(--v-brass); color: #f6ecd2; }
+.title-card .stats, .title-reason { color: var(--v-on-wood-dim); }
+/* HUD legibility: chips and hints sit on a wood backing, narration gets a dark halo */
+.clock-chip, .district-chip { background-color: rgba(26,18,9,.9); color: var(--v-on-wood); border-color: var(--v-brass-dim); }
+.clock-hint { background: rgba(26,18,9,.85); border-left-color: var(--v-brass); color: var(--v-on-wood); }
+.hint { color: #d6cdb6; text-shadow: 0 1px 4px #000, 0 0 8px #000; }
+.narration { color: #f1e8d0; text-shadow: 0 2px 10px #000, 0 0 4px #000, 0 0 14px rgba(0,0,0,.9); }
+/* investigation board: pinned paper slips on dark wood, red thread, ink notes */
+.board-dialog, .inv-dialog, .villager-dialog { font-family: var(--v-serif); overflow-wrap: anywhere; color: var(--v-on-wood);
+  background-image: repeating-linear-gradient(90deg, rgba(255,230,170,.02) 0 1px, transparent 1px 7px), linear-gradient(180deg, #2a1c10, #17100a); border: 2px solid var(--v-brass-dim); box-shadow: 0 0 0 1px #000, 0 18px 50px rgba(0,0,0,.85), inset 0 0 0 1px rgba(201,162,77,.18), inset 0 0 40px rgba(0,0,0,.4); }
+.board-dialog h2, .inv-dialog h2, .villager-dialog h2 { color: #f1e6c8; border-bottom: 1px solid var(--v-brass-dim); }
+.board-dialog h3, .inv-dialog h3 { color: var(--v-brass); }
+.board-scroll { background-color: #1c130b; background-image: repeating-linear-gradient(0deg, rgba(255,230,170,.03) 0 1px, transparent 1px 9px), radial-gradient(ellipse at 30% 20%, #3a2814, #1c130b 80%); border: 3px solid #4b3418; box-shadow: inset 0 0 24px rgba(0,0,0,.7); }
+.board-string { stroke: #d4574a; stroke-linecap: round; opacity: .95; }
+.board-dialog .board-card { background-color: var(--v-paper); background-image: linear-gradient(180deg, rgba(255,255,255,.18), rgba(120,80,20,.12)); color: var(--v-ink); border: 1px solid #8a6d3a; font-family: var(--v-serif); border-radius: 1px; box-shadow: 1px 3px 6px rgba(0,0,0,.6); overflow-wrap: anywhere; }
+.board-dialog .board-card:nth-child(3n+1) { rotate: -.7deg; } .board-dialog .board-card:nth-child(3n+2) { rotate: .5deg; } .board-dialog .board-card:nth-child(3n) { rotate: -.2deg; }
+.board-card::before { content: ""; position: absolute; top: 2px; left: 50%; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f0d58a, var(--v-brass-dim)); box-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.board-card-kind { color: var(--v-ink-soft); letter-spacing: .08em; }
+.board-card-trust { color: var(--v-ink-blue); }
+.board-trust-1 { color: #6e3609; } .board-trust-2 { color: #1d5232; }
+.board-dialog .board-unknown { background-color: var(--v-paper-deep); border-style: dashed; color: var(--v-ink); opacity: 1; }
+.board-unknown .board-card-title { font-style: italic; }
+.board-dialog .board-card:hover { box-shadow: 0 5px 12px rgba(0,0,0,.7), 0 0 0 1px var(--v-brass); }
+.board-contradiction { border-color: #b32020; }
+.board-detail, .board-timeline { color: var(--v-on-wood); }
+.board-knowledge[data-tier]:not([data-tier="0"]) { border-left-color: var(--v-brass); }
+/* theory builder: a ruled notepad with blue-black ink */
+.board-theory { border-top: 1px solid var(--v-brass-dim); }
+.theory-form { background-color: var(--v-paper); background-image: repeating-linear-gradient(0deg, transparent 0 1.55rem, rgba(34,54,90,.16) 1.55rem calc(1.55rem + 1px)); color: var(--v-ink); border: 1px solid #8a6d3a; padding: .5rem .7rem; font-family: var(--v-serif); }
+.theory-form legend, .theory-form h4 { color: var(--v-ink-blue); }
+.theory-form .stats { color: var(--v-ink-soft); }
+
+.board-dialog .theory-form button { background-image: none; background-color: var(--v-ink); color: var(--v-paper); border-color: #000; }
+.theory-pick { background-position: left top; }
+.theory-results { color: var(--v-on-wood); }
+.theory-true { border-left-color: #6fbf86; } .theory-partial { border-left-color: var(--v-brass); } .theory-false { border-left-color: #e0786f; }
+/* chronicle: a bound paper ledger. The panel turns in from its spine, entries reveal like fresh ink */
+.chronicle { background-color: var(--v-paper); background-image: radial-gradient(ellipse at 0 50%, rgba(90,55,15,.35), transparent 22%), radial-gradient(ellipse at 100% 0, rgba(255,255,255,.35), transparent 50%), linear-gradient(180deg, #e9dcba, #d7c498);
+  color: var(--v-ink); border: 2px solid #6b4a1c; border-left-width: 9px; border-radius: 2px 5px 5px 2px; box-shadow: 0 8px 22px rgba(0,0,0,.55), inset 0 0 40px rgba(110,70,20,.28); font-family: var(--v-serif); transform-origin: left center; overflow-wrap: anywhere; hyphens: auto; }
+.chronicle h2 { color: var(--v-ink); border-bottom: 1px solid #8a6d3a; }
+.chronicle h3, .chronicle-body h3 { color: var(--v-ink-red); }
+.chronicle .stats, .chronicle .axis-bars, .chronicle-list em { color: var(--v-ink-soft); opacity: 1; }
+.chronicle li { border-bottom: 1px dotted rgba(90,63,28,.55); }
+.chronicle .lore-text, .chronicle-rumor { color: var(--v-ink-blue); }
+.chronicle .axis-label { color: var(--v-ink); }
+.chronicle meter { background: #b9a67a; border-color: #6b4a1c; }
+.chronicle a { color: var(--v-ink-blue); }
+.chronicle button { background-image: none; background-color: var(--v-ink); color: var(--v-paper); border-color: #000; }
+@keyframes inkReveal { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes pageTurn { from { opacity: 0; transform: perspective(1100px) rotateY(-14deg); } to { opacity: 1; transform: perspective(1100px) rotateY(0deg); } }
+.chronicle:not([hidden]) { animation: pageTurn .7s ease-out both; }
+.chronicle-body li { animation: inkReveal .9s ease-out both; }
+.chronicle-body li:nth-child(2) { animation-delay: .1s; } .chronicle-body li:nth-child(3) { animation-delay: .2s; } .chronicle-body li:nth-child(4) { animation-delay: .3s; }
+.chronicle-body li:nth-child(5) { animation-delay: .4s; } .chronicle-body li:nth-child(6) { animation-delay: .5s; } .chronicle-body li:nth-child(n+7) { animation-delay: .6s; }
+/* journal pages and lore dialog: aged paper, ink-blue title, ruled lines, drop cap */
+.lore-dialog { background-color: var(--v-paper); background-image: repeating-linear-gradient(0deg, transparent 0 1.5rem, rgba(34,54,90,.12) 1.5rem calc(1.5rem + 1px)), linear-gradient(180deg, #e9dcba, #cdb98a); color: var(--v-ink); border: 2px solid #6b4a1c; border-left-width: 8px; box-shadow: 0 0 28px #000, inset 0 0 44px rgba(110,70,20,.4); overflow-wrap: anywhere; font-family: var(--v-serif); }
+.lore-dialog h2 { color: var(--v-ink-blue); border-bottom: 1px solid #8a6d3a; padding-bottom: 4px; }
+.lore-dialog .stats { color: var(--v-ink-soft); }
+.lore-page::first-letter { font-size: 1.9em; line-height: .9; float: left; padding: .05em .1em 0 0; color: var(--v-ink-red); }
+.lore-dialog:not([hidden]) .lore-page { animation: inkReveal 1.2s ease-out both; }
+.lore-dialog button { background-image: none; background-color: var(--v-ink); color: var(--v-paper); border-color: #000; }
+/* inventory and villager dialogs: wood, brass and paper-coloured text */
+.inv-text { color: var(--v-on-wood-dim); }
+.inv-list li { border-bottom-color: rgba(201,162,77,.3); }
+.villager-dialog { border-color: var(--v-brass-dim); }
+.villager-line { color: #f3e9cd; }
+.villager-list .vrole, .villager-list .vwhere { opacity: 1; color: var(--v-on-wood-dim); }
+.board-dialog .axis-bars, .inv-dialog .axis-bars, .villager-dialog .axis-bars { color: var(--v-on-wood); }
+.whispers li.e-omen { color: #e69a9e; }
+html.reduced .chronicle, html.reduced .chronicle-body li, html.reduced .lore-page { animation: none; }
+@media (prefers-reduced-motion: reduce) { .chronicle, .chronicle-body li, .lore-page { animation: none !important; } }
+/* high contrast keeps the plain black and white palette; forced colors drops all decoration */
+html.hc .chronicle, html.hc .lore-dialog, html.hc .theory-form, html.hc .board-dialog .board-card, html.hc .board-dialog .board-unknown { background: #000; color: #fff; border-color: #fff; box-shadow: none; }
+html.hc .chronicle h2, html.hc .chronicle h3, html.hc .chronicle .stats, html.hc .chronicle .lore-text, html.hc .chronicle-rumor, html.hc .chronicle .axis-label, html.hc .lore-dialog h2, html.hc .theory-form legend, html.hc .board-card-kind, html.hc .board-card-trust, html.hc .lore-page::first-letter { color: #fff; }
+html.hc .board-dialog, html.hc .inv-dialog, html.hc .villager-dialog, html.hc .title-card, html.hc .board-scroll { background: #000; border-color: #fff; box-shadow: none; }
+html.hc .board-card::before { display: none; }
+html.hc button, html.hc a.btn { background: #000; color: #fff; border-color: #fff; }
+@media (forced-colors: active) { .board-card::before, .lore-page::first-letter { display: none; } .chronicle, .lore-dialog, .board-card, .theory-form { forced-color-adjust: auto; background: Canvas; color: CanvasText; } }

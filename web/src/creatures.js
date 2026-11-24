@@ -10,7 +10,7 @@ import { CAUSE_IDS, causeHolds } from './director.js';
 export const CREATURE_HABITATS = ['shore', 'fog', 'harbour', 'cliffs'];
 export const CREATURE_PHASE_RULES = ['night', 'dusk_night', 'any'];
 export const CREATURE_LANGUAGES = ['en', 'fr'];
-export const MAX_CREATURES = 8, MAX_DRAIN_PER_SECOND = 2.0, HOME_SALT = 0x5ea70, KIND_STEP = 0x9e37, HOME_TRIES = 12;
+export const MAX_CREATURES = 8, MAX_DRAIN_PER_SECOND = 2.0, HOME_SALT = 0x5ea70, KIND_STEP = 0x9e37, HOME_TRIES = 12, FALLBACK_LATTICE = 8;
 export const SHORE_MARGIN = 3.0, SHORE_V = -1.4, HARBOUR_V = -1.6, HARBOUR_SPREAD = 10.0, CLIFF_SPREAD = 0.8;
 export const LEASH = 26.0, CLOSE_STOP = 1.2, RETURN_SPEED = 1.0, LOS_STEP = 1.0, TELEGRAPH_RANGE = 30.0;
 export const LANTERN_RANGE = 7.0, LANTERN_PUSH = 3.0, LANTERN_FUEL_PER_SECOND = 0.5, FLARE_RANGE = 16.0, FLARE_PUSH = 7.0;
@@ -123,6 +123,8 @@ export function isCreatureActive(def, tick, dreadPercent, weather) {
   return phaseOk && weatherOk && dreadPercent >= def.minDread;
 }
 
+const homeIsOpen = (def, blocked, places, x, z) => !insideAnyPlace(places, x, z) && (def.habitat !== 'fog' || !blocked || !blocked(x, z));
+
 function homeOf(def, rng, seed, gridW, gridD, blocked, places) {
   const w = gridW * CELL_M, d = gridD * CELL_M, shore = hiOf(seed, gridW, gridD);
   let x = 0, z = 0;
@@ -140,7 +142,14 @@ function homeOf(def, rng, seed, gridW, gridD, blocked, places) {
     } else {
       x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
     }
-    if (!insideAnyPlace(places, x, z) && (def.habitat !== 'fog' || !blocked || !blocked(x, z))) break;
+    if (homeIsOpen(def, blocked, places, x, z)) return { x, z };
+  }
+  // Every redraw was inside a place or a building: take the first open point of a fixed lattice (no random draws, so the stream is untouched).
+  for (let j = 0; j < FALLBACK_LATTICE; j++) {
+    for (let i = 0; i < FALLBACK_LATTICE; i++) {
+      const fx = (i + 0.5) / FALLBACK_LATTICE * w, fz = (j + 0.5) / FALLBACK_LATTICE * d;
+      if (homeIsOpen(def, blocked, places, fx, fz)) return { x: fx, z: fz };
+    }
   }
   return { x, z };
 }
@@ -285,7 +294,8 @@ export function selectAppearances(c, cat, places = null, rejected = null) {
     if (rng.next(100) >= def.chance) continue;
     if (!causeHolds(def.cause, input)) { if (rejected) rejected.push(`${def.id}: cause ${def.cause} does not hold`); continue; }
     const a = { defId: def.id, tier, cause: def.cause, ward: def.ward, still: !!c.reducedMotion, subject: -1, placeId: '', x: 0, z: 0, seconds: 0 };
-    if (tier === 2 || def.id === 'doubled_villager') a.subject = c.corruptedVillager;
+    // Only tier 2 requires a corrupted villager; the doubled villager (tier 3) takes one when it exists. A negative value always means no subject (-1).
+    if (tier === 2 || def.id === 'doubled_villager') a.subject = c.corruptedVillager >= 0 ? c.corruptedVillager : -1;
     if (def.context === 'place') a.placeId = c.placeId || '';
     else {
       const w = c.gridW * CELL_M, d = c.gridD * CELL_M;

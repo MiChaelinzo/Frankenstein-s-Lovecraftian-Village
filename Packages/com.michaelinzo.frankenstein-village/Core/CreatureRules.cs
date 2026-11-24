@@ -203,9 +203,22 @@ namespace Frankenstein.Core
                 {
                     x = rng.Next(1000) / 1000.0 * w; z = rng.Next(1000) / 1000.0 * d;
                 }
-                bool open = !VillagePlaces.InsideAnyPlace(places, x, z) && (def.Habitat != "fog" || blocked == null || !blocked(x, z));
-                if (open) break;
+                if (HomeIsOpen(def, blocked, places, x, z)) return;
             }
+            // Every redraw was inside a place or a building: take the first open point of a fixed lattice (no random draws, so the stream is untouched).
+            for (int j = 0; j < CreatureRules.FallbackLattice; j++)
+            {
+                for (int i = 0; i < CreatureRules.FallbackLattice; i++)
+                {
+                    double fx = (i + 0.5) / CreatureRules.FallbackLattice * w, fz = (j + 0.5) / CreatureRules.FallbackLattice * d;
+                    if (HomeIsOpen(def, blocked, places, fx, fz)) { x = fx; z = fz; return; }
+                }
+            }
+        }
+
+        private static bool HomeIsOpen(CreatureDef def, Func<double, double, bool> blocked, IList<PlacePlacement> places, double x, double z)
+        {
+            return !VillagePlaces.InsideAnyPlace(places, x, z) && (def.Habitat != "fog" || blocked == null || !blocked(x, z));
         }
 
         // ---------- counterplay ----------
@@ -386,6 +399,8 @@ namespace Frankenstein.Core
         public const int HomeSalt = 0x5EA70;
         public const int KindStep = 0x9E37;
         public const int HomeTries = 12;
+        /// <summary>Side of the fixed lattice searched when every home redraw is blocked.</summary>
+        public const int FallbackLattice = 8;
         public const double ShoreMargin = 3.0, ShoreV = -1.4, HarbourV = -1.6, HarbourSpread = 10.0, CliffSpread = 0.8;
         /// <summary>A creature never strays further than this from its home.</summary>
         public const double Leash = 26.0;
@@ -586,7 +601,8 @@ namespace Frankenstein.Core
                     continue;
                 }
                 var a = new Appearance { DefId = def.Id, Tier = tier, Cause = def.Cause, Ward = def.Ward, Still = c.ReducedMotion };
-                if (tier == 2 || def.Id == "doubled_villager") a.Subject = c.CorruptedVillager;
+                // Only tier 2 requires a corrupted villager; the doubled villager (tier 3) takes one when it exists. A negative value always means no subject (-1).
+                if (tier == 2 || def.Id == "doubled_villager") a.Subject = c.CorruptedVillager >= 0 ? c.CorruptedVillager : -1;
                 if (def.Context == "place") a.PlaceId = c.PlaceId ?? "";
                 else Position(rng, c, places, a);
                 a.Seconds = tier == 4 ? (c.ReducedMotion ? GlimpseReducedSeconds : GlimpseSeconds) : 0.0;

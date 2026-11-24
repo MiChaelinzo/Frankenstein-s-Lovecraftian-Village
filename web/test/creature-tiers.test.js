@@ -6,9 +6,10 @@ import { dirname, join } from 'node:path';
 import { phaseStart, MINUTES_PER_DAY } from '../src/clock.js';
 import {
   parseCreatureCatalog, selectAppearances, tierUnlocked, appearanceVisible, wardTurns, directorInputFor, witnessClueId, isWitnessClue,
-  GLIMPSE_REDUCED_SECONDS, GLIMPSE_SECONDS, MAX_GLIMPSE_SECONDS, GLIMPSE_COOLDOWN_TICKS, TIER_WARD_ACTIONS,
+  CreatureEncounter, GLIMPSE_REDUCED_SECONDS, GLIMPSE_SECONDS, MAX_GLIMPSE_SECONDS, GLIMPSE_COOLDOWN_TICKS, TIER_WARD_ACTIONS,
 } from '../src/creatures.js';
 import { causeHolds, CAUSE_IDS } from '../src/director.js';
+import { CELL_M } from '../src/dressing.js';
 import { insideAnyPlace } from '../src/places.js';
 import { knowledgeSources } from '../src/investigation.js';
 import { parsePlaceLibrary, placeAll } from '../src/places.js';
@@ -155,4 +156,37 @@ test('warding covers tier 1 only; witness clues add no knowledge', () => {
   assert.equal(knowledgeSources(e, null).length, 0);
   e.clueIds.add('book@b39');
   assert.equal(knowledgeSources(e, null).length, 1);
+});
+
+test('the doubled villager keeps subject -1 without a corrupted villager and tier 2 stays locked', () => {
+  let doubled = 0;
+  for (let seed = 1; seed <= 20; seed++) for (let d = 0; d < 8; d++) for (const p of [DAWN, DAY, DUSK, NIGHT]) {
+    const c = scenario(2, seed, tick(d, p));
+    c.corruptedVillager = -5;
+    for (const a of selectAppearances(c, cat, null)) {
+      assert.notEqual(a.tier, 2);
+      if (a.defId === 'doubled_villager') { doubled++; assert.equal(a.subject, -1); }
+    }
+  }
+  assert.ok(doubled > 0);
+  const c = scenario(2, 1, tick(0, NIGHT));
+  c.corruptedVillager = -1;
+  assert.equal(tierUnlocked(cat.manifestations.find((m) => m.id === 'doubled_villager'), c), true);
+  for (const m of cat.manifestations.filter((x) => x.tier === 2)) assert.equal(tierUnlocked(m, c), false, m.id);
+});
+
+test('creature homes fall back to an open lattice point when every redraw is blocked', () => {
+  const w = 24 * CELL_M, blocked = (x) => x >= w / 8;
+  let checked = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const t = phaseStart(NIGHT) + 60;
+    const enc = CreatureEncounter.spawn(seed, 24, 24, t, 1.0, 'fog', cat, blocked), again = CreatureEncounter.spawn(seed, 24, 24, t, 1.0, 'fog', cat, blocked);
+    enc.creatures.forEach((c, k) => {
+      assert.equal(c.homeX, again.creatures[k].homeX);
+      if (cat.defs.find((d) => d.id === c.defId).habitat !== 'fog') return;
+      checked++;
+      assert.equal(blocked(c.homeX), false, `seed ${seed} ${c.defId}`);
+    });
+  }
+  assert.ok(checked > 0);
 });

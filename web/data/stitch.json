@@ -12,12 +12,12 @@
     },
     "js": {
       "count": 83,
-      "tests": 85
+      "tests": 86
     },
     "kiro": {
       "count": 3,
       "steering": 6,
-      "tasksDone": 119,
+      "tasksDone": 121,
       "tasksTotal": 171
     },
     "pwa": {

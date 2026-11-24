@@ -423,3 +423,9 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Checks: dotnet 411, node 749, tools tests and validate_repo, UnityCompileCheck 0 warnings 0 errors. Browser `PLACES_ONLY=1` 3 of 3 (SwiftShader headless Chromium, log not committed); no full run.
 - Findings: the mine is anchored on the standing stones (other anchors failed on about 17% of seeds); the catacomb needed `RingCount` 6; place props are not in the obstacle lists of lore, inventory, homestead and creature placement. `sw.js` cache is v71 (the earlier note saying v70 was the FEAT-003 value).
 - Verified: Core and JS for spec 164. Unverified: Unity runtime, real GPU rendering, spec 165 and 166.
+
+## Round 33 (branch feat/round33)
+- FEAT-002 `0e4c515` feat: Victorian UI reskin (spec 165 built) on the round 29 layer; `test:` commit adds the `VICTORIAN_ONLY` browser section and before stills. Cache v75.
+- Checks: dotnet 433, node 778, tools tests, validate_repo, UnityCompileCheck 0/0. Core unchanged. `VICTORIAN_ONLY=1` 14 of 14 on SwiftShader.
+- Findings: `.board-dialog button` outranks `.board-card`, so card rules need the `.board-dialog` prefix; `?capture=1` implies reduced motion, so animation checks use a non-capture URL.
+- Verified: contrast and JS tests. Partially Verified: SwiftShader look. Unverified: real GPU, Unity runtime. Horror-intensity setting not built.
