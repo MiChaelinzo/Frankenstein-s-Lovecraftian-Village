@@ -639,7 +639,7 @@ async function main() {
       await ev(`document.getElementById('chronicleToggle').click()`); await sleep(900);
       if (lang === 'en') await shot('chronicle');
       const ch = await ev(`(()=>{const p=document.getElementById('chroniclePanel');const b=document.getElementById('chronicleBody');return {shown:!p.hidden,over:b.scrollWidth-b.clientWidth,anim:getComputedStyle(b.querySelector('li')||b).animationName}})()`);
-      rec(`victorian: the chronicle shows with an ink reveal on its entries and no overflow (${lang})`, ch.shown && ch.over <= 1 && ch.anim !== 'none', ch);
+      rec(`victorian: the chronicle shows without overflow (${lang}; capture=1 implies reduced motion, so the entries are static here)`, ch.shown && ch.over <= 1, ch);
       await ev(`document.getElementById('chronicleToggle').click()`); await sleep(200);
       await ev(`document.getElementById('codexToggle').click()`); await sleep(500);
       await ev(`(()=>{const d=document.getElementById('loreDialog');const li=document.querySelector('#loreList li:not(.locked)');document.getElementById('loreTitle').textContent=li?li.querySelector('strong').textContent:'';document.getElementById('loreText').textContent=li?li.querySelector('.lore-text').textContent:'';document.getElementById('loreEffect').textContent='';d.hidden=false})()`); await sleep(500);
@@ -647,6 +647,10 @@ async function main() {
       const lore = await overflow(['loreDialog']);
       rec(`victorian: the journal page has no overflow (${lang})`, lore.length === 0, { over: lore });
     }
+    await fresh('?intro=0&tick=900', H, SESSION);
+    await ev(`document.getElementById('chronicleToggle').click()`); await sleep(300);
+    const live = await ev(`({panel:getComputedStyle(document.getElementById('chroniclePanel')).animationName,entry:getComputedStyle(document.querySelector('#chronicleBody li')).animationName})`);
+    rec('victorian: with motion allowed the chronicle turns in and its entries reveal like ink', live.panel === 'pageTurn' && live.entry === 'inkReveal', live);
     await fresh('?intro=0&capture=1&tick=900&reduced=1', H, SESSION);
     await ev(`document.getElementById('chronicleToggle').click()`); await sleep(600);
     const still = await ev(`[...document.querySelectorAll('#chroniclePanel, #chroniclePanel li, #chroniclePanel h3')].filter((n)=>getComputedStyle(n).animationName!=='none').length`);

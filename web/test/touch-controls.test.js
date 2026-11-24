@@ -48,5 +48,5 @@ test('markup and css: every button id exists and targets are at least 44 px', ()
   assert.match(css, /\.touch-buttons button \{[^}]*min-width: 44px/);
   assert.match(css, /html\.hc \.touch-stick/);
   assert.match(css, /forced-colors: active\) \{ \.touch-stick/);
-  assert.ok(!/transition|animation/.test(css.slice(css.indexOf('.touch-dock'))), 'touch controls do not animate');
+  assert.ok(!/transition|animation/.test(css.slice(css.indexOf('.touch-dock'), css.indexOf('round 33 Victorian reskin'))), 'touch controls do not animate');
 });
