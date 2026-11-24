@@ -138,4 +138,56 @@ namespace Frankenstein.Core
             return pressure;
         }
     }
+
+    /// <summary>A mythos statement a villager told in a chat: the statement id and its wording.</summary>
+    public sealed class MythosChatLine
+    {
+        public string Id;
+        public string Text;
+    }
+
+    /// <summary>
+    /// What a lucid villager can tell the player in a village chat (moved from the web client in round 28): the newest rumor they hold, the truth behind it when they started it,
+    /// and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat, so the player only learns what a villager could honestly say.
+    /// </summary>
+    public static class MythosChat
+    {
+        public static List<MythosChatLine> Lines(VillageSociety society, MythosFeed feed, VillageStory story, int index, TrustTier tier, int night1, VillagerChatResult result, string lang)
+        {
+            var lines = new List<MythosChatLine>();
+            if (society == null || feed == null || story == null || feed.Current == null) return lines;
+            if (index < 0 || index >= society.Roster.Count) return lines;
+            if (!result.Available || result.Behavior != VillagerBehavior.Normal || result.Withheld || tier == TrustTier.Suspicious) return lines;
+            if (!(result.HintId == "village" || (tier == TrustTier.Trusting && !string.IsNullOrEmpty(result.HintId)))) return lines;
+            var all = MythosRules.Statements(feed);
+            var ids = new List<string>();
+            MythosStatement rumor = null;
+            foreach (var m in all)
+            {
+                if (m.Rumor == null || m.Night > night1) continue;
+                foreach (var h in m.Rumor.Holders) if (h.Villager == index) { rumor = m; break; }
+            }
+            if (rumor != null)
+            {
+                ids.Add(rumor.Id);
+                string truth = rumor.Rumor.Origin == index ? MythosRules.TruthStatementId(rumor.Rumor) : "";
+                if (truth.Length > 0) ids.Add(truth);
+            }
+            var members = new HashSet<int>();
+            foreach (var cult in feed.Current.CultMembers) foreach (int v in cult) members.Add(v);
+            foreach (int j in MythosSimulation.Graph.Build(society).Neighbours[index])
+            {
+                if (!members.Contains(j) || !all.Exists(m => m.Id == MythosRules.CultId(j))) continue;
+                ids.Add(MythosRules.CultId(j));
+                break;
+            }
+            foreach (var id in ids)
+            {
+                var m = all.Find(x => x.Id == id);
+                if (m == null) continue;
+                lines.Add(new MythosChatLine { Id = id, Text = MythosRules.Text(feed, story, m, MythosRules.IsDistorted(m.Rumor, index), lang) });
+            }
+            return lines;
+        }
+    }
 }

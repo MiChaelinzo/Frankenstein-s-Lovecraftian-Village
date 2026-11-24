@@ -394,3 +394,9 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 ## Round 27, FEAT-004
 - Checks: dotnet 328, node 685, tools tests and validate_repo OK, browser check `MYTHOS_ONLY=1` 7 of 7 (SwiftShader, log not committed). The full browser run and UnityCompileCheck were not repeated in this docs step.
 - Unverified: Unity runtime, real GPU, the night tick summary and every roadmap item from round 28.
+
+## Round 28, FEAT-003
+- Knowledge + Investigation synergy: Core `InvestigationModel.cs` (confidence, belief, resolutions, `KnowledgeSources`), `statements.json`, JS mirror, board badge, chronicle line, journal entries, en and fr. Golden key `knowledgeInvestigation`; existing golden keys unchanged. `sw.js` cache v60.
+- Checks: dotnet 350, node 701, tools tests and validate_repo OK, UnityCompileCheck 0 warnings 0 errors, `MYTHOS_ONLY=1` 7 of 7 on SwiftShader. `SOCIETY_ONLY=1` 11 of 11 (logs not committed).
+- Finding: a new statement for a role whose journal the golden scenarios read would have changed the existing `investigation` golden key, so the example pair uses the innkeeper journal (j03), which they do not read.
+- Unverified: Unity runtime, real GPU, the knowledge badge in a real browser.

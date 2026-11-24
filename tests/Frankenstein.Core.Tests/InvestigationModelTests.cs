@@ -39,6 +39,16 @@ namespace Frankenstein.Core.Tests
             return e;
         }
 
+        /// <summary>RichEvidence plus the innkeeper's journal (j03) and his chat statement: the pair that different nights explain.</summary>
+        public static InvestigationEvidence SynergyEvidence()
+        {
+            var e = RichEvidence();
+            e.Met.Add(5);
+            e.BooksRead.Add("j03");
+            e.Heard.Add(new HeardStatement { Villager = 5, StatementId = "c_innkeeper_bell", Night = 2 });
+            return e;
+        }
+
         private static VillageStory StoryOf(int seed)
         {
             var layout = VillageLayoutGenerator.GenerateCity(GoldenParity.LoadCatalog(Root()), VillageDistricts.CityGrid, VillageDistricts.CityGrid, VillageDistricts.CityPieces, seed);
@@ -216,6 +226,69 @@ namespace Frankenstein.Core.Tests
         {
             var ex = Assert.Throws<FormatException>(() => StatementLibrary.Parse("{\"statements\":[{\"id\":\"x\",\"source\":\"dream\"}],\"contradictions\":[]}"));
             Assert.Contains("unknown source", ex.Message);
+        }
+
+        private const string LucanJson = "{\"statements\":["
+            + "{\"id\":\"w_abbey\",\"source\":\"chat\",\"confidence\":78,\"place\":\"abbey\",\"night\":2,\"minute\":1200,\"en\":\"Lucan was at the Abbey.\",\"fr\":\"Lucan etait a l'abbaye.\"},"
+            + "{\"id\":\"j_home\",\"source\":\"chat\",\"confidence\":91,\"place\":\"home\",\"night\":3,\"minute\":1200,\"en\":\"Lucan was at home.\",\"fr\":\"Lucan etait chez lui.\"}],"
+            + "\"contradictions\":[{\"id\":\"lucan\",\"a\":\"w_abbey\",\"b\":\"j_home\",\"needs\":\"none\",\"resolvesAt\":4,\"en\":\"Two places at once.\",\"fr\":\"Deux lieux a la fois.\"}]}";
+
+        private static InvestigationEvidence LucanEvidence()
+        {
+            var e = new InvestigationEvidence();
+            e.Heard.Add(new HeardStatement { Villager = 0, StatementId = "w_abbey", Night = 2 });
+            e.Heard.Add(new HeardStatement { Villager = 1, StatementId = "j_home", Night = 3 });
+            return e;
+        }
+
+        [Fact]
+        public void Lucan_contradiction_shows_below_knowledge_4_and_resolves_from_4()
+        {
+            var lore = Lore(); var st = StatementLibrary.Parse(LucanJson); var story = StoryOf(42);
+            for (int tier = 0; tier <= KnowledgeLibrary.MaxTier; tier++)
+            {
+                var board = InvestigationRules.Build(story, lore, st, LucanEvidence(), null, null, tier);
+                if (tier < 4) { Assert.Single(board.Contradictions); Assert.Empty(board.Resolutions); }
+                else { Assert.Empty(board.Contradictions); Assert.Single(board.Resolutions); }
+            }
+            var scores = InvestigationRules.Build(story, lore, st, LucanEvidence(), null).Scores;
+            Assert.Equal(78, scores[0].Confidence);
+            Assert.Equal(91, scores[1].Confidence);
+        }
+
+        [Fact]
+        public void Knowledge_zero_board_equals_the_board_without_knowledge()
+        {
+            var lore = Lore(); var st = Statements();
+            foreach (var seed in Seeds)
+                Assert.Equal(Signature(InvestigationRules.Build(StoryOf(seed), lore, st, SynergyEvidence(), null)), Signature(InvestigationRules.Build(StoryOf(seed), lore, st, SynergyEvidence(), null, null, 0)));
+        }
+
+        [Fact]
+        public void Authored_bell_pair_resolves_at_knowledge_4_and_data_is_deterministic()
+        {
+            var lore = Lore(); var st = Statements(); var story = StoryOf(42);
+            Assert.Contains(InvestigationRules.Build(story, lore, st, SynergyEvidence(), null, null, 3).Contradictions, c => c.PairId == "bell_two_nights");
+            var at4 = InvestigationRules.Build(story, lore, st, SynergyEvidence(), null, null, 4);
+            Assert.DoesNotContain(at4.Contradictions, c => c.PairId == "bell_two_nights");
+            Assert.Contains(at4.Resolutions, c => c.PairId == "bell_two_nights");
+            Assert.Equal(string.Join("|", at4.Resolutions.Select(c => c.PairId)), string.Join("|", InvestigationRules.Build(story, lore, st, SynergyEvidence(), null, null, 4).Resolutions.Select(c => c.PairId)));
+        }
+
+        [Fact]
+        public void Belief_drops_for_a_corrupted_speaker_and_stays_in_range()
+        {
+            Assert.Equal(48, InvestigationRules.BeliefScore(78, true));
+            Assert.Equal(91, InvestigationRules.BeliefScore(91, false));
+            Assert.Equal(0, InvestigationRules.BeliefScore(10, true));
+        }
+
+        [Fact]
+        public void Resolution_data_must_name_two_different_nights()
+        {
+            string same = LucanJson.Replace("\"night\":3", "\"night\":2");
+            Assert.Contains("different nights", Assert.Throws<FormatException>(() => StatementLibrary.Parse(same)).Message);
+            Assert.Contains("confidence", Assert.Throws<FormatException>(() => StatementLibrary.Parse(LucanJson.Replace("\"confidence\":78", "\"confidence\":180"))).Message);
         }
     }
 }

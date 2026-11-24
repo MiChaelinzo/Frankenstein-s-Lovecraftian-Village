@@ -35,7 +35,7 @@ function fakeNode(tag) {
 const env = { active: null };
 
 function make({ reduced = false, read = [] } = {}) {
-  const ids = ['boardPanel', 'boardCards', 'boardLines', 'boardTimeline', 'boardNote', 'boardLive', 'boardDetail', 'boardClose', 'boardToggle', 'boardWrap'];
+  const ids = ['boardPanel', 'boardCards', 'boardLines', 'boardTimeline', 'boardNote', 'boardLive', 'boardDetail', 'boardClose', 'boardToggle', 'boardWrap', 'boardKnowledge'];
   const els = Object.fromEntries(ids.map((id) => [id, fakeNode('div')]));
   els.boardPanel.hidden = true;
   const keyTarget = fakeNode('window'), booksRead = new Set(read), announced = [];
@@ -173,4 +173,30 @@ test('the board note and the contradiction badge use singular and plural forms i
   assert.equal(t('board.strings.other', 'fr', { n: 7 }), '7 fils tendus');
   assert.match(t('board.note', 'en', { s: '7 strings', c: '1 contradiction' }), /7 strings drawn, 1 contradiction\./);
   assert.ok(t('board.contradiction.label', 'fr') !== 'board.contradiction.label');
+});
+
+// Round 28: the knowledge indicator, tier-gain journal entries and the resolved contradiction.
+test('the knowledge badge follows the evidence, each tier gain is journalled once, and reduced motion drops the drift class', () => {
+  const run = (reduced) => {
+    const els = {}, ids = ['boardPanel', 'boardCards', 'boardLines', 'boardTimeline', 'boardNote', 'boardLive', 'boardDetail', 'boardClose', 'boardToggle', 'boardWrap', 'boardKnowledge'];
+    for (const id of ids) els[id] = fakeNode('div');
+    const booksRead = new Set(), journal = [], doc = { createElement: (tag) => fakeNode(tag), createElementNS: (ns, tag) => fakeNode(tag) };
+    const board = createBoardController({
+      $: (id) => els[id] || null, doc, tr: (k, p) => t(k, 'en', p), lang: 'en', state: { seed: SEED, nameLib }, story: () => story, night: () => 3, journal: (x) => journal.push(x),
+      lore: { library: () => lore, readIds: () => booksRead }, keyTarget: fakeNode('window'), announce: () => {}, activeElement: () => env.active, reduceMotion: reduced,
+    });
+    board.setStatements(text('statements.json')); board.setKnowledge(JSON.parse(text('knowledge.json')));
+    return { board, els, booksRead, journal };
+  };
+  const { board, els, journal } = run(false);
+  board.open();
+  assert.equal(board.knowledge().tier, 0);
+  assert.equal(els.boardKnowledge.attrs['data-tier'], '0');
+  for (const id of ['book@b01', 'book@b02', 'book@b03', 'book@b04', 'book@b05', 'book@b06']) board.noteClue(id);
+  assert.ok(board.knowledge().tier >= 1);
+  assert.equal(journal.filter((x) => x.includes('understanding deepens')).length, board.knowledge().tier); // one entry per tier reached, never repeated
+  assert.match(els.boardKnowledge.className, /board-reality/);
+  assert.match(els.boardKnowledge.textContent, /Knowledge/);
+  const calm = run(true); calm.board.open(); for (const id of ['book@b01', 'book@b02', 'book@b03', 'book@b04', 'book@b05', 'book@b06']) calm.board.noteClue(id);
+  assert.doesNotMatch(calm.els.boardKnowledge.className, /board-reality/);
 });

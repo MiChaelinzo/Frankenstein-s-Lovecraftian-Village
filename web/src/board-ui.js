@@ -7,6 +7,8 @@ import {
 } from './investigation.js';
 import { MINUTES_PER_DAY } from './clock.js';
 import { mythosStatements } from './mythos.js';
+import { parseKnowledgeLibrary, knowledgeFromSourceIds, realityDistortion } from './knowledge.js';
+import { knowledgeSources } from './investigation.js';
 
 export const BOARD_KEY = ';'; // every letter is taken by the main key switch, so the board uses a punctuation key that is unshifted on QWERTY and AZERTY
 export const BOARD_SAVE_TAG = 'bd1';
@@ -82,23 +84,34 @@ export function parseBoardEvidence(text) {
 const linkKey = (l) => `${l.kind}|${l.from}|${l.to}`;
 
 /**
- * deps: { $, doc, tr, lang, state (seed), story() -> village story or null, mythos?() -> mythos feed or null, mythosKey?() -> string that changes with the feed, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
+ * deps: { $, doc, tr, lang, state (seed), night?() -> 1-based night (reality distortion seed), journal?(text) (tier gains and resolved contradictions are written to the journal), story() -> village story or null, mythos?() -> mythos feed or null, mythosKey?() -> string that changes with the feed, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
  *   announce(text), exitPointerLock(), activeElement(), keyTarget, reduceMotion, onChange?() }
  */
 export function createBoardController(deps) {
   const { $, tr, state, doc } = deps;
   const lang = () => (typeof deps.lang === 'function' ? deps.lang() : deps.lang);
-  let statements = null, evidence = emptyEvidence(), evidenceSeed = null, model = null, modelKey = '', version = 0, titles = new Map();
+  let knowledgeLib = null, seenTier = null, seenResolutions = null, statements = null, evidence = emptyEvidence(), evidenceSeed = null, model = null, modelKey = '', version = 0, titles = new Map();
   let seenLinks = null, seenContradictions = null, layout = null, selected = null, returnFocus = null, open = false;
 
   const reduced = () => (typeof deps.reduceMotion === 'function' ? deps.reduceMotion() : !!deps.reduceMotion);
   const library = () => (deps.lore && deps.lore.library ? deps.lore.library() : null);
   const clone = () => ({ clueIds: new Set(evidence.clueIds), booksRead: deps.lore ? deps.lore.readIds() : new Set(), met: new Set(evidence.met), heard: evidence.heard.slice() });
 
+  /** Loads data/knowledge.json (object). Without it the knowledge tier stays 0 and no knowledge indicator shows. */
+  function setKnowledge(json) { knowledgeLib = json ? parseKnowledgeLibrary(json) : null; seenTier = null; seenResolutions = null; modelKey = ''; sync(); }
+
+  /** { tier, points, name, effects } of what the evidence has taught the player (Core KnowledgeState from InvestigationRules.KnowledgeSources). Tier 0 and no effects without the data file. */
+  function knowledgeNow() {
+    if (!knowledgeLib) return { tier: 0, points: 0, name: '', effects: [] };
+    const k = knowledgeFromSourceIds(knowledgeLib, knowledgeSources(evidence)), tier = k.tier;
+    const effects = realityDistortion(knowledgeLib, state.seed, Math.max(1, deps.night ? deps.night() : 1), tier).map((id) => { const e = knowledgeLib.effects.find((x) => x.id === id); return e.text[lang()] || e.text.en; });
+    return { tier, points: k.points, name: knowledgeLib.tiers[tier].name[lang()] || knowledgeLib.tiers[tier].name.en, effects };
+  }
+
   function setStatements(json) { statements = json ? parseStatementLibrary(json) : null; modelKey = ''; seenLinks = null; sync(); }
 
   function ensureSeed() {
-    if (evidenceSeed !== state.seed) { evidence = emptyEvidence(); evidenceSeed = state.seed; modelKey = ''; seenLinks = null; seenContradictions = null; selected = null; }
+    if (evidenceSeed !== state.seed) { evidence = emptyEvidence(); evidenceSeed = state.seed; modelKey = ''; seenLinks = null; seenContradictions = null; seenResolutions = null; seenTier = null; selected = null; }
   }
 
   /** The current board model, or null while the story, lore library or statements are missing. Recomputed only when evidence, language or the story changed. */
@@ -108,10 +121,10 @@ export function createBoardController(deps) {
     if (!story || !lib || !statements) return null;
     const read = deps.lore ? deps.lore.readIds().size : 0, corruption = deps.corruption ? deps.corruption() : null;
     const feed = deps.mythos ? deps.mythos() : null, mythosKey = feed && deps.mythosKey ? deps.mythosKey() : '';
-    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}`;
+    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}`;
     if (key !== modelKey || !model) {
       modelKey = key;
-      model = buildBoard(story, lib, statements, clone(), corruption, feed);
+      model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier);
       titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed) : UNKNOWN_TITLE]));
     }
     return model;
@@ -136,7 +149,14 @@ export function createBoardController(deps) {
       }
       if (messages.length) { const text = messages.join(' '); const live = $('boardLive'); if (live) live.textContent = text; deps.announce?.(text); }
     }
-    seenLinks = links; seenContradictions = pairs;
+    const resolved = new Set(m.resolutions.map((c) => c.pairId)), k = knowledgeNow();
+    if (seenLinks !== null && seenResolutions !== null) {
+      const messages = [];
+      if (k.tier > seenTier) { const gain = tr('board.knowledge.gain', { tier: k.tier, name: k.name }); messages.push(gain); deps.journal?.(gain); }
+      for (const c of m.resolutions) if (!seenResolutions.has(c.pairId)) { const text = tr('board.resolution.new', { a: titleOf(c.cardA), b: titleOf(c.cardB) }); messages.push(text); deps.journal?.(text); }
+      if (messages.length) { const text = messages.join(' '); const live = $('boardLive'); if (live) live.textContent = [live.textContent, text].filter(Boolean).join(' '); deps.announce?.(text); }
+    }
+    seenLinks = links; seenContradictions = pairs; seenResolutions = resolved; seenTier = k.tier;
   }
 
   /** Called whenever evidence may have changed (a book read, a clue found, someone met or heard). Cheap, and not per frame. */
@@ -198,6 +218,12 @@ export function createBoardController(deps) {
     if (!m) { if (note) note.textContent = tr('board.unavailable'); layout = null; return; }
     const shown = visibleCards(m.cards), shownIds = new Set(shown.map((c) => c.id));
     layout = layoutBoard(shown);
+    const know = $('boardKnowledge'), k = knowledgeNow();
+    if (know) {
+      know.textContent = knowledgeLib ? [tr('board.knowledge', { tier: k.tier, name: k.name, points: k.points }), ...k.effects].join(' ') : '';
+      know.setAttribute('data-tier', String(k.tier));
+      know.className = `stats board-knowledge${k.tier > 0 && !reduced() ? ' board-reality' : ''}`; // the slow drift is for full-motion players only
+    }
     if (note) note.textContent = tr('board.note', { s: plural('board.strings', m.links.filter((l) => l.revealed).length), c: plural('board.contradictions', m.contradictions.length) });
     const wrap = $('boardWrap');
     if (wrap) { wrap.style.setProperty('width', `${layout.width}px`); wrap.style.setProperty('height', `${layout.height}px`); }
@@ -209,6 +235,11 @@ export function createBoardController(deps) {
       if (!l.revealed || !shownIds.has(l.from) || !shownIds.has(l.to)) continue;
       const a = centre(l.from), b = centre(l.to);
       linesEl.append(svgNode('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: drawClass }));
+    }
+    for (const c of m.resolutions) {
+      if (!shownIds.has(c.cardA) || !shownIds.has(c.cardB)) continue;
+      const a = centre(c.cardA), b = centre(c.cardB);
+      linesEl.append(svgNode('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'board-resolved-string' }));
     }
     const flagged = new Set();
     for (const c of m.contradictions) {
@@ -246,7 +277,9 @@ export function createBoardController(deps) {
     const linked = [];
     for (const l of m.links) { if (!l.revealed) continue; if (l.from === id) linked.push(titleOf(l.to)); else if (l.to === id) linked.push(titleOf(l.from)); }
     const reasons = m.contradictions.filter((c) => c.cardA === id || c.cardB === id).map((c) => reasonOf(c.pairId));
-    const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r }))];
+    const resolved = m.resolutions.filter((c) => c.cardA === id || c.cardB === id).map((c) => tr('board.detail.resolved', { reason: reasonOf(c.pairId) }));
+    const score = (m.scores || []).find((x) => `event:${x.statementId}` === id);
+    const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, score ? tr('board.detail.score', { confidence: score.confidence, belief: score.belief }) : '', linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r })), ...resolved].filter(Boolean);
     const text = parts.join(' ');
     const el = $('boardDetail'); if (el) el.textContent = text;
     deps.announce?.(text);
@@ -303,12 +336,12 @@ export function createBoardController(deps) {
   $('boardToggle')?.addEventListener?.('click', toggle);
 
   return {
-    setStatements, noteMet, noteClue, noteChat, noteMythos, sync, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
+    setStatements, setKnowledge, knowledge: knowledgeNow, noteMet, noteClue, noteChat, noteMythos, sync, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
     evidence: () => clone(), cardTitle: titleOf,
     snapshot: () => { ensureSeed(); return { board: serializeBoardEvidence(evidence) }; },
     restore(s) {
       ensureSeed();
-      evidence = parseBoardEvidence(s && s.board); version++; modelKey = ''; seenLinks = null; seenContradictions = null; // what a restored save already holds is not announced again
+      evidence = parseBoardEvidence(s && s.board); version++; modelKey = ''; seenLinks = null; seenContradictions = null; seenResolutions = null; // what a restored save already holds is not announced again
       sync();
     },
   };

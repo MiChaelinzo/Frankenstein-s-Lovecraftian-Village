@@ -373,6 +373,12 @@ namespace Frankenstein.Core.Tests
             AppendMythos(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendKnowledge(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendKnowledgeInvestigation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -1413,7 +1419,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
-        /// <summary>Top level key "mythos" (round 27): per city seed, the simulation over twelve nights of fixed dread and ritual inputs, the society pressure and a board with every statement heard.</summary>
+        /// <summary>Top level key "mythos" (round 27, ticks added round 28): per city seed, the night tick records (night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered), the simulation over twelve nights of fixed dread and ritual inputs, the society pressure and a board with every statement heard.</summary>
         private static void AppendMythos(StringBuilder sb, PrefabCatalog cat)
         {
             string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
@@ -1457,7 +1463,91 @@ namespace Frankenstein.Core.Tests
                       + Q(MythosRules.Text(feed, story, s, s.Rumor != null && MythosRules.IsDistorted(s.Rumor, heard.Heard.First(h => h.StatementId == s.Id).Villager), "fr")) + "]")))
                   .Append("], \"board\": { \"cards\": [").Append(string.Join(", ", board.Cards.Where(c => c.Key.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.Id) + ", " + (c.Invalidated ? 1 : 0) + "]")))
                   .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Where(c => c.PairId.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.PairId) + ", " + Q(c.CardA) + ", " + Q(c.CardB) + "]")))
-                  .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Where(e => e.StatementId.StartsWith(MythosRules.IdPrefix)).Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] } }");
+                  .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Where(e => e.StatementId.StartsWith(MythosRules.IdPrefix)).Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }, \"ticks\": [")
+                  .Append(string.Join(", ", NightTicks.Build(state, mythos).Select(t => "[" + t.Night + ", " + t.CultGrowth + ", " + t.RumorsChanged + ", " + t.RumorsAdded + ", " + t.MissingPersons + ", " + t.NewMissingPerson + ", " + Q(t.NewOmen) + ", " + t.RealityShift + ", " + t.Reality + ", " + (t.SecretDiscovered ? 1 : 0) + "]"))).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "knowledge" (round 28): the tiers with thresholds and benefits, the source points, every rumor at every tier in en and fr, the reality distortion per seed, night and tier, and per city the mythos chat lines of a neutral villager asked about the village and of a trusting one asked for a hint.</summary>
+        private static void AppendKnowledge(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var know = KnowledgeLibrary.Parse(File.ReadAllText(Path.Combine(data, "knowledge.json")));
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var mythos = MythosSimulationTests.Library();
+            var inputs = MythosSimulationTests.GridInputs();
+            sb.Append("  \"knowledge\": {\n    \"tiers\": [").Append(string.Join(", ", know.Tiers.Select(t => "[" + Q(t.Id) + ", " + t.Threshold + ", [" + string.Join(", ", t.Benefits.Select(Q)) + "]]")))
+              .Append("],\n    \"sources\": [").Append(string.Join(", ", know.SourcePoints))
+              .Append("],\n    \"rumors\": [").Append(string.Join(", ", know.Rumors.Select(r => "[" + Q(r.Id) + ", [" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => "[" + Q(KnowledgeRules.RumorText(know, r.Id, t, "en")) + ", " + Q(KnowledgeRules.RumorText(know, r.Id, t, "fr")) + "]")) + "]]")))
+              .Append("],\n    \"distortion\": [");
+            bool firstSeed = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                sb.Append(firstSeed ? "\n      " : ",\n      ").Append("[").Append(seed).Append(", [");
+                firstSeed = false;
+                sb.Append(string.Join(", ", Enumerable.Range(1, MythosSimulationTests.Nights).Select(n => "[" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => "[" + string.Join(", ", RealityDistortion.For(know, seed, n, t).Select(Q)) + "]")) + "]")));
+                sb.Append("]]");
+            }
+            sb.Append("\n    ],\n    \"chat\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                var feed = new MythosFeed { Library = mythos, State = state, Night = MythosSimulationTests.Nights };
+                var about = new VillagerChatResult { Available = true, Behavior = VillagerBehavior.Normal, HintId = "village" };
+                var hint = new VillagerChatResult { Available = true, Behavior = VillagerBehavior.Normal, HintId = "clues_seek" };
+                var rows = new List<string>();
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    var neutral = MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, about, "en");
+                    var trusting = MythosChat.Lines(soc, feed, story, i, TrustTier.Trusting, MythosSimulationTests.Nights, hint, "fr");
+                    if (neutral.Count == 0 && trusting.Count == 0) continue;
+                    rows.Add("[" + i + ", [" + string.Join(", ", neutral.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "], [" + string.Join(", ", trusting.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "]]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"villagers\": [").Append(string.Join(", ", rows)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "knowledgeInvestigation" (round 28): per city seed and knowledge tier 0 to 5, the contradictions, resolutions and statement scores of the evidence of <see cref="InvestigationModelTests.SynergyEvidence"/>.</summary>
+        private static void AppendKnowledgeInvestigation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            var knowledgeLib = KnowledgeLibrary.Parse(File.ReadAllText(Path.Combine(data, "knowledge.json")));
+            var earned = KnowledgeState.FromSourceIds(knowledgeLib, InvestigationRules.KnowledgeSources(InvestigationModelTests.SynergyEvidence()));
+            sb.Append("  \"knowledgeInvestigation\": {\n    \"sources\": [").Append(string.Join(", ", InvestigationRules.KnowledgeSources(InvestigationModelTests.SynergyEvidence()).Select(Q)))
+              .Append("], \"points\": ").Append(earned.Points).Append(", \"tier\": ").Append(earned.Tier(knowledgeLib)).Append(",\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var stages = new CorruptionStage[roster.Count];
+                stages[1] = CorruptionStage.Corrupted;
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"tiers\": [");
+                first = false;
+                for (int tier = 0; tier <= KnowledgeLibrary.MaxTier; tier++)
+                {
+                    var board = InvestigationRules.Build(story, lore, statements, InvestigationModelTests.SynergyEvidence(), stages, null, tier);
+                    sb.Append(tier == 0 ? "\n        " : ",\n        ").Append("{ \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Select(c => Q(c.PairId))))
+                      .Append("], \"resolutions\": [").Append(string.Join(", ", board.Resolutions.Select(c => Q(c.PairId))))
+                      .Append("], \"scores\": [").Append(string.Join(", ", board.Scores.Select(c => "[" + Q(c.StatementId) + ", " + c.Confidence + ", " + c.Belief + "]"))).Append("] }");
+                }
+                sb.Append("\n      ] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

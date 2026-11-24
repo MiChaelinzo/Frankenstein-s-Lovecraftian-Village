@@ -108,3 +108,61 @@ test('every card has a title in both languages', () => {
   const story = storyOf(42), board = buildBoard(story, lore, statements, richEvidence());
   for (const c of board.cards) for (const lang of STATEMENT_LANGUAGES) assert.ok(cardTitle(c, story, lore, statements, nameLib, lang).length > 0, `${c.id} ${lang}`);
 });
+
+// Round 28: Evidence -> Confidence -> Belief -> Knowledge-Revealed Truth. Golden key "knowledgeInvestigation".
+import { knowledgeSources, beliefScore, defaultConfidence, SOURCE_JOURNAL } from '../src/investigation.js';
+import { parseKnowledgeLibrary, knowledgeFromSourceIds } from '../src/knowledge.js';
+const synergyGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).knowledgeInvestigation;
+function synergyEvidence() {
+  const e = richEvidence();
+  e.met.add(5); e.booksRead.add('j03'); e.heard.push({ villager: 5, statementId: 'c_innkeeper_bell', night: 2 });
+  return e;
+}
+
+test('contradictions, resolutions and scores per knowledge tier match C#', () => {
+  const know = parseKnowledgeLibrary(text('knowledge.json')), sources = knowledgeSources(synergyEvidence());
+  assert.deepEqual(sources, synergyGolden.sources);
+  const k = knowledgeFromSourceIds(know, sources);
+  assert.equal(k.points, synergyGolden.points);
+  assert.equal(k.tier, synergyGolden.tier);
+  for (const c of synergyGolden.cities) {
+    const story = storyOf(c.seed), stages = new Array(story.roster.length).fill(0);
+    stages[1] = CORRUPTION_CORRUPTED;
+    c.tiers.forEach((g, tier) => {
+      const b = buildBoard(story, lore, statements, synergyEvidence(), stages, null, tier);
+      assert.deepEqual(b.contradictions.map((x) => x.pairId), g.contradictions, `contradictions ${c.seed} ${tier}`);
+      assert.deepEqual(b.resolutions.map((x) => x.pairId), g.resolutions, `resolutions ${c.seed} ${tier}`);
+      assert.deepEqual(b.scores.map((x) => [x.statementId, x.confidence, x.belief]), g.scores, `scores ${c.seed} ${tier}`);
+    });
+  }
+});
+
+test('the Lucan example: contradiction below knowledge 4, resolved at 4 and 5, 78 and 91 percent', () => {
+  const lucan = parseStatementLibrary({
+    statements: [
+      { id: 'w_abbey', source: 'chat', confidence: 78, place: 'abbey', night: 2, minute: 1200, en: 'Lucan was at the Abbey.', fr: "Lucan etait a l'abbaye." },
+      { id: 'j_home', source: 'chat', confidence: 91, place: 'home', night: 3, minute: 1200, en: 'Lucan was at home.', fr: 'Lucan etait chez lui.' },
+    ],
+    contradictions: [{ id: 'lucan', a: 'w_abbey', b: 'j_home', needs: 'none', resolvesAt: 4, en: 'Two places at once.', fr: 'Deux lieux a la fois.' }],
+  });
+  const e = emptyEvidence();
+  e.heard.push({ villager: 0, statementId: 'w_abbey', night: 2 }, { villager: 1, statementId: 'j_home', night: 3 });
+  const story = storyOf(42);
+  for (let tier = 0; tier <= 5; tier++) {
+    const b = buildBoard(story, lore, lucan, e, null, null, tier);
+    assert.equal(b.contradictions.length, tier < 4 ? 1 : 0, `tier ${tier}`);
+    assert.equal(b.resolutions.length, tier < 4 ? 0 : 1, `tier ${tier}`);
+  }
+  assert.deepEqual(buildBoard(story, lore, lucan, e).scores.map((s) => s.confidence), [78, 91]);
+});
+
+test('knowledge 0 leaves the board as it was, belief drops for a corrupted speaker, bad resolution data is named', () => {
+  const story = storyOf(42), e = synergyEvidence();
+  assert.deepEqual(flat(buildBoard(story, lore, statements, e, null, null, 0)), flat(buildBoard(story, lore, statements, e)));
+  assert.equal(beliefScore(78, true), 48); assert.equal(beliefScore(10, true), 0); assert.equal(beliefScore(91, false), 91);
+  assert.equal(defaultConfidence(SOURCE_JOURNAL), 80);
+  const base = { statements: [{ id: 'a', source: 'chat', night: 2, minute: 0, en: 'x', fr: 'x' }, { id: 'b', source: 'chat', night: 2, minute: 0, en: 'x', fr: 'x' }], contradictions: [{ id: 'c', a: 'a', b: 'b', needs: 'none', resolvesAt: 4, en: 'x', fr: 'x' }] };
+  assert.throws(() => parseStatementLibrary(base), /different nights/);
+  base.statements[0].night = 1; base.statements[0].confidence = 180;
+  assert.throws(() => parseStatementLibrary(base), /confidence/);
+});

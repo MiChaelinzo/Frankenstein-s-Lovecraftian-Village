@@ -31,7 +31,8 @@
  "omens": [
   { "id": "tide_wrong", "en": "The tide came in twice tonight, the second time against the wind.", "fr": "La maree est montee deux fois cette nuit, la seconde contre le vent." },
   { "id": "stars_wrong", "en": "The stars over {village} stood in a pattern no almanac records.", "fr": "Les etoiles au-dessus de {village} formaient une figure que nul almanach ne connait." },
-  { "id": "bell_unrung", "en": "The bell sounded at midnight and no rope was pulled.", "fr": "La cloche a sonne a minuit sans que personne ne tire la corde." }
+  { "id": "bell_unrung", "en": "The bell sounded at midnight and no rope was pulled.", "fr": "La cloche a sonne a minuit sans que personne ne tire la corde." },
+  { "id": "black_tide", "en": "The water went black as ink at the harbour wall and stayed black until dawn.", "fr": "L'eau est devenue noire comme l'encre au pied de la digue et l'est restee jusqu'a l'aube." }
  ],
  "rumors": [
   { "source": "secret", "ref": "debt", "truth": true,
@@ -82,6 +83,12 @@
   { "source": "cosmic", "ref": "bell_unrung", "truth": false,
     "en": "They say the bell rang because the priest dragged something up the tower.",
     "fr": "On dit que la cloche a sonne parce que le pretre a hisse quelque chose dans la tour." },
+  { "source": "cosmic", "ref": "black_tide", "truth": true,
+    "en": "They say the harbour water turned black and nothing floated on it.",
+    "fr": "On dit que l'eau du port est devenue noire et que rien n'y flottait." },
+  { "source": "cosmic", "ref": "black_tide", "truth": false,
+    "en": "They say the black tide is ink from something huge writing beneath {village}.",
+    "fr": "On dit que la maree noire est l'encre de quelque chose d'enorme qui ecrit sous {village}." },
   { "source": "missing", "ref": "", "truth": true,
     "en": "They say {missing} was last seen walking toward the water.",
     "fr": "On dit que {missing} a ete vu pour la derniere fois marchant vers l'eau." },

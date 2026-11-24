@@ -123,3 +123,16 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 **Failure conditions.** See requirements, Round 27. The night tick summary record and the reality state are not built (task 154a).
 
 **Test cases.** `MythosSimulationTests.cs` (determinism, different seeds differ, monotone cults and exposure, replay equals incremental, valid holders, hop delay, one cult per villager), `web/test/mythos.test.js`, `MYTHOS_ONLY` browser check. Status: Core and JS Verified; browser Partially Verified; Unity runtime Unverified.
+
+## Round 28: Knowledge + Investigation synergy (FEAT-003)
+**Goal.** Evidence -> Confidence Score -> Belief Score -> Knowledge-Revealed Truth, inside the existing board model.
+
+**Rule.** `InvestigationRules.Build(..., knowledge)` adds `Scores` for every revealed authored statement and splits authored contradictions into `Contradictions` and `Resolutions` by `ResolvesAtKnowledge`. `KnowledgeSources(evidence)` maps journals read, clues found and mythos statements heard to knowledge source ids, so the tier is derived (`KnowledgeState.FromSourceIds`) and needs no save field. JS mirrors it in `investigation.js` (`buildBoard(..., knowledge)`, `knowledgeSources`); `board-ui.js` shows the badge, announces tier gains and resolutions and writes them to the journal; `chronicle-ui.js` shows one knowledge line.
+
+**Data.** `statements.json` gains `j_innkeeper_toll` (journal, night 3, confidence 91), `c_innkeeper_bell` confidence 78 and the pair `bell_two_nights` with `resolvesAt` 4. The new statement is revealed only by reading the innkeeper journal, so the existing golden `investigation` key is unchanged.
+
+**Failure conditions.** See requirements, Round 28.
+
+**Test cases.** C# and node tests above; golden key `knowledgeInvestigation` per seed and tier 0 to 5.
+
+**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 to 166.

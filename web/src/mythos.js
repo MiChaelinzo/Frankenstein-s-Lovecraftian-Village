@@ -2,7 +2,7 @@
 // The data file web/data/mythos.json is a byte copy of Packages/.../Data/mythos.json (tools/validate_repo.py and a test check it).
 // Core is the source of truth: cults recruit corrupted villagers, secrets build exposure pressure, omens press on both, rumors travel the family and neighbour links.
 import { SeededRandom } from './core.js';
-import { SCALE, MAX_RITUAL_STAGE, INDEX_STEP, FAMILY_DELAY, NEIGHBOUR_DELAY, CULT_AT, CORRUPTION_CULTIST, UNREACHABLE } from './society.js';
+import { TIER_SUSPICIOUS, TIER_TRUSTING, SCALE, MAX_RITUAL_STAGE, INDEX_STEP, FAMILY_DELAY, NEIGHBOUR_DELAY, CULT_AT, CORRUPTION_CULTIST, UNREACHABLE } from './society.js';
 import { TIERS, STAGES, render } from './village-story.js';
 
 export const MYTHOS_LANGUAGES = ['en', 'fr'];
@@ -362,4 +362,70 @@ export function suspicionPressure(night, villagers) {
   for (const v of night.exposed) if (v >= 0 && v < villagers) pressure[v] += EXPOSED_SECRET_SUSPICION;
   for (const members of night.cultMembers) for (const v of members) if (v >= 0 && v < villagers) pressure[v] += CULT_TIE_SUSPICION;
   return pressure;
+}
+
+// Round 28 (spec 154a): the night tick record. JS port of Core/NightTicks.cs. Every field is counted from the simulated nights, so replay equals incremental.
+export const SECRET_SHIFT = 2, CULT_SHIFT = 1, OMEN_SHIFT = 3;
+
+/** The record of every simulated night, in order: { night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered }. Throws naming newOmen on an unknown omen id. */
+export function buildNightTicks(state, lib) {
+  const list = [];
+  if (!state || !lib) return list;
+  let reality = 0;
+  const seenMissing = new Set();
+  for (const night of state.nights) {
+    const rec = { night: night.night, cultGrowth: 0, rumorsChanged: 0, rumorsAdded: 0, missingPersons: 0, newMissingPerson: 0, newOmen: '', realityShift: 0, reality: 0, secretDiscovered: false };
+    let exposedTonight = 0;
+    for (const e of night.events) {
+      if (e.kind === EVENT_CULT_FOUNDED || e.kind === EVENT_CULT_JOINED) rec.cultGrowth++;
+      else if (e.kind === EVENT_RUMOR_STARTED) rec.rumorsAdded++;
+      else if (e.kind === EVENT_SECRET_EXPOSED) { rec.secretDiscovered = true; exposedTonight++; }
+      else if (e.kind === EVENT_COSMIC_OMEN) {
+        if (!lib.omens.some((o) => o.id === e.key)) throw new Error(`mythos: night ${night.night} newOmen names unknown omen ${e.key}`);
+        rec.newOmen = e.key;
+      }
+    }
+    const before = seenMissing.size;
+    for (const r of night.rumors) {
+      if (r.source === SOURCE_MISSING) seenMissing.add(r.subject);
+      if (r.night >= night.night) continue;
+      for (const h of r.holders) if (h.night === night.night) rec.rumorsChanged++;
+    }
+    rec.missingPersons = seenMissing.size;
+    rec.newMissingPerson = seenMissing.size - before;
+    rec.realityShift = exposedTonight * SECRET_SHIFT + rec.cultGrowth * CULT_SHIFT + (rec.newOmen ? OMEN_SHIFT : 0);
+    reality += rec.realityShift;
+    rec.reality = reality;
+    list.push(rec);
+  }
+  return list;
+}
+
+/** The record of one night; a night outside the simulated range clamps, null when nothing was simulated. */
+export function nightTickAt(state, lib, night) {
+  const all = buildNightTicks(state, lib);
+  return all.length === 0 ? null : all[Math.min(Math.max(night, 1), all.length) - 1];
+}
+
+/**
+ * Round 28: what a lucid villager can tell the player in a village chat (Core MythosChat.Lines), as [{ id, text }]: the newest rumor they hold, the truth behind it when they
+ * started it, and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat. `graph` is buildGraph(society), passed in so a caller can cache it.
+ */
+export function mythosChatLines(society, feed, story, graph, index, tier, night1, result, lang) {
+  if (!society || !feed || !story || !result || !feed.current || index < 0 || index >= society.roster.length) return [];
+  if (!result.available || result.behavior !== 0 || result.withheld || tier === TIER_SUSPICIOUS) return [];
+  if (!(result.hintId === 'village' || (tier === TIER_TRUSTING && result.hintId))) return [];
+  const all = mythosStatements(feed), ids = [];
+  let rumor = null;
+  for (const m of all) if (m.rumor && m.night <= night1 && m.rumor.holders.some((h) => h.villager === index)) rumor = m;
+  if (rumor) { ids.push(rumor.id); const truth = rumor.rumor.origin === index ? truthStatementId(rumor.rumor) : ''; if (truth) ids.push(truth); }
+  const members = new Set(feed.current.cultMembers.flat());
+  const tie = (graph || buildGraph(society)).neighbours[index].find((j) => members.has(j) && all.some((m) => m.id === cultId(j)));
+  if (tie !== undefined) ids.push(cultId(tie));
+  const lines = [];
+  for (const id of ids) {
+    const m = all.find((x) => x.id === id);
+    if (m) lines.push({ id, text: mythosText(feed, story, m, isDistorted(m.rumor, index), lang) });
+  }
+  return lines;
 }
