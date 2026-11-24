@@ -569,3 +569,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Kiro specs, steering and hooks; `tools/validate_repo.py` guardrails.
 - Browser demo in `web/` with golden parity tests against C# and a GitHub Pages workflow.
 - Docs: Kiro usage, demo script, Devpost draft, blog draft.
+
+### Round 34 (FEAT-003): Chronicle 2.0 generated prose (spec 168 built)
+- Core `ChronicleProse` and `ChronicleLibrary` with `Data/chronicle.json` (en and fr, 36 line ids, at least 4 authored variants each, a title per villager role). `ChronicleProse.Chronicle` writes one paragraph per night, `Summary` writes the whole story for the ending. Variants are picked by a `SeededRandom` keyed by seed, night and line id, so a village always reads the same and villages differ. No language model.
+- It builds on `NightTicks` records, the `MythosNight` events and rumors, `MissingOutcomes` reveal levels and `VillagerMemoryModel` outcomes, and names people from the `VillageStory` roster. A sentence is written only for what the player learned: an omen, cult tie or secret whose statement was heard, a disappearance whose rumor was heard or with a lead, the ending of a missing person only at the Outcome reveal level, the mood of a villager met. A night with nothing learned gets an opening and a quiet line.
+- Web: `web/src/chronicle-prose.js` mirror, `chronicle-ui.js` shows the nights and the summary in the chronicle panel (`chronicle.prose` strings en and fr), `theory-ui.js` `outcomeState` and `society-ui.js` `memoryEvents` feed it. `tools/validate_repo.py` checks `web/data/chronicle.json` against the Core copy. `web/sw.js` cache `flv-shell-v77`.
+- Golden key `chronicleProse` added (three seeds, two scenarios, en and fr); existing keys unchanged. New tests: dotnet 8, node 6.
+- Verified: dotnet and node tests, golden parity. Unverified: Unity runtime, in-browser rendering of the prose section (no browser run this round).

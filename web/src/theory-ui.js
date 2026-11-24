@@ -96,6 +96,14 @@ export function createTheoryController(deps) {
     return revealOutcome(story, outcomes, outcome, missingIndex, leads, lang()).text;
   }
 
+  /** Round 34: what really happened to one missing person and how many leads the player has, for the generated chronicle (it reveals only as far as the leads allow). Null without data. */
+  function outcomeState(missingIndex) {
+    if (!ready() || !Number.isInteger(missingIndex) || missingIndex < 0 || missingIndex >= deps.story().missing.length) return null;
+    const story = deps.story(), lib = deps.lore.library();
+    if (!lib) return null;
+    return { outcome: resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, missingIndex, 0), leads: countLeads(story, lib, deps.board.evidence(), missingIndex, deps.board.places ? deps.board.places() : null) };
+  }
+
   /** Applies one log entry when it is legal now. Returns true when the log grew. */
   function choose(entry) {
     const list = instances();
@@ -197,7 +205,7 @@ export function createTheoryController(deps) {
   const owns = (el) => !!(el && $('boardTheory') && $('boardTheory').contains?.(el));
 
   return {
-    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
+    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
     snapshot: () => { ensureSeed(); return { theories: log.length ? serializeTheoryLog(log) : '' }; },
     restore(saved) { ensureSeed(); log = parseTheoryLog(saved && saved.theories); version++; replayed = null; lastVerdict = ''; deps.onChange?.(); if (open) render(); },
     lastVerdict: () => lastVerdict,

@@ -397,6 +397,9 @@ namespace Frankenstein.Core.Tests
             AppendMemory(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendChronicleProse(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendPlaces(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1654,6 +1657,28 @@ namespace Frankenstein.Core.Tests
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"baseline\": [").Append(string.Join(", ", baseline.Select(e => "[" + e.Villager + ", " + e.Subject + ", " + e.Weight + "]")))
                   .Append("], \"nights\": [").Append(string.Join(", ", nights)).Append("], \"axesPlain\": ").Append(Axes(plain)).Append(", \"axesMemory\": ").Append(Axes(withMemory))
                   .Append(", \"trustMemory\": [").Append(string.Join(", ", Enumerable.Range(0, 6).Select(v => trusts[v].ToString()))).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "chronicleProse" (round 34, spec 168): per city seed and per scenario (0 nothing learned, 1 everything heard with leads 0, 1, 4 and the scripted memory log, see ChronicleProseTests.Context), the night by night prose and the whole story summary in en and fr.</summary>
+        private static void AppendChronicleProse(StringBuilder sb)
+        {
+            sb.Append("  \"chronicleProse\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var scenarios = new List<string>();
+                foreach (int scenario in new[] { 0, 1 })
+                {
+                    var ctx = ChronicleProseTests.Context(seed, scenario);
+                    var parts = new List<string>();
+                    foreach (var lang in ChronicleProseTests.Languages)
+                        parts.Add("\"" + lang + "\": [" + string.Join(", ", ChronicleProse.Chronicle(ctx, MythosSimulationTests.Nights, lang).Select(Q)) + "], \"summary_" + lang + "\": " + Q(ChronicleProse.Summary(ctx, MythosSimulationTests.Nights, lang)));
+                    scenarios.Add("{ \"scenario\": " + scenario + ", " + string.Join(", ", parts) + " }");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"scenarios\": [\n        ").Append(string.Join(",\n        ", scenarios)).Append("\n      ] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");

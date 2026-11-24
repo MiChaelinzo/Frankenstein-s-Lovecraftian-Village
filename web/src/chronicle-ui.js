@@ -4,6 +4,7 @@ import { tierFor } from './core.js';
 import { stageOfNight, districtHistory, familyHistory } from './village-story.js';
 import { esc } from './util.js';
 import { DISTRICT_IDS } from './districts.js';
+import { parseChronicleLibrary, chronicleProse, summaryProse } from './chronicle-prose.js';
 import { mythosStatements, mythosText, isDistorted, nightTickAt } from './mythos.js';
 
 /**
@@ -40,8 +41,10 @@ export function chronicleModel(story, lang, ctx) {
   // Round 30: the trust bars (trust, fear, faith, loyalty, obsession, corruption) of everyone met, and the theories concluded on the board.
   const people = ctx.met && ctx.bars ? [...ctx.met].sort((a, b) => a - b).filter((i) => i >= 0 && i < story.roster.length).map((i) => ({ index: i, name: nameOf(i), rows: ctx.bars(i) })).filter((p) => p.rows) : [];
   const theories = ctx.theories || [];
+  // Round 34 (spec 168): the generated prose, night by night up to tonight and as a whole. Only what the player learned (ctx.prose is built from heard statements, leads and people met).
+  const prose = ctx.prose ? { nights: chronicleProse(ctx.prose, ctx.night, lang), summary: summaryProse(ctx.prose, ctx.night, lang) } : null;
   return {
-    stage, tier, mythos, tick, knowledge, people, theories,
+    stage, tier, mythos, tick, knowledge, people, theories, prose,
     rumor: story.rumorText(ctx.night, stage, tier, lang),
     families, missing,
     histories: DISTRICT_IDS.map((id) => ({ id, text: districtHistory(lib, id, lang) })),
@@ -59,7 +62,23 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [] };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], prose: proseContext() };
+  }
+
+  let proseLib = null;
+  /** Round 34: parses data/chronicle.json. Throws naming the field when it is malformed, so the caller can log it and the panel simply shows no prose. */
+  function setProse(json) { proseLib = parseChronicleLibrary(json); if (on) render(); }
+
+  /** The context the prose reads, or null without data, a story, the mythos run or the outcome state. Heard ids, leads and people met are exactly what the player learned. */
+  function proseContext() {
+    const story = deps.story(), feed = deps.mythos ? deps.mythos() : null;
+    if (!proseLib || !story || !feed || !feed.state || !deps.outcomeState) return null;
+    const states = story.missing.map((_, k) => deps.outcomeState(k));
+    if (states.some((s) => !s)) return null;
+    return {
+      prose: proseLib, story, mythos: feed.library, state: feed.state, nights: deps.nights(), outcomes: states.map((s) => s.outcome), leads: states.map((s) => s.leads),
+      heard: new Set(deps.mythosHeard ? deps.mythosHeard().keys() : []), met: new Set(deps.met ? deps.met() : []), memoryLog: deps.memoryEvents ? deps.memoryEvents() : null,
+    };
   }
 
   /** A villager told about a missing person at a stage: the chronicle keeps the furthest stage heard. */
@@ -74,7 +93,7 @@ export function createChronicleController(deps) {
   /** Re-renders an open panel only when something it shows changed (night, dread tier, books read, chat heard, village). */
   function refresh() {
     if (!on) return;
-    const c = ctx(), key = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}`;
+    const c = ctx(), key = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}|${c.met ? c.met.size : 0}`;
     if (key !== renderedKey) render();
   }
 
@@ -93,6 +112,7 @@ export function createChronicleController(deps) {
     }).join('')}</ul>`);
     parts.push(`<h3>${esc(tr('chronicle.families'))}</h3><ul class="chronicle-list">${m.families.map((f) =>
       `<li data-family="${esc(f.surname)}">${esc(tr('chronicle.family', { surname: f.surname, members: f.members.length ? f.members.join(', ') : tr('chronicle.family.empty'), home: f.home }))}<p class="lore-text">${esc(f.history)}</p></li>`).join('')}</ul>`);
+    if (m.prose) parts.push(`<h3>${esc(tr('chronicle.prose'))}</h3><div id="chronicleProse">${m.prose.nights.map((t, i) => `<p class="lore-text" data-prose-night="${i + 1}"><strong>${esc(tr('chronicle.prose.night', { night: i + 1 }))}</strong> ${esc(t)}</p>`).join('')}<p class="lore-text" id="chronicleSummary"><em>${esc(m.prose.summary)}</em></p></div>`);
     parts.push(`<h3>${esc(tr('chronicle.mythos'))}</h3>${m.mythos.length ? `<ul class="chronicle-list" id="chronicleMythos">${m.mythos.map((e) =>
       `<li data-mythos="${esc(e.id)}"><strong>${esc(tr('chronicle.mythos.row', { night: e.night, kind: tr(`chronicle.mythos.kind.${e.kind}`), text: e.text }))}</strong>${e.distorted ? ` <em>${esc(tr('chronicle.mythos.distorted'))}</em>` : ''}</li>`).join('')}</ul>`
       : `<p class="stats" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
@@ -118,5 +138,5 @@ export function createChronicleController(deps) {
   }
   $('chronicleToggle')?.addEventListener?.('click', () => setPanel(!on));
 
-  return { setPanel, render, refresh, hear, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
+  return { setPanel, render, refresh, hear, setProse, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
 }

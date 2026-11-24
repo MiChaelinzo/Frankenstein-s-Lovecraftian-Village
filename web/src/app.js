@@ -249,6 +249,7 @@ async function loadCatalog() {
   try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
   try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
   try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
+  try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
@@ -753,7 +754,7 @@ const villagers = createVillagerController({
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
-  bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), theories: () => theory.summary(),
+  bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), outcomeState: (k) => theory.outcomeState(k), memoryEvents: () => society.memoryEvents(), theories: () => theory.summary(),
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
   mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), knowledge: () => board.knowledge(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
