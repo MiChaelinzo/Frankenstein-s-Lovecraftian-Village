@@ -28,7 +28,7 @@ export const defaultConfidence = (source) => (source === SOURCE_JOURNAL ? 80 : s
 export function knowledgeSources(e, places = null) {
   const sources = [];
   for (const id of e.booksRead) if (/^j\d\d$/.test(id)) sources.push('journal');
-  for (const clue of e.clueIds) sources.push(sourceOfClue(places, clue) || 'investigation'); // a found place clue earns the source its discovery names (ruins, cult_discovery)
+  for (const clue of e.clueIds) if (!clue.startsWith('witness@')) sources.push(sourceOfClue(places, clue) || 'investigation'); // a found place clue earns the source its discovery names (ruins, cult_discovery)
   const heard = new Set();
   for (const h of e.heard) if (h.statementId.startsWith('mythos:') && !heard.has(h.statementId)) { heard.add(h.statementId); sources.push('mythos_event'); }
   return sources;

@@ -39,6 +39,12 @@ export function target(x) {
   return Math.max(0, Math.min(MAX_INTENSITY, total - relief));
 }
 
+/** The narrative cause rule for creature appearances (spec 166). Mirrors HorrorDirector.CauseHolds: a known cause id, not the relief marker, whose own pressure is above zero. */
+export function causeHolds(cause, x) {
+  const i = CAUSE_IDS.indexOf(cause);
+  return i >= 0 && i !== CAUSE_IDS.length - 1 && pressures(x)[i] > 0;
+}
+
 export function dominantCause(x) {
   const p = pressures(x);
   let best = 0;
