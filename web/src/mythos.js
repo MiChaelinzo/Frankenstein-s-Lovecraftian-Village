@@ -2,7 +2,7 @@
 // The data file web/data/mythos.json is a byte copy of Packages/.../Data/mythos.json (tools/validate_repo.py and a test check it).
 // Core is the source of truth: cults recruit corrupted villagers, secrets build exposure pressure, omens press on both, rumors travel the family and neighbour links.
 import { SeededRandom } from './core.js';
-import { SCALE, MAX_RITUAL_STAGE, INDEX_STEP, FAMILY_DELAY, NEIGHBOUR_DELAY, CULT_AT, CORRUPTION_CULTIST, UNREACHABLE } from './society.js';
+import { TIER_SUSPICIOUS, TIER_TRUSTING, SCALE, MAX_RITUAL_STAGE, INDEX_STEP, FAMILY_DELAY, NEIGHBOUR_DELAY, CULT_AT, CORRUPTION_CULTIST, UNREACHABLE } from './society.js';
 import { TIERS, STAGES, render } from './village-story.js';
 
 export const MYTHOS_LANGUAGES = ['en', 'fr'];
@@ -405,4 +405,27 @@ export function buildNightTicks(state, lib) {
 export function nightTickAt(state, lib, night) {
   const all = buildNightTicks(state, lib);
   return all.length === 0 ? null : all[Math.min(Math.max(night, 1), all.length) - 1];
+}
+
+/**
+ * Round 28: what a lucid villager can tell the player in a village chat (Core MythosChat.Lines), as [{ id, text }]: the newest rumor they hold, the truth behind it when they
+ * started it, and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat. `graph` is buildGraph(society), passed in so a caller can cache it.
+ */
+export function mythosChatLines(society, feed, story, graph, index, tier, night1, result, lang) {
+  if (!society || !feed || !story || !result || !feed.current || index < 0 || index >= society.roster.length) return [];
+  if (!result.available || result.behavior !== 0 || result.withheld || tier === TIER_SUSPICIOUS) return [];
+  if (!(result.hintId === 'village' || (tier === TIER_TRUSTING && result.hintId))) return [];
+  const all = mythosStatements(feed), ids = [];
+  let rumor = null;
+  for (const m of all) if (m.rumor && m.night <= night1 && m.rumor.holders.some((h) => h.villager === index)) rumor = m;
+  if (rumor) { ids.push(rumor.id); const truth = rumor.rumor.origin === index ? truthStatementId(rumor.rumor) : ''; if (truth) ids.push(truth); }
+  const members = new Set(feed.current.cultMembers.flat());
+  const tie = (graph || buildGraph(society)).neighbours[index].find((j) => members.has(j) && all.some((m) => m.id === cultId(j)));
+  if (tie !== undefined) ids.push(cultId(tie));
+  const lines = [];
+  for (const id of ids) {
+    const m = all.find((x) => x.id === id);
+    if (m) lines.push({ id, text: mythosText(feed, story, m, isDistorted(m.rumor, index), lang) });
+  }
+  return lines;
 }

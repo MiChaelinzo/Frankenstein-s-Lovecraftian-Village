@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 28 (FEAT-002): Forbidden Knowledge
+- Added Core `KnowledgeModel.cs` and `Data/knowledge.json`: six tiers (Nothing, Village Folklore, Cult Secrets, Forbidden Texts, Eldritch Science, Outer Truth) with point thresholds, seven gain sources (journal, ritual, investigation, ruins, catacombs, mythos event, cult discovery), per-tier benefit ids (hidden dialogue, secret paths, hidden cult symbols, true rumor versions, dimensional gateways, new deductions) and tiered rumors in en and fr (the lighthouse goes from "haunted" at tier 0 to "signaling something offshore" at tier 4 and "synchronized with an entity beneath the bay" at tier 5).
+- Knowledge is separate from sanity. Its reality cost, `RealityDistortion.For`, is a seed-driven list of presentation effects (wrong NPC name, changed house name, fake villager, altered board link, door appearing, missing person returning briefly) that grows with the tier, is empty at tier 0 and never changes a Core output, Vigil rule or ending. Negative points read as 0 and an unknown source id is a parse error naming `sources`.
+- Moved the web-only `mythosChat` into Core `MythosChat.Lines`; `web/src/mythos.js` mirrors it as `mythosChatLines` and `society-ui.js` now calls it.
+- JS mirror `web/src/knowledge.js`, golden key `knowledge` (existing golden keys unchanged), `sw.js` cache `flv-shell-v59`. Status: C# and node tests Verified; the Unity runtime side is Unverified (nothing consumes knowledge in Runtime yet).
+
 ### Round 28 (FEAT-001): chronicle night tick records
 - Added Core `NightTicks.Build` and `NightTickRecord` (night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered), counted only from `MythosNight`. `realityShift` is an integer for presentation and never changes a Vigil rule or an ending. An unknown omen id throws a `FormatException` naming `newOmen`.
 - Added the omen `black_tide` (and its two rumor lines) to `Data/mythos.json`. Because omens are picked by index, the golden `mythos` key and the omen of some nights changed.

@@ -1,0 +1,220 @@
+{
+  "tiers": [
+    {
+      "id": "nothing",
+      "threshold": 0,
+      "en": "Nothing",
+      "fr": "Rien",
+      "benefits": []
+    },
+    {
+      "id": "village_folklore",
+      "threshold": 3,
+      "en": "Village Folklore",
+      "fr": "Folklore du village",
+      "benefits": [
+        "hidden_dialogue_folklore"
+      ]
+    },
+    {
+      "id": "cult_secrets",
+      "threshold": 8,
+      "en": "Cult Secrets",
+      "fr": "Secrets des cultes",
+      "benefits": [
+        "hidden_cult_symbols",
+        "new_deduction_cult_ties"
+      ]
+    },
+    {
+      "id": "forbidden_texts",
+      "threshold": 15,
+      "en": "Forbidden Texts",
+      "fr": "Textes interdits",
+      "benefits": [
+        "secret_paths",
+        "true_rumor_versions"
+      ]
+    },
+    {
+      "id": "eldritch_science",
+      "threshold": 24,
+      "en": "Eldritch Science",
+      "fr": "Science des Anciens",
+      "benefits": [
+        "new_deduction_beam_pattern",
+        "dimensional_gateways"
+      ]
+    },
+    {
+      "id": "outer_truth",
+      "threshold": 36,
+      "en": "Outer Truth",
+      "fr": "Vérité extérieure",
+      "benefits": [
+        "hidden_dialogue_outer_truth",
+        "new_deduction_the_bay"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "journal",
+      "points": 2
+    },
+    {
+      "id": "ritual",
+      "points": 3
+    },
+    {
+      "id": "investigation",
+      "points": 2
+    },
+    {
+      "id": "ruins",
+      "points": 3
+    },
+    {
+      "id": "catacombs",
+      "points": 4
+    },
+    {
+      "id": "mythos_event",
+      "points": 2
+    },
+    {
+      "id": "cult_discovery",
+      "points": 4
+    }
+  ],
+  "rumors": [
+    {
+      "id": "lighthouse",
+      "versions": [
+        {
+          "tier": 0,
+          "en": "The lighthouse is haunted.",
+          "fr": "Le phare est hanté."
+        },
+        {
+          "tier": 2,
+          "en": "The lighthouse keeper's cult lit the lamp on purpose.",
+          "fr": "Le culte du gardien a allumé la lampe exprès."
+        },
+        {
+          "tier": 4,
+          "en": "The lighthouse beam is signaling something offshore.",
+          "fr": "Le faisceau du phare signale quelque chose au large."
+        },
+        {
+          "tier": 5,
+          "en": "The beam is synchronized with an entity beneath the bay.",
+          "fr": "Le faisceau est synchronisé avec une entité sous la baie."
+        }
+      ]
+    },
+    {
+      "id": "well",
+      "versions": [
+        {
+          "tier": 0,
+          "en": "Nobody drinks from the old well anymore.",
+          "fr": "Plus personne ne boit au vieux puits."
+        },
+        {
+          "tier": 3,
+          "en": "The well was sunk through a catacomb ceiling.",
+          "fr": "Le puits a été creusé à travers le plafond d'une catacombe."
+        },
+        {
+          "tier": 5,
+          "en": "The well is a throat, and something below is swallowing the village's whispers.",
+          "fr": "Le puits est une gorge, et quelque chose en bas avale les murmures du village."
+        }
+      ]
+    },
+    {
+      "id": "church_bells",
+      "versions": [
+        {
+          "tier": 0,
+          "en": "The church bells ring when nobody pulls the rope.",
+          "fr": "Les cloches de l'église sonnent sans que personne tire la corde."
+        },
+        {
+          "tier": 2,
+          "en": "The bells ring on the nights the cult meets.",
+          "fr": "Les cloches sonnent les nuits où le culte se réunit."
+        },
+        {
+          "tier": 4,
+          "en": "The bells are tuned to a frequency that opens something between the walls.",
+          "fr": "Les cloches sont accordées sur une fréquence qui ouvre quelque chose entre les murs."
+        }
+      ]
+    },
+    {
+      "id": "missing_fishermen",
+      "versions": [
+        {
+          "tier": 0,
+          "en": "The fishermen who vanished simply drowned.",
+          "fr": "Les pêcheurs disparus se sont simplement noyés."
+        },
+        {
+          "tier": 1,
+          "en": "The fishermen were last seen rowing toward the lighthouse.",
+          "fr": "Les pêcheurs ont été vus ramant vers le phare pour la dernière fois."
+        },
+        {
+          "tier": 3,
+          "en": "The fishermen did not drown. The tide took them where it was told to.",
+          "fr": "Les pêcheurs ne se sont pas noyés. La marée les a menés où on le lui avait dit."
+        },
+        {
+          "tier": 5,
+          "en": "The fishermen come back on the black tide, briefly, to count who is left.",
+          "fr": "Les pêcheurs reviennent à la marée noire, brièvement, pour compter ceux qui restent."
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "id": "wrong_npc_name",
+      "minTier": 1,
+      "en": "A villager is called by the wrong name.",
+      "fr": "Un villageois est appelé par un mauvais nom."
+    },
+    {
+      "id": "changed_house_name",
+      "minTier": 1,
+      "en": "A house carries a name it did not have yesterday.",
+      "fr": "Une maison porte un nom qu'elle n'avait pas hier."
+    },
+    {
+      "id": "fake_villager",
+      "minTier": 2,
+      "en": "A villager nobody remembers stands in the square.",
+      "fr": "Un villageois dont personne ne se souvient se tient sur la place."
+    },
+    {
+      "id": "altered_board_link",
+      "minTier": 3,
+      "en": "A thread on the investigation board joins two cards you did not join.",
+      "fr": "Un fil du tableau d'enquête relie deux cartes que vous n'avez pas reliées."
+    },
+    {
+      "id": "door_appearing",
+      "minTier": 4,
+      "en": "A door stands in a wall that had none.",
+      "fr": "Une porte s'ouvre dans un mur qui n'en avait pas."
+    },
+    {
+      "id": "missing_returns",
+      "minTier": 5,
+      "en": "A missing person walks the street again, briefly.",
+      "fr": "Une personne disparue arpente de nouveau la rue, brièvement."
+    }
+  ]
+}

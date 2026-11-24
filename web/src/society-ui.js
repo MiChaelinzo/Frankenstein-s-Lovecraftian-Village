@@ -4,7 +4,7 @@ import { buildSociety, ACTION_IDS, ALL_VILLAGERS, CHAT_POLITE, SEEN_AT_RITUAL_SI
 import { landmarkAt } from './landmarks.js';
 import { SOURCE_CHAT } from './investigation.js';
 import { ROLE_IDS } from './villagers.js';
-import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosStatements, mythosText, isDistorted, truthStatementId, suspicionPressure, cultId, mythosSchedule } from './mythos.js';
+import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosChatLines, suspicionPressure, mythosSchedule } from './mythos.js';
 
 export const SOCIETY_SAVE_TAG = 'sc1', MAX_LOG = 150;
 export const WITNESS_RADIUS_M = 14;     // a villager this close (metres) sees what the player does
@@ -98,17 +98,9 @@ export function createSocietyController(deps) {
    */
   function mythosChat(index, night1, result, lang) {
     const s = society(), feed = mythosFeed(), st = standing(index);
-    if (!s || !feed || !st || !result || !result.available || result.behavior !== 0 || result.withheld || st.tier === TIER_SUSPICIOUS) return [];
-    if (!(result.hintId === 'village' || (st.tier === TIER_TRUSTING && result.hintId))) return [];
-    const all = mythosStatements(feed), ids = [];
-    let rumor = null;
-    for (const m of all) if (m.rumor && m.night <= night1 && m.rumor.holders.some((h) => h.villager === index)) rumor = m;
-    if (rumor) { ids.push(rumor.id); if (rumor.rumor.origin === index && truthStatementId(rumor.rumor)) ids.push(truthStatementId(rumor.rumor)); }
+    if (!s || !feed || !st) return [];
     if (!graph) graph = buildGraph(s);
-    const members = new Set(feed.current.cultMembers.flat());
-    const tie = graph.neighbours[index].find((j) => members.has(j) && all.some((m) => m.id === cultId(j)));
-    if (tie !== undefined) ids.push(cultId(tie));
-    return ids.filter((id) => all.some((m) => m.id === id)).map((id) => { const m = all.find((x) => x.id === id); return { id, text: mythosText(feed, deps.story(), m, isDistorted(m.rumor, index), lang) }; });
+    return mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang);
   }
 
   /** { tier, corruption } for villagers.js chat(), or null for someone outside the story roster. */
