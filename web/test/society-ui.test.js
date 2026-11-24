@@ -274,3 +274,13 @@ test('a villager the player was seen near a body by remembers on day 2 and diffe
   const none = make({ night: 1 }).society; // no memory data: effects still apply, no line
   assert.equal(none.memoryLine(0, 2, 'en'), '');
 });
+
+test('memory still updates after the log is full (cache key uses a counter, not the length)', () => {
+  const memLib = JSON.parse(readFileSync(join(root, 'web', 'data', 'memory.json'), 'utf8'));
+  const { society } = make({ night: 1 });
+  society.setMemory(memLib);
+  for (let i = 0; i < 150; i += 1) society.record(3, 1);
+  assert.equal(society.memoryOutcome(0), 0, 'villager 0 has no event yet (cached)');
+  assert.equal(society.record(3, 0), true); // the 151st event
+  assert.equal(society.memoryOutcome(0), 2, 'the new event replays although the log length is unchanged');
+});

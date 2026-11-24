@@ -12,7 +12,7 @@ export function contrastWanted(search, hash, stored) {
 export function loadContrast(storage) { try { return storage ? storage.getItem(CONTRAST_KEY) : null; } catch { return null; } }
 export function saveContrast(storage, on) { try { storage?.setItem(CONTRAST_KEY, on ? '1' : '0'); return !!storage; } catch { return false; } }
 
-// Round 34 (spec 165): Horror Intensity. PRESENTATION ONLY. It scales how hard the director, the reality view and creature glimpses lean on the player.
+// Round 34 (spec 165): Horror Intensity. PRESENTATION ONLY. It scales how hard the director and creature glimpses lean on the player. For the reality view only Gentle matters (it drops one tier); Standard and Dread are identical there.
 // It is never read by Core ports, never part of a save, a golden or a seed: the same seed gives the same village and the same run at every level.
 export const INTENSITY_KEY = 'flv.intensity.v1';
 export const INTENSITY_LEVELS = ['gentle', 'standard', 'dread'];

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 review fixes
+- Fix: the society memory cache key used the log length, which stays at 150 once full, so later events were not replayed until the night changed. It now uses a monotonic edit counter; test added with 151 events.
+- Docs: the Dread intensity level does not change the reality view (only Gentle drops one tier); it affects the director and creature glimpses. The `access.js` comment says so.
+- Docs: recruit boost to the mythos run is hidden world state (applies without the 4 leads needed to see the aftermath), noted in spec 170 and the README. Service worker cache is now `flv-shell-v84`.
+
 ### Round 34 (FEAT-009): status and open specs
 - `.kiro/specs/tasks.md` gets a Round 34 status block (built 167 to 173) and unbuilt specs 174 to 180, all Unverified. Final checks: dotnet 474, node 833, UnityCompileCheck 0/0. Browser sections on SwiftShader (Partially Verified): `REALITY_ONLY` 3/3, `INTENSITY_ONLY` 4/4, `SEED_ONLY` 6/6, `SOCIETY_ONLY` 11/11, `THEORY_ONLY` 9/9, `NARRATIVE_ONLY` 2/2. No full browser run.
 

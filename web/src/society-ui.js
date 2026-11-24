@@ -84,7 +84,7 @@ export function barRows(trust, axes, stage) {
 export function createSocietyController(deps) {
   const { state } = deps;
   let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
-  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null;
+  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0;
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
 
   function society() {
@@ -144,11 +144,11 @@ export function createSocietyController(deps) {
     return lines;
   }
 
-  /** Round 34: what every villager remembers (memory.js replay of the story baseline and the live events) at the current night; null without a society. Cached per event count, night and roster. */
+  /** Round 34: what every villager remembers (memory.js replay of the story baseline and the live events) at the current night; null without a society. Cached per recorded event counter, night and roster. */
   function memory() {
     const s = society();
     if (!s) return null;
-    const key = `${memoryLog.length}|${night()}|${s.roster.length}|${state.seed}`;
+    const key = `${memoryEdits}|${night()}|${s.roster.length}|${state.seed}`;
     if (key !== memoryKeyOf) { memoryKeyOf = key; memoryCache = replayMemory(s.roster.length, [...baselineEvents(deps.story()), ...memoryLog], night()); }
     return memoryCache;
   }
@@ -183,7 +183,7 @@ export function createSocietyController(deps) {
   }
 
   /** Adds one live memory event (Core VillagerMemoryModel.Record) and drops the oldest past MAX_MEMORY_LOG. */
-  function remember(ev) { memoryLog.push(ev); if (memoryLog.length > MAX_MEMORY_LOG) memoryLog.shift(); }
+  function remember(ev) { memoryEdits += 1; memoryLog.push(ev); /* the counter, not the length, keys the cache: the length stays at the cap */ if (memoryLog.length > MAX_MEMORY_LOG) memoryLog.shift(); }
 
   function record(kind, subject) {
     if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_IDS.length || !Number.isInteger(subject)) return false;
@@ -261,6 +261,6 @@ export function createSocietyController(deps) {
     },
     log: () => log.slice(),
     snapshot: () => ({ society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }),
-    restore(saved) { log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
+    restore(saved) { log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
   };
 }
