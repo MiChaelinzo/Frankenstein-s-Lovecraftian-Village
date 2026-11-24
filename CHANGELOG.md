@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-008): JSON content schemas and validator (spec 173 built, tooling only)
+- New `docs/CONTENT_SCHEMAS.md` with field tables for quest, rumor and event, plus samples `missing_fisher_01`, `black_water_harbour` and `black_tide_night_25` in `Data/content/`. `tools/content_schemas.py` is run by `tools/validate_repo.py` and reports file, item id and field; references to theories, statements and omens must resolve against the real data.
+- The game does not load these files yet, so no golden or seed changed. The only web change is the regenerated `data/stitch.json` (it embeds docs), so the cache is `flv-shell-v82`. Tests: `tools/test_content_schemas.py` (9). Playing the content is Unverified.
+
 ### Round 34 (FEAT-007): Village Seed Share, exports and Daily Village Challenge (spec 172 built)
 - Core `DailySeed.cs` gains `SeedShareLibrary` (reads `Data/seedshare.json`, 24 omen words and 24 theme words), `SeedShare.Encode` and `Decode` and `DailySeed.ChallengeCode`. A code is the unsigned seed plus two words derived from it, like `1818-CROOKED-TIDE`, so every integer seed round trips. Decoding accepts any case, a bare number, and gives a stable error id (empty, format, range, mismatch) with a readable message; wrong words are an error, never a guess.
 - Web: `daily.js` mirrors it (golden key `seedShare`, existing keys unchanged). The title screen shows the village code, today's challenge code, a copy button (only where the async clipboard exists) and a labelled input for a shared code, with en and fr error text. The chronicle shows the code. New `export-text.js` builds the chronicle export (markdown or text, from the Chronicle 2.0 prose) and the theory export, both with the seed code and an outcome comparison block (endings found, theory conclusions by grade, missing outcomes learned). Downloads use a Blob and an anchor, so CSP is unchanged. Exports hold only what the player learned.

@@ -450,3 +450,6 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - FEAT-007 `feat: add seed sharing and exports` (spec 172): Core `SeedShare` in `DailySeed.cs`, `Data/seedshare.json`, golden key `seedShare` (addition only), `daily.js` mirror, `export-text.js`, title input, chronicle and theory export buttons, en and fr strings, cache v81, `SEED_ONLY` browser section (6 of 6 on SwiftShader).
 - Findings: seeds print as unsigned 32-bit so negative seeds round trip; ASCII-only upper casing on both sides because JS `toUpperCase` turns a sharp s into SS. All `tools/test_*.py` passed on every run here, the earlier single failure did not reproduce.
 - Verified: Core and JS tests. Partially Verified: browser section. Unverified: real download and clipboard, Unity runtime.
+- FEAT-008 `feat: add JSON content schemas and validator` (spec 173): `tools/content_schemas.py`, `docs/CONTENT_SCHEMAS.md`, sample files under `Data/content/` with `.meta`, hook in `validate_repo.py`, `tools/test_content_schemas.py`. No Core, web or golden change.
+- Findings: theory references use `<template id>.<option id>` because option ids repeat across templates. French stays unaccented like the existing data.
+- Verified: python tests and repo validation. Unverified: loading this content in game, Unity runtime.

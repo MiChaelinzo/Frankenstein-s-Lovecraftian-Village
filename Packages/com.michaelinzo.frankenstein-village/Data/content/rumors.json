@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "rumors": [
+  {
+   "id": "black_water_harbour",
+   "truth": true,
+   "mutations": [
+    { "en": "The water at the harbour wall went black overnight.", "fr": "L'eau au pied de la digue est devenue noire pendant la nuit." },
+    { "en": "They say the harbour water is black, and something is moving in it.", "fr": "On dit que l'eau du port est noire, et que quelque chose y bouge." },
+    { "en": "The harbour has swallowed its own light, and the fishers will not look down.", "fr": "Le port a avale sa propre lumiere, et les pecheurs refusent de baisser les yeux." }
+   ]
+  }
+ ]
+}

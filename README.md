@@ -470,6 +470,8 @@ The tests are property-based: each property runs 300 seeded random cases and rep
 
 Contributor guide: [CONTRIBUTING.md](CONTRIBUTING.md). History: [CHANGELOG.md](CHANGELOG.md). Screenshots are produced with `tools/screenshot.sh` (for `?pack=1` it adds `capture=1`, a static still frame, because the animated loop never finishes under headless virtual time).
 
+Authoring quests, rumors and events as JSON: see [docs/CONTENT_SCHEMAS.md](docs/CONTENT_SCHEMAS.md) (validated by `tools/validate_repo.py`, not loaded by the game yet).
+
 ## Built with Kiro
 Specs, hooks and steering are in [`.kiro/`](.kiro). Details in [docs/KIRO_USAGE.md](docs/KIRO_USAGE.md). Build history: [docs/BUILD_LOG.md](docs/BUILD_LOG.md). Demo script (side-by-side web and Unity, under 3:00): [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Recording setup: [docs/RECORDING.md](docs/RECORDING.md). Unity pack exploration script: [docs/PACK_EXPLORATION.md](docs/PACK_EXPLORATION.md). Kiro pitch and Devpost write-up: [docs/KIRO_PITCH.md](docs/KIRO_PITCH.md). Submission draft: [docs/DEVPOST_SUBMISSION.md](docs/DEVPOST_SUBMISSION.md). Blog draft: [docs/BLOG_POST.md](docs/BLOG_POST.md).
 

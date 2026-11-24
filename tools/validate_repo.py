@@ -140,6 +140,8 @@ import gen_stitch
 if not os.path.isfile(gen_stitch.OUT) or open(gen_stitch.OUT, encoding="utf-8").read() != gen_stitch.render(gen_stitch.build()):
     errors.append("web/data/stitch.json is stale: run python3 tools/gen_stitch.py")
 
+import content_schemas
+errors.extend(content_schemas.check_all())
 import verification_labels
 import third_party_assets
 third_party = [f for f in tracked if f.startswith(third_party_assets.PREFIX) and os.path.isfile(f)]
