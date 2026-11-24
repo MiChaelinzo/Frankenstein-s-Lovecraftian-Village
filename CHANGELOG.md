@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 33 (FEAT-002): Victorian UI reskin (spec 165 built)
+- Extends the round 29 layer at the end of `web/style.css` (no second stylesheet). CSS gradients only: no images, no web fonts (system serif stack), no inline styles; CSP unchanged in `netlify.toml`, `vercel.json` and `web/_headers`.
+- Title plaque in dark wood with brass border; investigation board with pinned paper slips (brass pins, slight deterministic tilt by position), red thread on a wood board; theory builder as a ruled notepad; chronicle as a paper ledger that turns in from its spine, entries reveal like ink (`pageTurn`, `inkReveal`); journal page with ruled lines and a drop cap; inventory, villager dialog and HUD chips on wood with brass; stronger narration and hint halos.
+- Accessibility: palette tokens `--v-*` tested for 4.5:1 text contrast in `web/test/victorian-theme.test.js`; brass focus outline 3 px; `html.reduced` and `prefers-reduced-motion` stop the page turn and ink reveal; high contrast and forced colors drop the decoration; layouts use `overflow-wrap` for longer French strings.
+- `web/sw.js` cache `flv-shell-v75`; `web/data/stitch.json` regenerated. `touch-controls.test.js` now looks for animation only in the touch rules, since the new layer follows them.
+- Browser check `VICTORIAN_ONLY=1` (title, board, chronicle, journal, en and fr, no overflow at 150% zoom, focus ring, animations on and reduced). Stills `docs/media/r33-before-*.jpg` and `r33-after-*.jpg` (each under 130 KB). The horror-intensity setting of spec 165 is not built.
+- Verified: contrast test and JS tests. Partially Verified: SwiftShader visual quality. Unverified: real GPU, Unity runtime.
+
 ### Round 33 (FEAT-001): round 32 cleanup (fix)
 - Creature homes: when all 12 redraws land inside a place or a building, the home is now the first open point of a fixed 8 by 8 lattice (no random draws, so the seeded stream is unchanged) instead of the last blocked draw. C# `CreatureEncounter.Home` and JS `homeOf` match.
 - Doubled villager (tier 3, `society` 1, no villager requirement in `Data/creatures.json`): only tier 2 requires a corrupted villager. Its subject is the corrupted villager when one exists, otherwise exactly -1, never another negative value. C# and JS.
