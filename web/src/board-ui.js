@@ -143,7 +143,7 @@ export function createBoardController(deps) {
     if (key !== modelKey || !model) {
       modelKey = key;
       model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier, placeLib);
-      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib) : UNKNOWN_TITLE]));
+      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib, deps.witnessTitle || null) : UNKNOWN_TITLE]));
     }
     return model;
   }

@@ -29,6 +29,7 @@ import { createLoreController } from './lore-ui.js';
 import { createPlacesController } from './place-ui.js';
 import { createInventoryController } from './inventory-ui.js';
 import { createCreatureController } from './creature-ui.js';
+import { EVENT_COSMIC_OMEN } from './mythos.js';
 import { createHomesteadController } from './homestead-ui.js';
 import { createBoardController, BOARD_KEY } from './board-ui.js';
 import { createTheoryController, FINAL_NIGHTS_DEFAULT } from './theory-ui.js';
@@ -170,7 +171,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), places: places.scene(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), manifestations: creatures.manifest(), wards: creatures.wards(), places: places.scene(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'place' ? p.label : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
@@ -699,7 +700,7 @@ const board = createBoardController({
   afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
-  night: () => state.night + 1, journal: (text) => log('lore', text),
+  night: () => state.night + 1, journal: (text) => log('lore', text), witnessTitle: (id, l) => creatures.witnessTitle(id, l),
   onChange: () => autosave(),
 });
 theory = createTheoryController({
@@ -722,6 +723,13 @@ const creatures = createCreatureController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, inventory, announce: (text) => announce(text), journal: (text) => log('lore', text), allows: (id) => vigil.allows(id), sanity: () => state.sanity,
   onWard: () => { const c = view3d.active ? view3d.camera : null; if (c) society.noteWard({ x: c.x, z: c.z }, villagerScene(state.villagers || [], CELL)); },
   onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); }, tickNow: clockTickExact, weather: () => withWeather(currentNight() || {}).weather || 'clear', camera: () => (view3d.active ? view3d.camera : null),
+  // Creature upgrade path (spec 166): what unlocks the tiers. The tier 2 villager comes from the society stages, tier 3 from the board's knowledge tier, tier 4 from the mythos omens.
+  reducedMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), noteClue: (id) => board.noteClue(id),
+  tierState: () => {
+    const stages = society.stages(), best = Math.max(0, ...stages), cam = view3d.active ? view3d.camera : null, site = cam ? places.placed().find((p) => Math.hypot(cam.x - p.p.x, cam.z - p.p.z) < p.p.radius) : null;
+    const fin = society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT), omens = fin ? fin.nights.slice(0, state.night + 1).reduce((n, nt) => n + nt.events.filter((e) => e.kind === EVENT_COSMIC_OMEN).length, 0) : 0;
+    return { societyStage: best, corruptedVillager: best > 0 ? stages.indexOf(best) : -1, knowledgeTier: board.knowledge().tier || 0, cosmicOmens: omens, placeId: site ? site.data.id : '' };
+  },
 });
 // Homestead: the yard beside the lodging house by Core rules (homestead.js): crops by village day, animals and pets with needs and mood, daily sanity. 2D shows marks, 3D the meshes.
 const homestead = createHomesteadController({

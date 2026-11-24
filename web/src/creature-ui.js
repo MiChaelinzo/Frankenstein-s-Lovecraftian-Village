@@ -1,7 +1,10 @@
 // Creature controller: owns the seeded encounter for the current phase, weather and dread (creatures.js, the Core mirror), feeds it the 3D player position each frame,
 // applies the sanity drain and the lantern fuel it returns, and lays wards (salt line, chalk sigil) and the flare. No DOM beyond the status line.
 // The rules live in creatures.js; this file only wires them to the app. Creature names and texts are written through textContent or esc() only.
-import { parseCreatureCatalog, CreatureEncounter, SIGIL_RADIUS, creatureName, creatureText } from './creatures.js';
+import {
+  parseCreatureCatalog, CreatureEncounter, SIGIL_RADIUS, creatureName, creatureText,
+  selectAppearances, appearanceVisible, wardTurns, witnessClueId, isWitnessClue, WITNESS_PREFIX, manifestationName, manifestationText, manifestationWitness,
+} from './creatures.js';
 import { landmarkDressing, landmarkPathDressing } from './landmarks.js';
 import { composeDressing, dressingBoxes } from './dressing.js';
 import { isBlocked } from './lore.js';
@@ -10,6 +13,7 @@ import { phaseAt, dayNumber } from './clock.js';
 export const TELEGRAPH_SMOOTHING_PER_SEC = 1.2; // how fast the telegraph level follows the nearest creature: slow, so fog and sound never jump
 export const TELEGRAPH_NOTE_LEVEL = 0.35;        // the status line names a creature once the telegraph passes this
 export const DREAD_BUCKET = 10;                  // the encounter is rebuilt when dread crosses a ten percent step, the phase, the day or the weather changes
+export const WITNESS_RANGE_M = 14;             // a village figure of the upgrade path (spec 166) is witnessed from this close; a place figure or a glimpse is witnessed at once
 export const SANITY_APPLY_STEP = 0.05;           // sanity is applied in chunks of this many points so the HUD and the hash are not rewritten every frame
 
 /**
@@ -20,6 +24,61 @@ export function createCreatureController(deps) {
   const { $, tr, state } = deps;
   let cat = null, enc = new CreatureEncounter(null), builtKey = '', blockedFn = null, blockedKey = '', level = 0, nearestKind = '', owed = 0, lastNote = '';
   const lang = () => (typeof deps.lang === 'function' ? deps.lang() : deps.lang);
+
+  // ---- Creature upgrade path (spec 166): appearances selected by creatures.js for the day phase and the state deps.tierState() reports. Witnessing one records a board clue and a journal line, nothing more.
+  let tierList = [], tierKey = '', lastGlimpseTick = -1;
+  const witnessed = new Map(), dismissed = new Set();
+  const slotOf = (t) => `${dayNumber(t)}.${phaseAt(t)}`;
+  const keyOf = (a) => `${slotOf(tick())}:${a.defId}`;
+  function ensureTiers() {
+    if (!cat || !deps.tierState || !state.layout.length) { tierList = []; tierKey = ''; return; }
+    const t = tick(), ts = deps.tierState(), reduced = !!(deps.reducedMotion && deps.reducedMotion());
+    const ctx = { seed: state.seed, gridW: deps.gridW, gridD: deps.gridD, tick: t, dreadPercent: Math.floor(Math.max(0, Math.min(1, state.sanity.dread)) * 100 + 1e-9), societyStage: ts.societyStage, corruptedVillager: ts.corruptedVillager, knowledgeTier: ts.knowledgeTier, cosmicOmens: ts.cosmicOmens, placeId: ts.placeId || '', lastGlimpseTick, reducedMotion: reduced };
+    const key = [ctx.seed, slotOf(t), ctx.dreadPercent, ctx.societyStage, ctx.corruptedVillager, ctx.knowledgeTier, ctx.cosmicOmens, ctx.placeId, lastGlimpseTick, reduced ? 1 : 0, placeCount(), cat.manifestations.length].join('|');
+    if (key === tierKey) return;
+    tierKey = key;
+    tierList = selectAppearances(ctx, cat, deps.places ? deps.places() : null);
+  }
+  function witness(a) {
+    const def = cat.findManifestation(a.defId), k = keyOf(a);
+    witnessed.set(k, 0);
+    deps.noteClue?.(witnessClueId(a.defId));
+    deps.announce?.(`${manifestationName(def, lang())}. ${manifestationText(def, lang())}`);
+    deps.journal?.(tr('creature.witness', { text: manifestationWitness(def, lang()) }));
+  }
+  /** Advances the glimpse clocks and witnesses what the player is close enough to see. Called every 3D frame; it only reads and records, it never moves a figure toward the player. */
+  function updateTiers(dt, x, z) {
+    ensureTiers();
+    for (const a of tierList) {
+      const k = keyOf(a);
+      if (dismissed.has(k)) continue;
+      if (!witnessed.has(k)) {
+        const near = a.placeId || a.tier === 4 || Math.hypot(a.x - x, a.z - z) <= WITNESS_RANGE_M;
+        if (near) witness(a);
+      } else if (a.tier === 4) {
+        const elapsed = witnessed.get(k) + dt;
+        witnessed.set(k, elapsed);
+        if (!appearanceVisible(a, elapsed)) { dismissed.add(k); lastGlimpseTick = tick(); }
+      }
+    }
+  }
+  /** Renderer entries for the appearances in view: village figures stand where they were drawn; a glimpse is listed only while it is being witnessed. */
+  function manifest() {
+    ensureTiers();
+    const out = [];
+    for (const a of tierList) {
+      const k = keyOf(a);
+      if (dismissed.has(k) || (a.tier === 4 && !witnessed.has(k))) continue;
+      out.push({ tier: a.tier, defId: a.defId, x: a.x, z: a.z, placeId: a.placeId, still: a.still, elapsed: witnessed.get(k) || 0, seconds: a.seconds });
+    }
+    return out;
+  }
+  /** The investigator's own line for a witness clue id in the given language, or '' for any other id. */
+  function witnessTitle(clueId, l) {
+    if (!cat || !isWitnessClue(clueId)) return '';
+    const def = cat.findManifestation(clueId.slice(WITNESS_PREFIX.length));
+    return def ? manifestationWitness(def, l) : '';
+  }
 
   const placeCount = () => (deps.places ? deps.places().length : 0);
   function blocked() {
@@ -47,6 +106,7 @@ export function createCreatureController(deps) {
   /** One frame with the 3D player at (x, z): moves the creatures, takes the drain and the lantern fuel, and returns the step result. Does nothing under the vigil lock, which keeps its own sanity rules. */
   function update(dt, x, z) {
     ensure();
+    updateTiers(dt, x, z);
     if (!cat || !enc.creatures.length || !deps.allows('sanity_keys')) { level += (0 - level) * Math.min(1, dt * TELEGRAPH_SMOOTHING_PER_SEC); return null; }
     const inv = deps.inventory.player, r = enc.step(dt, x, z, tick(), inv.fuel, blocked());
     if (r.fuelBurn) inv.burnFuel(r.fuelBurn);
@@ -105,6 +165,7 @@ export function createCreatureController(deps) {
   /** Ward action by name (the satchel buttons and the 3D keys). */
   const ward = (kind) => {
     const r = kind === 'salt' ? laySalt() : kind === 'sigil' ? drawSigil() : kind === 'flare' ? fireFlare() : 'unknown';
+    if (r === '') for (const a of tierList) if (wardTurns(a, kind)) dismissed.add(keyOf(a)); // only tier 1 is turned by a ward; the others are avoided or only witnessed
     if (r === '' && kind !== 'flare') deps.onWard?.(kind); // a ward really laid (not refused): villagers in view may take note
     return r;
   };
@@ -115,7 +176,7 @@ export function createCreatureController(deps) {
   function layNow(kind) { return () => ward(kind); }
 
   return {
-    setCatalog, update, scene, wards, marks, ward, layNow,
+    setCatalog, update, scene, wards, marks, ward, layNow, manifest, witnessTitle,
     get level() { return level; }, get nearestKind() { return nearestKind; }, get encounter() { ensure(); return enc; }, get catalog() { return cat; },
   };
 }

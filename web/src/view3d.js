@@ -289,6 +289,63 @@ export function buildCreatures({ creatures, models, timeSec = 0, reduced = false
   return new Float32Array(out);
 }
 
+// ---------- creature upgrade path (spec 166): original procedural figures, a stair and a far silhouette; no meshes, no textures ----------
+export const MANIFEST_SIDES = 6, MANIFEST_FIGURE_HEIGHT = 1.8, MANIFEST_VIEW_M = 60, MANIFEST_FAR_M = 70, MANIFEST_FAR_HEIGHT = 55, MANIFEST_FADE_SECONDS = 0.8;
+export const MANIFEST_MAX_TRIANGLES = 400, MANIFEST_GLOW = 0.18, MANIFEST_STAIR_STEPS = 7, MANIFEST_DOUBLE_GAP_M = 12;
+const MANIFEST_COLORS = { 1: [0.62, 0.66, 0.68], 2: [0.72, 0.62, 0.55], 3: [0.5, 0.5, 0.56], 4: [0.025, 0.03, 0.04] };
+/** Brightness factor of a tier 4 glimpse at elapsed seconds: it fades in and out over MANIFEST_FADE_SECONDS; under reduced motion it is steady (the glimpse is only shorter). */
+export function glimpseFade(elapsed, seconds, reduced) {
+  if (reduced) return 1;
+  const edge = Math.min(elapsed, seconds - elapsed) / MANIFEST_FADE_SECONDS;
+  return Math.max(0, Math.min(1, edge));
+}
+/**
+ * Vertices (metres, 11 floats like buildWards) for the appearances of the creature upgrade path. entries: { tier, defId, x, z, placeId, still, elapsed, seconds }; eye: { x, z, yaw }.
+ * Tiers 1 and 2 are one pale figure, 3 is two figures far apart or a stair that ends behind the player, 4 is a dark silhouette far past the fog. Pure and deterministic; at most MANIFEST_MAX_TRIANGLES.
+ */
+export function buildManifestations({ entries, eye, reduced = false }) {
+  const out = [];
+  const vert = (p, n, c, glow, phase) => out.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2], glow, phase);
+  const tri = (a, b, c, col, glow, phase) => { const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz) || 1; for (const p of [a, b, c]) vert(p, [nx / l, ny / l, nz / l], col, glow, phase); };
+  const prism = (x, z, y0, y1, r0, r1, lean, col, glow, phase) => {
+    for (let i = 0; i < MANIFEST_SIDES; i++) {
+      const a0 = i / MANIFEST_SIDES * Math.PI * 2, a1 = (i + 1) / MANIFEST_SIDES * Math.PI * 2;
+      const b0 = [x + Math.cos(a0) * r0, y0, z + Math.sin(a0) * r0], b1 = [x + Math.cos(a1) * r0, y0, z + Math.sin(a1) * r0];
+      const t0 = [x + lean + Math.cos(a0) * r1, y1, z + Math.sin(a0) * r1], t1 = [x + lean + Math.cos(a1) * r1, y1, z + Math.sin(a1) * r1];
+      tri(b0, b1, t1, col, glow, phase); tri(b0, t1, t0, col, glow, phase); tri([x + lean, y1, z], t0, t1, col, glow, phase);
+    }
+  };
+  const figure = (x, z, tier, col, glow, phase) => {
+    const lean = tier === 2 ? 0.14 : 0;
+    prism(x, z, 0, MANIFEST_FIGURE_HEIGHT - 0.3, 0.28, 0.17, 0, col, glow, phase);
+    prism(x, z, MANIFEST_FIGURE_HEIGHT - 0.3, MANIFEST_FIGURE_HEIGHT, 0.13, 0.1, lean, col, glow, phase);
+  };
+  const box = (x, y, z, w, h, d, col, glow, phase) => {
+    const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, y0 = y, y1 = y + h;
+    const q = (a, b, c, e) => { tri(a, b, c, col, glow, phase); tri(a, c, e, col, glow, phase); };
+    q([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]); q([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]);
+    q([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]); q([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]); q([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]);
+    q([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]);
+  };
+  const yaw = eye.yaw || 0, fx = Math.sin(yaw), fz = Math.cos(yaw);
+  for (const e of entries || []) {
+    const col = MANIFEST_COLORS[e.tier] || MANIFEST_COLORS[1], phase = e.still || reduced ? 0 : CREATURE_SWAY_PHASE;
+    if (e.tier === 4) {
+      const fade = glimpseFade(e.elapsed || 0, e.seconds || 1, reduced || e.still), dx = e.x - eye.x, dz = e.z - eye.z, len = Math.hypot(dx, dz) || 1, cx = eye.x + dx / len * MANIFEST_FAR_M, cz = eye.z + dz / len * MANIFEST_FAR_M;
+      const sx = -dz / len, sz = dx / len, c = col.map((v) => v * fade), h = MANIFEST_FAR_HEIGHT;
+      tri([cx - sx * 14, 0, cz - sz * 14], [cx + sx * 14, 0, cz + sz * 14], [cx + sx * 3, h, cz + sz * 3], c, 0, 0);
+      tri([cx - sx * 14, 0, cz - sz * 14], [cx + sx * 3, h, cz + sz * 3], [cx - sx * 5, h * 0.7, cz - sz * 5], c, 0, 0);
+      tri([cx + sx * 3, h, cz + sz * 3], [cx + sx * 14, 0, cz + sz * 14], [cx + sx * 8, h * 0.5, cz + sz * 8], c, 0, 0);
+    } else if (e.defId === 'impossible_stair') {
+      for (let i = 0; i < MANIFEST_STAIR_STEPS; i++) { const a = -yaw + i * 0.5; box(eye.x + fx * 5 + Math.cos(a) * 1.2, i * 0.45, eye.z + fz * 5 + Math.sin(a) * 1.2, 1.4, 0.3, 0.6, col, MANIFEST_GLOW, phase); }
+    } else if (Math.hypot(e.x - eye.x, e.z - eye.z) <= MANIFEST_VIEW_M) {
+      figure(e.x, e.z, e.tier, col, MANIFEST_GLOW, phase);
+      if (e.defId === 'doubled_villager') figure(e.x + MANIFEST_DOUBLE_GAP_M, e.z, e.tier, col, MANIFEST_GLOW, phase);
+    }
+  }
+  return new Float32Array(out);
+}
+
 export const WARD_LIFT_M = 0.04, SALT_WIDTH_M = 0.2, SIGIL_LINE_M = 0.16, SIGIL_SEGMENTS = 20, WARD_GLOW = 0.25, WARD_COLOR = [0.86, 0.85, 0.8];
 /**
  * Flat chalk and salt on the ground (metres): a salt line is a strip along its segment, a sigil is a ring with four spokes. entries: { kind: 'salt' | 'sigil', ax, az, bx, bz, radius }.
@@ -1313,8 +1370,8 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
     fogs.density = Math.max(fogs.density, fogFloorFor(tier.drawDistance)); // the city's far chunks are not drawn (chunkCullDistance), so the fog must hide them first
     const grade = gradeParams({ tick: s.tick, dread: s.dread, weather: s.night.weather, tier, highContrast: hc });
     const seen = Math.min(fogCullDistance(fogs.density), tier.drawDistance); // villagers lost in the fog are not rebuilt or drawn
-    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${v.corruption | 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
-    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced, tier }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd = buildWards(s.wards), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
+    const vsc = [...(s.villagers || []), ...(s.folk || []).map((w) => ({ id: 1000 + w.id, pos: [w.x, 0, w.z], yaw: w.yaw, lantern: w.lantern }))].filter((v) => Math.hypot(v.pos[0] - eye.x, v.pos[2] - eye.z) <= seen), cvs = (s.creatures || []).filter((c) => Math.hypot(c.pos[0] - eye.x, c.pos[2] - eye.z) <= seen), vkey = `${(s.wards || []).map((w) => `${w.kind}${w.ax.toFixed(1)},${w.az.toFixed(1)}`).join('|')}#${cvs.map((c) => `${c.id}:${c.pos[0].toFixed(1)},${c.pos[2].toFixed(1)}`).join('|')}|${(s.manifestations || []).map((m) => `${m.defId}:${Math.round((m.elapsed || 0) * 10)}`).join('|')}|${vsc.map((v) => `${v.id}:${v.pos[0].toFixed(1)},${v.pos[2].toFixed(1)}:${v.lantern ? 1 : 0}:${v.walking ? 1 : 0}:${v.corruption | 0}:${(v.fade ?? 1).toFixed(2)}`).join('|')}|${meshes ? 1 : 0}|${reduced ? 0 : Math.floor(time / 0.1)}|${nextFlockKey}|${birdSlot}`;
+    if (vkey !== lastVillagers) { lastVillagers = vkey; { const v3 = buildVillagers({ villagers: vsc, model: meshes && meshes.get('villager'), timeSec: time, reduced, tier }), cr0 = buildCreatures({ creatures: cvs.map((c) => ({ ...c, yaw: Math.atan2(eye.x - c.pos[0], eye.z - c.pos[2]) })), models: meshes, timeSec: time, reduced }), wd0 = buildWards(s.wards), mf = buildManifestations({ entries: s.manifestations, eye, reduced }), wd = new Float32Array(wd0.length + mf.length), cr = new Float32Array(cr0.length + wd.length), all = new Float32Array(v3.length + cr.length + birds.length); wd.set(wd0); wd.set(mf, wd0.length); cr.set(cr0); cr.set(wd, cr0.length); all.set(v3); all.set(cr, v3.length); all.set(birds, v3.length + cr.length); renderer.setVillagers(all); peopleDrawn = v3.length > 0 ? vsc.filter((v) => v.id < 1000).length : 0; } } // peopleDrawn: named villagers (not street walkers) in the buffer, for the perf HUD and the browser check
     const lanternBearers = vsc.filter((v) => v.lantern).map((v) => ({ pos: [v.pos[0], 1.0, v.pos[2]], radius: 6, phase: v.id * 1.3, post: false }));
     const lit = nearestLights([...lights, ...lanternBearers], view).map((l) => {
       const k = lanternFlicker(l.phase, time, s.dread, reduced) * (1 - 0.3 * s.dread);
