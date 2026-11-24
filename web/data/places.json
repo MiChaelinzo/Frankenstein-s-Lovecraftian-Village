@@ -1406,6 +1406,135 @@
      "tier": 2
     }
    ]
+  },
+  {
+   "id": "catacomb",
+   "anchor": "catacombs",
+   "radius": 6.5,
+   "en": "Catacomb Interior",
+   "fr": "Interieur des catacombes",
+   "budget": {
+    "low": 240,
+    "medium": 420,
+    "high": 600
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 5.6
+   },
+   "door": {
+    "x": 0.0,
+    "z": 3.9
+   },
+   "prompts": {
+    "enter": {
+     "en": "Descend the worn steps into the catacombs",
+     "fr": "Descendre les marches usees vers les catacombes"
+    },
+    "leave": {
+     "en": "Climb the steps back to the gate",
+     "fr": "Remonter les marches jusqu'a la grille"
+    },
+    "hatch": {
+     "en": "Lift the loose flagstone",
+     "fr": "Soulever la dalle descellee"
+    },
+    "sealed": {
+     "en": "A flagstone rocks underfoot, but you do not know why",
+     "fr": "Une dalle bouge sous le pied, sans que vous sachiez pourquoi"
+    }
+   },
+   "procedural": true,
+   "tunnel": {
+    "hatch": {
+     "x": -0.7,
+     "z": 2.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "abbey",
+    "found": {
+     "en": "The passage under the flagstone climbs in the dark and comes out among the abbey ruins.",
+     "fr": "Le passage sous la dalle monte dans le noir et debouche parmi les ruines de l'abbaye."
+    }
+   },
+   "rooms": [
+    {
+     "id": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    }
+   ],
+   "props": [],
+   "discoveries": [
+    {
+     "id": "forbidden_texts",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "clue": "place@catacomb_texts",
+     "source": "catacombs",
+     "lead": false,
+     "statement": "k_catacomb_texts",
+     "en": "Forbidden texts",
+     "fr": "Textes interdits",
+     "text": {
+      "en": "Shelves of unbound leaves in a dozen hands all describe the same door, and none agrees on which side you are standing.",
+      "fr": "Des rayons de feuillets non relies, de douze ecritures, decrivent tous la meme porte sans s'accorder sur le cote ou l'on se tient."
+     }
+    },
+    {
+     "id": "dimensional_tear",
+     "room": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "clue": "place@catacomb_tear",
+     "source": "mythos_event",
+     "lead": false,
+     "statement": "k_catacomb_tear",
+     "en": "Dimensional tear",
+     "fr": "Dechirure dimensionnelle",
+     "text": {
+      "en": "A seam hangs in the stale air. Through it lies the same chamber, a little wrong, and the lamp in it is lit by no one.",
+      "fr": "Une couture pend dans l'air vicie. Au travers, la meme salle, un peu fausse, et la lampe y est allumee par personne."
+     },
+     "requiresBenefit": "dimensional_gateways",
+     "requiresEffect": "door_appearing"
+    },
+    {
+     "id": "ancient_prison",
+     "room": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "clue": "place@catacomb_prison",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_catacomb_prison",
+     "en": "Ancient prison",
+     "fr": "Prison ancienne",
+     "text": {
+      "en": "Iron older than the abbey. The cell is empty, but fresh scratches count the missing, one for each night they were kept here.",
+      "fr": "Un fer plus vieux que l'abbaye. La cellule est vide, mais des entailles fraiches comptent les disparus, une par nuit passee ici."
+     },
+     "requires": "place@catacomb_texts"
+    }
+   ],
+   "parts": []
   }
  ]
 }

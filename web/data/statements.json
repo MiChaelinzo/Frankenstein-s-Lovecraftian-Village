@@ -244,6 +244,39 @@
    "minute": 1320,
    "en": "Beyond the red marks lies a hollow ringed by three stones, and the village's lost are counted there.",
    "fr": "Au-dela des marques rouges se trouve un creux entoure de trois pierres, et c'est la qu'on compte les perdus du village."
+  },
+  {
+   "id": "k_catacomb_texts",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_texts",
+   "place": "catacombs",
+   "night": 1,
+   "minute": 1170,
+   "en": "The texts under the gate were written by many hands, and every one describes the way out as a door that moves.",
+   "fr": "Les textes sous la grille sont de nombreuses mains, et toutes decrivent la sortie comme une porte qui bouge."
+  },
+  {
+   "id": "k_catacomb_prison",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_prison",
+   "place": "catacombs",
+   "night": 2,
+   "minute": 1230,
+   "en": "The old prison under the catacombs has been used again this year, and its scratches number the missing.",
+   "fr": "L'ancienne prison sous les catacombes a servi de nouveau cette annee, et ses entailles comptent les disparus."
+  },
+  {
+   "id": "k_catacomb_tear",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_tear",
+   "place": "catacombs",
+   "night": 3,
+   "minute": 1290,
+   "en": "Below the cemetery the air has a seam, and what lies on the other side of it is this same place, lit.",
+   "fr": "Sous le cimetiere l'air a une couture, et ce qui se trouve de l'autre cote est ce meme lieu, eclaire."
   }
  ],
  "contradictions": [

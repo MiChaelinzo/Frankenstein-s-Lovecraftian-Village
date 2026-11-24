@@ -706,7 +706,7 @@ theory = createTheoryController({
   board, lore, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
 // Places: the Abandoned Manor and later places (places.js, Core VillagePlaces). Draws props and boxes through the 3D scene; discoveries become board clues.
-const places = createPlacesController({ state, gridW: GRID_W, gridD: GRID_D, lang, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
+const places = createPlacesController({ state, gridW: GRID_W, gridD: GRID_D, lang, night: () => state.night + 1, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,

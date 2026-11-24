@@ -358,5 +358,146 @@ namespace Frankenstein.Core.Tests
                 }
             }
         }
+
+        private static PlaceData Catacomb() { return Library().Find(VillagePlaces.Catacomb); }
+
+        [Fact]
+        public void Catacomb_graph_is_seeded_connected_has_a_way_back_and_varies()
+        {
+            var seen = new HashSet<string>();
+            var sizes = new HashSet<int>();
+            foreach (int seed in Seeds())
+            {
+                var g = PlaceGraph.Generate(seed, 3);
+                Assert.Equal(g.Dump(seed), PlaceGraph.Generate(seed, 3).Dump(seed));
+                Assert.InRange(g.Rooms.Count, PlaceGraph.MinRooms, PlaceGraph.Cols * PlaceGraph.Rows);
+                Assert.True(g.Connected(), "connected seed " + seed);
+                Assert.Equal(g.Rooms.Count - 1 + g.Loops, g.Edges.Count);
+                foreach (var r in g.Rooms)
+                {
+                    var path = g.PathBack(r.Cell);
+                    Assert.Equal(r.Depth + 1, path.Count);
+                    Assert.Equal(r.Cell, path[0]);
+                    Assert.Equal(PlaceGraph.EntranceCell, path[path.Count - 1]);
+                    for (int i = 0; i + 1 < path.Count; i++) Assert.Contains(g.Edges, e => (e[0] == path[i] && e[1] == path[i + 1]) || (e[1] == path[i] && e[0] == path[i + 1]));
+                }
+                Assert.Empty(g.PathBack(PlaceGraph.Cols * PlaceGraph.Rows));
+                foreach (var role in PlaceGraph.Roles) Assert.Single(g.Rooms, r => r.Role == role);
+                Assert.Single(g.Rooms, r => r.Role == PlaceGraph.EntranceRole);
+                Assert.Equal(0, g.RoomWithRole(PlaceGraph.EntranceRole).Depth);
+                seen.Add(g.Dump(seed).Substring(g.Dump(seed).IndexOf('|')));
+                sizes.Add(g.Rooms.Count);
+            }
+            Assert.True(seen.Count > 10, "different seeds should give different graphs");
+            Assert.True(sizes.Count > 1);
+            Assert.StartsWith("catacomb seed=1 rooms=", PlaceGraph.Generate(1, 3).Dump(1));
+        }
+
+        [Fact]
+        public void Catacomb_stands_clear_with_its_graph_inside_the_footprint_and_a_way_back_to_the_entrance()
+        {
+            var lib = Library();
+            var data = lib.Find(VillagePlaces.Catacomb);
+            Assert.True(data.Procedural);
+            Assert.Equal("catacombs", data.Anchor);
+            foreach (int seed in Seeds())
+                foreach (int grid in Grids)
+                {
+                    var placed = Standing(lib, seed, grid);
+                    var p = placed.Single(x => x.Id == VillagePlaces.Catacomb);
+                    Assert.Equal("", VillagePlaces.Check(data, p, seed, grid, grid, placed.Where(x => x != p).ToList()));
+                    Assert.Equal(PlaceGraph.Generate(seed, 3).Dump(seed), p.Graph.Dump(seed));
+                    Assert.Equal(p.Entrance, VillagePlaces.Leave(p, PlaceExit.Door));
+                    foreach (var r in p.Graph.Rooms)
+                    {
+                        var w = VillagePlaces.ToWorld(p, r.X, r.Z);
+                        Assert.True(Math.Sqrt((w[0] - p.X) * (w[0] - p.X) + (w[1] - p.Z) * (w[1] - p.Z)) + PlaceGraph.RoomHalf * Math.Sqrt(2.0) <= p.Radius + 1e-9, "room inside the footprint");
+                        Assert.True(VillagePlaces.PointInBounds(seed, grid, grid, w[0], w[1]));
+                    }
+                    var entranceRoom = p.Graph.RoomAt(PlaceGraph.EntranceCell);
+                    var door = VillagePlaces.Enter(p);
+                    Assert.True(Math.Abs(door[0] - VillagePlaces.ToWorld(p, entranceRoom.X, entranceRoom.Z)[0]) <= PlaceGraph.RoomHalf + 1e-9, "the door opens into the entrance room");
+                    for (int t = 0; t < VillagePlaces.Tiers; t++)
+                    {
+                        Assert.True(VillagePlaces.TotalTriangles(data, p, t) <= data.Budget[t], "budget tier " + t);
+                        if (t > 0) Assert.True(VillagePlaces.TotalTriangles(data, p, t) > VillagePlaces.TotalTriangles(data, p, t - 1));
+                    }
+                }
+        }
+
+        [Fact]
+        public void Catacomb_discoveries_sit_in_their_role_rooms_and_the_catacombs_have_a_lore_book()
+        {
+            var data = Catacomb();
+            var lore = MissingOutcomesTests.Lore();
+            Assert.Contains(lore.Books, b => b.Place == "catacombs");
+            foreach (int seed in new[] { 1, 42, 1818 })
+            {
+                var p = VillagePlaces.Place(data, seed, VillageDistricts.CityGrid, VillageDistricts.CityGrid, null);
+                foreach (var d in data.Discoveries)
+                {
+                    var room = p.Graph.RoomWithRole(d.Room);
+                    Assert.NotNull(room);
+                    var at = VillagePlaces.DiscoveryPoint(p, d);
+                    var centre = VillagePlaces.ToWorld(p, room.X, room.Z);
+                    Assert.Equal(centre[0], at[0]); Assert.Equal(centre[1], at[1]);
+                }
+            }
+            Assert.Contains("graph role", Assert.Throws<FormatException>(() => PlaceLibrary.Parse(DataText().Replace("\"room\": \"prison\"", "\"room\": \"nowhere\""))).Message);
+        }
+
+        [Fact]
+        public void Dimensional_tear_needs_eldritch_science_and_a_night_that_shows_the_door()
+        {
+            var know = KnowledgeLibrary.Parse(File.ReadAllText(DataPath("knowledge.json")));
+            var tear = Catacomb().Discoveries.Single(d => d.Id == "dimensional_tear");
+            Assert.Equal("dimensional_gateways", tear.RequiresBenefit);
+            Assert.Equal("door_appearing", tear.RequiresEffect);
+            Assert.Contains(tear.RequiresBenefit, know.Tiers[4].Benefits);
+            Assert.Equal("eldritch_science", know.Tiers[4].Id);
+            Assert.Contains(know.Effects, e => e.Id == tear.RequiresEffect && e.MinTier <= 4);
+            int shown = 0, hidden = 0;
+            foreach (int seed in new[] { 1, 42, 1818, -7 })
+                for (int night = 1; night <= 8; night++)
+                    for (int tier = 0; tier <= KnowledgeLibrary.MaxTier; tier++)
+                    {
+                        bool open = VillagePlaces.Revealed(tear, new string[0], know, seed, night, tier);
+                        if (tier < 4) Assert.False(open, "below eldritch_science");
+                        else if (open) { shown++; Assert.Contains("door_appearing", RealityDistortion.For(know, seed, night, tier)); }
+                        else if (tier >= 4) hidden++;
+                    }
+            Assert.True(shown > 0 && hidden > 0, "some nights show the tear and some do not");
+            Assert.False(VillagePlaces.Revealed(tear, new string[0], null, 1, 1, 5));
+            Assert.True(VillagePlaces.Revealed(Catacomb().Discoveries.Single(d => d.Id == "forbidden_texts"), null, know, 1, 1, 0));
+        }
+
+        [Fact]
+        public void Catacomb_texts_prison_and_tear_feed_knowledge_the_board_and_one_lead()
+        {
+            var lib = Library();
+            var data = Catacomb();
+            var prison = data.Discoveries.Single(d => d.Id == "ancient_prison");
+            Assert.Equal("place@catacomb_texts", prison.Requires);
+            Assert.False(VillagePlaces.Revealed(prison, null));
+            Assert.True(VillagePlaces.Revealed(prison, new List<string> { "place@catacomb_texts" }));
+            var e = new InvestigationEvidence();
+            e.ClueIds.Add("place@catacomb_texts"); e.ClueIds.Add("place@catacomb_tear"); e.ClueIds.Add("place@catacomb_prison");
+            Assert.Equal(new[] { "catacombs", "cult_discovery", "mythos_event" }, InvestigationRules.KnowledgeSources(e, lib).OrderBy(x => x, StringComparer.Ordinal).ToArray());
+            var lore = MissingOutcomesTests.Lore();
+            foreach (int seed in new[] { 1, 42, 1818, -7 })
+            {
+                VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                int target = VillagePlaces.TrailMissing(seed, VillagePlaces.Catacomb, story.Missing.Count);
+                Assert.InRange(target, 0, story.Missing.Count - 1);
+                var prisonOnly = new InvestigationEvidence(); prisonOnly.ClueIds.Add("place@catacomb_prison");
+                var others = new InvestigationEvidence(); others.ClueIds.Add("place@catacomb_texts"); others.ClueIds.Add("place@catacomb_tear");
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, prisonOnly, k) + (k == target ? 1 : 0), MissingOutcomes.CountLeads(story, lore, prisonOnly, k, lib));
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, others, k), MissingOutcomes.CountLeads(story, lore, others, k, lib));
+                }
+            }
+            Assert.NotEqual(VillagePlaces.TrailMissing(1, VillagePlaces.Forest, 7) * 100 + VillagePlaces.TrailMissing(42, VillagePlaces.Forest, 7), -1);
+        }
     }
 }

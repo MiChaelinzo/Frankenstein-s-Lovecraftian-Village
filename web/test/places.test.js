@@ -16,7 +16,8 @@ import { countLeads } from '../src/outcomes.js';
 import {
   parsePlaceLibrary, findPlace, placePlace, buildPlacement, checkPlacement, inBounds, overlappingLandmark, overlapsCity, roundTrip, enterPlace, leavePlace, EXIT_DOOR, EXIT_TUNNEL,
   triangles, withinBudget, placeDressing, placeParts, discoveryPoint, tunnelOpen, trailMissing, pointInBounds, TIERS, MANOR, FOREST,
-  lanternPoints, huntingTrail, trailDressing, revealed, LANTERN_GAP, LANTERN_REACH, TRAIL_SPACING, MAX_TRAIL_LENGTH,
+  lanternPoints, huntingTrail, trailDressing, revealed, revealedAt, CATACOMB, generateGraph, graphConnected, graphPathBack, graphDump, graphRoomWithRole, graphRoom, totalTriangles, GRAPH_ROLES, GRAPH_MIN_ROOMS, ROOM_HALF,
+  GRAPH_ENTRANCE_CELL, toWorld, LANTERN_GAP, LANTERN_REACH, TRAIL_SPACING, MAX_TRAIL_LENGTH,
 } from '../src/places.js';
 import { footprintOf } from '../src/dressing.js';
 import { tierSettings } from '../src/quality.js';
@@ -42,6 +43,8 @@ test('placements, entrance, door, hatch, tunnel exit and dressing match C# for e
       assert.deepEqual(p.hatch.map((v) => v + 0), e.hatch); assert.deepEqual(p.tunnelExit, e.tunnelExit);
       assert.deepEqual(findPlace(lib, e.id).discoveries.map((d) => discoveryPoint(p, d).map((v) => v + 0)), e.discoveries);
       assert.deepEqual(placeDressing(findPlace(lib, e.id), p).map((i) => [i.kind, i.x + 0, i.z + 0, i.yaw]), e.dressing);
+      assert.equal(p.graph ? graphDump(p.graph, w.seed) : '', e.graph);
+      assert.deepEqual([0, 1, 2].map((t) => totalTriangles(findPlace(lib, e.id), p, t)), e.tris);
       assert.deepEqual(lanternPoints(findPlace(lib, e.id), p).map((pt) => pt.map((v) => v + 0)), e.lanterns);
       assert.deepEqual(trailDressing(findPlace(lib, e.id), p, w.seed, w.grid, w.grid).map((i) => [i.kind, i.x + 0, i.z + 0, i.yaw]), e.trail);
     }
@@ -55,6 +58,8 @@ test('triangle counts, the tunnel gate and the trails match C#', () => {
   }
   const know = parseKnowledgeLibrary(text('knowledge.json'));
   assert.deepEqual(golden.tunnel, [0, 1, 2, 3, 4, 5].map((t) => (tunnelOpen(manor, benefitsAt(know, t)) ? 1 : 0)));
+  const knowledgeLib = parseKnowledgeLibrary(text('knowledge.json')), tearData = findPlace(lib, CATACOMB).discoveries.find((d) => d.requiresEffect);
+  for (const [seed, night, tier, open] of golden.tearGate) assert.equal(revealedAt(tearData, new Set(), knowledgeLib, seed, night, tier) ? 1 : 0, open);
   for (const [id, seed, n, who] of golden.trails) assert.equal(trailMissing(seed, id, n), who);
 });
 
@@ -180,5 +185,87 @@ test('the forest trail is a lead on exactly one missing person chosen by the see
     const story = buildStory(storyLib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
     const target = trailMissing(seed, FOREST, story.missing.length), only = emptyEvidence(); only.clueIds.add('place@forest_trail');
     for (let k = 0; k < story.missing.length; k++) assert.equal(countLeads(story, lore, only, k, lib), countLeads(story, lore, only, k) + (k === target ? 1 : 0));
+  }
+});
+
+const catacomb = findPlace(lib, CATACOMB);
+
+test('catacomb graph is seeded, connected, has a way back from every room and varies with the seed', () => {
+  const dumps = new Set(), sizes = new Set();
+  for (const seed of seeds) {
+    const g = generateGraph(seed, 3);
+    assert.equal(graphDump(g, seed), graphDump(generateGraph(seed, 3), seed));
+    assert.ok(g.rooms.length >= GRAPH_MIN_ROOMS && g.rooms.length <= 9);
+    assert.ok(graphConnected(g)); assert.equal(g.edges.length, g.rooms.length - 1 + g.loops);
+    for (const r of g.rooms) {
+      const path = graphPathBack(g, r.cell);
+      assert.equal(path.length, r.depth + 1); assert.equal(path[0], r.cell); assert.equal(path[path.length - 1], GRAPH_ENTRANCE_CELL);
+      for (let i = 0; i + 1 < path.length; i++) assert.ok(g.edges.some((e) => (e[0] === path[i] && e[1] === path[i + 1]) || (e[1] === path[i] && e[0] === path[i + 1])));
+    }
+    assert.deepEqual(graphPathBack(g, 9), []);
+    for (const role of GRAPH_ROLES) assert.equal(g.rooms.filter((r) => r.role === role).length, 1);
+    assert.equal(graphRoomWithRole(g, 'entrance').depth, 0);
+    const d = graphDump(g, seed); dumps.add(d.slice(d.indexOf('|'))); sizes.add(g.rooms.length);
+  }
+  assert.ok(dumps.size > 10 && sizes.size > 1);
+});
+
+test('catacomb stands clear with its graph inside the footprint, the door opens into the entrance room and budgets hold', () => {
+  assert.equal(catacomb.anchor, 'catacombs'); assert.ok(catacomb.procedural);
+  for (const seed of seeds) for (const grid of [24, CITY_GRID]) {
+    const standing = [];
+    for (const data of lib.places) standing.push(placePlace(data, seed, grid, grid, standing));
+    const p = standing.find((x) => x.id === CATACOMB), others = standing.filter((x) => x !== p);
+    assert.equal(checkPlacement(catacomb, p, seed, grid, grid, others), '');
+    assert.deepEqual(leavePlace(p, EXIT_DOOR), p.entrance);
+    for (const r of p.graph.rooms) {
+      const w = toWorld(p, r.x, r.z);
+      assert.ok(Math.hypot(w[0] - p.x, w[1] - p.z) + ROOM_HALF * Math.SQRT2 <= p.radius + 1e-9); assert.ok(pointInBounds(seed, grid, grid, w[0], w[1]));
+    }
+    const room = graphRoom(p.graph, GRAPH_ENTRANCE_CELL), door = enterPlace(p), at = toWorld(p, room.x, room.z);
+    assert.ok(Math.abs(door[0] - at[0]) + Math.abs(door[1] - at[1]) <= ROOM_HALF * 2 + 1e-9);
+    for (let t = 0; t < TIERS; t++) { assert.ok(totalTriangles(catacomb, p, t) <= catacomb.budget[t]); if (t > 0) assert.ok(totalTriangles(catacomb, p, t) > totalTriangles(catacomb, p, t - 1)); }
+    assert.equal(placeParts(catacomb, p, 2).length, p.graph.rooms.length * 4 + p.graph.edges.length * 2 + 3);
+  }
+});
+
+test('catacomb discoveries sit in their role rooms; the tear needs eldritch science and a night that shows the door', () => {
+  const know = parseKnowledgeLibrary(text('knowledge.json')), lore = parseLoreLibrary(text('lore_books.json'));
+  assert.ok(lore.books.some((b) => b.place === 'catacombs'));
+  const p = placePlace(catacomb, 42, CITY_GRID, CITY_GRID);
+  for (const d of catacomb.discoveries) { const r = graphRoomWithRole(p.graph, d.room), w = toWorld(p, r.x, r.z); assert.deepEqual(discoveryPoint(p, d).map((v) => v + 0), w.map((v) => v + 0)); }
+  assert.throws(() => parsePlaceLibrary(text('places.json').replace('"room": "prison"', '"room": "nowhere"')), /graph role/);
+  const tear = catacomb.discoveries.find((d) => d.id === 'dimensional_tear');
+  assert.equal(tear.requiresBenefit, 'dimensional_gateways'); assert.equal(tear.requiresEffect, 'door_appearing');
+  assert.ok(benefitsAt(know, 4).includes('dimensional_gateways') && !benefitsAt(know, 3).includes('dimensional_gateways'));
+  let shown = 0, hidden = 0;
+  for (const seed of [1, 42, 1818, -7]) for (let night = 1; night <= 8; night++) for (let tier = 0; tier <= 5; tier++) {
+    const open = revealedAt(tear, new Set(), know, seed, night, tier);
+    if (tier < 4) assert.ok(!open); else if (open) shown++; else hidden++;
+  }
+  assert.ok(shown > 0 && hidden > 0);
+  assert.ok(!revealedAt(tear, new Set(), null, 1, 1, 5));
+  assert.ok(revealedAt(catacomb.discoveries.find((d) => d.id === 'forbidden_texts'), null, know, 1, 1, 0));
+});
+
+test('catacomb clues earn catacombs, mythos_event and cult_discovery; the prison needs the texts and is one lead on one missing person', () => {
+  const prison = catacomb.discoveries.find((d) => d.id === 'ancient_prison');
+  assert.equal(prison.requires, 'place@catacomb_texts');
+  assert.ok(!revealed(prison, null) && revealed(prison, new Set(['place@catacomb_texts'])));
+  const e = emptyEvidence(); for (const id of ['place@catacomb_texts', 'place@catacomb_tear', 'place@catacomb_prison']) e.clueIds.add(id);
+  assert.deepEqual(knowledgeSources(e, lib).sort(), ['catacombs', 'cult_discovery', 'mythos_event']);
+  const statements = parseStatementLibrary(text('statements.json'));
+  for (const d of catacomb.discoveries) { const st = statements.statements.find((x) => x.id === d.statement); assert.ok(st && st.ref === d.clue); }
+  const lore = parseLoreLibrary(text('lore_books.json')), storyLib = parseStoryLibrary(text('story.json')), nameLib = parseNameLibrary(text('names.json'));
+  const catalog = new PrefabCatalog(JSON.parse(text('village_catalog.json')).entries);
+  for (const seed of [1, 42, 1818, -7]) {
+    const layout = generateCityLayout(catalog, CITY_GRID, CITY_GRID, CITY_PIECES, seed), roster = generateRoster(seed, layout);
+    const story = buildStory(storyLib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
+    const target = trailMissing(seed, CATACOMB, story.missing.length), only = emptyEvidence(); only.clueIds.add('place@catacomb_prison');
+    const rest = emptyEvidence(); rest.clueIds.add('place@catacomb_texts'); rest.clueIds.add('place@catacomb_tear');
+    for (let k = 0; k < story.missing.length; k++) {
+      assert.equal(countLeads(story, lore, only, k, lib), countLeads(story, lore, only, k) + (k === target ? 1 : 0));
+      assert.equal(countLeads(story, lore, rest, k, lib), countLeads(story, lore, rest, k));
+    }
   }
 });

@@ -40,6 +40,8 @@ namespace Frankenstein.Core
         public string Id, Room, ClueId, Source, StatementId;
         /// <summary>The clue id of an earlier discovery of the same place that must be on the board before this one can be found (a hidden landmark revealed by a lead), or "" when it is always findable.</summary>
         public string Requires = "";
+        /// <summary>A knowledge benefit (such as dimensional_gateways) the explorer's tier must unlock, and a reality distortion effect (such as door_appearing) that must be among tonight's effects (<see cref="RealityDistortion"/>); "" for none. Both gate <see cref="VillagePlaces.Revealed(PlaceDiscovery, ICollection{string}, KnowledgeLibrary, int, int, int)"/>.</summary>
+        public string RequiresBenefit = "", RequiresEffect = "";
         public double X, Z;
         public bool Lead;
         public LocalizedName Title, Text;
@@ -57,6 +59,8 @@ namespace Frankenstein.Core
         public double EntranceX, EntranceZ, DoorX, DoorZ, HatchX, HatchZ;
         /// <summary>Whether an abandoned hunting trail leads from the nearest lit path to the entrance (<see cref="VillagePlaces.HuntingTrail"/>).</summary>
         public bool HuntingTrail;
+        /// <summary>Whether the rooms are a seeded room graph (<see cref="PlaceGraph"/>) instead of the authored Rooms; the discoveries then name the graph roles (<see cref="PlaceGraph.Roles"/>) as their room.</summary>
+        public bool Procedural;
         /// <summary>Lantern markers in the local frame, from the deepest point out to the entrance: the way back (<see cref="VillagePlaces.LanternGap"/> apart at most). Empty for a place without them.</summary>
         public List<double[]> Lanterns = new List<double[]>();
         public Dictionary<string, LocalizedName> Prompts = new Dictionary<string, LocalizedName>();
@@ -123,6 +127,11 @@ namespace Frankenstein.Core
                     if (!(o["huntingTrail"] is bool)) throw new FormatException("places: " + who + " huntingTrail must be true or false");
                     p.HuntingTrail = (bool)o["huntingTrail"];
                 }
+                if (o.ContainsKey("procedural"))
+                {
+                    if (!(o["procedural"] is bool)) throw new FormatException("places: " + who + " procedural must be true or false");
+                    p.Procedural = (bool)o["procedural"];
+                }
                 if (o.ContainsKey("lanterns"))
                 {
                     foreach (var r in Objects(o, "lanterns")) p.Lanterns.Add(new[] { Num(r, "x", who + " lantern"), Num(r, "z", who + " lantern") });
@@ -175,6 +184,9 @@ namespace Frankenstein.Core
                         foreach (var earlier in p.Discoveries) if (earlier.ClueId == d.Requires) known = true;
                         if (!known) throw new FormatException("places: " + who + " discovery " + d.Id + " requires unknown earlier clue " + d.Requires);
                     }
+                    if (r.ContainsKey("requiresBenefit")) d.RequiresBenefit = Str(r, "requiresBenefit", who + " discovery");
+                    if (r.ContainsKey("requiresEffect")) d.RequiresEffect = Str(r, "requiresEffect", who + " discovery");
+                    if (p.Procedural && Array.IndexOf(PlaceGraph.Roles, d.Room) < 0) throw new FormatException("places: " + who + " discovery " + d.Id + " names a room that is no graph role: " + d.Room);
                     if (!d.ClueId.StartsWith(CluePrefix, StringComparison.Ordinal)) throw new FormatException("places: " + who + " discovery " + d.Id + " clue must start with " + CluePrefix);
                     if (lib.FindByClue(d.ClueId) != null) throw new FormatException("places: duplicate clue id " + d.ClueId);
                     if (KnowledgeLibrary.SourceIndex(d.Source) < 0) throw new FormatException("places: " + who + " discovery " + d.Id + " has unknown knowledge source " + d.Source);
@@ -239,6 +251,172 @@ namespace Frankenstein.Core
         }
     }
 
+    /// <summary>One room of a <see cref="PlaceGraph"/>: its cell, its centre in the place's local frame (whole metres), its depth in the spanning tree, the cell it was reached from (-1 for the entrance) and its role.</summary>
+    public sealed class PlaceGraphRoom
+    {
+        public int Cell, X, Z, Depth, Parent;
+        public string Role = PlaceGraph.ChamberRole;
+    }
+
+    /// <summary>
+    /// The seeded room graph of a procedural place (the catacomb interior): rooms on a 3 by 3 grid of cells, grown from the entrance cell by random frontier picks (so it is a connected tree), plus at most one loop edge. Integer cell maths and
+    /// <see cref="SeededRandom"/> only, so the same seed always gives the same graph. The three deepest rooms become the prison, the dimensional tear and the forbidden texts; every room has a path back to the entrance room.
+    /// </summary>
+    public sealed class PlaceGraph
+    {
+        public const int Cols = 3, Rows = 3, Pitch = 3, MinRooms = 6, EntranceCell = 1;
+        public const double RoomHalf = 1.2, CorridorHalf = 0.5;
+        public const string EntranceRole = "entrance", ChamberRole = "chamber", PrisonRole = "prison", TearRole = "tear", TextsRole = "texts";
+        /// <summary>The roles discoveries may name as their room.</summary>
+        public static readonly string[] Roles = { TextsRole, TearRole, PrisonRole };
+
+        public List<PlaceGraphRoom> Rooms = new List<PlaceGraphRoom>();
+        /// <summary>Pairs of cells joined by a corridor: the tree edges in growth order, then the loop edge when there is one.</summary>
+        public List<int[]> Edges = new List<int[]>();
+        public int Loops;
+
+        public PlaceGraphRoom RoomAt(int cell) { foreach (var r in Rooms) if (r.Cell == cell) return r; return null; }
+        public PlaceGraphRoom RoomWithRole(string role) { foreach (var r in Rooms) if (r.Role == role) return r; return null; }
+
+        private bool HasEdge(int a, int b) { foreach (var e in Edges) if ((e[0] == a && e[1] == b) || (e[0] == b && e[1] == a)) return true; return false; }
+
+        private static IEnumerable<int> Neighbours(int cell)
+        {
+            int c = cell % Cols, r = cell / Cols;
+            if (r > 0) yield return cell - Cols;
+            if (c < Cols - 1) yield return cell + 1;
+            if (r < Rows - 1) yield return cell + Cols;
+            if (c > 0) yield return cell - 1;
+        }
+
+        private void Add(int cell, int parent, int depth)
+        {
+            Rooms.Add(new PlaceGraphRoom { Cell = cell, X = (cell % Cols - 1) * Pitch, Z = (1 - cell / Cols) * Pitch, Depth = depth, Parent = parent });
+        }
+
+        /// <summary>The graph of one village; <paramref name="index"/> is the place's index, so places draw different streams.</summary>
+        public static PlaceGraph Generate(int seed, int index)
+        {
+            var rng = new SeededRandom(seed ^ VillagePlaces.GraphStream ^ (index * VillageSociety.IndexStep));
+            int target = MinRooms + rng.Next(Cols * Rows - MinRooms + 1);
+            var g = new PlaceGraph();
+            var present = new bool[Cols * Rows];
+            g.Add(EntranceCell, -1, 0); present[EntranceCell] = true;
+            while (g.Rooms.Count < target)
+            {
+                var candidates = new List<int[]>();
+                foreach (var room in g.Rooms) foreach (var n in Neighbours(room.Cell)) if (!present[n]) candidates.Add(new[] { room.Cell, n });
+                var pick = candidates[rng.Next(candidates.Count)];
+                g.Edges.Add(pick);
+                g.Add(pick[1], pick[0], g.RoomAt(pick[0]).Depth + 1);
+                present[pick[1]] = true;
+            }
+            var loops = new List<int[]>();
+            for (int a = 0; a < present.Length; a++)
+            {
+                if (!present[a]) continue;
+                foreach (var b in Neighbours(a)) if (b > a && present[b] && !g.HasEdge(a, b)) loops.Add(new[] { a, b });
+            }
+            bool addLoop = rng.Next(2) == 1;
+            if (addLoop && loops.Count > 0) { g.Edges.Add(loops[rng.Next(loops.Count)]); g.Loops = 1; }
+            g.AssignRoles();
+            return g;
+        }
+
+        /// <summary>The entrance room, then the deepest rooms in turn (ties by lowest cell) become the prison, the tear and the texts.</summary>
+        private void AssignRoles()
+        {
+            RoomAt(EntranceCell).Role = EntranceRole;
+            foreach (var role in new[] { PrisonRole, TearRole, TextsRole })
+            {
+                PlaceGraphRoom best = null;
+                foreach (var r in Rooms)
+                {
+                    if (r.Role != ChamberRole) continue;
+                    if (best == null || r.Depth > best.Depth || (r.Depth == best.Depth && r.Cell < best.Cell)) best = r;
+                }
+                best.Role = role;
+            }
+        }
+
+        /// <summary>Every room can be reached from the entrance room along the corridors.</summary>
+        public bool Connected()
+        {
+            var seen = new HashSet<int> { EntranceCell };
+            var queue = new Queue<int>();
+            queue.Enqueue(EntranceCell);
+            while (queue.Count > 0)
+            {
+                int cell = queue.Dequeue();
+                foreach (var e in Edges)
+                {
+                    int other = e[0] == cell ? e[1] : e[1] == cell ? e[0] : -1;
+                    if (other >= 0 && seen.Add(other)) queue.Enqueue(other);
+                }
+            }
+            return seen.Count == Rooms.Count;
+        }
+
+        /// <summary>The cells from <paramref name="cell"/> back to the entrance room (both included), each pair joined by a corridor; empty when the cell is not a room.</summary>
+        public List<int> PathBack(int cell)
+        {
+            var path = new List<int>();
+            var room = RoomAt(cell);
+            while (room != null) { path.Add(room.Cell); room = room.Parent < 0 ? null : RoomAt(room.Parent); }
+            return path;
+        }
+
+        /// <summary>One line that names the whole graph for a seed, for debugging and for the golden file: rooms (cell, centre, depth, role) then corridors.</summary>
+        public string Dump(int seed)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var sb = new System.Text.StringBuilder();
+            sb.Append("catacomb seed=").Append(seed.ToString(inv)).Append(" rooms=").Append(Rooms.Count.ToString(inv)).Append(" loops=").Append(Loops.ToString(inv)).Append(" |");
+            foreach (var r in Rooms) sb.Append(" c").Append(r.Cell.ToString(inv)).Append("@(").Append(r.X.ToString(inv)).Append(',').Append(r.Z.ToString(inv)).Append(")d").Append(r.Depth.ToString(inv)).Append(' ').Append(r.Role).Append(';');
+            sb.Append(" |");
+            foreach (var e in Edges) sb.Append(' ').Append(e[0].ToString(inv)).Append('-').Append(e[1].ToString(inv));
+            return sb.ToString();
+        }
+
+        private static PlacePart Box(string id, double x0, double x1, double z0, double z1, double y0, double y1, double r, double g, double b, int glow, int tier)
+        {
+            return new PlacePart { Id = id, X0 = x0, X1 = x1, Z0 = z0, Z1 = z1, Y0 = y0, Y1 = y1, Taper = 1.0, Color = new[] { r, g, b }, Glow = glow, Tier = tier };
+        }
+
+        /// <summary>
+        /// The room graph's own geometry in the local frame, in a fixed order: floors, corridor floors and role markers (tier 0), pillars (tier 1), corridor lintels and embers (tier 2). Counted against the place's budget by
+        /// <see cref="VillagePlaces.TotalTriangles"/>.
+        /// </summary>
+        public List<PlacePart> Parts()
+        {
+            var parts = new List<PlacePart>();
+            foreach (var r in Rooms) parts.Add(Box("floor_" + r.Cell, r.X - RoomHalf, r.X + RoomHalf, r.Z - RoomHalf, r.Z + RoomHalf, 0.0, 0.04, 0.11, 0.1, 0.12, 0, 0));
+            foreach (var e in Edges) { var c = Corridor(e, "corridor_", 0.0, 0.04, 0.09, 0.08, 0.1, 0); parts.Add(c); }
+            foreach (var r in Rooms)
+            {
+                if (r.Role == TextsRole) parts.Add(Box("lectern_" + r.Cell, r.X - 0.3, r.X + 0.3, r.Z + 0.5, r.Z + 1.0, 0.0, 0.9, 0.2, 0.15, 0.1, 0, 0));
+                else if (r.Role == TearRole) parts.Add(Box("tear_" + r.Cell, r.X - 0.5, r.X + 0.5, r.Z + 0.75, r.Z + 0.85, 0.2, 2.2, 0.35, 0.9, 0.8, 1, 0));
+                else if (r.Role == PrisonRole) parts.Add(Box("cage_" + r.Cell, r.X + 0.35, r.X + 0.95, r.Z - 0.95, r.Z - 0.35, 0.0, 1.8, 0.1, 0.1, 0.12, 0, 0));
+            }
+            foreach (var r in Rooms)
+            {
+                parts.Add(Box("pillar_a_" + r.Cell, r.X - 1.1, r.X - 0.85, r.Z - 1.1, r.Z - 0.85, 0.0, 2.4, 0.18, 0.17, 0.19, 0, 1));
+                parts.Add(Box("pillar_b_" + r.Cell, r.X + 0.85, r.X + 1.1, r.Z + 0.85, r.Z + 1.1, 0.0, 2.4, 0.18, 0.17, 0.19, 0, 1));
+            }
+            foreach (var e in Edges) parts.Add(Corridor(e, "lintel_", 1.9, 2.1, 0.16, 0.15, 0.17, 2));
+            foreach (var r in Rooms) parts.Add(Box("ember_" + r.Cell, r.X - 0.95, r.X - 0.8, r.Z + 0.8, r.Z + 0.95, 0.0, 0.2, 0.9, 0.5, 0.2, 1, 2));
+            return parts;
+        }
+
+        private PlacePart Corridor(int[] e, string prefix, double y0, double y1, double r, double g, double b, int tier)
+        {
+            var a = RoomAt(e[0]); var c = RoomAt(e[1]);
+            string id = prefix + e[0] + "_" + e[1];
+            if (a.X == c.X) return Box(id, a.X - CorridorHalf, a.X + CorridorHalf, Math.Min(a.Z, c.Z) + RoomHalf, Math.Max(a.Z, c.Z) - RoomHalf, y0, y1, r, g, b, 0, tier);
+            return Box(id, Math.Min(a.X, c.X) + RoomHalf, Math.Max(a.X, c.X) - RoomHalf, a.Z - CorridorHalf, a.Z + CorridorHalf, y0, y1, r, g, b, 0, tier);
+        }
+    }
+
     /// <summary>Where a place stands in one village: its centre, the cardinal direction its front door faces, and the world points of the way in and the ways back.</summary>
     public sealed class PlacePlacement
     {
@@ -246,6 +424,8 @@ namespace Frankenstein.Core
         public double X, Z, FaceX, FaceZ, Radius;
         /// <summary>Outside the front door (the way in), just inside it, the hidden hatch, and where the tunnel comes up.</summary>
         public double[] Entrance, Door, Hatch, TunnelExit;
+        /// <summary>The seeded room graph of a procedural place (<see cref="PlaceData.Procedural"/>), or null.</summary>
+        public PlaceGraph Graph;
     }
 
     /// <summary>The two ways out of a place: back through the front door, or down the tunnel.</summary>
@@ -258,13 +438,13 @@ namespace Frankenstein.Core
     /// </summary>
     public static class VillagePlaces
     {
-        public const string Manor = "manor", Forest = "forest";
-        public const int PlaceStream = 0x504c43, TrailStream = 0x545241;
+        public const string Manor = "manor", Forest = "forest", Catacomb = "catacomb";
+        public const int PlaceStream = 0x504c43, TrailStream = 0x545241, GraphStream = 0x475248;
         /// <summary>Metres kept between the footprint and an anchor landmark's own disc, extra metres per further ring, rings tried, and the longest walk from the entrance point to the inside of the door.</summary>
         public const double Gap = 2.0, RingStep = 4.0, MaxDoorWalk = 6.0;
         /// <summary>Longest gap between lantern markers (and from the last one to the entrance), metres; the longest reach from a lantern to a discovery; spacing, sideways offset and longest length of the hunting trail markers.</summary>
         public const double LanternGap = 4.0, LanternReach = 4.0, TrailSpacing = 3.0, TrailSide = 1.4, MaxTrailLength = 36.0;
-        public const int RingCount = 4, DirectionCount = 8, Tiers = 3;
+        public const int RingCount = 6, DirectionCount = 8, Tiers = 3;
         private static readonly double Diag = Math.Sqrt(0.5);
         private static readonly double[][] Directions =
         {
@@ -308,7 +488,7 @@ namespace Frankenstein.Core
             throw new InvalidOperationException("places: " + data.Id + " fits nowhere around " + data.Anchor + " (last failure: " + last + ")");
         }
 
-        private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : 3; }
+        private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : id == Catacomb ? 3 : 4; }
 
         /// <summary>The placement of a place at a given centre and facing, with every point of the way in and back worked out. No validation: see <see cref="Check"/>.</summary>
         public static PlacePlacement Build(PlaceData data, int seed, int gridW, int gridD, double x, double z, double faceX, double faceZ)
@@ -317,6 +497,7 @@ namespace Frankenstein.Core
             p.Entrance = ToWorld(p, data.EntranceX, data.EntranceZ);
             p.Door = ToWorld(p, data.DoorX, data.DoorZ);
             p.Hatch = ToWorld(p, data.HatchX, data.HatchZ);
+            if (data.Procedural) p.Graph = PlaceGraph.Generate(seed, PlaceIndex(data.Id));
             Landmark target = default(Landmark);
             foreach (var l in VillageLandmarks.All(seed, gridW, gridD)) if (l.Id == data.TunnelExitsTo) target = l;
             double dx = x - target.X, dz = z - target.Z, len = Math.Sqrt(dx * dx + dz * dz);
@@ -401,6 +582,14 @@ namespace Frankenstein.Core
         /// <summary>The four sides (8 triangles) and, unless the part is a pyramid, the top (2).</summary>
         public static int TrianglesOf(PlacePart part) { return part.Taper > 0.0 ? 10 : 8; }
 
+        /// <summary>Triangles at a tier of the authored parts plus the parts of the placement's room graph (<see cref="PlaceGraph.Parts"/>).</summary>
+        public static int TotalTriangles(PlaceData data, PlacePlacement p, int tier)
+        {
+            int total = Triangles(data, tier);
+            if (p != null && p.Graph != null) foreach (var part in p.Graph.Parts()) if (part.Tier <= tier) total += TrianglesOf(part);
+            return total;
+        }
+
         public static bool WithinBudget(PlaceData data, int tier) { return Triangles(data, tier) <= data.Budget[tier]; }
 
         /// <summary>
@@ -415,7 +604,7 @@ namespace Frankenstein.Core
             string other = OverlappingPlace(p, placed);
             if (other != null) return "overlaps place " + other;
             if (!RoundTrip(p)) return "no way back";
-            for (int t = 0; t < Tiers; t++) if (!WithinBudget(data, t)) return "over the triangle budget at tier " + t;
+            for (int t = 0; t < Tiers; t++) if (TotalTriangles(data, p, t) > data.Budget[t]) return "over the triangle budget at tier " + t;
             return "";
         }
 
@@ -491,7 +680,23 @@ namespace Frankenstein.Core
         }
 
         /// <summary>The world point of a discovery.</summary>
-        public static double[] DiscoveryPoint(PlacePlacement p, PlaceDiscovery d) { return ToWorld(p, d.X, d.Z); }
+        public static double[] DiscoveryPoint(PlacePlacement p, PlaceDiscovery d)
+        {
+            if (p.Graph != null) { var room = p.Graph.RoomWithRole(d.Room); if (room != null) return ToWorld(p, room.X, room.Z); }
+            return ToWorld(p, d.X, d.Z);
+        }
+
+        /// <summary>
+        /// Whether a discovery can be found at a knowledge <paramref name="tier"/> on a <paramref name="night"/>: the clue it requires is on the board, the tier unlocks the benefit it names and the effect it names is among that night's
+        /// reality distortions (a dimensional tear shows only to someone who knows eldritch science, and only on nights the village warps that way).
+        /// </summary>
+        public static bool Revealed(PlaceDiscovery d, ICollection<string> clueIds, KnowledgeLibrary lib, int seed, int night, int tier)
+        {
+            if (!Revealed(d, clueIds)) return false;
+            if (d.RequiresBenefit.Length > 0 && (lib == null || !KnowledgeRules.HasBenefit(lib, tier, d.RequiresBenefit))) return false;
+            if (d.RequiresEffect.Length > 0 && (lib == null || !RealityDistortion.For(lib, seed, night, tier).Contains(d.RequiresEffect))) return false;
+            return true;
+        }
 
         /// <summary>The hidden tunnel opens once the knowledge tier unlocks the benefit the place names (secret_paths, from Forbidden Texts).</summary>
         public static bool TunnelOpen(PlaceData data, KnowledgeLibrary lib, int tier) { return KnowledgeRules.HasBenefit(lib, tier, data.TunnelBenefit); }

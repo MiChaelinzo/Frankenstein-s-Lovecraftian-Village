@@ -413,6 +413,9 @@ namespace Frankenstein.Core.Tests
             sb.Append(string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.MaxTier + 1).Select(t => VillagePlaces.TunnelOpen(lib.Find(VillagePlaces.Manor), know, t) ? "1" : "0")));
             sb.Append("],\n    \"trails\": [");
             sb.Append(string.Join(", ", lib.Places.SelectMany(d => new[] { 1, 42, 1818 }.SelectMany(seed => new[] { 1, 3, 7 }.Select(n => "[" + Q(d.Id) + ", " + seed + ", " + n + ", " + VillagePlaces.TrailMissing(seed, d.Id, n) + "]")))));
+            sb.Append("],\n    \"tearGate\": [");
+            var tear = lib.Find(VillagePlaces.Catacomb).Discoveries.First(d => d.RequiresEffect.Length > 0);
+            sb.Append(string.Join(", ", new[] { 1, 42, 1818 }.SelectMany(seed => Enumerable.Range(1, 6).SelectMany(night => Enumerable.Range(0, KnowledgeLibrary.MaxTier + 1).Select(t => "[" + seed + ", " + night + ", " + t + ", " + (VillagePlaces.Revealed(tear, new string[0], know, seed, night, t) ? "1" : "0") + "]")))));
             sb.Append("],\n    \"worlds\": [");
             bool first = true;
             foreach (var seed in VigilSeeds)
@@ -429,6 +432,7 @@ namespace Frankenstein.Core.Tests
                         var lanterns = string.Join(", ", VillagePlaces.LanternPoints(data, p).Select(Pt));
                         var trail = string.Join(", ", VillagePlaces.TrailDressing(data, p, seed, grid, grid).Select(i => "[" + Q(i.Kind) + ", " + R(i.X) + ", " + R(i.Z) + ", " + R(i.Yaw) + "]"));
                         entries.Add("{ \"id\": " + Q(p.Id) + ", \"at\": " + Pt(new[] { p.X, p.Z }) + ", \"face\": " + Pt(new[] { p.FaceX, p.FaceZ }) + ", \"entrance\": " + Pt(p.Entrance) + ", \"door\": " + Pt(p.Door)
+                            + ", \"graph\": " + Q(p.Graph == null ? "" : p.Graph.Dump(seed)) + ", \"tris\": [" + string.Join(", ", Enumerable.Range(0, VillagePlaces.Tiers).Select(t => VillagePlaces.TotalTriangles(data, p, t))) + "]"
                             + ", \"hatch\": " + Pt(p.Hatch) + ", \"tunnelExit\": " + Pt(p.TunnelExit) + ", \"discoveries\": [" + found + "], \"dressing\": [" + dressing + "], \"lanterns\": [" + lanterns + "], \"trail\": [" + trail + "] }");
                     }
                     sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"places\": [").Append(string.Join(", ", entries)).Append("] }");
