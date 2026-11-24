@@ -12,7 +12,7 @@ import { parseStoryLibrary, buildStory } from '../src/village-story.js';
 import {
   buildSociety, tierOf, dreadPermille, combinedBehavior, coldLine, suspiciousStatement, UNREACHABLE, SCALE, ALL_VILLAGERS, LIE_STATEMENT_IDS,
   ACTION_TRUST, ACTION_SUSPICION, ACTION_IDS, START_TRUST, TIER_NEUTRAL, TIER_SUSPICIOUS, TIER_TRUSTING, CORRUPTION_MISSING, CORRUPTION_CORRUPTED,
-  SEEN_AT_RITUAL_SITE, RETURN_ITEM, CHAT_POLITE,
+  SEEN_AT_RITUAL_SITE, RETURN_ITEM, CHAT_POLITE, fearWithholds, TERRIFIED_AT,
 } from '../src/society.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
@@ -90,4 +90,36 @@ test('chat without standing is the plain chat; standing gates the hint and corru
   const statements = new Set();
   for (let night = 1; night <= 40; night++) statements.add(suspiciousStatement(42, 0, night, 0));
   assert.ok(statements.has('') && statements.size > 1, 'a suspicious villager both withholds and lies');
+});
+
+const axesGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).axes;
+
+test('trust network axes and fear gated chat match C# for every golden seed (round 29)', () => {
+  const log = golden.log.slice(0, 4).map(([kind, subject]) => ({ kind, subject }));
+  for (const c of axesGolden.cities) {
+    const { roster, society } = societyOf(c.seed), op = society.opinionsAfter(log);
+    for (const [night, dread, ritual, fear, faith, loyalty, obsession] of c.grid) {
+      const a = society.axesAfter(op, night, dread, ritual);
+      assert.deepEqual([a.fear, a.faith, a.loyalty, a.obsession], [fear, faith, loyalty, obsession], `axes ${c.seed} ${night} ${dread} ${ritual}`);
+      for (const axis of [a.fear, a.faith, a.loyalty, a.obsession]) for (const v of axis) assert.ok(v >= 0 && v <= SCALE);
+    }
+    for (const [index, night, dread, ritual, available, withheld, fearWithheld, strong, hintId, lie] of c.chat) {
+      const st = society.standingWithAxes(index, op, society.axesAfter(op, night, dread, ritual), night, dread, ritual);
+      const r = chat(c.seed, roster[index], 600, dread, night, 0, 2, 1, 80, st);
+      assert.deepEqual([r.available ? 1 : 0, r.withheld ? 1 : 0, r.fearWithheld ? 1 : 0, r.strongHint ? 1 : 0, r.hintId, r.lieStatementId], [available, withheld, fearWithheld, strong, hintId, lie], `chat ${c.seed} ${index} ${night}`);
+    }
+  }
+});
+
+test('axes are deterministic and leave opinions alone; fear above trust withholds while trust shows', () => {
+  const { roster, society } = societyOf(42), op = society.opinionsAfter([]), trust = op.trust.slice();
+  assert.deepEqual(society.axesAfter(op, 3, 0.5, 2), society.axesAfter(op, 3, 0.5, 2));
+  assert.deepEqual(society.axesAfter(op, 0, NaN, -4).fear.every((v) => v >= 0 && v <= SCALE), true);
+  assert.deepEqual(op.trust, trust);
+  const r = chat(42, roster[0], 600, 0, 1, 0, 2, 1, 80, { tier: TIER_TRUSTING, corruption: 0, trust: 900, fear: 950 });
+  assert.equal(r.available, true);
+  assert.deepEqual([r.withheld, r.fearWithheld, r.strongHint, r.hintId], [true, true, false, '']);
+  assert.equal(chat(42, roster[0], 600, 0, 1, 0, 2, 1, 80, { tier: TIER_TRUSTING, corruption: 0, trust: 900, fear: 700 }).strongHint, true);
+  assert.equal(fearWithholds(500, TERRIFIED_AT), true);
+  assert.equal(fearWithholds(TERRIFIED_AT, TERRIFIED_AT), false);
 });

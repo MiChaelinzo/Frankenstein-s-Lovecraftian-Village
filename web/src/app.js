@@ -698,7 +698,7 @@ const villagers = createVillagerController({
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
   onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => { society.noteChat(i, result); board.noteChat(i, result, night); },
-  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
+  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), axes: (i) => society.axes(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk

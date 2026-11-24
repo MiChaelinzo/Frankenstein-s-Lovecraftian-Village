@@ -216,5 +216,65 @@ namespace Frankenstein.Core.Tests
             var gone = VillagerRules.Chat(42, v, tick, 0f, 1, 0, 2, 1, 80, new SocialStanding { Corruption = CorruptionStage.Missing });
             Assert.False(gone.Available);
         }
+
+        [Fact]
+        public void Axes_are_bounded_deterministic_and_leave_opinions_alone()
+        {
+            foreach (int seed in Seeds)
+            {
+                var soc = SocietyOf(seed, out _, out var roster);
+                var log = new[] { A(SocietyActionKind.ChatPolite, 1), A(SocietyActionKind.SeenNearBody, VillageSociety.AllVillagers) };
+                var op = soc.OpinionsAfter(log);
+                int trustBefore = op.Trust.Sum(), suspicionBefore = op.Suspicion.Sum();
+                foreach (int night in new[] { -3, 0, 1, 5, 99 })
+                    foreach (float dread in new[] { float.NaN, -1f, 0f, 0.5f, 1f, 7f })
+                        foreach (int ritual in new[] { -2, 0, 3, 99 })
+                        {
+                            var a = soc.AxesAfter(op, night, dread, ritual);
+                            var b = soc.AxesAfter(op, night, dread, ritual);
+                            foreach (var axis in new[] { a.Fear, a.Faith, a.Loyalty, a.Obsession })
+                            {
+                                Assert.Equal(roster.Count, axis.Length);
+                                Assert.All(axis, v => Assert.InRange(v, 0, VillageSociety.Scale));
+                            }
+                            Assert.Equal(a.Fear, b.Fear); Assert.Equal(a.Faith, b.Faith); Assert.Equal(a.Loyalty, b.Loyalty); Assert.Equal(a.Obsession, b.Obsession);
+                        }
+                Assert.Equal(trustBefore, op.Trust.Sum());
+                Assert.Equal(suspicionBefore, op.Suspicion.Sum());
+            }
+        }
+
+        [Fact]
+        public void Fear_rises_with_dread_and_ritual_stage()
+        {
+            var soc = SocietyOf(42, out _, out _);
+            var op = soc.OpinionsAfter(null);
+            var calm = soc.AxesAfter(op, 1, 0f, 0);
+            var dire = soc.AxesAfter(op, 1, 1f, 5);
+            for (int i = 0; i < calm.Fear.Length; i++) Assert.True(dire.Fear[i] >= calm.Fear[i]);
+        }
+
+        [Fact]
+        public void Fear_above_trust_withholds_the_chat_while_trust_still_shows()
+        {
+            SocietyOf(42, out _, out var roster);
+            var v = roster[0];
+            var st = new SocialStanding { Tier = TrustTier.Trusting, Trust = 900, Fear = 950 };
+            var r = VillagerRules.Chat(42, v, 600, 0f, 1, 0, 2, 1, 80, st);
+            Assert.True(r.Available);
+            Assert.True(r.Withheld);
+            Assert.True(r.FearWithheld);
+            Assert.False(r.StrongHint);
+            Assert.Equal("", r.HintId);
+            Assert.Equal(TrustTier.Trusting, st.Tier);
+            var calm = VillagerRules.Chat(42, v, 600, 0f, 1, 0, 2, 1, 80, new SocialStanding { Tier = TrustTier.Trusting, Trust = 900, Fear = 700 });
+            Assert.False(calm.Withheld);
+            Assert.True(calm.StrongHint);
+            var low = VillagerRules.Chat(42, v, 600, 0f, 1, 0, 2, 1, 80, new SocialStanding { Tier = TrustTier.Neutral, Trust = 1000, Fear = 1000 });
+            Assert.False(low.Withheld);
+            Assert.True(VillageSociety.FearWithholds(500, 800));
+            Assert.False(VillageSociety.FearWithholds(800, 800));
+            Assert.False(VillageSociety.FearWithholds(0, 799));
+        }
     }
 }

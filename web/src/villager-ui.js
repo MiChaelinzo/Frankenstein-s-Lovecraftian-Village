@@ -2,7 +2,7 @@
 // positions from villager-view.js. Talking applies its clue and sanity effect through deps.applyEffect BEFORE any narrator request starts,
 // and the narrator text is only ever written with textContent, so an AI answer (or its failure) cannot change game state.
 import { generateTownRoster, talk, chat, lineKey } from './villagers.js';
-import { combinedBehavior, coldLine } from './society.js';
+import { combinedBehavior, coldLine, AXIS_NAMES } from './society.js';
 import { stageOfNight, GOSSIP_MISSING } from './village-story.js';
 import { tierFor } from './core.js';
 import { phaseAt, PHASE_NAMES } from './clock.js';
@@ -78,6 +78,15 @@ export function createVillagerController(deps) {
     return { text, aria: tr('society.trust.aria', { text }) };
   }
 
+  /** Round 29: readable bars for Fear, Faith, Loyalty and Obsession (0..1000) of a villager in the story, as { html, aria }; empty for townsfolk outside it. */
+  function axesParts(index) {
+    const a = deps.axes ? deps.axes(index) : null;
+    if (!a) return { html: '', aria: '' };
+    const rows = AXIS_NAMES.map((k) => ({ label: tr(`society.axis.${k}`), value: a[k] }));
+    const html = rows.map((r) => `<li><span class="axis-label">${esc(r.label)}</span><meter min="0" max="1000" value="${r.value}" aria-label="${esc(r.label)}: ${r.value}"></meter></li>`).join('');
+    return { html, aria: tr('society.axis.aria', { text: rows.map((r) => `${r.label} ${r.value}`).join(', ') }) };
+  }
+
   function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
     $('villagerName').textContent = p.name;
@@ -91,6 +100,8 @@ export function createVillagerController(deps) {
     $('villagerEffect').textContent = effectText === null ? effect.join(' ') : effectText;
     const trust = $('villagerTrust');
     if (trust) { const t = trustParts(p.index); trust.textContent = t.text; trust.setAttribute?.('aria-label', t.aria); trust.hidden = !t.text; }
+    const axesEl = $('villagerAxes');
+    if (axesEl) { const x = axesParts(p.index); axesEl.innerHTML = x.html; axesEl.setAttribute?.('aria-label', x.aria); axesEl.hidden = !x.html; }
     dlg.hidden = false;
     deps.exitPointerLock?.();
     returnFocus = deps.activeElement ? deps.activeElement() : null;
@@ -146,7 +157,8 @@ export function createVillagerController(deps) {
     const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity, standing || undefined);
     const authored = deps.chatStatement ? deps.chatStatement(index, night, result) : null, spoken = result.lieStatementId ? deps.statementText?.(result.lieStatementId) : '';
     let line;
-    if (result.withheld) line = tr('society.chat.withheld', { name: v.name });
+    if (result.fearWithheld) line = tr('society.chat.afraid', { name: v.name });
+    else if (result.withheld) line = tr('society.chat.withheld', { name: v.name });
     else if (spoken) line = spoken;
     else if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint

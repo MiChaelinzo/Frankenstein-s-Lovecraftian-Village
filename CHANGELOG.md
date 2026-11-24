@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 29 (FEAT-002): Trust Network axes
+- Core `VillageSociety.AxesAfter` adds Fear, Faith, Loyalty and Obsession (integer, 0..1000, seeded, documented constants) beside the unchanged Trust, Suspicion and Corruption. `SocialStanding` gains optional `Trust` and `Fear`; `VillagerRules.Chat` withholds the hint (`Withheld` and `FearWithheld`) when `Fear >= TerrifiedAt (800)` and Fear is above Trust, whatever the tier (Trust 900, Fear 950 still shows trust but says nothing). A default standing is unchanged.
+- Web mirror `society.js` (`axesAfter`, `standingWithAxes`, `fearWithholds`), `villagers.js` chat, `society-ui.js` `axes`, readable axis bars in the villager dialog, i18n en and fr, `sw.js` cache `flv-shell-v62`.
+- Golden key `axes` added; every existing golden key is byte identical (diff is additions only). Status: dotnet 355 and node 705 Verified; dialog bars Partially Verified (no browser run); Unity runtime Unverified.
+
 ### Round 28 (FEAT-003): Knowledge + Investigation synergy
 - `Core/InvestigationModel.cs`: statements carry an integer confidence percent, the board lists a belief score per revealed statement (confidence minus 30 for a corrupted speaker), and a contradiction with `resolvesAt` becomes a resolution once the knowledge tier reaches it (different nights). `InvestigationRules.KnowledgeSources` derives the tier from evidence. At knowledge 0 the board is unchanged.
 - `Data/statements.json`: `j_innkeeper_toll`, confidence on `c_innkeeper_bell`, pair `bell_two_nights` (contradiction at knowledge 0 to 3, explained at 4).

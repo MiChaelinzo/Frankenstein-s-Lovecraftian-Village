@@ -74,6 +74,8 @@ namespace Frankenstein.Core
         public bool StrongHint;
         /// <summary>Set by the trust overload: a suspicious villager kept the hint back (HintId is then empty).</summary>
         public bool Withheld;
+        /// <summary>Set with Withheld when fear (not suspicion) kept the hint back: the villager's Fear is high and above their Trust (round 29).</summary>
+        public bool FearWithheld;
         /// <summary>Authored id of a lie a suspicious villager told instead of the hint, for the investigation board. "" otherwise.</summary>
         public string LieStatementId;
         /// <summary>Set by the trust overload: a corrupted villager speaks the colder variant of the line.</summary>
@@ -613,7 +615,7 @@ namespace Frankenstein.Core
         /// <summary>
         /// Chat with the villager's social standing (<see cref="VillageSociety"/>). Without any standing change this equals <see cref="Chat(int, Villager, int, float, int, int, int, int, int)"/>.
         /// Corruption can worsen the behavior (never improve it) and a vanished villager is gone. A lucid villager then answers by tier: trusting gives a strong hint,
-        /// neutral the usual hint, suspicious withholds it or tells a lie flagged by LieStatementId.
+        /// neutral the usual hint, a terrified villager (Fear at least TerrifiedAt and above Trust) withholds whatever their tier, suspicious withholds it or tells a lie flagged by LieStatementId.
         /// </summary>
         public static VillagerChatResult Chat(int seed, Villager v, int tick, float dread, int night, int topic, int cluesLeft, int lampsLeft, int sanity, SocialStanding standing)
         {
@@ -627,7 +629,13 @@ namespace Frankenstein.Core
                 if (combined == VillagerBehavior.Vanished) result.Available = false;
             }
             if (!result.Available || result.HintId.Length == 0) return result;
-            if (standing.Tier == TrustTier.Trusting) result.StrongHint = true;
+            if (VillageSociety.FearWithholds(standing.Trust, standing.Fear))
+            {
+                result.Withheld = true;
+                result.FearWithheld = true;
+                result.HintId = "";
+            }
+            else if (standing.Tier == TrustTier.Trusting) result.StrongHint = true;
             else if (standing.Tier == TrustTier.Suspicious)
             {
                 result.LieStatementId = VillageSociety.SuspiciousStatement(seed, v.Index, night, result.Topic);

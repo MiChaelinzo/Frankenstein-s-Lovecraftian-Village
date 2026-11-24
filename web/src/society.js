@@ -22,6 +22,16 @@ export const UNEASY_AT = 250, CORRUPTED_AT = 500, CULT_AT = 800, MISSING_FATE_OU
 export const UNREACHABLE = 2147483647;
 export const LIE_STATEMENT_IDS = ['lie_saw_nothing', 'lie_was_asleep', 'lie_blame_neighbour', 'lie_not_me'];
 export const LIE_OUT_OF = 2;
+// Round 29 trust network axes (Core VillageSociety.AxesAfter): Fear, Faith, Loyalty, Obsession, each 0..1000.
+export const FEAR_STREAM = 0x464541, FAITH_STREAM = 0x464149, LOYALTY_STREAM = 0x4c4f59, OBSESSION_STREAM = 0x4f4253;
+export const AXIS_JITTER = 50, OBSESSION_SPREAD = 150;
+export const FEAR_BASE = [100, 250, 400, 200], FAITH_BASE = [200, 250, 450, 300];
+export const FEAR_DREAD_DIVISOR = 3, FEAR_RITUAL_STEP = 40, FEAR_CORRUPTION_DIVISOR = 5, FAITH_RITUAL_STEP = 60, FAITH_CORRUPTION_DIVISOR = 2;
+export const LOYALTY_BASE = 300, LOYALTY_FAMILY_STEP = 100, LOYALTY_FAMILY_CAP = 3, LOYALTY_OPINION_DIVISOR = 4;
+export const OBSESSION_NIGHT_STEP = 40, OBSESSION_HAUNTED_BONUS = 150, OBSESSION_DREAD_DIVISOR = 4, DISPOSITION_HAUNTED = 2;
+/** Fear at least this and above trust: too terrified to talk. */
+export const TERRIFIED_AT = 800;
+export const AXIS_NAMES = ['fear', 'faith', 'loyalty', 'obsession'];
 
 const clamp = (v) => Math.max(0, Math.min(SCALE, v));
 const div = (a, b) => Math.trunc(a / b); // C# integer division
@@ -45,6 +55,9 @@ export function dreadPermille(dread) {
   if (typeof dread !== 'number' || Number.isNaN(dread)) return 0;
   return clamp(Math.floor(Math.fround(Math.fround(dread) * SCALE) + 0.5));
 }
+
+/** True when fear is high and above trust: the villager may trust you and still refuse to talk. Mirror of VillageSociety.FearWithholds. */
+export const fearWithholds = (trust, fear) => fear >= TERRIFIED_AT && fear > trust;
 
 export function tierOf(trust, suspicion) {
   if (suspicion >= SUSPICIOUS_AT) return TIER_SUSPICIOUS;
@@ -141,6 +154,24 @@ export function buildSociety(story, layout) {
     /** { tier, corruption } for villagers.js chat(). */
     standingOf(index, opinions, night, dread, ritualStage) {
       return { tier: tierOf(opinions.trust[index], opinions.suspicion[index]), corruption: society.corruptionAt(index, night, dread, ritualStage) };
+    },
+    /** Round 29: { fear, faith, loyalty, obsession } arrays (0..1000) for the opinions, night (1-based), dread and ritual stage. Additive; mirrors VillageSociety.AxesAfter. */
+    axesAfter(opinions, night, dread, ritualStage) {
+      const dp = dreadPermille(dread), nt = Math.max(1, night), rs = Math.max(0, Math.min(MAX_RITUAL_STAGE, ritualStage));
+      const jitter = (stream, i) => new SeededRandom(seed ^ stream ^ Math.imul(i, INDEX_STEP)).next(2 * AXIS_JITTER + 1) - AXIS_JITTER;
+      const a = { fear: [], faith: [], loyalty: [], obsession: [] };
+      for (let i = 0; i < n; i++) {
+        const disp = roster[i].disposition, corruption = society.corruptionLevel(i, nt, dread, rs);
+        a.fear.push(clamp(FEAR_BASE[disp] + jitter(FEAR_STREAM, i) + div(dp, FEAR_DREAD_DIVISOR) + rs * FEAR_RITUAL_STEP + div(corruption, FEAR_CORRUPTION_DIVISOR)));
+        a.faith.push(clamp(FAITH_BASE[disp] + jitter(FAITH_STREAM, i) + rs * FAITH_RITUAL_STEP + div(corruption, FAITH_CORRUPTION_DIVISOR)));
+        a.loyalty.push(clamp(LOYALTY_BASE + Math.min(familyLinks[i].length, LOYALTY_FAMILY_CAP) * LOYALTY_FAMILY_STEP + div(opinions.trust[i], LOYALTY_OPINION_DIVISOR) - div(opinions.suspicion[i], LOYALTY_OPINION_DIVISOR) + jitter(LOYALTY_STREAM, i)));
+        a.obsession.push(clamp(new SeededRandom(seed ^ OBSESSION_STREAM ^ Math.imul(i, INDEX_STEP)).next(OBSESSION_SPREAD + 1) + nt * OBSESSION_NIGHT_STEP + (disp === DISPOSITION_HAUNTED ? OBSESSION_HAUNTED_BONUS : 0) + div(dp, OBSESSION_DREAD_DIVISOR)));
+      }
+      return a;
+    },
+    /** standingOf plus { trust, fear } so chat() can withhold from a terrified villager. */
+    standingWithAxes(index, opinions, axes, night, dread, ritualStage) {
+      return { ...society.standingOf(index, opinions, night, dread, ritualStage), trust: opinions.trust[index], fear: axes.fear[index] };
     },
   };
   return society;

@@ -52,7 +52,7 @@ export function nearestWitness(scene, x, z) {
  */
 export function createSocietyController(deps) {
   const { state } = deps;
-  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, stageKey = '', stageList = [];
+  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, stageKey = '', stageList = [];
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
 
   function society() {
@@ -103,11 +103,26 @@ export function createSocietyController(deps) {
     return mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang);
   }
 
-  /** { tier, corruption } for villagers.js chat(), or null for someone outside the story roster. */
-  function standing(index) {
+  /** Round 29: Fear, Faith, Loyalty and Obsession of the whole roster for the current night, dread and ritual stage; null without a society. Cached per opinions, night, dread and ritual stage. */
+  function axesList() {
     const s = society(), o = currentOpinions();
-    if (!s || !o || index < 0 || index >= s.roster.length) return null;
-    return s.standingOf(index, o, night(), state.sanity.dread, state.ritualStage);
+    if (!s || !o) return null;
+    const key = `${opinionsLen}|${opinionsKey}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
+    if (key !== axesKey) { axesKey = key; axesCache = s.axesAfter(o, night(), state.sanity.dread, state.ritualStage); }
+    return axesCache;
+  }
+  /** { fear, faith, loyalty, obsession } (0..1000) of one villager, or null for someone outside the story roster. */
+  function axes(index) {
+    const a = axesList();
+    if (!a || index < 0 || index >= a.fear.length) return null;
+    return { fear: a.fear[index], faith: a.faith[index], loyalty: a.loyalty[index], obsession: a.obsession[index] };
+  }
+
+  /** { tier, corruption, trust, fear } for villagers.js chat(), or null for someone outside the story roster. Fear above trust makes chat withhold (Core FearWithholds). */
+  function standing(index) {
+    const s = society(), o = currentOpinions(), a = axesList();
+    if (!s || !o || !a || index < 0 || index >= s.roster.length) return null;
+    return s.standingWithAxes(index, o, a, night(), state.sanity.dread, state.ritualStage);
   }
 
   function record(kind, subject) {
@@ -154,7 +169,7 @@ export function createSocietyController(deps) {
     /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
     setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; opinions = null; },
     mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
-    stages, stageOf, standing, record, noteChat, watch, noteDoor, noteWard,
+    stages, stageOf, standing, axes, record, noteChat, watch, noteDoor, noteWard,
     /** Text of an authored statement (a lie or a chat statement) in a language, or ''. */
     statementText: (id, lang) => { const st = statements && statements.find(id); return st ? st.text[lang] || st.text.en : ''; },
     /** The authored chat statement a villager says in this chat, or null. */

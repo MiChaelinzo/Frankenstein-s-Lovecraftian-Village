@@ -81,7 +81,7 @@ What you have learned (journals read, clues found, mythos statements heard) sets
 |-------|--------------|
 | `;` (pad: Home button 16, touch: Board button) | open or close the investigation board |
 | Arrow keys, `Enter`, `Esc`, `Tab` (on the board) | move between cards, inspect a card, close, stay inside the panel |
-| `C` | talk to a villager; trust and suspicion change what they say |
+| `C` | talk to a villager; trust, suspicion and fear change what they say |
 
 ### Round 25 controls
 | Key | 3D view | 2D view |
@@ -293,7 +293,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Walking collision around trunks (Core `WalkCollision` round obstacles, `resolveCollisions`) | Verified | dotnet and node tests; `COLLISION_ONLY` browser check walks straight at a tree and ends past it. Still `docs/media/round24-tree-walk-around.jpg` is Partially Verified (SwiftShader); no before still exists, the root cause (canopy-sized box) is fixed in code |
 | CC0 Quaternius houses (`house_a`, `house_b`, `cottage_tall`, [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)) | Partially Verified | Licence read from the kit (`License_Standard.txt`, CC0); node and Python tests for budgets, fallbacks and atlas uv; look seen only in SwiftShader stills (`round24-kit-houses-*.jpg`). Rigged villagers were not evaluated (Unverified) |
 | Larger world: standing stones, hidden cove, ritual site, catacomb entrance (landmarks 7 to 10) | Verified | dotnet 244 and node 568 tests with golden parity, `LANDMARK_ONLY` browser check (ten chips en and fr). Forest, swamp boardwalk, fishing village, cliff monastery and the catacomb interior are not built (spec tasks 129 to 134) |
-| Society model: trust, suspicion and corruption spread along family and neighbour links (`VillageSociety.cs`, `society.js`) | Verified | dotnet and node tests with golden parity (dotnet 310, node 673 at the round 26 close) |
+| Society model: trust, suspicion, fear, faith, loyalty, obsession and corruption spread along family and neighbour links (`VillageSociety.cs`, `society.js`) | Verified | dotnet and node tests with golden parity (dotnet 310, node 673 at the round 26 close) |
 | Investigation model: cards, links, authored contradictions, timeline (`InvestigationModel.cs`, `investigation.js`, `Data/statements.json`) | Verified | `InvestigationModelTests.cs`, `investigation.test.js`, golden key `investigation`, data copy drift checked by `validate_repo.py` |
 | Board panel, trust lines and corruption tell in 2D and 3D (`board-ui.js`, `society-ui.js`, `corruption-tell.js`) | Partially Verified | `SOCIETY_ONLY` browser check (SwiftShader headless Chrome, 115 of 115 in the full run) and four stills in `docs/media`; no real GPU, the 2D tell is subtle at normal zoom |
 | Society actions `return_item`, `return_journal`, `seen_near_body`, `fight_creature_in_view` | Unverified | The Core rules exist and are tested, but no game event raises them yet (open spec tasks in `.kiro/specs/tasks.md`) |
