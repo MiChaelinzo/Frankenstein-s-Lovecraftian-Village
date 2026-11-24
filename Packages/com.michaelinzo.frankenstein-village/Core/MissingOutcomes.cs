@@ -122,7 +122,7 @@ namespace Frankenstein.Core
     /// Weights (higher is likelier): Dead <see cref="DeadBase"/>, Escaped and Hidden <see cref="SurvivalBase"/> each, Recruited <see cref="RecruitedBase"/> plus <see cref="RecruitedPerCultist"/> for kin
     /// and witness who belong to a cult on the last night (0 when no cult exists), Transformed <see cref="TransformedPerCorrupted"/> for kin and witness at stage Corrupted or worse on the last night plus
     /// <see cref="TransformedPerCultistFate"/> for each whose fate is Cultist, Displaced <see cref="DisplacedPerOmen"/> per omen of the run (at most <see cref="DisplacedOmenCap"/>).
-    /// Each lead adds <see cref="LeadStep"/> to Escaped and to Hidden (at most <see cref="MaxLeads"/> leads count), so investigating moves the odds toward the survivable outcomes.
+    /// Each lead adds <see cref="LeadStep"/> to Escaped and to Hidden (at most <see cref="MaxLeads"/> leads count), as a tested capability of the function. In play both callers (theory ground truth and board reveal) pass 0 leads on purpose, so what the player finds never changes what happened: leads only decide how much of the outcome the board reveals (<see cref="LevelFor"/>). The lead bonus is kept because it is covered by golden parity and tests; it does not affect the game.
     /// An outcome the authored text rules out (<see cref="OutcomeConstraint"/>) has weight 0. The roll does not depend on the leads and is compared against the cumulative weights in the order
     /// Escaped, Hidden, Dead, Recruited, Transformed, Displaced, so more leads never turn a survivable outcome (Escaped or Hidden) into any other.
     /// </summary>

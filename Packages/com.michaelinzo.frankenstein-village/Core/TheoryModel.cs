@@ -349,7 +349,7 @@ namespace Frankenstein.Core
         }
 
         /// <summary>
-        /// Trust lost by wrong accusations: <see cref="WrongVillagerTrust"/> for each villager question concluded False. Applied by the caller to the society's trust display;
+        /// Trust lost by wrong accusations: <see cref="WrongVillagerTrust"/> for each villager question concluded False. Applied by the caller as a village-wide cost: the web subtracts it from every villager's trust, not only the accused;
         /// a small cost, not a lock.
         /// </summary>
         public static int TrustLost(IList<TheoryInstance> instances, TheoryState state)

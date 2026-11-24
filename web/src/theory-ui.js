@@ -102,13 +102,13 @@ export function createTheoryController(deps) {
     if (!list.length) return false;
     const s = theoryState();
     if (!legalChoices(theories, list, deps.board.beliefs(), s).includes(entry)) return false;
-    const before = s.list.length, wasOpen = s.current;
+    const wasOpen = s.current;
     log.push(entry); version++; replayed = null;
     if (log.length > MAX_LOG) { log = compactLog(replayTheories(theories, list, deps.board.beliefs(), log)); version++; }
     const after = theoryState();
     if (Math.trunc(entry / 10000) === CHOICE_CONCLUDE) {
       const done = after.list.find((c) => c.instance === wasOpen);
-      if (done && (after.list.length > before || done)) {
+      if (done) {
         const text = summary().find((x) => x.instance === wasOpen);
         if (text) {
           lastVerdict = tr('theory.verdict.live', { grade: text.gradeName, verdict: text.verdict });
