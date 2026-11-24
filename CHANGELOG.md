@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 29 (FEAT-004): web visual polish
+- `style.css` polish layer: lamplight accent, panel gradient framing, heading rules, stage vignette and static film grain (hidden in high contrast, cinema and forced colors), lamplit button hover/focus, parchment dialogs for board and satchel, readable axis bars, panel rise transition (off under `prefers-reduced-motion` and `html.reduced`). No new strings, no gameplay or Core change. `sw.js` cache `flv-shell-v65`. Partially Verified: headless screenshots only.
+
 ### Round 29 (FEAT-003): Dynamic Horror Director (spec 161)
 - Horror director inputs wired in `app.js`: knowledge (board tier 0..5 scaled to permille), clue progress (`vigil.clueProgress()`, vigil clues over the campaign goal) and safe-zone ticks (`nextSafeZoneTicks`, `nearLitLamp` in `director.js`: +1 per game minute within 6 m of a lit lantern, -1 away, capped at 120). They were 0 before. Web-only bookkeeping: Core just receives the numbers, golden unchanged. Wiring is Partially Verified (unit tests of the helpers, no browser run); the Unity runtime is Unverified.
 - Web polish audit, no visual change: contrast helper tests, focus-visible rules, hidden-tab pause, DPR cap of 2 and per-tier pixel ceilings already exist, and no headless measurement (software GL) can justify tuning them, so lighting and layout are unchanged. `sw.js` cache `flv-shell-v64`.

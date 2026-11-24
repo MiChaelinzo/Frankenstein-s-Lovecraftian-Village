@@ -21,6 +21,9 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 | ![Round 22 2D before](docs/media/r22-2d-before.png) | ![Round 22 2D after: mossy ground, plank quay and pier lantern, yard tufts, fog pool, cold top and warm low grade](docs/media/r22-2d-after.png) |
 | ![Round 22 High tier: a lane at dusk, villager, lamp post, fog and a red horizon](docs/media/r22-lane-villager.png) | ![Round 21 High tier: a rainy night, still the best reference for wet stone](docs/media/r21-high-rain-night.png) |
 
+| ![Round 29 title screen: lamplit gold rule, framed card](docs/media/r29-title-polish.png) | ![Round 29 2D village with vignette, film grain, framed panels](docs/media/r29-village-vignette.png) |
+|---|---|
+
 ![Harbour at night, High tier, stone ground floors, jetties and dormers](docs/media/r23b-harbour-night-high.png)
 
 Round 23 world depth (original assets, SwiftShader stills, seed 1818, `tick=1250`): the Cursed Grove at three dread levels. Corruption grows with dread and night, from an ordinary dead tree to a crowd of tentacle trees. To reproduce: `?view=3d&intro=0&caption=0&tick=1250#seed=1818&sanity=100&night=1&cam3d=-13,134,0,3`, then `sanity=60&night=3` and `sanity=0&night=10`. The hash does not set the clock, so add `tick=1250` for night.
