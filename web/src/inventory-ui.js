@@ -18,10 +18,10 @@ export function createInventoryController(deps) {
   const nameOf = (id) => { const d = cat && cat.find(id); return d ? itemName(d, lang()) : id; };
 
   function ensure() {
-    const key = `${state.seed}|${state.layout.length}|${cat ? cat.items.length : 0}`;
+    const key = `${state.seed}|${state.layout.length}|${cat ? cat.items.length : 0}|${deps.places ? deps.places().length : 0}`;
     if (key === builtKey) return;
     builtKey = key; openChest = -1; gatherCursor = -1; chestCursor = -1;
-    world = cat && state.layout.length ? ItemWorld.create(state.seed, deps.gridW, deps.gridD, state.layout, cat) : new ItemWorld();
+    world = cat && state.layout.length ? ItemWorld.create(state.seed, deps.gridW, deps.gridD, state.layout, cat, deps.places ? deps.places() : null) : new ItemWorld();
     player = new Inventory(PLAYER_SLOTS);
   }
   function setCatalog(json) { cat = json ? parseItemCatalog(json) : null; builtKey = ''; render(); }

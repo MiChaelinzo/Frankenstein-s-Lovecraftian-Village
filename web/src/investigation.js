@@ -28,7 +28,7 @@ export const defaultConfidence = (source) => (source === SOURCE_JOURNAL ? 80 : s
 export function knowledgeSources(e, places = null) {
   const sources = [];
   for (const id of e.booksRead) if (/^j\d\d$/.test(id)) sources.push('journal');
-  for (const clue of e.clueIds) sources.push(sourceOfClue(places, clue) || 'investigation'); // a found place clue earns the source its discovery names (ruins, cult_discovery)
+  for (const clue of e.clueIds) if (!clue.startsWith('witness@')) sources.push(sourceOfClue(places, clue) || 'investigation'); // a found place clue earns the source its discovery names (ruins, cult_discovery)
   const heard = new Set();
   for (const h of e.heard) if (h.statementId.startsWith('mythos:') && !heard.has(h.statementId)) { heard.add(h.statementId); sources.push('mythos_event'); }
   return sources;
@@ -236,7 +236,7 @@ function addMythos(contradictions, mythos, evidence, corruption, addCard, events
 }
 
 /** The text a card shows in a language, from the story's own names (round 24 seeded landmark names through nameLib when given). */
-export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null, places = null) {
+export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null, places = null, witness = null) {
   const pick = (t) => (t ? t[lang] || t.en : '');
   switch (card.kind) {
     case CARD_SUSPECT: return story.roster[Number(card.key)].name;
@@ -248,6 +248,8 @@ export function cardTitle(card, story, lore, statements, nameLib, lang, mythos =
     }
     case CARD_CLUE: {
       if (card.id.startsWith(LEGEND_PREFIX)) { const l = story.lib.legends.find((x) => x.id === card.key); if (l) return pick(l.title); }
+      const seen = witness ? witness(card.key, lang) : '';
+      if (seen) return seen;
       const placeClue = places ? findByClue(places, card.key) : null;
       if (placeClue) return pick(placeClue.title);
       const book = lore.find(card.key.startsWith(CLUE_ID_PREFIX) ? card.key.slice(CLUE_ID_PREFIX.length) : card.key);

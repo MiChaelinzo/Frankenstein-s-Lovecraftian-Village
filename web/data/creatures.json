@@ -89,5 +89,214 @@
     "text": "De minces silhouettes tournent au-dessus des falaises ou nulle mouette ne volerait la nuit. Leurs ailes ne font aucun bruit."
    }
   }
+ ],
+ "manifestations": [
+  {
+   "id": "watcher_at_wall",
+   "tier": 1,
+   "minDread": 15,
+   "phase": "dusk_night",
+   "society": 0,
+   "knowledge": 0,
+   "omens": 0,
+   "context": "village",
+   "chance": 40,
+   "cause": "nightfall",
+   "ward": "warded",
+   "en": {
+    "name": "Watcher at the wall",
+    "text": "Someone stands at the end of the lane with the dusk behind them. When you look again the lane is only a lane.",
+    "witness": "A figure stood at the wall at dusk and was gone."
+   },
+   "fr": {
+    "name": "Guetteur au mur",
+    "text": "Quelqu'un se tient au bout de la ruelle, le crepuscule derriere lui. Quand vous regardez encore, la ruelle n'est qu'une ruelle.",
+    "witness": "Une silhouette se tenait au mur au crepuscule, puis plus rien."
+   }
+  },
+  {
+   "id": "drowned_villager",
+   "tier": 1,
+   "minDread": 30,
+   "phase": "night",
+   "society": 0,
+   "knowledge": 0,
+   "omens": 0,
+   "context": "village",
+   "chance": 30,
+   "cause": "waning_sanity",
+   "ward": "warded",
+   "en": {
+    "name": "Drowned villager",
+    "text": "A villager walks the street with water running from their sleeves. They nod to you, politely, as if it were market day.",
+    "witness": "A villager passed by, dripping, and nodded."
+   },
+   "fr": {
+    "name": "Villageois noye",
+    "text": "Un villageois marche dans la rue, l'eau ruisselant de ses manches. Il vous salue poliment, comme un jour de marche.",
+    "witness": "Un villageois est passe en ruisselant, et m'a salue."
+   }
+  },
+  {
+   "id": "silent_pilgrim",
+   "tier": 1,
+   "minDread": 20,
+   "phase": "dusk_night",
+   "society": 0,
+   "knowledge": 0,
+   "omens": 0,
+   "context": "village",
+   "chance": 30,
+   "cause": "nightfall",
+   "ward": "warded",
+   "en": {
+    "name": "Silent pilgrim",
+    "text": "A line of pilgrims crosses the far field without a sound. None of them casts a shadow toward the lamps.",
+    "witness": "Pilgrims crossed the field in silence, shadows turned away."
+   },
+   "fr": {
+    "name": "Pelerin silencieux",
+    "text": "Une file de pelerins traverse le champ lointain sans un bruit. Aucun ne projette d'ombre vers les lampes.",
+    "witness": "Des pelerins ont traverse le champ en silence, leurs ombres detournees."
+   }
+  },
+  {
+   "id": "familiar_face",
+   "tier": 2,
+   "minDread": 20,
+   "phase": "any",
+   "society": 2,
+   "knowledge": 0,
+   "omens": 0,
+   "context": "village",
+   "chance": 30,
+   "cause": "cult_exposure",
+   "ward": "avoided",
+   "en": {
+    "name": "A familiar face",
+    "text": "You know this face. It is wearing it slightly wrong, the way a coat is worn by someone else.",
+    "witness": "A neighbour's face, worn slightly wrong."
+   },
+   "fr": {
+    "name": "Un visage connu",
+    "text": "Vous connaissez ce visage. Il le porte un peu de travers, comme un manteau porte par un autre.",
+    "witness": "Le visage d'un voisin, porte un peu de travers."
+   }
+  },
+  {
+   "id": "wrong_routine",
+   "tier": 2,
+   "minDread": 25,
+   "phase": "dusk_night",
+   "society": 2,
+   "knowledge": 0,
+   "omens": 0,
+   "context": "village",
+   "chance": 25,
+   "cause": "cult_exposure",
+   "ward": "avoided",
+   "en": {
+    "name": "The wrong routine",
+    "text": "A neighbour draws the same bucket from the well again and again. The rope is dry each time.",
+    "witness": "A neighbour drew the same bucket again and again."
+   },
+   "fr": {
+    "name": "La mauvaise routine",
+    "text": "Un voisin remonte le meme seau du puits, encore et encore. La corde est seche a chaque fois.",
+    "witness": "Un voisin a remonte le meme seau encore et encore."
+   }
+  },
+  {
+   "id": "impossible_stair",
+   "tier": 3,
+   "minDread": 0,
+   "phase": "any",
+   "society": 0,
+   "knowledge": 3,
+   "omens": 0,
+   "context": "place",
+   "chance": 20,
+   "cause": "forbidden_knowledge",
+   "ward": "witnessed",
+   "en": {
+    "name": "The impossible stair",
+    "text": "A stair climbs to a landing that is behind you. You do not remember turning.",
+    "witness": "A stair led to a landing that was behind me."
+   },
+   "fr": {
+    "name": "L'escalier impossible",
+    "text": "Un escalier monte vers un palier qui se trouve derriere vous. Vous ne vous souvenez pas d'avoir tourne.",
+    "witness": "Un escalier menait a un palier situe derriere moi."
+   }
+  },
+  {
+   "id": "doubled_villager",
+   "tier": 3,
+   "minDread": 30,
+   "phase": "any",
+   "society": 1,
+   "knowledge": 3,
+   "omens": 0,
+   "context": "village",
+   "chance": 20,
+   "cause": "forbidden_knowledge",
+   "ward": "witnessed",
+   "en": {
+    "name": "The doubled villager",
+    "text": "The same villager stands at both ends of the street, and both are looking at you.",
+    "witness": "One villager stood at both ends of the street."
+   },
+   "fr": {
+    "name": "Le villageois double",
+    "text": "Le meme villageois se tient aux deux bouts de la rue, et tous deux vous regardent.",
+    "witness": "Un seul villageois se tenait aux deux bouts de la rue."
+   }
+  },
+  {
+   "id": "shape_beyond_the_fog",
+   "tier": 4,
+   "minDread": 60,
+   "phase": "night",
+   "society": 0,
+   "knowledge": 5,
+   "omens": 1,
+   "context": "village",
+   "chance": 25,
+   "cause": "forbidden_knowledge",
+   "ward": "witnessed",
+   "en": {
+    "name": "A shape beyond the fog",
+    "text": "For as long as it takes to draw a breath, something much larger than the hill stands where the sea should be.",
+    "witness": "Something vast stood beyond the fog for a breath."
+   },
+   "fr": {
+    "name": "Une forme derriere la brume",
+    "text": "Le temps d'une respiration, quelque chose de bien plus grand que la colline se tient ou devrait etre la mer.",
+    "witness": "Quelque chose de vaste se tenait derriere la brume, un souffle."
+   }
+  },
+  {
+   "id": "sky_that_blinked",
+   "tier": 4,
+   "minDread": 70,
+   "phase": "night",
+   "society": 0,
+   "knowledge": 4,
+   "omens": 1,
+   "context": "village",
+   "chance": 20,
+   "cause": "waning_sanity",
+   "ward": "witnessed",
+   "en": {
+    "name": "The sky that blinked",
+    "text": "The stars shut, all at once, and opened again. Nobody else looked up.",
+    "witness": "The stars closed and opened. Nobody else looked up."
+   },
+   "fr": {
+    "name": "Le ciel qui a cligne",
+    "text": "Les etoiles se sont fermees d'un coup, puis rouvertes. Personne d'autre n'a leve les yeux.",
+    "witness": "Les etoiles se sont fermees puis rouvertes. Personne n'a leve les yeux."
+   }
+  }
  ]
 }

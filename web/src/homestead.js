@@ -92,7 +92,7 @@ export class HomesteadPlot {
     for (let i = 0; i < STRUCTURE_SLOTS; i++) this.slots.push(this.at((i - 1.5) * SLOT_SPACING, SLOT_FORWARD));
     for (let i = 0; i < MAX_RESIDENTS; i++) this.residentSpots.push(this.at((i - (MAX_RESIDENTS - 1) / 2) * RESIDENT_SPACING, RESIDENT_FORWARD));
   }
-  static create(seed, gridW, gridD, layout, items) {
+  static create(seed, gridW, gridD, layout, items, places = null) {
     const plot = new HomesteadPlot(), lodging = items ? items.lodging : null;
     if (!lodging || !layout || lodging.houseIndex < 0 || lodging.houseIndex >= layout.length) return plot;
     const house = layout[lodging.houseIndex];
@@ -105,7 +105,7 @@ export class HomesteadPlot {
       cand.side = [sideX, sideZ]; cand.dir = [flip * dirX, flip * dirZ];
       cand.fill();
       const points = [...cand.beds, ...cand.slots, ...cand.residentSpots, ...plotEdgeOffsets().map(([a, b]) => cand.at(a, b))];
-      if (points.every((p) => !isBlocked(p[0], p[1], layout, boxes, seed, gridW, gridD))) { cand.exists = true; return cand; }
+      if (points.every((p) => !isBlocked(p[0], p[1], layout, boxes, seed, gridW, gridD, places))) { cand.exists = true; return cand; }
     }
     return plot;
   }

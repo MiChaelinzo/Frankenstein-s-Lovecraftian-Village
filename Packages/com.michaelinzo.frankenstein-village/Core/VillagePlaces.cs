@@ -470,6 +470,8 @@ namespace Frankenstein.Core
         public const int PlaceStream = 0x504c43, TrailStream = 0x545241, GraphStream = 0x475248;
         /// <summary>Metres kept between the footprint and an anchor landmark's own disc, extra metres per further ring, rings tried, and the longest walk from the entrance point to the inside of the door.</summary>
         public const double Gap = 2.0, RingStep = 4.0, MaxDoorWalk = 6.0;
+        /// <summary>Least clear distance, metres, between a footprint and any landmark disc or other place footprint (<see cref="Check"/>). Equal to <see cref="ObstacleMargin"/> so the margins of two neighbours never overlap.</summary>
+        public const double MinClearance = 1.5;
         /// <summary>Longest gap between lantern markers (and from the last one to the entrance), metres; the longest reach from a lantern to a discovery; spacing, sideways offset and longest length of the hunting trail markers.</summary>
         public const double LanternGap = 4.0, LanternReach = 4.0, TrailSpacing = 3.0, TrailSide = 1.4, MaxTrailLength = 36.0;
         public const int RingCount = 6, DirectionCount = 8, Tiers = 3;
@@ -477,6 +479,13 @@ namespace Frankenstein.Core
         private static readonly double[][] Directions =
         {
             new[] { 1.0, 0.0 }, new[] { Diag, Diag }, new[] { 0.0, 1.0 }, new[] { -Diag, Diag }, new[] { -1.0, 0.0 }, new[] { -Diag, -Diag }, new[] { 0.0, -1.0 }, new[] { Diag, -Diag },
+        };
+        /// <summary>cos and sin of 22.5 degrees, written out so C# and JavaScript use the same doubles.</summary>
+        private const double HalfCos = 0.9238795325112867, HalfSin = 0.3826834323650898;
+        /// <summary>The <see cref="Directions"/> turned by 22.5 degrees: tried on each ring after the eight main directions, so a site wedged between neighbours is still found.</summary>
+        private static readonly double[][] HalfDirections =
+        {
+            new[] { HalfCos, HalfSin }, new[] { HalfSin, HalfCos }, new[] { -HalfSin, HalfCos }, new[] { -HalfCos, HalfSin }, new[] { -HalfCos, -HalfSin }, new[] { -HalfSin, -HalfCos }, new[] { HalfSin, -HalfCos }, new[] { HalfCos, -HalfSin },
         };
 
         /// <summary>A point in the place's local frame (right, forward) as a world point.</summary>
@@ -486,7 +495,7 @@ namespace Frankenstein.Core
         }
 
         /// <summary>
-        /// Places <paramref name="data"/> in the village of <paramref name="seed"/>. Candidates lie on rings around the anchor landmark, from the seed's own start direction; the first one
+        /// Places <paramref name="data"/> in the village of <paramref name="seed"/>. Candidates lie on rings around the anchor landmark, from the seed's own start direction (the eight main directions, then the eight between them); the first one
         /// that <see cref="Check"/> accepts wins. <paramref name="placed"/> holds the places already standing. Throws InvalidOperationException when nothing fits.
         /// </summary>
         public static PlacePlacement Place(PlaceData data, int seed, int gridW, int gridD, IList<PlacePlacement> placed)
@@ -501,9 +510,9 @@ namespace Frankenstein.Core
             for (int ring = 0; ring < RingCount; ring++)
             {
                 double dist = anchor.Radius + data.Radius + Gap + ring * RingStep;
-                for (int k = 0; k < DirectionCount; k++)
+                for (int k = 0; k < 2 * DirectionCount; k++)
                 {
-                    var dir = Directions[(start + k) % DirectionCount];
+                    var dir = (k < DirectionCount ? Directions : HalfDirections)[(start + k) % DirectionCount];
                     double x = anchor.X + dir[0] * dist, z = anchor.Z + dir[1] * dist;
                     double tx = anchor.X - x, tz = anchor.Z - z; // the door faces the anchor, on the nearer axis
                     double fx = 0.0, fz = 0.0;
@@ -514,6 +523,30 @@ namespace Frankenstein.Core
                 }
             }
             throw new InvalidOperationException("places: " + data.Id + " fits nowhere around " + data.Anchor + " (last failure: " + last + ")");
+        }
+
+        /// <summary>Metres of clear ground kept around a place's footprint: no book, item, plot or creature home lies within the footprint plus this margin.</summary>
+        public const double ObstacleMargin = 1.5;
+
+        /// <summary>Every place of <paramref name="lib"/> placed in the village of <paramref name="seed"/>, in data order, each clear of the ones before it. Null library: none.</summary>
+        public static List<PlacePlacement> PlaceAll(PlaceLibrary lib, int seed, int gridW, int gridD)
+        {
+            var standing = new List<PlacePlacement>();
+            if (lib == null) return standing;
+            foreach (var data in lib.Places) standing.Add(Place(data, seed, gridW, gridD, standing));
+            return standing;
+        }
+
+        /// <summary>True when (x, z) lies within a place's footprint disc plus <see cref="ObstacleMargin"/>. Null or empty list: false.</summary>
+        public static bool InsideAnyPlace(IList<PlacePlacement> places, double x, double z)
+        {
+            if (places == null) return false;
+            foreach (var p in places)
+            {
+                double dx = x - p.X, dz = z - p.Z, reach = p.Radius + ObstacleMargin;
+                if (dx * dx + dz * dz < reach * reach) return true;
+            }
+            return false;
         }
 
         private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : id == Catacomb ? 3 : id == Mine ? 4 : 5; }
@@ -550,13 +583,13 @@ namespace Frankenstein.Core
             return true;
         }
 
-        /// <summary>The id of the first landmark whose disc the footprint overlaps, or null.</summary>
+        /// <summary>The id of the first landmark whose disc the footprint overlaps or comes within <see cref="MinClearance"/> of, or null.</summary>
         public static string OverlappingLandmark(PlacePlacement p, int seed, int gridW, int gridD)
         {
             foreach (var l in VillageLandmarks.All(seed, gridW, gridD))
             {
                 double dx = p.X - l.X, dz = p.Z - l.Z;
-                if (Math.Sqrt(dx * dx + dz * dz) < l.Radius + p.Radius) return l.Id;
+                if (Math.Sqrt(dx * dx + dz * dz) < l.Radius + p.Radius + MinClearance) return l.Id;
             }
             return null;
         }
@@ -569,7 +602,7 @@ namespace Frankenstein.Core
             return Math.Sqrt(nx * nx + nz * nz) < p.Radius;
         }
 
-        /// <summary>The id of the first already placed place whose footprint overlaps this one, or null.</summary>
+        /// <summary>The id of the first already placed place whose footprint overlaps this one or comes within <see cref="MinClearance"/> of it, or null.</summary>
         public static string OverlappingPlace(PlacePlacement p, IList<PlacePlacement> placed)
         {
             if (placed == null) return null;
@@ -577,7 +610,7 @@ namespace Frankenstein.Core
             {
                 if (o.Id == p.Id) continue;
                 double dx = p.X - o.X, dz = p.Z - o.Z;
-                if (Math.Sqrt(dx * dx + dz * dz) < o.Radius + p.Radius) return o.Id;
+                if (Math.Sqrt(dx * dx + dz * dz) < o.Radius + p.Radius + MinClearance) return o.Id;
             }
             return null;
         }

@@ -19,8 +19,8 @@ export function createLoreController(deps) {
   function ensure() {
     if (readSeed !== state.seed) { read.clear(); readSeed = state.seed; cursor = -1; } // books belong to one village: a new seed starts with none read
     const story = deps.story ? deps.story() : null;
-    const key = `${state.seed}|${state.layout.length}|${library ? library.books.length : 0}|${story ? story.missing.map((m) => m.id).join('+') : ''}`;
-    if (key !== placedKey) { placedKey = key; placed = library && state.layout.length ? placeBooks(state.seed, deps.gridW, deps.gridD, state.layout, library, story) : []; }
+    const key = `${state.seed}|${state.layout.length}|${library ? library.books.length : 0}|${story ? story.missing.map((m) => m.id).join('+') : ''}|${deps.places ? deps.places().length : 0}`;
+    if (key !== placedKey) { placedKey = key; placed = library && state.layout.length ? placeBooks(state.seed, deps.gridW, deps.gridD, state.layout, library, story, deps.places ? deps.places() : null) : []; }
     return placed;
   }
   const titleOf = (b) => { const st = deps.story ? deps.story() : null; return st ? st.bookTitle(b, lang()) : bookTitle(b, lang()); };

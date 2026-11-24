@@ -90,6 +90,16 @@ namespace Frankenstein.Core
             return Math.Max(0, Math.Min(MaxIntensity, total - relief));
         }
 
+        /// <summary>
+        /// The narrative cause rule for creature appearances (spec 166): a cause is accepted only when it is a known cause id (not the relief marker) and its own pressure
+        /// is above zero in <paramref name="x"/>. An appearance with an empty, unknown or idle cause is rejected, so nothing arrives without a reason the village can show.
+        /// </summary>
+        public static bool CauseHolds(string cause, DirectorInput x)
+        {
+            int i = Array.IndexOf(CauseIds, cause);
+            return i >= 0 && i != CauseOmenPassed && Pressures(x)[i] > 0;
+        }
+
         /// <summary>The strongest cause id; ties go to the earlier id in <see cref="CauseIds"/>.</summary>
         public static string DominantCause(DirectorInput x)
         {

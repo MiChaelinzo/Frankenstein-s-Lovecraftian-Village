@@ -1,9 +1,11 @@
 // Mirror of Core/CreatureRules.cs (golden-checked, key "creatures"): the creature data file, seeded bounded spawns, exposure (range and line of sight) and the counters
 // (lantern, salt line, chalk sigil, flare). Pure, no DOM. web/data/creatures.json is a byte copy of Packages/.../Data/creatures.json (tools/validate_repo.py and a test check it).
 import { SeededRandom } from './core.js';
-import { phaseAt } from './clock.js';
+import { phaseAt, MINUTES_PER_DAY } from './clock.js';
 import { CELL_M, coastToWorldAt, dockU, hiOf } from './dressing.js';
 import { landmarks } from './landmarks.js';
+import { insideAnyPlace } from './places.js';
+import { CAUSE_IDS, causeHolds } from './director.js';
 
 export const CREATURE_HABITATS = ['shore', 'fog', 'harbour', 'cliffs'];
 export const CREATURE_PHASE_RULES = ['night', 'dusk_night', 'any'];
@@ -44,8 +46,48 @@ export function parseCreatureCatalog(input) {
     }
     return { id, habitat: o.habitat, phase: o.phase, weather, minDread, max, drain: o.drain, range: o.range, needsLos: o.los === true, speed: o.speed, hunt: o.hunt, height: o.height, names, texts };
   });
-  return { defs, find: (id) => defs.find((d) => d.id === id) || null };
+  const manifestations = Array.isArray(root.manifestations) ? parseManifestations(root.manifestations, seen) : [];
+  return { defs, manifestations, find: (id) => defs.find((d) => d.id === id) || null, findManifestation: (id) => manifestations.find((d) => d.id === id) || null };
 }
+
+export const TIER_COUNT = 4, TIER_SALT = 0x544952, STATE_STEP = 40503, POSITION_TRIES = 12;
+export const GLIMPSE_SECONDS = 3.0, GLIMPSE_REDUCED_SECONDS = 2.0, MAX_GLIMPSE_SECONDS = 4.0;
+export const GLIMPSE_COOLDOWN_TICKS = 2 * MINUTES_PER_DAY;
+export const WITNESS_PREFIX = 'witness@';
+export const TIER_CONTEXTS = ['village', 'place', 'any'];
+export const TIER_WARD_KINDS = ['warded', 'avoided', 'witnessed'];
+export const TIER_WARD_ACTIONS = ['salt', 'sigil', 'flare', 'lantern'];
+const MAX_CORRUPTION_STAGE = 4, MAX_KNOWLEDGE_TIER = 5;
+
+function parseManifestations(list, seen) {
+  const result = list.map((o) => {
+    const id = o && typeof o.id === 'string' && o.id ? o.id : '?';
+    if (seen.has(id)) throw new Error(`manifestations: duplicate id ${id}`);
+    seen.add(id);
+    for (const k of ['tier', 'minDread', 'society', 'knowledge', 'omens', 'chance']) if (typeof o[k] !== 'number') throw new Error(`manifestations: ${id} lacks number ${k}`);
+    const tier = Math.trunc(o.tier);
+    if (tier < 1 || tier > TIER_COUNT) throw new Error(`manifestations: ${id} has tier outside 1..${TIER_COUNT}`);
+    if (o.minDread < 0 || o.minDread > 100) throw new Error(`manifestations: ${id} has minDread outside 0..100`);
+    if (!CREATURE_PHASE_RULES.includes(o.phase)) throw new Error(`manifestations: ${id} has unknown phase rule ${o.phase}`);
+    if (o.society < 0 || o.society > MAX_CORRUPTION_STAGE) throw new Error(`manifestations: ${id} has society outside 0..4`);
+    if (o.knowledge < 0 || o.knowledge > MAX_KNOWLEDGE_TIER) throw new Error(`manifestations: ${id} has knowledge outside 0..${MAX_KNOWLEDGE_TIER}`);
+    if (o.omens < 0) throw new Error(`manifestations: ${id} has negative omens`);
+    if (!TIER_CONTEXTS.includes(o.context)) throw new Error(`manifestations: ${id} has unknown context ${o.context}`);
+    if (o.chance < 1 || o.chance > 100) throw new Error(`manifestations: ${id} has chance outside 1..100`);
+    if (!CAUSE_IDS.includes(o.cause) || o.cause === 'omen_passed') throw new Error(`manifestations: ${id} has unknown cause ${o.cause}`);
+    if (!TIER_WARD_KINDS.includes(o.ward)) throw new Error(`manifestations: ${id} has unknown ward kind ${o.ward}`);
+    const names = {}, texts = {}, witness = {};
+    for (const lang of CREATURE_LANGUAGES) {
+      const t = o[lang];
+      if (!t || ['name', 'text', 'witness'].some((k) => typeof t[k] !== 'string' || !t[k])) throw new Error(`manifestations: ${id} lacks ${lang} name, text or witness`);
+      names[lang] = t.name; texts[lang] = t.text; witness[lang] = t.witness;
+    }
+    return { id, tier, minDread: Math.trunc(o.minDread), phase: o.phase, society: Math.trunc(o.society), knowledge: Math.trunc(o.knowledge), omens: Math.trunc(o.omens), context: o.context, chance: Math.trunc(o.chance), cause: o.cause, ward: o.ward, names, texts, witness };
+  });
+  for (let t = 1; t <= TIER_COUNT; t++) if (!result.some((d) => d.tier === t)) throw new Error(`manifestations: tier ${t} has no entry`);
+  return result;
+}
+
 export const creatureName = (def, lang) => def.names[lang] || def.names.en;
 export const creatureText = (def, lang) => def.texts[lang] || def.texts.en;
 
@@ -81,25 +123,24 @@ export function isCreatureActive(def, tick, dreadPercent, weather) {
   return phaseOk && weatherOk && dreadPercent >= def.minDread;
 }
 
-function homeOf(def, rng, seed, gridW, gridD, blocked) {
+function homeOf(def, rng, seed, gridW, gridD, blocked, places) {
   const w = gridW * CELL_M, d = gridD * CELL_M, shore = hiOf(seed, gridW, gridD);
-  if (def.habitat === 'shore') {
-    const u = SHORE_MARGIN + rng.next(1000) / 1000.0 * Math.max(0.0, shore - 2 * SHORE_MARGIN);
-    return coastToWorldAt(seed, gridW, u, SHORE_V);
-  }
-  if (def.habitat === 'harbour') {
-    const u = dockU(seed, gridW, gridD) + (rng.next(2001) - 1000) / 1000.0 * HARBOUR_SPREAD;
-    return coastToWorldAt(seed, gridW, u, HARBOUR_V);
-  }
-  if (def.habitat === 'cliffs') {
-    const cliffs = landmarks(seed, gridW, gridD)[0];
-    const a = rng.next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.sqrt(rng.next(1000) / 1000.0) * cliffs.radius * CLIFF_SPREAD;
-    return { x: cliffs.x + Math.cos(a) * r, z: cliffs.z + Math.sin(a) * r };
-  }
   let x = 0, z = 0;
   for (let t = 0; t < HOME_TRIES; t++) {
-    x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
-    if (!blocked || !blocked(x, z)) break;
+    if (def.habitat === 'shore') {
+      const u = SHORE_MARGIN + rng.next(1000) / 1000.0 * Math.max(0.0, shore - 2 * SHORE_MARGIN);
+      ({ x, z } = coastToWorldAt(seed, gridW, u, SHORE_V));
+    } else if (def.habitat === 'harbour') {
+      const u = dockU(seed, gridW, gridD) + (rng.next(2001) - 1000) / 1000.0 * HARBOUR_SPREAD;
+      ({ x, z } = coastToWorldAt(seed, gridW, u, HARBOUR_V));
+    } else if (def.habitat === 'cliffs') {
+      const cliffs = landmarks(seed, gridW, gridD)[0];
+      const a = rng.next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.sqrt(rng.next(1000) / 1000.0) * cliffs.radius * CLIFF_SPREAD;
+      x = cliffs.x + Math.cos(a) * r; z = cliffs.z + Math.sin(a) * r;
+    } else {
+      x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
+    }
+    if (!insideAnyPlace(places, x, z) && (def.habitat !== 'fog' || !blocked || !blocked(x, z))) break;
   }
   return { x, z };
 }
@@ -110,7 +151,7 @@ export class CreatureEncounter {
   constructor(cat) { this.cat = cat; this.creatures = []; this.wards = []; this.flareUntilTick = -1; this.flareReadyTick = 0; this.fuelDebt = 0; }
 
   /** The creatures that appear for this phase, weather and dread (0..1), at their seeded homes. blocked(x, z) may be null. */
-  static spawn(seed, gridW, gridD, tick, dread, weather, cat, blocked) {
+  static spawn(seed, gridW, gridD, tick, dread, weather, cat, blocked, places = null) {
     const enc = new CreatureEncounter(cat);
     if (!cat || gridW <= 0 || gridD <= 0) return enc;
     const dreadPercent = Math.floor(Math.max(0, Math.min(1, Number.isNaN(dread) ? 0 : dread)) * 100.0 + 1e-9);
@@ -119,7 +160,7 @@ export class CreatureEncounter {
       const count = Math.max(1, 1 + Math.trunc((def.max - 1) * dreadPercent / 100));
       const rng = new SeededRandom(seed ^ HOME_SALT ^ (k * KIND_STEP));
       for (let i = 0; i < def.max; i++) {
-        const h = homeOf(def, rng, seed, gridW, gridD, blocked);
+        const h = homeOf(def, rng, seed, gridW, gridD, blocked, places);
         if (i >= count || enc.creatures.length >= MAX_CREATURES) continue;
         enc.creatures.push({ defId: def.id, homeX: h.x, homeZ: h.z, x: h.x, z: h.z });
       }
@@ -205,3 +246,70 @@ export class CreatureEncounter {
     return result;
   }
 }
+
+// ---- Creature upgrade path (spec 166). Mirrors Core CreatureTiers: four tiers unlocked by state, seeded once per day phase, every appearance with a narrative cause the director accepts.
+
+/** The director input a tier context stands for (Core DirectorInputFor). */
+export const directorInputFor = (c) => ({ tick: c.tick, sanity: 1000 - Math.max(0, Math.min(100, c.dreadPercent)) * 10, knowledge: c.knowledgeTier * 200, stress: 0, safeZoneTicks: 0, clueProgress: 0, cultExposure: c.societyStage * 250, encounters: 0 });
+
+/** The most corrupted villager: { stage, index } with the first roster index holding the highest stage; { 0, -1 } when nobody has reached Uneasy. */
+export function mostCorrupted(society, rosterLength, night, dread, ritualStage) {
+  let best = 0, index = -1;
+  for (let i = 0; i < rosterLength; i++) { const s = society.corruptionAt(i, night, dread, ritualStage); if (s > best) { best = s; index = i; } }
+  return { stage: best, index };
+}
+
+/** Whether the context meets every unlock condition of the entry. Context: { seed, gridW, gridD, tick, dreadPercent, societyStage, corruptedVillager, knowledgeTier, cosmicOmens, placeId, lastGlimpseTick, reducedMotion }. */
+export function tierUnlocked(def, c) {
+  const phase = phaseAt(c.tick);
+  const phaseOk = def.phase === 'any' || (def.phase === 'night' && phase === NIGHT) || (def.phase === 'dusk_night' && (phase === DUSK || phase === NIGHT));
+  const inPlace = !!c.placeId;
+  const contextOk = def.context === 'any' || (def.context === 'place' ? inPlace : !inPlace);
+  const cooled = def.tier !== 4 || c.lastGlimpseTick < 0 || c.tick - c.lastGlimpseTick >= GLIMPSE_COOLDOWN_TICKS;
+  const subjectOk = def.tier !== 2 || c.corruptedVillager >= 0;
+  return phaseOk && contextOk && cooled && subjectOk && c.dreadPercent >= def.minDread && c.societyStage >= def.society && c.knowledgeTier >= def.knowledge && c.cosmicOmens >= def.omens;
+}
+
+/** The appearances for the current day phase, at most one per tier in tier order. places (may be null) keeps village spawns out of place footprints; rejected (may be null) collects dropped entries. */
+export function selectAppearances(c, cat, places = null, rejected = null) {
+  const result = [];
+  if (!cat || !cat.manifestations.length || c.gridW <= 0 || c.gridD <= 0) return result;
+  const day = Math.floor(c.tick / MINUTES_PER_DAY);
+  const slot = day * 4 + phaseAt(c.tick);
+  const input = directorInputFor(c);
+  for (let tier = 1; tier <= TIER_COUNT; tier++) {
+    const eligible = cat.manifestations.filter((d) => d.tier === tier && tierUnlocked(d, c));
+    if (!eligible.length) continue;
+    const rng = new SeededRandom((c.seed ^ TIER_SALT ^ Math.imul(slot, STATE_STEP) ^ Math.imul(tier, KIND_STEP)) | 0);
+    const def = eligible[rng.next(eligible.length)];
+    if (rng.next(100) >= def.chance) continue;
+    if (!causeHolds(def.cause, input)) { if (rejected) rejected.push(`${def.id}: cause ${def.cause} does not hold`); continue; }
+    const a = { defId: def.id, tier, cause: def.cause, ward: def.ward, still: !!c.reducedMotion, subject: -1, placeId: '', x: 0, z: 0, seconds: 0 };
+    if (tier === 2 || def.id === 'doubled_villager') a.subject = c.corruptedVillager;
+    if (def.context === 'place') a.placeId = c.placeId || '';
+    else {
+      const w = c.gridW * CELL_M, d = c.gridD * CELL_M;
+      let x = 0, z = 0;
+      for (let t = 0; t < POSITION_TRIES; t++) {
+        x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
+        if (!insideAnyPlace(places, x, z)) break;
+      }
+      a.x = x; a.z = z;
+    }
+    a.seconds = tier === 4 ? (c.reducedMotion ? GLIMPSE_REDUCED_SECONDS : GLIMPSE_SECONDS) : 0.0;
+    result.push(a);
+  }
+  return result;
+}
+
+/** Whether the appearance is still on screen after elapsedSeconds. Tier 4 ends at its capped exposure. */
+export const appearanceVisible = (a, elapsedSeconds) => a.tier !== 4 || (elapsedSeconds >= 0 && elapsedSeconds < Math.min(a.seconds, MAX_GLIMPSE_SECONDS));
+
+/** Only tier 1 is warded; tier 2 is avoided by distance and tiers 3 and 4 are only witnessed. */
+export const wardTurns = (a, action) => a.ward === 'warded' && TIER_WARD_ACTIONS.includes(action);
+
+export const witnessClueId = (defId) => WITNESS_PREFIX + defId;
+export const isWitnessClue = (id) => typeof id === 'string' && id.startsWith(WITNESS_PREFIX);
+export const manifestationName = (def, lang) => def.names[lang] || def.names.en;
+export const manifestationText = (def, lang) => def.texts[lang] || def.texts.en;
+export const manifestationWitness = (def, lang) => def.witness[lang] || def.witness.en;

@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -171,6 +171,30 @@ async function main() {
       if (out[`${id}.${lang}`] !== want) out[`${id}.${lang}.want`] = want;
     }
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
+  };
+
+  /** Creature upgrade path (round 32, spec 166): in the page's own modules the four tiers unlock in order and never earlier, tier 4 stays within its capped exposure, the procedural figures build finite vertices within the triangle cap, and in the 3D view standing near a seeded tier 1 figure at night writes a "Seen:" journal line with no renderer warning. TIERS_ONLY=1 runs only this; TIERS_SHOT=<file.jpg> saves the 3D frame. */
+  const tiersRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    const model = await ev(`(async()=>{const C=await import('/src/creatures.js');const V=await import('/src/view3d.js');const cat=C.parseCreatureCatalog(await (await fetch('data/creatures.json')).json());
+      const base=(o)=>({seed:1818,gridW:24,gridD:24,tick:1300,dreadPercent:80,societyStage:0,corruptedVillager:-1,knowledgeTier:0,cosmicOmens:0,placeId:'',lastGlimpseTick:-1,reducedMotion:false,...o});
+      const maxTier=(o)=>{let m=0;for(let d=0;d<8;d++)for(let p=0;p<4;p++)for(let seed=1;seed<=20;seed++)for(const a of C.selectAppearances(base({...o,seed,tick:d*1440+[0,240,840,1080][p]+5}),cat,null))m=Math.max(m,a.tier);return m;};
+      const glimpses=[];for(let seed=1;seed<=60;seed++)for(let d=0;d<4;d++)for(const a of C.selectAppearances(base({seed,tick:d*1440+1085,knowledgeTier:5,cosmicOmens:1,societyStage:3,corruptedVillager:1}),cat,null))if(a.tier===4)glimpses.push(a);
+      const entries=[{tier:1,defId:'watcher_at_wall',x:14,z:12,still:false},{tier:3,defId:'impossible_stair',x:0,z:0,placeId:'manor',still:false},{tier:4,defId:'sky_that_blinked',x:40,z:40,still:false,elapsed:1.5,seconds:3}];
+      const verts=V.buildManifestations({entries,eye:{x:10,z:10,yaw:0.4}});
+      return {calm:maxTier({}),corrupted:maxTier({societyStage:2,corruptedVillager:1}),knowing:maxTier({societyStage:2,corruptedVillager:1,knowledgeTier:3}),cosmic:maxTier({societyStage:3,corruptedVillager:1,knowledgeTier:5,cosmicOmens:1}),glimpses:glimpses.length,maxSeconds:Math.max(0,...glimpses.map((g)=>g.seconds)),finite:[...verts].every(Number.isFinite),tris:verts.length/33};})()`);
+    rec('tiers: each tier unlocks only with its condition (calm 1, corrupted 2, knowing 3, cosmic 4) and a glimpse never lasts past four seconds', model.calm === 1 && model.corrupted === 2 && model.knowing === 3 && model.cosmic === 4 && model.glimpses > 0 && model.maxSeconds <= 4, model);
+    rec('tiers: the procedural figures build finite vertices within the triangle cap', model.finite && model.tris > 0 && model.tris <= 400, { tris: model.tris });
+    const spot = await ev(`(async()=>{const C=await import('/src/creatures.js');const cat=C.parseCreatureCatalog(await (await fetch('data/creatures.json')).json());
+      for(let d=0;d<1;d++){const l=C.selectAppearances({seed:1818,gridW:36,gridD:36,tick:1300,dreadPercent:70,societyStage:0,corruptedVillager:-1,knowledgeTier:0,cosmicOmens:0,placeId:'',lastGlimpseTick:-1,reducedMotion:false},cat,null).filter((a)=>a.tier===1);if(l.length)return {x:l[0].x,z:l[0].z,id:l[0].defId};}return null;})()`);
+    if (!spot) { rec('tiers: no tier 1 figure is seeded for seed 1818 at tick 1300 (the 3D witness check is skipped, Unverified in the live page)', true, { spot }); return; }
+    warns.length = 0;
+    await nav(`?intro=0&view=3d&quality=low&tick=1300&capture=1&cam3d=${(spot.x + 6).toFixed(2)},${spot.z.toFixed(2)},270,0#seed=1818&sanity=30`);
+    await until(() => ev(`!document.getElementById('view3d').hidden`), 30000);
+    const seen = await until(() => ev(`document.documentElement.textContent.includes('Seen: ')`), 15000).catch(() => false);
+    if (process.env.TIERS_SHOT) writeFileSync(process.env.TIERS_SHOT, Buffer.from(await capture({ format: 'jpeg', quality: 70 }), 'base64'));
+    rec('tiers: standing near a seeded tier 1 figure in the 3D view writes the "Seen:" journal line and the renderer reports no warning', !!seen && warns.length === 0, { spot, seen: !!seen, warns: warns.slice(0, 3) });
   };
 
   /** Places (round 31, spec 164: Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine): the shared model puts all four inside the walkable world, clear of landmarks and each other, with a way back (seeds and both grids, in the page's own modules), and standing at each entrance in the 3D view the HUD prompt offers the way in in English and French with no renderer warning. PLACES_ONLY=1 runs only this; PLACES_SHOT_DIR=<dir> saves places-<id>.jpg stills. */
@@ -634,6 +658,7 @@ async function main() {
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
+    if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);

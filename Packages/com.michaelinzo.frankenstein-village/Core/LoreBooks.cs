@@ -120,7 +120,7 @@ namespace Frankenstein.Core
         /// The books of one village in place order, each with its world position. Places with no free spot give no book. Without a <paramref name="story"/> there are no journals
         /// and no missing person pages; with one, each missing person's page is placed first at its landmark and each villager's journal lies in front of their home.
         /// </summary>
-        public static List<LoreBookPlacement> Place(int seed, int gridW, int gridD, IList<PlacedPiece> layout, LoreLibrary library, VillageStory story = null)
+        public static List<LoreBookPlacement> Place(int seed, int gridW, int gridD, IList<PlacedPiece> layout, LoreLibrary library, VillageStory story = null, IList<PlacePlacement> places = null)
         {
             var result = new List<LoreBookPlacement>();
             if (library == null || gridW <= 0 || gridD <= 0) return result;
@@ -130,7 +130,7 @@ namespace Frankenstein.Core
             if (layout != null) foreach (var p in layout) if (VillageStreets.IsBuilding(p.SizeX, p.SizeZ)) buildings.Add(p);
             for (int place = 0; place < Places.Length; place++)
             {
-                if (Places[place] == "journal") { PlaceJournals(result, story, library, layout, blockers, seed, gridW, gridD); continue; }
+                if (Places[place] == "journal") { PlaceJournals(result, story, library, layout, blockers, seed, gridW, gridD, places); continue; }
                 var rng = new SeededRandom(seed ^ (PlaceSaltBase + place * PlaceSaltStep));
                 var books = new List<LoreBook>();
                 foreach (var b in library.Books) if (b.Place == Places[place] && (b.Missing.Length == 0 || (story != null && story.HasMissing(b.Missing)))) books.Add(b);
@@ -143,7 +143,7 @@ namespace Frankenstein.Core
                     if (taken >= PerPlace[place] || taken >= books.Count) break;
                     foreach (var c in candidates)
                     {
-                        if (IsBlocked(c[0], c[1], layout, blockers, seed, gridW, gridD)) continue;
+                        if (IsBlocked(c[0], c[1], layout, blockers, seed, gridW, gridD, places)) continue;
                         result.Add(new LoreBookPlacement { BookId = books[taken].Id, Place = Places[place], X = c[0], Z = c[1] });
                         taken++;
                         break;
@@ -195,7 +195,7 @@ namespace Frankenstein.Core
         public const double JournalSpacing = 0.5;
 
         /// <summary>One journal per villager, in roster order, in front of their home; a spot already taken by another book is skipped for the next lateral one.</summary>
-        private static void PlaceJournals(List<LoreBookPlacement> result, VillageStory story, LoreLibrary library, IList<PlacedPiece> layout, List<DressingItem> blockers, int seed, int gridW, int gridD)
+        private static void PlaceJournals(List<LoreBookPlacement> result, VillageStory story, LoreLibrary library, IList<PlacedPiece> layout, List<DressingItem> blockers, int seed, int gridW, int gridD, IList<PlacePlacement> places)
         {
             if (story == null || layout == null) return;
             foreach (var v in story.Roster)
@@ -206,7 +206,7 @@ namespace Frankenstein.Core
                 if (book == null) continue;
                 foreach (var c in FrontSpots(layout[v.HomeIndex]))
                 {
-                    if (IsBlocked(c[0], c[1], layout, blockers, seed, gridW, gridD) || Crowded(result, c[0], c[1])) continue;
+                    if (IsBlocked(c[0], c[1], layout, blockers, seed, gridW, gridD, places) || Crowded(result, c[0], c[1])) continue;
                     result.Add(new LoreBookPlacement { BookId = book.Id, Place = "journal", X = c[0], Z = c[1] });
                     break;
                 }
@@ -275,12 +275,13 @@ namespace Frankenstein.Core
             return spots;
         }
 
-        /// <summary>True when a book at (x, z) would sit outside the walkable area, inside a layout cell rectangle (0.3 m clearance) or inside a solid prop's walking box.</summary>
-        public static bool IsBlocked(double x, double z, IList<PlacedPiece> layout, List<DressingItem> solids, int seed, int gridW, int gridD)
+        /// <summary>True when a book at (x, z) would sit outside the walkable area, inside a layout cell rectangle (0.3 m clearance), inside a solid prop's walking box or inside a place's footprint plus margin (<see cref="VillagePlaces.ObstacleMargin"/>).</summary>
+        public static bool IsBlocked(double x, double z, IList<PlacedPiece> layout, List<DressingItem> solids, int seed, int gridW, int gridD, IList<PlacePlacement> places = null)
         {
             double minX, maxX, minZ, maxZ;
             VillageDressing.WalkBounds(seed, gridW, gridD, out minX, out maxX, out minZ, out maxZ);
             if (x < minX || x > maxX || z < minZ || z > maxZ) return true;
+            if (VillagePlaces.InsideAnyPlace(places, x, z)) return true;
             const double clearance = 0.3;
             if (layout != null)
                 foreach (var p in layout)

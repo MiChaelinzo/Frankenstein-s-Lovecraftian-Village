@@ -125,7 +125,7 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Presentation: a knowledge badge with tonight's reality effects on the board, a chronicle line, journal entries per tier gained and per resolved contradiction, en and fr. Reduced motion removes the slow drift; nothing flashes or jumps.
 - Test cases: `InvestigationModelTests.cs`, `web/test/investigation.test.js`, `web/test/board-ui.test.js`, golden key `knowledgeInvestigation`, existing golden keys unchanged.
 - Status: Core and JS Verified (dotnet 350, node 701); board UI Partially Verified (fake DOM tests, browser check filters `MYTHOS_ONLY` and `SOCIETY_ONLY` do not assert the badge); Unity runtime Unverified.
-- Later, unbuilt (see tasks 159, 165 and 166, specified in Round 29 below): Evidence Confidence expansion, creature upgrade path, Victorian UI reskin. Trust Network and the Dynamic Horror Director were built in round 29.
+- Later, unbuilt (see tasks 159 and 165, specified in Round 29 below): Evidence Confidence expansion, Victorian UI reskin. Task 166 (creature upgrade path) was built in round 32. Trust Network and the Dynamic Horror Director were built in round 29.
 - Security: no PayPal client id, secret, API key, webhook secret, database password or Stripe secret in source, commits, prompts, chat logs, issues or public repositories. Any monetization uses server-side environment variables behind a backend or API layer. A donation or support link is safe; secrets are not.
 
 ## Round 29: Trust Network, Horror Director and web polish

@@ -261,7 +261,7 @@ namespace Frankenstein.Core
             foreach (var h in e.Heard) if (h.StatementId.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal) && !mythosHeard.Contains(h.StatementId)) mythosHeard.Add(h.StatementId);
             var sources = new List<string>();
             for (int i = 0; i < journals.Count; i++) sources.Add("journal");
-            foreach (var clue in clues) sources.Add(PlaceRulesSource(places, clue) ?? "investigation");
+            foreach (var clue in clues) if (!CreatureTiers.IsWitnessClue(clue)) sources.Add(PlaceRulesSource(places, clue) ?? "investigation");
             for (int i = 0; i < mythosHeard.Count; i++) sources.Add("mythos_event");
             return sources;
         }
