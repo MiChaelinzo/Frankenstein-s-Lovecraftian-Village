@@ -15,6 +15,26 @@ export const [NEEDS_NONE, NEEDS_CORRUPTED_SPEAKER] = [0, 1];
 export const [CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT] = [0, 1, 2, 3, 4];
 export const [LINK_VILLAGER_HOME, LINK_VILLAGER_FAMILY, LINK_VILLAGER_JOURNAL, LINK_VILLAGER_MISSING, LINK_LANDMARK_LEGEND, LINK_CLUE_SUBJECT] = [0, 1, 2, 3, 4, 5];
 export const HOME_PLACE = 'home';
+export const INVALIDATED_PENALTY = 30, MAX_KNOWLEDGE_TIER = 5;
+
+/** Confidence (whole percent) of a statement the data file gives none: journals are written down, chats are spoken, lore is hearsay, clues are physical. Core DefaultConfidence. */
+export const defaultConfidence = (source) => (source === SOURCE_JOURNAL ? 80 : source === SOURCE_LORE ? 65 : source === SOURCE_CLUE ? 90 : 60);
+
+/**
+ * Knowledge sources the evidence has earned (Core InvestigationRules.KnowledgeSources): one 'journal' per villager journal read (lore id j and two digits), one 'investigation' per clue id found,
+ * one 'mythos_event' per mythos statement heard. The knowledge tier is derived from this, so it needs no save of its own.
+ */
+export function knowledgeSources(e) {
+  const sources = [];
+  for (const id of e.booksRead) if (/^j\d\d$/.test(id)) sources.push('journal');
+  for (let i = 0; i < e.clueIds.size; i++) sources.push('investigation');
+  const heard = new Set();
+  for (const h of e.heard) if (h.statementId.startsWith('mythos:') && !heard.has(h.statementId)) { heard.add(h.statementId); sources.push('mythos_event'); }
+  return sources;
+}
+
+/** Belief in a statement, whole percent 0..100: its confidence, less INVALIDATED_PENALTY when its speaker is corrupted. Core BeliefScore. */
+export const beliefScore = (confidence, invalidated) => Math.max(0, Math.min(100, confidence - (invalidated ? INVALIDATED_PENALTY : 0)));
 export const STATEMENT_LANGUAGES = ['en', 'fr'];
 export const SUSPECT_PREFIX = 'suspect:', VICTIM_PREFIX = 'victim:', HOME_PREFIX = 'location:home:', LANDMARK_PREFIX = 'location:landmark:', CLUE_PREFIX = 'clue:', LEGEND_PREFIX = 'clue:legend:', EVENT_PREFIX = 'event:';
 
@@ -53,6 +73,8 @@ export function parseStatementLibrary(input) {
     if (s.night < 0 || s.minute < 0 || s.minute >= MINUTES_PER_DAY) throw new Error(`statements: ${id} has night or minute out of range`);
     if (s.source === SOURCE_JOURNAL && !s.role) throw new Error(`statements: ${id} is a journal without a role`);
     if ((s.source === SOURCE_LORE || s.source === SOURCE_CLUE) && !s.ref) throw new Error(`statements: ${id} needs a ref`);
+    s.confidence = typeof o.confidence === 'number' ? Math.trunc(o.confidence) : defaultConfidence(s.source);
+    if (s.confidence < 0 || s.confidence > 100) throw new Error(`statements: ${id} has confidence outside 0 to 100`);
     statements.push(s);
   }
   const find = (id) => statements.find((s) => s.id === id) || null;
@@ -61,6 +83,12 @@ export function parseStatementLibrary(input) {
     if (needs < 0) throw new Error(`statements: contradiction ${id} has unknown needs`);
     const c = { id, a: str(o, 'a', `contradiction ${id}`), b: str(o, 'b', `contradiction ${id}`), needs, reason: text(o, `contradiction ${id}`) };
     if (c.a === c.b || !find(c.a) || !find(c.b)) throw new Error(`statements: contradiction ${id} refers to unknown or identical statements`);
+    if (typeof o.resolvesAt === 'number') {
+      c.resolvesAtKnowledge = Math.trunc(o.resolvesAt);
+      const a = find(c.a), b = find(c.b);
+      if (c.resolvesAtKnowledge < 1 || c.resolvesAtKnowledge > MAX_KNOWLEDGE_TIER) throw new Error(`statements: contradiction ${id} resolvesAt is outside 1 to the top knowledge tier`);
+      if (a.night < 1 || b.night < 1 || a.night === b.night) throw new Error(`statements: contradiction ${id} resolvesAt needs statements about two different nights`);
+    } else c.resolvesAtKnowledge = 0;
     return c;
   });
   return { statements, contradictions, find };
@@ -98,9 +126,13 @@ export function orderTimeline(events) {
   return events.slice().sort((x, y) => (x.night - y.night) || (x.minute - y.minute) || ordinal(x.statementId, y.statementId) || (x.villager - y.villager));
 }
 
-/** Builds the board for the current evidence; corruption is the stage of each villager by roster index (or null). */
-export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null) {
-  const cards = [], links = [], contradictions = [], index = new Map(), roster = story.roster;
+/**
+ * Builds the board for the current evidence; corruption is the stage of each villager by roster index (or null). knowledge is the player's knowledge tier (0 by default, which gives
+ * exactly the board without it): a contradiction whose resolvesAtKnowledge is at or below it moves from contradictions to resolutions (the statements speak of different nights).
+ * scores lists confidence and belief of every revealed authored statement.
+ */
+export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null, knowledge = 0) {
+  const cards = [], links = [], contradictions = [], resolutions = [], scores = [], index = new Map(), roster = story.roster;
   const addCard = (kind, id, key, revealed) => {
     const existing = index.get(id);
     if (existing) { existing.revealed = existing.revealed || revealed; return existing; }
@@ -171,16 +203,19 @@ export function buildBoard(story, lore, statements, evidence, corruption = null,
     revealed.add(s.id);
     const speaker = speakerOf(s, roster, evidence), h = heardIndex(evidence, s.id);
     const night = s.night > 0 ? s.night : Math.max(1, h >= 0 ? evidence.heard[h].night : 1);
-    addCard(CARD_EVENT, eventId(s.id), s.id, true).invalidated = isCorrupted(stageOf(corruption, speaker));
+    const card = addCard(CARD_EVENT, eventId(s.id), s.id, true);
+    card.invalidated = isCorrupted(stageOf(corruption, speaker));
+    scores.push({ statementId: s.id, confidence: s.confidence, belief: beliefScore(s.confidence, card.invalidated) });
     events.push({ statementId: s.id, villager: speaker, night, minute: s.minute });
   }
   for (const c of statements.contradictions) {
     if (!revealed.has(c.a) || !revealed.has(c.b)) continue;
     if (c.needs === NEEDS_CORRUPTED_SPEAKER && !isCorrupted(stageOf(corruption, speakerOf(statements.find(c.b), roster, evidence)))) continue;
-    contradictions.push({ pairId: c.id, cardA: eventId(c.a), cardB: eventId(c.b) });
+    const pair = { pairId: c.id, cardA: eventId(c.a), cardB: eventId(c.b) };
+    (c.resolvesAtKnowledge > 0 && knowledge >= c.resolvesAtKnowledge ? resolutions : contradictions).push(pair);
   }
   if (mythos && mythos.current) addMythos(contradictions, mythos, evidence, corruption, addCard, events);
-  return { cards, links, contradictions, timeline: orderTimeline(events) };
+  return { cards, links, contradictions, resolutions, scores, timeline: orderTimeline(events) };
 }
 
 /** Round 27: an Event card for every mythos statement the player heard. A rumor passed on distorted is invalidated and contradicts the statement it distorts once that is heard too. */

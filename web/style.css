@@ -207,6 +207,12 @@ html.reduced .loading-ink { animation: none; }
 .board-wrap { position: relative; min-width: 100%; }
 .board-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
 .board-string { stroke: #b34a3c; stroke-width: 1.5; opacity: .85; }
+.board-resolved-string { stroke: #7f9a7a; stroke-width: 1.5; stroke-dasharray: 4 5; fill: none; }
+.board-knowledge[data-tier]:not([data-tier="0"]) { border-left: 3px solid #7a6a9a; padding-left: .5rem; }
+.board-reality { animation: board-reality-drift 9s ease-in-out infinite alternate; }
+@keyframes board-reality-drift { from { opacity: 1; } to { opacity: .82; } }
+@media (prefers-reduced-motion: reduce) { .board-reality { animation: none; } }
+html.reduced .board-reality { animation: none; }
 .board-draw { stroke-dasharray: 600; stroke-dashoffset: 600; animation: board-draw .6s ease-out forwards; }
 @keyframes board-draw { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .board-draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; } }

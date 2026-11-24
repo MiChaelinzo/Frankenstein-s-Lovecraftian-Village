@@ -376,6 +376,9 @@ namespace Frankenstein.Core.Tests
             AppendKnowledge(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendKnowledgeInvestigation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendShapes(sb);
             sb.Append("}\n");
             return sb.ToString();
@@ -1510,6 +1513,41 @@ namespace Frankenstein.Core.Tests
                 }
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"villagers\": [").Append(string.Join(", ", rows)).Append("] }");
                 first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "knowledgeInvestigation" (round 28): per city seed and knowledge tier 0 to 5, the contradictions, resolutions and statement scores of the evidence of <see cref="InvestigationModelTests.SynergyEvidence"/>.</summary>
+        private static void AppendKnowledgeInvestigation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            var knowledgeLib = KnowledgeLibrary.Parse(File.ReadAllText(Path.Combine(data, "knowledge.json")));
+            var earned = KnowledgeState.FromSourceIds(knowledgeLib, InvestigationRules.KnowledgeSources(InvestigationModelTests.SynergyEvidence()));
+            sb.Append("  \"knowledgeInvestigation\": {\n    \"sources\": [").Append(string.Join(", ", InvestigationRules.KnowledgeSources(InvestigationModelTests.SynergyEvidence()).Select(Q)))
+              .Append("], \"points\": ").Append(earned.Points).Append(", \"tier\": ").Append(earned.Tier(knowledgeLib)).Append(",\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var stages = new CorruptionStage[roster.Count];
+                stages[1] = CorruptionStage.Corrupted;
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"tiers\": [");
+                first = false;
+                for (int tier = 0; tier <= KnowledgeLibrary.MaxTier; tier++)
+                {
+                    var board = InvestigationRules.Build(story, lore, statements, InvestigationModelTests.SynergyEvidence(), stages, null, tier);
+                    sb.Append(tier == 0 ? "\n        " : ",\n        ").Append("{ \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Select(c => Q(c.PairId))))
+                      .Append("], \"resolutions\": [").Append(string.Join(", ", board.Resolutions.Select(c => Q(c.PairId))))
+                      .Append("], \"scores\": [").Append(string.Join(", ", board.Scores.Select(c => "[" + Q(c.StatementId) + ", " + c.Confidence + ", " + c.Belief + "]"))).Append("] }");
+                }
+                sb.Append("\n      ] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

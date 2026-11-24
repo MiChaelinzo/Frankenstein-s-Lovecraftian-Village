@@ -42,8 +42,21 @@
    "place": "home",
    "night": 2,
    "minute": 1320,
+   "confidence": 78,
    "en": "The bell stayed silent all night. I would have heard it from the inn.",
    "fr": "La cloche est restee muette toute la nuit. Je l'aurais entendue depuis l'auberge."
+  },
+  {
+   "id": "j_innkeeper_toll",
+   "source": "journal",
+   "role": "innkeeper",
+   "ref": "",
+   "place": "home",
+   "night": 3,
+   "minute": 1320,
+   "confidence": 91,
+   "en": "The bell tolled twelve times from the abbey ruins, and every glass in the inn rang with it.",
+   "fr": "La cloche a sonne douze fois depuis les ruines de l'abbaye, et chaque verre de l'auberge a tinte avec elle."
   },
   {
    "id": "j_lamplighter_lit",
@@ -179,6 +192,15 @@
   }
  ],
  "contradictions": [
+  {
+   "id": "bell_two_nights",
+   "a": "j_innkeeper_toll",
+   "b": "c_innkeeper_bell",
+   "needs": "none",
+   "resolvesAt": 4,
+   "en": "The innkeeper's journal has the bell tolling, yet he says it stayed silent.",
+   "fr": "Le journal de l'aubergiste fait sonner la cloche, mais il dit qu'elle est restee muette."
+  },
   {
    "id": "fisher_night_out",
    "a": "j_fisher_out",

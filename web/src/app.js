@@ -220,6 +220,7 @@ async function loadCatalog() {
   try { homestead.setCatalog(await (await fetch('data/homestead.json')).json()); } catch (err) { console.warn(`[homestead] could not load data/homestead.json, no yard this session: ${err.message}`); }
   try { creatures.setCatalog(await (await fetch('data/creatures.json')).json()); } catch (err) { console.warn(`[creatures] could not load data/creatures.json, no creatures this session: ${err.message}`); }
   try { const statements = await (await fetch('data/statements.json')).json(); board.setStatements(statements); society.setStatements(parseStatementLibrary(statements)); } catch (err) { console.warn(`[board] could not load data/statements.json, the investigation board stays closed and villagers say nothing authored this session: ${err.message}`); }
+  try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
@@ -667,6 +668,7 @@ const society = createSocietyController({ state, story: () => currentStory(), gr
 const board = createBoardController({
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
+  night: () => state.night + 1, journal: (text) => log('lore', text),
   onChange: () => autosave(),
 });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
@@ -704,7 +706,7 @@ storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and jour
 const chronicle = createChronicleController({
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
-  mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
+  mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), knowledge: () => board.knowledge(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
 });
 // HUD clock chip and the first-play hint (dismissal is kept for the browser session; stills with ?capture=1 never show it).
 function renderClockChip() {

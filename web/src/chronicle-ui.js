@@ -35,8 +35,9 @@ export function chronicleModel(story, lang, ctx) {
   }) : [];
   // Round 28: the night tick record of the current night, counts only (no secret or omen is named here).
   const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
+  const knowledge = ctx.knowledge && ctx.knowledge.name ? ctx.knowledge : null; // Round 28: the tier the evidence has earned, with tonight's reality effects
   return {
-    stage, tier, mythos, tick,
+    stage, tier, mythos, tick, knowledge,
     rumor: story.rumorText(ctx.night, stage, tier, lang),
     families, missing,
     histories: DISTRICT_IDS.map((id) => ({ id, text: districtHistory(lib, id, lang) })),
@@ -44,7 +45,7 @@ export function chronicleModel(story, lang, ctx) {
   };
 }
 
-/** deps: { $, tr, lang, state, story() -> story or null, lore: { library(), readIds() }, night() -> 1-based, nights(), dread(), landmarkName(id), mythos?() -> feed or null, mythosHeard?() -> Map statement id -> speaker, mythosKey?() -> string, onChange() } */
+/** deps: { $, tr, lang, state, story() -> story or null, lore: { library(), readIds() }, night() -> 1-based, nights(), dread(), landmarkName(id), mythos?() -> feed or null, mythosHeard?() -> Map statement id -> speaker, knowledge?() -> { tier, points, name, effects }, mythosKey?() -> string, onChange() } */
 export function createChronicleController(deps) {
   const { $, tr, state } = deps;
   const heard = new Map();
@@ -54,7 +55,7 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null };
   }
 
   /** A villager told about a missing person at a stage: the chronicle keeps the furthest stage heard. */
@@ -69,7 +70,7 @@ export function createChronicleController(deps) {
   /** Re-renders an open panel only when something it shows changed (night, dread tier, books read, chat heard, village). */
   function refresh() {
     if (!on) return;
-    const c = ctx(), key = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}`;
+    const c = ctx(), key = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}`;
     if (key !== renderedKey) render();
   }
 
@@ -79,7 +80,7 @@ export function createChronicleController(deps) {
     renderedKey = '';
     if (!story) { body.innerHTML = `<p class="stats">${esc(tr('chronicle.empty'))}</p>`; return; }
     const c = ctx(), m = chronicleModel(story, lang(), c);
-    renderedKey = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}`;
+    renderedKey = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}`;
     const parts = [`<h3>${esc(tr('chronicle.rumor'))}</h3><p class="chronicle-rumor">${esc(m.rumor)}</p>`];
     parts.push(`<h3>${esc(tr('chronicle.missing'))}</h3><ul class="chronicle-list">${m.missing.map((p) => {
       const got = ['page', 'journal', 'chat'].filter((k) => p.parts[k]).map((k) => tr(`chronicle.told.${k}`)).join(', ');
@@ -91,6 +92,7 @@ export function createChronicleController(deps) {
     parts.push(`<h3>${esc(tr('chronicle.mythos'))}</h3>${m.mythos.length ? `<ul class="chronicle-list" id="chronicleMythos">${m.mythos.map((e) =>
       `<li data-mythos="${esc(e.id)}"><strong>${esc(tr('chronicle.mythos.row', { night: e.night, kind: tr(`chronicle.mythos.kind.${e.kind}`), text: e.text }))}</strong>${e.distorted ? ` <em>${esc(tr('chronicle.mythos.distorted'))}</em>` : ''}</li>`).join('')}</ul>`
       : `<p class="stats" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
+    if (m.knowledge) parts.push(`<p class="stats" id="chronicleKnowledge">${esc(tr('chronicle.knowledge', { tier: m.knowledge.tier, name: m.knowledge.name, points: m.knowledge.points }))}${m.knowledge.effects.length ? ` ${esc(m.knowledge.effects.join(' '))}` : ''}</p>`);
     if (m.tick) parts.push(`<p class="stats" id="chronicleTick">${esc(tr('chronicle.tick', { night: m.tick.night, cult: m.tick.cultGrowth, rumors: m.tick.rumorsChanged + m.tick.rumorsAdded, shift: m.tick.realityShift }))}</p>`);
     parts.push(`<h3>${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);
     parts.push(`<h3>${esc(tr('chronicle.legends'))}</h3><ul class="chronicle-list">${m.legends.map((l) => `<li data-legend="${esc(l.id)}"><strong>${esc(tr('chronicle.legend.at', { title: l.title, place: l.place }))}</strong><p class="lore-text">${esc(l.text)}</p></li>`).join('')}</ul>`);

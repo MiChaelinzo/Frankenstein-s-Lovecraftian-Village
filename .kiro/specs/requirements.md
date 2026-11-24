@@ -114,3 +114,16 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Test cases: `MythosSimulationTests.cs`, `web/test/mythos.test.js`, golden key `mythos` (seeds 1, 42, 1818), data drift check in `tools/validate_repo.py`, browser check `MYTHOS_ONLY=1`.
 - Night tick summary (`{"night": 14, "cultGrowth": 2, "rumorsAdded": 4, "missingPersons": 1, "newOmen": "black_tide", "realityShift": 3}`) is a spec only (task 154a), not built.
 - Status: Core and JS Verified (dotnet 328, node 685, golden); browser check Partially Verified (7 of 7 on SwiftShader, `MYTHOS_ONLY` only); Unity runtime Unverified.
+
+## Round 28: Knowledge + Investigation synergy (FEAT-003)
+- Goal: evidence becomes a confidence score, then a belief score, and enough knowledge reveals a truth: two statements that look contradictory are about different nights.
+- Inputs: the board evidence (books read, clues found, statements heard), the corruption stage per villager, the knowledge tier (0 to 5), `Data/statements.json` with optional `confidence` (0 to 100) per statement and optional `resolvesAt` (1 to 5) per contradiction, `Data/knowledge.json`.
+- Outputs: the board with `Contradictions`, `Resolutions` and `Scores` (statement id, confidence, belief); the knowledge tier derived from evidence by `InvestigationRules.KnowledgeSources`.
+- Rules: belief = confidence minus 30 when the speaker is corrupted, clamped to 0..100. A contradiction with `resolvesAt` is listed as a resolution when the tier is at or above it, else as a contradiction. At tier 0 the board equals the board built without knowledge.
+- Example: the innkeeper's chat "the bell stayed silent" (night 2, confidence 78) against his journal "the bell tolled twelve times" (night 3, confidence 91): a contradiction at knowledge 0 to 3, explained at knowledge 4 and 5. A Lucan pair (abbey 78, home 91) is in the tests.
+- Failure conditions: confidence outside 0..100, `resolvesAt` outside 1..5, or a resolvable pair whose statements share a night (or have none) raise a `FormatException` naming the contradiction or statement; unknown knowledge source ids throw naming `sources[i]`.
+- Presentation: a knowledge badge with tonight's reality effects on the board, a chronicle line, journal entries per tier gained and per resolved contradiction, en and fr. Reduced motion removes the slow drift; nothing flashes or jumps.
+- Test cases: `InvestigationModelTests.cs`, `web/test/investigation.test.js`, `web/test/board-ui.test.js`, golden key `knowledgeInvestigation`, existing golden keys unchanged.
+- Status: Core and JS Verified (dotnet 350, node 701); board UI Partially Verified (fake DOM tests, browser check filters `MYTHOS_ONLY` and `SOCIETY_ONLY` do not assert the badge); Unity runtime Unverified.
+- Later, unbuilt (see tasks 159 to 166): Trust Network Expansion, Dynamic Horror Director, Evidence Confidence expansion, Missing Person Outcomes, Branching Investigations, Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine, creature upgrade path, Victorian UI reskin.
+- Security: no PayPal client id, secret, API key, webhook secret, database password or Stripe secret in source, commits, prompts, chat logs, issues or public repositories. Any monetization uses server-side environment variables behind a backend or API layer. A donation or support link is safe; secrets are not.

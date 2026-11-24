@@ -23,6 +23,8 @@ namespace Frankenstein.Core
         /// <summary>Clock minute of the day (0 to <see cref="GameClock.MinutesPerDay"/> - 1).</summary>
         public int Minute;
         public LocalizedName Text;
+        /// <summary>How sure the source is, in whole percent (0 to 100). Authored, or <see cref="InvestigationRules.DefaultConfidence"/> of the source when the file says nothing.</summary>
+        public int Confidence;
     }
 
     /// <summary>An authored pair of statements that cannot both be true, with the reason the board shows.</summary>
@@ -33,6 +35,8 @@ namespace Frankenstein.Core
         public string B;
         public ContradictionNeeds Needs;
         public LocalizedName Reason;
+        /// <summary>Knowledge tier at which the player sees the two statements are about different nights and the contradiction disappears. 0: never resolves.</summary>
+        public int ResolvesAtKnowledge;
     }
 
     /// <summary>The parsed Data/statements.json. The same file is read by web/src/investigation.js.</summary>
@@ -64,6 +68,8 @@ namespace Frankenstein.Core
                     Id = id, Source = (StatementSource)source, Role = Opt(o, "role"), Ref = Opt(o, "ref"), Place = Opt(o, "place"),
                     Night = Int(o, "night", id), Minute = Int(o, "minute", id), Text = Text(o, "statement " + id),
                 };
+                s.Confidence = o.ContainsKey("confidence") ? Int(o, "confidence", id) : InvestigationRules.DefaultConfidence(s.Source);
+                if (s.Confidence < 0 || s.Confidence > 100) throw new FormatException("statements: " + id + " has confidence outside 0 to 100");
                 if (s.Role.Length > 0 && Array.IndexOf(VillagerRules.RoleIds, s.Role) < 0) throw new FormatException("statements: " + id + " has an unknown role");
                 if (s.Place.Length > 0 && s.Place != InvestigationRules.HomePlace && Array.IndexOf(VillageLandmarks.Ids, s.Place) < 0) throw new FormatException("statements: " + id + " has an unknown place");
                 if (s.Night < 0 || s.Minute < 0 || s.Minute >= GameClock.MinutesPerDay) throw new FormatException("statements: " + id + " has night or minute out of range");
@@ -78,6 +84,13 @@ namespace Frankenstein.Core
                 if (needs < 0) throw new FormatException("statements: contradiction " + id + " has unknown needs");
                 var c = new ContradictionData { Id = id, A = Str(o, "a", "contradiction " + id), B = Str(o, "b", "contradiction " + id), Needs = (ContradictionNeeds)needs, Reason = Text(o, "contradiction " + id) };
                 if (c.A == c.B || lib.Find(c.A) == null || lib.Find(c.B) == null) throw new FormatException("statements: contradiction " + id + " refers to unknown or identical statements");
+                if (o.ContainsKey("resolvesAt"))
+                {
+                    c.ResolvesAtKnowledge = Int(o, "resolvesAt", "contradiction " + id);
+                    var a = lib.Find(c.A); var b = lib.Find(c.B);
+                    if (c.ResolvesAtKnowledge < 1 || c.ResolvesAtKnowledge > KnowledgeLibrary.MaxTier) throw new FormatException("statements: contradiction " + id + " resolvesAt is outside 1 to the top knowledge tier");
+                    if (a.Night < 1 || b.Night < 1 || a.Night == b.Night) throw new FormatException("statements: contradiction " + id + " resolvesAt needs statements about two different nights");
+                }
                 lib.Contradictions.Add(c);
             }
             return lib;
@@ -192,6 +205,18 @@ namespace Frankenstein.Core
         public List<BoardLink> Links = new List<BoardLink>();
         public List<BoardContradiction> Contradictions = new List<BoardContradiction>();
         public List<TimelineEvent> Timeline = new List<TimelineEvent>();
+        /// <summary>Contradictions the player's knowledge has explained away (different nights). Not in <see cref="Contradictions"/>.</summary>
+        public List<BoardContradiction> Resolutions = new List<BoardContradiction>();
+        /// <summary>Evidence -> Confidence -> Belief for every revealed authored statement, in library order.</summary>
+        public List<StatementScore> Scores = new List<StatementScore>();
+    }
+
+    /// <summary>Confidence is the source's own certainty; Belief is what the player should trust: confidence, less <see cref="InvestigationRules.InvalidatedPenalty"/> when the speaker is corrupted. Whole percent.</summary>
+    public sealed class StatementScore
+    {
+        public string StatementId;
+        public int Confidence;
+        public int Belief;
     }
 
     /// <summary>
@@ -202,6 +227,45 @@ namespace Frankenstein.Core
     public static class InvestigationRules
     {
         public const string HomePlace = "home";
+        /// <summary>Percent taken off a statement's belief when its speaker is corrupted.</summary>
+        public const int InvalidatedPenalty = 30;
+
+        /// <summary>Confidence of a statement the data file gives none: journals are written down, chats are spoken, lore is hearsay, clues are physical.</summary>
+        public static int DefaultConfidence(StatementSource source)
+        {
+            switch (source)
+            {
+                case StatementSource.Journal: return 80;
+                case StatementSource.Lore: return 65;
+                case StatementSource.Clue: return 90;
+                default: return 60;
+            }
+        }
+
+        /// <summary>
+        /// The knowledge sources the evidence has earned, as <see cref="KnowledgeLibrary.SourceIds"/> entries, one per item: "journal" per villager journal read (lore id j and two digits),
+        /// "investigation" per clue id found, "mythos_event" per mythos statement heard. Counts only matter to the tier. Pure, so the knowledge tier is derived from evidence and needs no save of its own.
+        /// </summary>
+        public static List<string> KnowledgeSources(InvestigationEvidence e)
+        {
+            var journals = new List<string>();
+            foreach (var id in e.BooksRead) if (id.Length == 3 && id[0] == 'j' && char.IsDigit(id[1]) && char.IsDigit(id[2])) journals.Add(id);
+            var clues = new List<string>(e.ClueIds);
+            var mythosHeard = new List<string>();
+            foreach (var h in e.Heard) if (h.StatementId.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal) && !mythosHeard.Contains(h.StatementId)) mythosHeard.Add(h.StatementId);
+            var sources = new List<string>();
+            for (int i = 0; i < journals.Count; i++) sources.Add("journal");
+            for (int i = 0; i < clues.Count; i++) sources.Add("investigation");
+            for (int i = 0; i < mythosHeard.Count; i++) sources.Add("mythos_event");
+            return sources;
+        }
+
+        /// <summary>Belief in a statement, whole percent from 0 to 100: its confidence, less <see cref="InvalidatedPenalty"/> when its speaker is corrupted.</summary>
+        public static int BeliefScore(int confidence, bool invalidated)
+        {
+            int b = confidence - (invalidated ? InvalidatedPenalty : 0);
+            return b < 0 ? 0 : b > 100 ? 100 : b;
+        }
         public static readonly string[] SourceIds = { "chat", "journal", "lore", "clue" };
         public static readonly string[] NeedsIds = { "none", "corrupted_speaker" };
         public const string SuspectPrefix = "suspect:", VictimPrefix = "victim:", HomePrefix = "location:home:", LandmarkPrefix = "location:landmark:", CluePrefix = "clue:", LegendPrefix = "clue:legend:", EventPrefix = "event:";
@@ -295,6 +359,15 @@ namespace Frankenstein.Core
         /// With a null <paramref name="mythos"/> the board is exactly the one without it.
         /// </summary>
         public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos)
+        {
+            return Build(story, lore, statements, evidence, corruption, mythos, 0);
+        }
+
+        /// <summary>
+        /// As above plus the player's knowledge tier (<see cref="KnowledgeRules"/>). A contradiction with a ResolvesAtKnowledge at or below the tier is listed in Resolutions instead of Contradictions:
+        /// the player has understood the two statements speak of different nights. At tier 0 the board is exactly the one without knowledge.
+        /// </summary>
+        public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos, int knowledge)
         {
             var board = new InvestigationBoard();
             var roster = story.Roster;
@@ -394,6 +467,7 @@ namespace Frankenstein.Core
                 int night = s.Night > 0 ? s.Night : Math.Max(1, h >= 0 ? evidence.Heard[h].Night : 1);
                 var card = addCard(BoardCardKind.Event, EventId(s.Id), s.Id, true);
                 card.Invalidated = Corrupted(StageOf(corruption, speaker));
+                board.Scores.Add(new StatementScore { StatementId = s.Id, Confidence = s.Confidence, Belief = BeliefScore(s.Confidence, card.Invalidated) });
                 events.Add(new TimelineEvent { StatementId = s.Id, Villager = speaker, Night = night, Minute = s.Minute });
             }
             board.Timeline = OrderTimeline(events);
@@ -402,7 +476,9 @@ namespace Frankenstein.Core
             {
                 if (!revealedStatements.Contains(c.A) || !revealedStatements.Contains(c.B)) continue;
                 if (c.Needs == ContradictionNeeds.CorruptedSpeaker && !Corrupted(StageOf(corruption, SpeakerOf(statements.Find(c.B), roster, evidence)))) continue;
-                board.Contradictions.Add(new BoardContradiction { PairId = c.Id, CardA = EventId(c.A), CardB = EventId(c.B) });
+                var pair = new BoardContradiction { PairId = c.Id, CardA = EventId(c.A), CardB = EventId(c.B) };
+                if (c.ResolvesAtKnowledge > 0 && knowledge >= c.ResolvesAtKnowledge) board.Resolutions.Add(pair);
+                else board.Contradictions.Add(pair);
             }
             if (mythos != null && mythos.Current != null) AddMythos(board, mythos, evidence, corruption, addCard, events);
             return board;

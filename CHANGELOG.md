@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 28 (FEAT-003): Knowledge + Investigation synergy
+- `Core/InvestigationModel.cs`: statements carry an integer confidence percent, the board lists a belief score per revealed statement (confidence minus 30 for a corrupted speaker), and a contradiction with `resolvesAt` becomes a resolution once the knowledge tier reaches it (different nights). `InvestigationRules.KnowledgeSources` derives the tier from evidence. At knowledge 0 the board is unchanged.
+- `Data/statements.json`: `j_innkeeper_toll`, confidence on `c_innkeeper_bell`, pair `bell_two_nights` (contradiction at knowledge 0 to 3, explained at 4).
+- Web: `investigation.js` mirror, board knowledge badge with tonight's reality effects (static under reduced motion), tier-gain and resolution announcements and journal entries, chronicle knowledge line, en and fr strings, `sw.js` cache `flv-shell-v60`. No new save field. Golden key `knowledgeInvestigation`; existing golden keys unchanged.
+- Status: dotnet 350 and node 701 Verified; board UI Partially Verified; Unity runtime Unverified. Later items (Trust Network, Horror Director, Evidence Confidence, Missing Person Outcomes, Branching Investigations, four places, creature upgrade path, Victorian UI) are unbuilt spec tasks. Security: no payment or API secrets in source; a support link is safe.
+
 ### Round 28 (FEAT-002): Forbidden Knowledge
 - Added Core `KnowledgeModel.cs` and `Data/knowledge.json`: six tiers (Nothing, Village Folklore, Cult Secrets, Forbidden Texts, Eldritch Science, Outer Truth) with point thresholds, seven gain sources (journal, ritual, investigation, ruins, catacombs, mythos event, cult discovery), per-tier benefit ids (hidden dialogue, secret paths, hidden cult symbols, true rumor versions, dimensional gateways, new deductions) and tiered rumors in en and fr (the lighthouse goes from "haunted" at tier 0 to "signaling something offshore" at tier 4 and "synchronized with an entity beneath the bay" at tier 5).
 - Knowledge is separate from sanity. Its reality cost, `RealityDistortion.For`, is a seed-driven list of presentation effects (wrong NPC name, changed house name, fake villager, altered board link, door appearing, missing person returning briefly) that grows with the tier, is empty at tier 0 and never changes a Core output, Vigil rule or ending. Negative points read as 0 and an unknown source id is a parse error naming `sources`.
