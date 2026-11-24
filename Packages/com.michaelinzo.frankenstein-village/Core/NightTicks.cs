@@ -18,7 +18,7 @@ namespace Frankenstein.Core
         public int RumorsAdded;
         /// <summary>Missing persons the village has talked about up to and including tonight.</summary>
         public int MissingPersons;
-        /// <summary>1 when tonight's rumor is the first one about a missing person, else 0.</summary>
+        /// <summary>How many missing persons the village talked about for the first time tonight. One rumor is born per night, so the value is 0 or 1; 1 when tonight's rumor is the first one about that missing person.</summary>
         public int NewMissingPerson;
         /// <summary>Id of the omen that happened tonight, or "" when there was none.</summary>
         public string NewOmen = "";
@@ -77,10 +77,25 @@ namespace Frankenstein.Core
             return list;
         }
 
-        /// <summary>The record of one night; a night outside the simulated range clamps to the nearest, null when nothing was simulated.</summary>
+        private sealed class CachedTicks { public MythosLibrary Lib; public int NightCount; public List<NightTickRecord> Records; }
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MythosState, CachedTicks> Cache = new System.Runtime.CompilerServices.ConditionalWeakTable<MythosState, CachedTicks>();
+
+        /// <summary>The record of one night, built once per simulated state and reused, so asking for every night is linear. A night outside the simulated range clamps to the nearest, null when nothing was simulated.</summary>
         public static NightTickRecord At(MythosState state, MythosLibrary lib, int night)
         {
-            var all = Build(state, lib);
+            if (state == null || lib == null) return null;
+            List<NightTickRecord> all;
+            lock (Cache)
+            {
+                CachedTicks hit;
+                if (Cache.TryGetValue(state, out hit) && ReferenceEquals(hit.Lib, lib) && hit.NightCount == state.Nights.Count) all = hit.Records;
+                else
+                {
+                    all = Build(state, lib);
+                    Cache.Remove(state);
+                    Cache.Add(state, new CachedTicks { Lib = lib, NightCount = state.Nights.Count, Records = all });
+                }
+            }
             if (all.Count == 0) return null;
             return all[Math.Min(Math.Max(night, 1), all.Count) - 1];
         }

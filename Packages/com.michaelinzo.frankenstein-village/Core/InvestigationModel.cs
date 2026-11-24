@@ -249,7 +249,7 @@ namespace Frankenstein.Core
         public static List<string> KnowledgeSources(InvestigationEvidence e)
         {
             var journals = new List<string>();
-            foreach (var id in e.BooksRead) if (id.Length == 3 && id[0] == 'j' && char.IsDigit(id[1]) && char.IsDigit(id[2])) journals.Add(id);
+            foreach (var id in e.BooksRead) if (id.Length == 3 && id[0] == 'j' && id[1] >= '0' && id[1] <= '9' && id[2] >= '0' && id[2] <= '9') journals.Add(id);
             var clues = new List<string>(e.ClueIds);
             var mythosHeard = new List<string>();
             foreach (var h in e.Heard) if (h.StatementId.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal) && !mythosHeard.Contains(h.StatementId)) mythosHeard.Add(h.StatementId);
