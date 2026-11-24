@@ -386,6 +386,9 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendShapes(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendOutcomes(sb, cat);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -1484,6 +1487,49 @@ namespace Frankenstein.Core.Tests
                       .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }");
                 }
                 sb.Append("\n      ] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "outcomes" (round 30, spec 163): per city seed and missing person, the outcome at 0 to 6 leads, the weights at 0 and 6 leads, the leads counted from a full evidence set, and the board reveal at 0, 1 and 4 leads in en and fr.</summary>
+        private static void AppendOutcomes(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var mythos = MythosSimulationTests.Library();
+            var outcomes = MissingOutcomesTests.Library();
+            var inputs = MythosSimulationTests.GridInputs();
+            sb.Append("  \"outcomes\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                var people = new List<string>();
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    var perLead = Enumerable.Range(0, MissingOutcomes.MaxLeads + 1).Select(l => ((int)MissingOutcomes.Resolve(soc, story, state, outcomes, k, l)).ToString()).ToList();
+                    var full = MissingOutcomesTests.FullEvidence(story, lore, k);
+                    int counted = MissingOutcomes.CountLeads(story, lore, full, k);
+                    var o = MissingOutcomes.Resolve(soc, story, state, outcomes, k, counted);
+                    var reveals = new List<string>();
+                    foreach (int l in new[] { 0, 1, 4 })
+                        foreach (var lang in new[] { "en", "fr" })
+                        {
+                            var r = MissingOutcomes.Reveal(story, outcomes, o, k, l, lang);
+                            reveals.Add("[" + (int)r.Level + ", " + Q(r.Text) + "]");
+                        }
+                    people.Add("[" + Q(story.Missing[k].Id) + ", [" + string.Join(", ", perLead) + "], [" + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, 0)) + "], ["
+                        + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, MissingOutcomes.MaxLeads)) + "], " + counted + ", [" + string.Join(", ", reveals) + "]]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"missing\": [").Append(string.Join(", ", people)).Append("] }");
+                first = false;
             }
             sb.Append("\n    ]\n  }\n");
         }

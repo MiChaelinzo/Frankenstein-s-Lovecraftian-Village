@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 30 (FEAT-002): missing person outcomes (spec 163)
+- `Core/MissingOutcomes.cs`, `Data/outcomes.json` (en and fr) and `web/src/outcomes.js`: each missing person resolves to exactly one of Dead, Escaped, Recruited, Transformed, Hidden or Displaced from a seed stream, weighted by the finished Mythos run and shifted toward Escaped and Hidden by the player's leads. Authored constraints keep outcomes from contradicting the story and lore text; the board reveals nothing at 0 leads, then only "taken", then the epitaph at 4 leads. Golden key `outcomes` added (other keys unchanged). Verified by dotnet and node tests; UI comes later; Unity runtime Unverified.
+
 ### Round 29 (FEAT-005): specs and status
 - Specs 162 to 166 recorded with goal, inputs, outputs, constraints, failure conditions and test cases (not built, Unverified). Specs 160 and 161 marked built. README, BUILD_LOG and `.kiro/specs` aligned. Docs only.
 

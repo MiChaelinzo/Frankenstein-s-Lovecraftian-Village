@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "taken": {
+  "en": "{missing} is gone. That much the village will say, and no more.",
+  "fr": "{missing} n'est plus la. Cela, le village veut bien le dire, et rien de plus."
+ },
+ "outcomes": [
+  { "id": "dead",
+    "en": "{missing} lies in the ground, or under the water, and the village has agreed to call that rest.",
+    "fr": "{missing} repose sous la terre, ou sous l'eau, et le village a convenu d'appeler cela le repos." },
+  { "id": "escaped",
+    "en": "{missing} got out. Somewhere past the last road a door opens for {missing}, and no one here will ever be told which.",
+    "fr": "{missing} s'est echappe. Quelque part au-dela de la derniere route une porte s'ouvre pour {missing}, et personne ici ne saura laquelle." },
+  { "id": "recruited",
+    "en": "{missing} answered, and now sings with the others where the tide should not reach.",
+    "fr": "{missing} a repondu, et chante maintenant avec les autres la ou la maree ne devrait pas monter." },
+  { "id": "transformed",
+    "en": "Something wears the shape of {missing} and walks the village at the hour of the second bell. It is patient. It is learning the way home.",
+    "fr": "Quelque chose porte la forme de {missing} et parcourt le village a l'heure de la seconde cloche. Cela est patient. Cela apprend le chemin du retour." },
+  { "id": "hidden",
+    "en": "{missing} is still in {village}, behind a wall or beneath a floor, and has stopped answering when called.",
+    "fr": "{missing} est toujours a {village}, derriere un mur ou sous un plancher, et ne repond plus quand on l'appelle." },
+  { "id": "displaced",
+    "en": "{missing} stepped out of the order of the nights. The hour that holds {missing} is not one this village will reach.",
+    "fr": "{missing} est sorti de l'ordre des nuits. L'heure qui retient {missing} n'est pas de celles que ce village atteindra." }
+ ],
+ "constraints": [
+  { "missing": "m1", "excludes": ["dead"], "basis": "story m1 chat 2 says she did not fall and was asked; lore p01 says it is not yet over" },
+  { "missing": "m2", "excludes": ["dead", "escaped"], "basis": "story m2 chat 2 says he is aboard the wreck and counted twice; the letters still arrive" },
+  { "missing": "m3", "excludes": ["dead", "escaped"], "basis": "story m3 chat 2 says the abbey took her in; lore p03 has the ink wet" },
+  { "missing": "m4", "excludes": ["dead", "escaped"], "basis": "story m4 chat 2 says the lights are keeping her; lore p04 says the footprints do not return" },
+  { "missing": "m5", "excludes": ["escaped"], "basis": "story m5 chat 2 says the extra grave was for him and he knew; lore p05 has the grave deeper than yesterday" }
+ ]
+}
