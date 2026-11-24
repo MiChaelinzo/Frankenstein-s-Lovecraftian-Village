@@ -189,6 +189,138 @@
    "minute": 1380,
    "en": "It was not me. I was never near the place.",
    "fr": "Ce n'etait pas moi. Je n'etais jamais pres de cet endroit."
+  },
+  {
+   "id": "k_manor_archives",
+   "source": "clue",
+   "role": "",
+   "ref": "place@manor_archives",
+   "place": "abbey",
+   "night": 2,
+   "minute": 1200,
+   "en": "The manor archives record every generation giving a child to the house, and none of them is buried in the churchyard.",
+   "fr": "Les archives du manoir notent chaque generation donnant un enfant a la maison, et aucun n'est enterre au cimetiere."
+  },
+  {
+   "id": "k_manor_ledger",
+   "source": "clue",
+   "role": "",
+   "ref": "place@manor_cult_records",
+   "place": "abbey",
+   "night": 3,
+   "minute": 1260,
+   "en": "A cult ledger in the manor lists the missing in the order they vanished, with the torn page left open.",
+   "fr": "Un registre du culte dans le manoir liste les disparus dans l'ordre de leur disparition, la page arrachee laissee ouverte."
+  },
+  {
+   "id": "k_forest_circle",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_ritual_circle",
+   "place": "grove",
+   "night": 1,
+   "minute": 1140,
+   "en": "The circle at the forest edge is swept clean and relit before every dusk. Whoever keeps it never leaves a footprint.",
+   "fr": "Le cercle a la lisiere est balaye et rallume avant chaque crepuscule. Celui qui l'entretient ne laisse aucune empreinte."
+  },
+  {
+   "id": "k_forest_trail",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_trail",
+   "place": "grove",
+   "night": 2,
+   "minute": 1200,
+   "en": "The missing walked into the trees on their own feet, one behind another, and every trail ends at a red mark on a trunk.",
+   "fr": "Les disparus sont entres sous les arbres de leurs pieds, l'un derriere l'autre, et chaque piste finit a une marque rouge sur un tronc."
+  },
+  {
+   "id": "k_forest_hollow",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_hollow",
+   "place": "grove",
+   "night": 3,
+   "minute": 1320,
+   "en": "Beyond the red marks lies a hollow ringed by three stones, and the village's lost are counted there.",
+   "fr": "Au-dela des marques rouges se trouve un creux entoure de trois pierres, et c'est la qu'on compte les perdus du village."
+  },
+  {
+   "id": "k_catacomb_texts",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_texts",
+   "place": "catacombs",
+   "night": 1,
+   "minute": 1170,
+   "en": "The texts under the gate were written by many hands, and every one describes the way out as a door that moves.",
+   "fr": "Les textes sous la grille sont de nombreuses mains, et toutes decrivent la sortie comme une porte qui bouge."
+  },
+  {
+   "id": "k_catacomb_prison",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_prison",
+   "place": "catacombs",
+   "night": 2,
+   "minute": 1230,
+   "en": "The old prison under the catacombs has been used again this year, and its scratches number the missing.",
+   "fr": "L'ancienne prison sous les catacombes a servi de nouveau cette annee, et ses entailles comptent les disparus."
+  },
+  {
+   "id": "k_catacomb_tear",
+   "source": "clue",
+   "role": "",
+   "ref": "place@catacomb_tear",
+   "place": "catacombs",
+   "night": 3,
+   "minute": 1290,
+   "en": "Below the cemetery the air has a seam, and what lies on the other side of it is this same place, lit.",
+   "fr": "Sous le cimetiere l'air a une couture, et ce qui se trouve de l'autre cote est ce meme lieu, eclaire."
+  },
+  {
+   "id": "k_mine_veins",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_veins",
+   "place": "standing_stones",
+   "night": 1,
+   "minute": 1110,
+   "en": "The old mine under the cliffs is veined with a crystal that gives its own light, and it hums when the tide turns.",
+   "fr": "La vieille mine sous les falaises est veinee d'un cristal qui donne sa propre lumiere, et il vibre quand la maree tourne."
+  },
+  {
+   "id": "k_mine_resonance",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_resonance",
+   "place": "standing_stones",
+   "night": 3,
+   "minute": 1230,
+   "en": "On the wrong nights the crystal answers the village, and the village answers it back in the dark.",
+   "fr": "Les nuits fausses le cristal repond au village, et le village lui repond en retour dans le noir."
+  },
+  {
+   "id": "k_mine_deep",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_deep",
+   "place": "standing_stones",
+   "night": 2,
+   "minute": 1290,
+   "en": "The deep tunnel was dug after the mine closed, and a boot of the missing lies at its end.",
+   "fr": "Le tunnel profond a ete creuse apres la fermeture de la mine, et une botte du disparu gisait a son bout."
+  },
+  {
+   "id": "k_mine_lake",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_lake",
+   "place": "standing_stones",
+   "night": 5,
+   "minute": 1350,
+   "en": "The black lake under the mine rises and falls with the bay, though no water joins them that anyone has found.",
+   "fr": "Le lac noir sous la mine monte et descend avec la baie, sans qu'aucun cours d'eau les relie que l'on ait trouve."
   }
  ],
  "contradictions": [

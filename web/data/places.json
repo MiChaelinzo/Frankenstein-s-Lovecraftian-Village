@@ -1,0 +1,1687 @@
+{
+ "version": 1,
+ "places": [
+  {
+   "id": "manor",
+   "anchor": "abbey",
+   "radius": 10.0,
+   "en": "The Abandoned Manor",
+   "fr": "Le manoir abandonne",
+   "budget": {
+    "low": 200,
+    "medium": 300,
+    "high": 400
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 8.4
+   },
+   "door": {
+    "x": 0.0,
+    "z": 4.4
+   },
+   "prompts": {
+    "enter": {
+     "en": "Step through the open door",
+     "fr": "Franchir la porte ouverte"
+    },
+    "leave": {
+     "en": "Leave the manor",
+     "fr": "Quitter le manoir"
+    },
+    "hatch": {
+     "en": "Descend into the hidden tunnel",
+     "fr": "Descendre dans le tunnel cache"
+    },
+    "sealed": {
+     "en": "A hatch, sealed with symbols you cannot read",
+     "fr": "Une trappe scellee de symboles que vous ne savez pas lire"
+    }
+   },
+   "tunnel": {
+    "hatch": {
+     "x": 0.0,
+     "z": -5.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "cemetery",
+    "found": {
+     "en": "The tunnel runs under the hill and comes up among the graves.",
+     "fr": "Le tunnel court sous la colline et debouche parmi les tombes."
+    }
+   },
+   "rooms": [
+    {
+     "id": "hall",
+     "x": 0.0,
+     "z": 1.8,
+     "halfX": 4.8,
+     "halfZ": 3.4
+    },
+    {
+     "id": "archives",
+     "x": -3.6,
+     "z": -3.6,
+     "halfX": 2.0,
+     "halfZ": 2.4
+    },
+    {
+     "id": "cult_records",
+     "x": 3.4,
+     "z": -4.2,
+     "halfX": 2.0,
+     "halfZ": 2.2
+    },
+    {
+     "id": "cellar",
+     "x": 0.0,
+     "z": -5.6,
+     "halfX": 1.2,
+     "halfZ": 1.0
+    }
+   ],
+   "props": [
+    {
+     "kind": "abbey_wall",
+     "x": -3.0,
+     "z": -7.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 3.0,
+     "z": -7.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.8,
+     "z": -2.9,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.8,
+     "z": -2.9,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.8,
+     "z": 2.4,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.8,
+     "z": 2.4,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_arch",
+     "x": 0.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_pillar",
+     "x": -2.7,
+     "z": 4.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_pillar",
+     "x": 2.7,
+     "z": 4.3,
+     "yaw": 3.141592653589793
+    },
+    {
+     "kind": "barrel",
+     "x": -4.3,
+     "z": -6.0,
+     "yaw": 0.0
+    },
+    {
+     "kind": "crate_stack",
+     "x": 4.4,
+     "z": -6.1,
+     "yaw": 0.0
+    }
+   ],
+   "discoveries": [
+    {
+     "id": "archives",
+     "room": "archives",
+     "x": -3.1,
+     "z": -3.6,
+     "clue": "place@manor_archives",
+     "source": "ruins",
+     "lead": false,
+     "statement": "k_manor_archives",
+     "en": "Family archives",
+     "fr": "Archives de la famille",
+     "text": {
+      "en": "Generations of the family ledgers, each name followed by the same dry note: gave the house a child.",
+      "fr": "Des generations de registres de famille, chaque nom suivi de la meme note seche: a donne un enfant a la maison."
+     }
+    },
+    {
+     "id": "cult_records",
+     "room": "cult_records",
+     "x": 3.3,
+     "z": -4.0,
+     "clue": "place@manor_cult_records",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_manor_ledger",
+     "en": "Cult records",
+     "fr": "Registres du culte",
+     "text": {
+      "en": "A cult ledger lists the taken, each struck through in the order of their vanishing. One page is torn out and left open.",
+      "fr": "Un registre du culte liste les disparus, chacun raye dans l'ordre de sa disparition. Une page est arrachee et laissee ouverte."
+     }
+    }
+   ],
+   "parts": [
+    {
+     "id": "floor",
+     "x0": -5.4,
+     "x1": 5.4,
+     "z0": -6.8,
+     "z1": 5.2,
+     "y0": 0.0,
+     "y1": 0.12,
+     "taper": 1,
+     "color": [
+      0.17,
+      0.15,
+      0.13
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "roof_back",
+     "x0": -6.2,
+     "x1": 6.2,
+     "z0": -7.9,
+     "z1": -1.2,
+     "y0": 3.6,
+     "y1": 3.7,
+     "taper": 1,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "roof_ridge_back",
+     "x0": -5.4,
+     "x1": 5.4,
+     "z0": -7.0,
+     "z1": -2.0,
+     "y0": 3.7,
+     "y1": 5.2,
+     "taper": 0.12,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "chimney",
+     "x0": 3.6,
+     "x1": 4.8,
+     "z0": -6.6,
+     "z1": -5.4,
+     "y0": 3.6,
+     "y1": 6.4,
+     "taper": 0.8,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "front_step_a",
+     "x0": -2.6,
+     "x1": 2.6,
+     "z0": 6.9,
+     "z1": 7.6,
+     "y0": 0.0,
+     "y1": 0.14,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "front_step_b",
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": 6.2,
+     "z1": 6.9,
+     "y0": 0.0,
+     "y1": 0.28,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_post_l",
+     "x0": -2.9,
+     "x1": -2.5,
+     "z0": 5.6,
+     "z1": 6.0,
+     "y0": 0.0,
+     "y1": 3.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_post_r",
+     "x0": 2.5,
+     "x1": 2.9,
+     "z0": 5.6,
+     "z1": 6.0,
+     "y0": 0.0,
+     "y1": 3.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_roof",
+     "x0": -3.4,
+     "x1": 3.4,
+     "z0": 5.3,
+     "z1": 7.6,
+     "y0": 3.4,
+     "y1": 4.3,
+     "taper": 0.15,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "lintel",
+     "x0": -3.0,
+     "x1": 3.0,
+     "z0": 5.5,
+     "z1": 6.0,
+     "y0": 3.2,
+     "y1": 3.5,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "shelf_a",
+     "x0": -5.2,
+     "x1": -5.0,
+     "z0": -5.4,
+     "z1": -1.8,
+     "y0": 0.0,
+     "y1": 2.6,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "shelf_b",
+     "x0": -4.9,
+     "x1": -3.2,
+     "z0": -5.4,
+     "z1": -5.2,
+     "y0": 0.0,
+     "y1": 2.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "shelf_c",
+     "x0": -4.9,
+     "x1": -3.2,
+     "z0": -1.9,
+     "z1": -1.7,
+     "y0": 0.0,
+     "y1": 2.2,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "archive_ledgers",
+     "x0": -5.0,
+     "x1": -4.6,
+     "z0": -4.8,
+     "z1": -2.4,
+     "y0": 1.0,
+     "y1": 1.9,
+     "taper": 1,
+     "color": [
+      0.34,
+      0.27,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "archive_table",
+     "x0": -3.8,
+     "x1": -2.2,
+     "z0": -4.1,
+     "z1": -3.1,
+     "y0": 0.0,
+     "y1": 0.85,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "archive_book",
+     "x0": -3.5,
+     "x1": -2.6,
+     "z0": -3.8,
+     "z1": -3.4,
+     "y0": 0.85,
+     "y1": 0.95,
+     "taper": 1,
+     "color": [
+      0.9,
+      0.78,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "records_table",
+     "x0": 2.4,
+     "x1": 4.2,
+     "z0": -4.6,
+     "z1": -3.4,
+     "y0": 0.0,
+     "y1": 0.9,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "records_ledger",
+     "x0": 2.8,
+     "x1": 3.8,
+     "z0": -4.3,
+     "z1": -3.7,
+     "y0": 0.9,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.9,
+      0.78,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "records_candle",
+     "x0": 4.0,
+     "x1": 4.1,
+     "z0": -3.9,
+     "z1": -3.8,
+     "y0": 0.9,
+     "y1": 1.15,
+     "taper": 1,
+     "color": [
+      0.95,
+      0.8,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 1
+    },
+    {
+     "id": "records_chest",
+     "x0": 4.0,
+     "x1": 5.1,
+     "z0": -1.8,
+     "z1": -0.8,
+     "y0": 0.0,
+     "y1": 0.7,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "records_sigil",
+     "x0": 2.2,
+     "x1": 4.6,
+     "z0": -5.9,
+     "z1": -5.7,
+     "y0": 0.1,
+     "y1": 2.6,
+     "taper": 1,
+     "color": [
+      0.22,
+      0.05,
+      0.07
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "hatch_frame",
+     "x0": -1.0,
+     "x1": 1.0,
+     "z0": -6.5,
+     "z1": -4.7,
+     "y0": 0.12,
+     "y1": 0.2,
+     "taper": 1,
+     "color": [
+      0.1,
+      0.09,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "hatch_door",
+     "x0": -0.7,
+     "x1": 0.7,
+     "z0": -6.2,
+     "z1": -5.0,
+     "y0": 0.2,
+     "y1": 0.28,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "hatch_glow",
+     "x0": -0.12,
+     "x1": 0.12,
+     "z0": -5.75,
+     "z1": -5.45,
+     "y0": 0.28,
+     "y1": 0.31,
+     "taper": 1,
+     "color": [
+      0.35,
+      0.75,
+      0.7
+     ],
+     "glow": 1,
+     "tier": 1
+    },
+    {
+     "id": "rubble_a",
+     "x0": -5.9,
+     "x1": -4.4,
+     "z0": 3.0,
+     "z1": 4.2,
+     "y0": 0.0,
+     "y1": 0.5,
+     "taper": 0.6,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "rubble_b",
+     "x0": 4.6,
+     "x1": 6.0,
+     "z0": 1.0,
+     "z1": 2.2,
+     "y0": 0.0,
+     "y1": 0.4,
+     "taper": 0.6,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "cracked_hearth",
+     "x0": -1.4,
+     "x1": 1.4,
+     "z0": -1.6,
+     "z1": -0.8,
+     "y0": 0.0,
+     "y1": 0.9,
+     "taper": 0.9,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "hanging_lamp",
+     "x0": -0.15,
+     "x1": 0.15,
+     "z0": 2.6,
+     "z1": 2.9,
+     "y0": 2.7,
+     "y1": 3.3,
+     "taper": 0.5,
+     "color": [
+      0.9,
+      0.7,
+      0.4
+     ],
+     "glow": 1,
+     "tier": 2
+    },
+    {
+     "id": "broken_stair",
+     "x0": -1.2,
+     "x1": 1.2,
+     "z0": 0.5,
+     "z1": 1.7,
+     "y0": 0.0,
+     "y1": 0.6,
+     "taper": 0.9,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "cobweb_drape",
+     "x0": -5.3,
+     "x1": -3.0,
+     "z0": -6.6,
+     "z1": -6.5,
+     "y0": 1.6,
+     "y1": 3.4,
+     "taper": 0.2,
+     "color": [
+      0.5,
+      0.5,
+      0.52
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "window_sill_l",
+     "x0": -6.0,
+     "x1": -5.6,
+     "z0": 0.6,
+     "z1": 2.2,
+     "y0": 1.2,
+     "y1": 1.4,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "window_sill_r",
+     "x0": 5.6,
+     "x1": 6.0,
+     "z0": 0.6,
+     "z1": 2.2,
+     "y0": 1.2,
+     "y1": 1.4,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    }
+   ]
+  },
+  {
+   "id": "forest",
+   "anchor": "grove",
+   "radius": 11.0,
+   "en": "The Forest Boundary",
+   "fr": "La lisiere de la foret",
+   "budget": {
+    "low": 120,
+    "medium": 200,
+    "high": 260
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 9.5
+   },
+   "door": {
+    "x": 0.0,
+    "z": 6.5
+   },
+   "prompts": {
+    "enter": {
+     "en": "Follow the lantern track into the trees",
+     "fr": "Suivre le sentier de lanternes sous les arbres"
+    },
+    "leave": {
+     "en": "Follow the lanterns back out",
+     "fr": "Suivre les lanternes pour ressortir"
+    },
+    "hatch": {
+     "en": "Take the overgrown hunters' track",
+     "fr": "Prendre la piste envahie des chasseurs"
+    },
+    "sealed": {
+     "en": "Undergrowth hides something you cannot find",
+     "fr": "Les broussailles cachent ce que vous ne trouvez pas"
+    }
+   },
+   "huntingTrail": true,
+   "lanterns": [
+    {
+     "x": 0.0,
+     "z": -6.0
+    },
+    {
+     "x": 1.0,
+     "z": -3.0
+    },
+    {
+     "x": -0.5,
+     "z": 0.0
+    },
+    {
+     "x": 0.5,
+     "z": 3.0
+    },
+    {
+     "x": 0.0,
+     "z": 6.0
+    }
+   ],
+   "tunnel": {
+    "hatch": {
+     "x": -6.2,
+     "z": -5.4
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "standing_stones",
+    "found": {
+     "en": "The hunters' track runs through the dark and ends among the standing stones.",
+     "fr": "La piste des chasseurs traverse l'obscurite et finit parmi les pierres dressees."
+    }
+   },
+   "rooms": [
+    {
+     "id": "ring",
+     "x": -4.2,
+     "z": 0.0,
+     "halfX": 2.4,
+     "halfZ": 2.4
+    },
+    {
+     "id": "trail",
+     "x": 4.2,
+     "z": -3.0,
+     "halfX": 2.2,
+     "halfZ": 2.4
+    },
+    {
+     "id": "hollow",
+     "x": 0.0,
+     "z": -7.6,
+     "halfX": 2.4,
+     "halfZ": 1.6
+    }
+   ],
+   "props": [
+    {
+     "kind": "tree",
+     "x": 5.79,
+     "z": 6.89,
+     "yaw": 0.7
+    },
+    {
+     "kind": "tree",
+     "x": 8.86,
+     "z": 1.56,
+     "yaw": 1.4
+    },
+    {
+     "kind": "tree",
+     "x": 7.79,
+     "z": -4.5,
+     "yaw": 2.09
+    },
+    {
+     "kind": "tree",
+     "x": 3.08,
+     "z": -8.46,
+     "yaw": 2.79
+    },
+    {
+     "kind": "tree",
+     "x": -3.08,
+     "z": -8.46,
+     "yaw": 3.49
+    },
+    {
+     "kind": "tree",
+     "x": -7.79,
+     "z": -4.5,
+     "yaw": 4.19
+    },
+    {
+     "kind": "tree",
+     "x": -8.86,
+     "z": 1.56,
+     "yaw": 4.89
+    },
+    {
+     "kind": "tree",
+     "x": -5.79,
+     "z": 6.89,
+     "yaw": 5.59
+    },
+    {
+     "kind": "ritual_circle",
+     "x": -4.2,
+     "z": 0.0,
+     "yaw": 0.0
+    },
+    {
+     "kind": "stump",
+     "x": 6.5,
+     "z": 2.0,
+     "yaw": 0.4
+    },
+    {
+     "kind": "stump",
+     "x": -6.5,
+     "z": 5.0,
+     "yaw": 1.9
+    },
+    {
+     "kind": "log",
+     "x": 3.0,
+     "z": -6.0,
+     "yaw": 0.9
+    },
+    {
+     "kind": "rock",
+     "x": -2.5,
+     "z": -4.2,
+     "yaw": 2.2
+    },
+    {
+     "kind": "bush",
+     "x": 6.0,
+     "z": 5.5,
+     "yaw": 0.0
+    },
+    {
+     "kind": "bush",
+     "x": -5.5,
+     "z": 7.0,
+     "yaw": 1.0
+    }
+   ],
+   "discoveries": [
+    {
+     "id": "ritual_circle",
+     "room": "ring",
+     "x": -4.2,
+     "z": 0.0,
+     "clue": "place@forest_ritual_circle",
+     "source": "ritual",
+     "lead": false,
+     "statement": "k_forest_circle",
+     "en": "Ritual circle",
+     "fr": "Cercle rituel",
+     "text": {
+      "en": "Six bone stakes ring ash that is still warm. Someone keeps this circle, and keeps it every night.",
+      "fr": "Six pieux d'os entourent une cendre encore tiede. Quelqu'un entretient ce cercle, chaque nuit."
+     }
+    },
+    {
+     "id": "missing_trail",
+     "room": "trail",
+     "x": 4.2,
+     "z": -3.0,
+     "clue": "place@forest_trail",
+     "source": "investigation",
+     "lead": true,
+     "statement": "k_forest_trail",
+     "en": "Trail of the missing",
+     "fr": "Piste des disparus",
+     "text": {
+      "en": "A satchel, a boot print that stops mid-stride, and a red blaze cut into the bark at the height of a hand.",
+      "fr": "Une besace, l'empreinte d'une botte qui s'arrete en plein pas, et une marque rouge entaillee dans l'ecorce a hauteur de main."
+     }
+    },
+    {
+     "id": "hidden_hollow",
+     "room": "hollow",
+     "x": 0.0,
+     "z": -7.6,
+     "requires": "place@forest_trail",
+     "clue": "place@forest_hollow",
+     "source": "cult_discovery",
+     "lead": false,
+     "statement": "k_forest_hollow",
+     "en": "Hidden hollow",
+     "fr": "Creux cache",
+     "text": {
+      "en": "Following the red blaze, you find three stones set around a hollow that no path reaches. The grass bends toward it.",
+      "fr": "En suivant la marque rouge, vous trouvez trois pierres autour d'un creux que nul chemin n'atteint. L'herbe se penche vers lui."
+     }
+    }
+   ],
+   "parts": [
+    {
+     "id": "forest_floor",
+     "x0": -9.0,
+     "x1": 9.0,
+     "z0": -9.5,
+     "z1": 9.5,
+     "y0": 0.0,
+     "y1": 0.04,
+     "taper": 1,
+     "color": [
+      0.07,
+      0.1,
+      0.07
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_post_0",
+     "x0": -0.05,
+     "x1": 0.05,
+     "z0": -6.05,
+     "z1": -5.95,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.14,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_glass_0",
+     "x0": -0.12,
+     "x1": 0.12,
+     "z0": -6.12,
+     "z1": -5.88,
+     "y0": 1.3,
+     "y1": 1.55,
+     "taper": 1,
+     "color": [
+      1.0,
+      0.72,
+      0.3
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "lantern_post_1",
+     "x0": 0.95,
+     "x1": 1.05,
+     "z0": -3.05,
+     "z1": -2.95,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.14,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_glass_1",
+     "x0": 0.88,
+     "x1": 1.12,
+     "z0": -3.12,
+     "z1": -2.88,
+     "y0": 1.3,
+     "y1": 1.55,
+     "taper": 1,
+     "color": [
+      1.0,
+      0.72,
+      0.3
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "lantern_post_2",
+     "x0": -0.55,
+     "x1": -0.45,
+     "z0": -0.05,
+     "z1": 0.05,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.14,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_glass_2",
+     "x0": -0.62,
+     "x1": -0.38,
+     "z0": -0.12,
+     "z1": 0.12,
+     "y0": 1.3,
+     "y1": 1.55,
+     "taper": 1,
+     "color": [
+      1.0,
+      0.72,
+      0.3
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "lantern_post_3",
+     "x0": 0.45,
+     "x1": 0.55,
+     "z0": 2.95,
+     "z1": 3.05,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.14,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_glass_3",
+     "x0": 0.38,
+     "x1": 0.62,
+     "z0": 2.88,
+     "z1": 3.12,
+     "y0": 1.3,
+     "y1": 1.55,
+     "taper": 1,
+     "color": [
+      1.0,
+      0.72,
+      0.3
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "lantern_post_4",
+     "x0": -0.05,
+     "x1": 0.05,
+     "z0": 5.95,
+     "z1": 6.05,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.14,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "lantern_glass_4",
+     "x0": -0.12,
+     "x1": 0.12,
+     "z0": 5.88,
+     "z1": 6.12,
+     "y0": 1.3,
+     "y1": 1.55,
+     "taper": 1,
+     "color": [
+      1.0,
+      0.72,
+      0.3
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "circle_stake_0",
+     "x0": -4.27,
+     "x1": -4.13,
+     "z0": 2.33,
+     "z1": 2.47,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "circle_stake_1",
+     "x0": -2.19,
+     "x1": -2.05,
+     "z0": 1.13,
+     "z1": 1.27,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "circle_stake_2",
+     "x0": -2.19,
+     "x1": -2.05,
+     "z0": -1.27,
+     "z1": -1.13,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "circle_stake_3",
+     "x0": -4.27,
+     "x1": -4.13,
+     "z0": -2.47,
+     "z1": -2.33,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "circle_stake_4",
+     "x0": -6.35,
+     "x1": -6.21,
+     "z0": -1.27,
+     "z1": -1.13,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "circle_stake_5",
+     "x0": -6.35,
+     "x1": -6.21,
+     "z0": 1.13,
+     "z1": 1.27,
+     "y0": 0.0,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.5,
+      0.42
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "trail_blaze",
+     "x0": 4.54,
+     "x1": 4.66,
+     "z0": -1.46,
+     "z1": -1.34,
+     "y0": 0.0,
+     "y1": 1.5,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.2,
+      0.15
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "lost_satchel",
+     "x0": 3.7,
+     "x1": 4.3,
+     "z0": -3.5,
+     "z1": -3.0,
+     "y0": 0.0,
+     "y1": 0.22,
+     "taper": 1,
+     "color": [
+      0.3,
+      0.2,
+      0.12
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "mist_bank",
+     "x0": -8.0,
+     "x1": 8.0,
+     "z0": -8.0,
+     "z1": 8.0,
+     "y0": 0.05,
+     "y1": 0.35,
+     "taper": 1,
+     "color": [
+      0.45,
+      0.5,
+      0.55
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "hollow_stone_0",
+     "x0": -1.05,
+     "x1": -0.55,
+     "z0": -7.85,
+     "z1": -7.35,
+     "y0": 0.0,
+     "y1": 0.9,
+     "taper": 1,
+     "color": [
+      0.28,
+      0.28,
+      0.3
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "hollow_stone_1",
+     "x0": -0.25,
+     "x1": 0.25,
+     "z0": -8.65,
+     "z1": -8.15,
+     "y0": 0.0,
+     "y1": 1.1,
+     "taper": 1,
+     "color": [
+      0.28,
+      0.28,
+      0.3
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "hollow_stone_2",
+     "x0": 0.55,
+     "x1": 1.05,
+     "z0": -7.85,
+     "z1": -7.35,
+     "y0": 0.0,
+     "y1": 1.3,
+     "taper": 1,
+     "color": [
+      0.28,
+      0.28,
+      0.3
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "tree_blaze_a",
+     "x0": -6.55,
+     "x1": -6.45,
+     "z0": 2.95,
+     "z1": 3.05,
+     "y0": 0.0,
+     "y1": 1.8,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.2,
+      0.15
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "tree_blaze_b",
+     "x0": 6.75,
+     "x1": 6.85,
+     "z0": -6.05,
+     "z1": -5.95,
+     "y0": 0.0,
+     "y1": 1.8,
+     "taper": 1,
+     "color": [
+      0.55,
+      0.2,
+      0.15
+     ],
+     "glow": 0,
+     "tier": 2
+    }
+   ]
+  },
+  {
+   "id": "catacomb",
+   "anchor": "catacombs",
+   "radius": 6.5,
+   "en": "Catacomb Interior",
+   "fr": "Interieur des catacombes",
+   "budget": {
+    "low": 240,
+    "medium": 420,
+    "high": 600
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 5.6
+   },
+   "door": {
+    "x": 0.0,
+    "z": 3.9
+   },
+   "prompts": {
+    "enter": {
+     "en": "Descend the worn steps into the catacombs",
+     "fr": "Descendre les marches usees vers les catacombes"
+    },
+    "leave": {
+     "en": "Climb the steps back to the gate",
+     "fr": "Remonter les marches jusqu'a la grille"
+    },
+    "hatch": {
+     "en": "Lift the loose flagstone",
+     "fr": "Soulever la dalle descellee"
+    },
+    "sealed": {
+     "en": "A flagstone rocks underfoot, but you do not know why",
+     "fr": "Une dalle bouge sous le pied, sans que vous sachiez pourquoi"
+    }
+   },
+   "procedural": true,
+   "tunnel": {
+    "hatch": {
+     "x": -0.7,
+     "z": 2.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "abbey",
+    "found": {
+     "en": "The passage under the flagstone climbs in the dark and comes out among the abbey ruins.",
+     "fr": "Le passage sous la dalle monte dans le noir et debouche parmi les ruines de l'abbaye."
+    }
+   },
+   "rooms": [
+    {
+     "id": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    }
+   ],
+   "props": [],
+   "discoveries": [
+    {
+     "id": "forbidden_texts",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "clue": "place@catacomb_texts",
+     "source": "catacombs",
+     "lead": false,
+     "statement": "k_catacomb_texts",
+     "en": "Forbidden texts",
+     "fr": "Textes interdits",
+     "text": {
+      "en": "Shelves of unbound leaves in a dozen hands all describe the same door, and none agrees on which side you are standing.",
+      "fr": "Des rayons de feuillets non relies, de douze ecritures, decrivent tous la meme porte sans s'accorder sur le cote ou l'on se tient."
+     }
+    },
+    {
+     "id": "dimensional_tear",
+     "room": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "clue": "place@catacomb_tear",
+     "source": "mythos_event",
+     "lead": false,
+     "statement": "k_catacomb_tear",
+     "en": "Dimensional tear",
+     "fr": "Dechirure dimensionnelle",
+     "text": {
+      "en": "A seam hangs in the stale air. Through it lies the same chamber, a little wrong, and the lamp in it is lit by no one.",
+      "fr": "Une couture pend dans l'air vicie. Au travers, la meme salle, un peu fausse, et la lampe y est allumee par personne."
+     },
+     "requiresBenefit": "dimensional_gateways",
+     "requiresEffect": "door_appearing"
+    },
+    {
+     "id": "ancient_prison",
+     "room": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "clue": "place@catacomb_prison",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_catacomb_prison",
+     "en": "Ancient prison",
+     "fr": "Prison ancienne",
+     "text": {
+      "en": "Iron older than the abbey. The cell is empty, but fresh scratches count the missing, one for each night they were kept here.",
+      "fr": "Un fer plus vieux que l'abbaye. La cellule est vide, mais des entailles fraiches comptent les disparus, une par nuit passee ici."
+     },
+     "requires": "place@catacomb_texts"
+    }
+   ],
+   "parts": []
+  },
+  {
+   "id": "mine",
+   "anchor": "standing_stones",
+   "radius": 6.5,
+   "en": "The Forgotten Mine",
+   "fr": "La mine oubliee",
+   "budget": {
+    "low": 240,
+    "medium": 420,
+    "high": 600
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 5.6
+   },
+   "door": {
+    "x": 0.0,
+    "z": 3.9
+   },
+   "prompts": {
+    "enter": {
+     "en": "Duck under the rotten timbers into the mine",
+     "fr": "Se courber sous les etais pourris pour entrer dans la mine"
+    },
+    "leave": {
+     "en": "Follow the rails back up to daylight",
+     "fr": "Remonter les rails jusqu'a la lumiere du jour"
+    },
+    "hatch": {
+     "en": "Squeeze through the crack in the wall",
+     "fr": "Se glisser par la fissure du mur"
+    },
+    "sealed": {
+     "en": "A crack breathes cold air, but you cannot tell where it leads",
+     "fr": "Une fissure souffle un air froid, sans que vous sachiez ou elle mene"
+    }
+   },
+   "procedural": true,
+   "tunnel": {
+    "hatch": {
+     "x": -0.7,
+     "z": 2.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "hidden_cove",
+    "found": {
+     "en": "The crack opens on a flooded gallery that climbs to the shingle of the hidden cove.",
+     "fr": "La fissure s'ouvre sur une galerie noyee qui remonte jusqu'aux galets de la crique cachee."
+    }
+   },
+   "rooms": [
+    {
+     "id": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    }
+   ],
+   "props": [],
+   "discoveries": [
+    {
+     "id": "crystal_veins",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "clue": "place@mine_veins",
+     "source": "ruins",
+     "lead": false,
+     "statement": "k_mine_veins",
+     "en": "Crystal veins",
+     "fr": "Veines de cristal",
+     "text": {
+      "en": "Veins of a pale crystal run through the rock and glow without any lamp. Each one is cut square, as if the mine had been dug to follow them.",
+      "fr": "Des veines d'un cristal pale courent dans la roche et luisent sans lampe. Chacune est taillee droit, comme si la mine avait ete creusee pour les suivre."
+     }
+    },
+    {
+     "id": "vein_resonance",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.5,
+     "clue": "place@mine_resonance",
+     "source": "mythos_event",
+     "lead": false,
+     "statement": "k_mine_resonance",
+     "en": "Resonant vein",
+     "fr": "Veine resonante",
+     "text": {
+      "en": "The crystal rings once, and the air bends around it. For a moment the tunnel behind you is not the one you came down.",
+      "fr": "Le cristal sonne une fois et l'air se plie autour de lui. Un instant, le tunnel derriere vous n'est plus celui par lequel vous etes descendu."
+     },
+     "requires": "place@mine_veins",
+     "requiresEffect": "altered_board_link"
+    },
+    {
+     "id": "deep_tunnel",
+     "room": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "clue": "place@mine_deep",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_mine_deep",
+     "en": "Deep tunnel",
+     "fr": "Tunnel profond",
+     "text": {
+      "en": "The tunnel ends in a fall of rock, newer than the rest. A boot lies half under it, and the mud before it holds many small prints, all going in.",
+      "fr": "Le tunnel s'acheve sur un eboulis plus recent que le reste. Une botte est a moitie prise dessous, et la boue devant elle garde de nombreuses petites empreintes, toutes vers l'interieur."
+     },
+     "requires": "place@mine_veins"
+    },
+    {
+     "id": "underground_lake",
+     "room": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "clue": "place@mine_lake",
+     "source": "investigation",
+     "lead": false,
+     "statement": "k_mine_lake",
+     "en": "Underground lake",
+     "fr": "Lac souterrain",
+     "text": {
+      "en": "A lake of black water fills the chamber, perfectly still. It stands as high as the tide in the bay, and when you look away it is the tide's height that you remember.",
+      "fr": "Un lac d'eau noire emplit la salle, parfaitement immobile. Il monte aussi haut que la maree dans la baie, et quand on detourne les yeux on ne retient que la hauteur de la maree."
+     },
+     "requires": "place@mine_veins",
+     "requiresBenefit": "new_deduction_the_bay"
+    }
+   ],
+   "parts": []
+  }
+ ]
+}

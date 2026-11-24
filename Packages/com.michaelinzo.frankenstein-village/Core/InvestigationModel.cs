@@ -246,7 +246,13 @@ namespace Frankenstein.Core
         /// The knowledge sources the evidence has earned, as <see cref="KnowledgeLibrary.SourceIds"/> entries, one per item: "journal" per villager journal read (lore id j and two digits),
         /// "investigation" per clue id found, "mythos_event" per mythos statement heard. Counts only matter to the tier. Pure, so the knowledge tier is derived from evidence and needs no save of its own.
         /// </summary>
-        public static List<string> KnowledgeSources(InvestigationEvidence e)
+        public static List<string> KnowledgeSources(InvestigationEvidence e) { return KnowledgeSources(e, null); }
+
+        /// <summary>
+        /// As above; a found place clue (<see cref="PlaceLibrary"/>) earns the source its discovery names (ruins for the manor archives, cult_discovery for the cult records) instead of "investigation".
+        /// With a null library the result is exactly the one without places.
+        /// </summary>
+        public static List<string> KnowledgeSources(InvestigationEvidence e, PlaceLibrary places)
         {
             var journals = new List<string>();
             foreach (var id in e.BooksRead) if (id.Length == 3 && id[0] == 'j' && id[1] >= '0' && id[1] <= '9' && id[2] >= '0' && id[2] <= '9') journals.Add(id);
@@ -255,10 +261,12 @@ namespace Frankenstein.Core
             foreach (var h in e.Heard) if (h.StatementId.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal) && !mythosHeard.Contains(h.StatementId)) mythosHeard.Add(h.StatementId);
             var sources = new List<string>();
             for (int i = 0; i < journals.Count; i++) sources.Add("journal");
-            for (int i = 0; i < clues.Count; i++) sources.Add("investigation");
+            foreach (var clue in clues) sources.Add(PlaceRulesSource(places, clue) ?? "investigation");
             for (int i = 0; i < mythosHeard.Count; i++) sources.Add("mythos_event");
             return sources;
         }
+
+        private static string PlaceRulesSource(PlaceLibrary places, string clueId) { return VillagePlaces.SourceOfClue(places, clueId); }
 
         /// <summary>Belief in a statement, whole percent from 0 to 100: its confidence, less <see cref="InvalidatedPenalty"/> when its speaker is corrupted.</summary>
         public static int BeliefScore(int confidence, bool invalidated)
@@ -369,6 +377,12 @@ namespace Frankenstein.Core
         /// </summary>
         public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos, int knowledge)
         {
+            return Build(story, lore, statements, evidence, corruption, mythos, knowledge, null);
+        }
+
+        /// <summary>As above plus the places: a found place clue gets a Clue card linked to the landmark its place stands beside. With a null library the board is exactly the one without places.</summary>
+        public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos, int knowledge, PlaceLibrary places)
+        {
             var board = new InvestigationBoard();
             var roster = story.Roster;
             var cardIndex = new Dictionary<string, BoardCard>();
@@ -451,6 +465,12 @@ namespace Frankenstein.Core
                 string cardId = ClueCardId(clueId);
                 bool existed = cardIndex.ContainsKey(cardId);
                 addCard(BoardCardKind.Clue, cardId, clueId, true);
+                var placeClue = places == null ? null : places.FindByClue(clueId);
+                if (!existed && placeClue != null)
+                {
+                    foreach (var pl in places.Places) if (pl.Discoveries.Contains(placeClue) && cardIndex.ContainsKey(LandmarkId(pl.Anchor))) addLink(BoardLinkKind.ClueSubject, cardId, LandmarkId(pl.Anchor), true);
+                    continue;
+                }
                 if (existed || !clueId.StartsWith(LoreBookRules.ClueIdPrefix, StringComparison.Ordinal)) continue;
                 var book = lore.Find(clueId.Substring(LoreBookRules.ClueIdPrefix.Length));
                 if (book != null && cardIndex.ContainsKey(LandmarkId(book.Place))) addLink(BoardLinkKind.ClueSubject, cardId, LandmarkId(book.Place), true);
@@ -514,6 +534,12 @@ namespace Frankenstein.Core
         /// <summary>As above; an Event card of a mythos statement takes its wording from <paramref name="mythos"/>.</summary>
         public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang, MythosFeed mythos)
         {
+            return CardTitle(card, story, lore, statements, nameLib, lang, mythos, null);
+        }
+
+        /// <summary>As above; a Clue card of a place clue shows the title of its discovery.</summary>
+        public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang, MythosFeed mythos, PlaceLibrary places)
+        {
             switch (card.Kind)
             {
                 case BoardCardKind.Suspect: return story.Roster[int.Parse(card.Key)].Name;
@@ -531,6 +557,8 @@ namespace Frankenstein.Core
                 case BoardCardKind.Clue:
                     if (card.Id.StartsWith(LegendPrefix, StringComparison.Ordinal))
                         foreach (var l in story.Library.Legends) if (l.Id == card.Key) return l.Title.Get(lang);
+                    var placeClue = places == null ? null : places.FindByClue(card.Key);
+                    if (placeClue != null) return placeClue.Title.Get(lang);
                     var book = lore.Find(card.Key.StartsWith(LoreBookRules.ClueIdPrefix, StringComparison.Ordinal) ? card.Key.Substring(LoreBookRules.ClueIdPrefix.Length) : card.Key);
                     return book == null ? card.Key : story.BookTitle(book, lang);
                 default:

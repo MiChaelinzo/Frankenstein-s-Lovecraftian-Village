@@ -125,7 +125,7 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Presentation: a knowledge badge with tonight's reality effects on the board, a chronicle line, journal entries per tier gained and per resolved contradiction, en and fr. Reduced motion removes the slow drift; nothing flashes or jumps.
 - Test cases: `InvestigationModelTests.cs`, `web/test/investigation.test.js`, `web/test/board-ui.test.js`, golden key `knowledgeInvestigation`, existing golden keys unchanged.
 - Status: Core and JS Verified (dotnet 350, node 701); board UI Partially Verified (fake DOM tests, browser check filters `MYTHOS_ONLY` and `SOCIETY_ONLY` do not assert the badge); Unity runtime Unverified.
-- Later, unbuilt (see tasks 159, 164, 165 and 166, specified in Round 29 below): Evidence Confidence expansion, four new places, creature upgrade path, Victorian UI reskin. Trust Network and the Dynamic Horror Director were built in round 29.
+- Later, unbuilt (see tasks 159, 165 and 166, specified in Round 29 below): Evidence Confidence expansion, creature upgrade path, Victorian UI reskin. Trust Network and the Dynamic Horror Director were built in round 29.
 - Security: no PayPal client id, secret, API key, webhook secret, database password or Stripe secret in source, commits, prompts, chat logs, issues or public repositories. Any monetization uses server-side environment variables behind a backend or API layer. A donation or support link is safe; secrets are not.
 
 ## Round 29: Trust Network, Horror Director and web polish
@@ -151,9 +151,9 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - A CSS layer for board, chronicle, journal and dialogs (framing, vignette, grain, parchment dialogs, hover and focus). Off or reduced under high contrast, cinema, forced colors and reduced motion. Partially Verified (headless screenshots only); Unity Unverified.
 
 ### Spec only, not built (Unverified)
-Each item below has no code yet. Specs 162 and 163 were built in round 30 (next section).
+Each item below has no code yet. Specs 162 and 163 were built in round 30 and spec 164 in round 31 (next sections).
 
-**164 Four places.** Goal: Abandoned Manor, Forest Boundary, Catacomb Interior and Forgotten Mine, built in that order, each with an entrance and a way back. Inputs: seed, landmark layout. Outputs: placements and entrance and exit points. Constraints: inside bounds, no landmark overlap, triangle budget. Failure conditions: out of bounds, no way back, overlap. Test cases: enter and leave round trip, bounds, overlap, budget.
+**164 Four places (built in round 31; Verified by dotnet and node tests, Unity runtime and real-GPU rendering Unverified).** Goal: Abandoned Manor, Forest Boundary, Catacomb Interior and Forgotten Mine, built in that order, each with an entrance and a way back. Inputs: seed, landmark layout. Outputs: placements and entrance and exit points. Constraints: inside bounds, no landmark overlap, triangle budget. Failure conditions: out of bounds, no way back, overlap. Test cases: enter and leave round trip, bounds, overlap, budget.
 
 **165 Victorian UI reskin.** Goal: a period look for panels with a horror-intensity setting. Inputs: the setting, reduced motion, contrast mode. Outputs: styles only. Constraints: the setting scales presentation and never Core output. Failure conditions: low contrast, a lost keyboard path, a different output for the same seed. Test cases: contrast ratio, keyboard walk, same seed same output.
 

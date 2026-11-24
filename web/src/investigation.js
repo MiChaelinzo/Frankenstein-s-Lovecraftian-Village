@@ -5,6 +5,7 @@ import { LANDMARK_IDS, landmarkName } from './landmarks.js';
 import { landmarkTitle } from './names.js';
 import { MINUTES_PER_DAY } from './clock.js';
 import { CLUE_ID_PREFIX } from './lore.js';
+import { findByClue, sourceOfClue } from './places.js';
 import { CORRUPTION_CORRUPTED } from './society.js';
 import { ID_PREFIX as MYTHOS_ID_PREFIX, mythosStatements, mythosText, isDistorted, truthStatementId } from './mythos.js';
 
@@ -24,10 +25,10 @@ export const defaultConfidence = (source) => (source === SOURCE_JOURNAL ? 80 : s
  * Knowledge sources the evidence has earned (Core InvestigationRules.KnowledgeSources): one 'journal' per villager journal read (lore id j and two digits), one 'investigation' per clue id found,
  * one 'mythos_event' per mythos statement heard. The knowledge tier is derived from this, so it needs no save of its own.
  */
-export function knowledgeSources(e) {
+export function knowledgeSources(e, places = null) {
   const sources = [];
   for (const id of e.booksRead) if (/^j\d\d$/.test(id)) sources.push('journal');
-  for (let i = 0; i < e.clueIds.size; i++) sources.push('investigation');
+  for (const clue of e.clueIds) sources.push(sourceOfClue(places, clue) || 'investigation'); // a found place clue earns the source its discovery names (ruins, cult_discovery)
   const heard = new Set();
   for (const h of e.heard) if (h.statementId.startsWith('mythos:') && !heard.has(h.statementId)) { heard.add(h.statementId); sources.push('mythos_event'); }
   return sources;
@@ -131,7 +132,7 @@ export function orderTimeline(events) {
  * exactly the board without it): a contradiction whose resolvesAtKnowledge is at or below it moves from contradictions to resolutions (the statements speak of different nights).
  * scores lists confidence and belief of every revealed authored statement.
  */
-export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null, knowledge = 0) {
+export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null, knowledge = 0, places = null) {
   const cards = [], links = [], contradictions = [], resolutions = [], scores = [], index = new Map(), roster = story.roster;
   const addCard = (kind, id, key, revealed) => {
     const existing = index.get(id);
@@ -192,6 +193,8 @@ export function buildBoard(story, lore, statements, evidence, corruption = null,
     seen.add(clueId);
     const cardId = clueCardId(clueId), existed = index.has(cardId);
     addCard(CARD_CLUE, cardId, clueId, true);
+    const placeClue = !existed && places ? findByClue(places, clueId) : null;
+    if (placeClue) { const owner = places.places.find((pl) => pl.discoveries.includes(placeClue)); if (index.has(landmarkId(owner.anchor))) addLink(LINK_CLUE_SUBJECT, cardId, landmarkId(owner.anchor), true); continue; }
     if (existed || !clueId.startsWith(CLUE_ID_PREFIX)) continue;
     const book = lore.find(clueId.slice(CLUE_ID_PREFIX.length));
     if (book && index.has(landmarkId(book.place))) addLink(LINK_CLUE_SUBJECT, cardId, landmarkId(book.place), true);
@@ -233,7 +236,7 @@ function addMythos(contradictions, mythos, evidence, corruption, addCard, events
 }
 
 /** The text a card shows in a language, from the story's own names (round 24 seeded landmark names through nameLib when given). */
-export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null) {
+export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null, places = null) {
   const pick = (t) => (t ? t[lang] || t.en : '');
   switch (card.kind) {
     case CARD_SUSPECT: return story.roster[Number(card.key)].name;
@@ -245,6 +248,8 @@ export function cardTitle(card, story, lore, statements, nameLib, lang, mythos =
     }
     case CARD_CLUE: {
       if (card.id.startsWith(LEGEND_PREFIX)) { const l = story.lib.legends.find((x) => x.id === card.key); if (l) return pick(l.title); }
+      const placeClue = places ? findByClue(places, card.key) : null;
+      if (placeClue) return pick(placeClue.title);
       const book = lore.find(card.key.startsWith(CLUE_ID_PREFIX) ? card.key.slice(CLUE_ID_PREFIX.length) : card.key);
       return book ? story.bookTitle(book, lang) : card.key;
     }

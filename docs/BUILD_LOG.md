@@ -417,3 +417,9 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Docs commit: specs 162 and 163 marked built, stills `theory-*.jpg`.
 - Checks: dotnet 383, node 728, tools tests and validate_repo, UnityCompileCheck 0 warnings 0 errors. Browser (SwiftShader headless Chromium, logs not committed): `THEORY_ONLY` 9 of 9, `SOCIETY_ONLY` 11 of 11, `NARRATIVE_ONLY` 2 of 2; no full run.
 - Verified: Core and JS for 162 and 163, web UI in the three sections above. Partially Verified: trust penalty scaling. Unverified: Unity runtime, real GPU, specs 164 to 166.
+
+## Round 31 (branch feat/round31)
+- `a40cc52` feat: place model and Abandoned Manor. `3443902` feat: Forest Boundary. `5cbbabf` feat: Catacomb Interior. `0833d70` feat: Forgotten Mine. Docs commit: `docs: round 31 places`. Golden key `villagePlaces` only; existing keys unchanged.
+- Checks: dotnet 411, node 749, tools tests and validate_repo, UnityCompileCheck 0 warnings 0 errors. Browser `PLACES_ONLY=1` 3 of 3 (SwiftShader headless Chromium, log not committed); no full run.
+- Findings: the mine is anchored on the standing stones (other anchors failed on about 17% of seeds); the catacomb needed `RingCount` 6; place props are not in the obstacle lists of lore, inventory, homestead and creature placement. `sw.js` cache is v71 (the earlier note saying v70 was the FEAT-003 value).
+- Verified: Core and JS for spec 164. Unverified: Unity runtime, real GPU rendering, spec 165 and 166.

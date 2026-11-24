@@ -90,7 +90,7 @@ const linkKey = (l) => `${l.kind}|${l.from}|${l.to}`;
 export function createBoardController(deps) {
   const { $, tr, state, doc } = deps;
   const lang = () => (typeof deps.lang === 'function' ? deps.lang() : deps.lang);
-  let knowledgeLib = null, seenTier = null, seenResolutions = null, statements = null, evidence = emptyEvidence(), evidenceSeed = null, model = null, modelKey = '', version = 0, titles = new Map();
+  let placeLib = null, knowledgeLib = null, seenTier = null, seenResolutions = null, statements = null, evidence = emptyEvidence(), evidenceSeed = null, model = null, modelKey = '', version = 0, titles = new Map();
   let seenLinks = null, seenContradictions = null, layout = null, selected = null, returnFocus = null, open = false;
 
   const reduced = () => (typeof deps.reduceMotion === 'function' ? deps.reduceMotion() : !!deps.reduceMotion);
@@ -103,7 +103,7 @@ export function createBoardController(deps) {
   /** { tier, points, name, effects } of what the evidence has taught the player (Core KnowledgeState from InvestigationRules.KnowledgeSources). Tier 0 and no effects without the data file. */
   function knowledgeNow() {
     if (!knowledgeLib) return { tier: 0, points: 0, name: '', effects: [] };
-    const k = knowledgeFromSourceIds(knowledgeLib, knowledgeSources(evidence)), bonus = Math.max(0, deps.knowledgeBonus ? deps.knowledgeBonus() | 0 : 0), points = k.points + bonus, tier = bonus ? knowledgeTierFor(knowledgeLib, points) : k.tier;
+    const k = knowledgeFromSourceIds(knowledgeLib, knowledgeSources(evidence, placeLib)), bonus = Math.max(0, deps.knowledgeBonus ? deps.knowledgeBonus() | 0 : 0), points = k.points + bonus, tier = bonus ? knowledgeTierFor(knowledgeLib, points) : k.tier;
     const effects = realityDistortion(knowledgeLib, state.seed, Math.max(1, deps.night ? deps.night() : 1), tier).map((id) => { const e = knowledgeLib.effects.find((x) => x.id === id); return e.text[lang()] || e.text.en; });
     return { tier, points, name: knowledgeLib.tiers[tier].name[lang()] || knowledgeLib.tiers[tier].name.en, effects };
   }
@@ -117,11 +117,14 @@ export function createBoardController(deps) {
     const corruption = deps.corruption ? deps.corruption() : null, key = `${state.seed}|${version}|${deps.lore ? deps.lore.readIds().size : 0}|${corruption ? corruption.join('') : ''}|${story.roster.length}`;
     if (key !== beliefKey) {
       beliefKey = key; beliefMap = new Map();
-      for (const sc of buildBoard(story, lib, statements, clone(), corruption, null, 0).scores) beliefMap.set(statements.statements.findIndex((x) => x.id === sc.statementId), sc.belief);
+      for (const sc of buildBoard(story, lib, statements, clone(), corruption, null, 0, placeLib).scores) beliefMap.set(statements.statements.findIndex((x) => x.id === sc.statementId), sc.belief);
     }
     return beliefMap;
   }
   const statementTitle = (index) => { const st = statements && statements.statements[index]; if (!st) return ''; current(); return titles.get(`event:${st.id}`) || st.id; };
+
+  /** Loads the parsed places library (data/places.json). Without it place clues earn plain investigation points and show their clue id. */
+  function setPlaces(lib) { placeLib = lib || null; modelKey = ''; beliefKey = ''; sync(); }
 
   function setStatements(json) { statements = json ? parseStatementLibrary(json) : null; modelKey = ''; seenLinks = null; sync(); }
 
@@ -139,8 +142,8 @@ export function createBoardController(deps) {
     const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}`;
     if (key !== modelKey || !model) {
       modelKey = key;
-      model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier);
-      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed) : UNKNOWN_TITLE]));
+      model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier, placeLib);
+      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib) : UNKNOWN_TITLE]));
     }
     return model;
   }
@@ -384,7 +387,7 @@ export function createBoardController(deps) {
   $('boardToggle')?.addEventListener?.('click', toggle);
 
   return {
-    setStatements, setKnowledge, knowledge: knowledgeNow, noteMet, noteClue, noteChat, noteMythos, sync, beliefs, statementTitle, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
+    setStatements, setKnowledge, setPlaces, places: () => placeLib, knowledge: knowledgeNow, noteMet, noteClue, noteChat, noteMythos, sync, beliefs, statementTitle, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
     evidence: () => clone(), cardTitle: titleOf,
     snapshot: () => { ensureSeed(); return { board: serializeBoardEvidence(evidence) }; },
     restore(s) {
