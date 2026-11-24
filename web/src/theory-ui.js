@@ -5,7 +5,7 @@ import {
   parseTheoryLibrary, theoryInstances, replayTheories, legalChoices, choice, theoryQuestion, theoryOptionText, verdictText, theoryKnowledge, theoryTrustLost,
   epilogueVariant, epilogueText, serializeTheoryLog, parseTheoryLog, GRADE_IDS, CHOICE_THEORY, CHOICE_OPTION, CHOICE_EVIDENCE, CHOICE_CONCLUDE, MAX_EVIDENCE,
 } from './theory.js';
-import { parseOutcomeLibrary, resolveOutcome, countLeads, revealOutcome } from './outcomes.js';
+import { parseOutcomeLibrary, resolveOutcome, countLeads, revealOutcome, aftermathStatements, recruitedByNight } from './outcomes.js';
 
 export const MAX_LOG = 300;
 export const FINAL_NIGHTS_DEFAULT = 5;
@@ -102,6 +102,26 @@ export function createTheoryController(deps) {
     const story = deps.story(), lib = deps.lore.library();
     if (!lib) return null;
     return { outcome: resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, missingIndex, 0), leads: countLeads(story, lib, deps.board.evidence(), missingIndex, deps.board.places ? deps.board.places() : null) };
+  }
+
+  /** Round 34 (spec 170): recruits active on each night 1..night (mythos input recruitedByNight), from outcomes resolved on the run without recruits. Null without data. */
+  function recruited(night) {
+    if (!ready() || !outcomes.aftermath) return null;
+    const story = deps.story(), baseline = deps.mythosFinal();
+    return recruitedByNight(story.seed, story.missing.map((_, k) => resolveOutcome(deps.society(), story, baseline, outcomes, k, 0)), night);
+  }
+
+  /** Round 34 (spec 170): the aftermath of the missing persons on the current night, as far as the leads allow ({ statements, reason } or null without data). Same outcomes as outcomeState (ground truth never changes). */
+  let aftermathKey = '', aftermathCache = null;
+  function aftermath() {
+    if (!ready() || !outcomes.aftermath) return null;
+    const story = deps.story(), lib = deps.lore.library();
+    if (!lib) return null;
+    const night = Math.max(1, deps.night ? deps.night() : 1), places = deps.board.places ? deps.board.places() : null, ev = deps.board.evidence();
+    const states = story.missing.map((_, k) => ({ outcome: resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, k, 0), leads: countLeads(story, lib, ev, k, places) }));
+    const key = `${state.seed}|${night}|${states.map((x) => `${x.outcome}.${x.leads}`).join(',')}`;
+    if (key !== aftermathKey) { aftermathKey = key; aftermathCache = { statements: aftermathStatements(story, outcomes, states.map((x) => x.outcome), states.map((x) => x.leads), night), reason: outcomes.aftermath.reason }; }
+    return aftermathCache;
   }
 
   /** Applies one log entry when it is legal now. Returns true when the log grew. */
@@ -205,7 +225,7 @@ export function createTheoryController(deps) {
   const owns = (el) => !!(el && $('boardTheory') && $('boardTheory').contains?.(el));
 
   return {
-    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
+    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, aftermath, recruited, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
     snapshot: () => { ensureSeed(); return { theories: log.length ? serializeTheoryLog(log) : '' }; },
     restore(saved) { ensureSeed(); log = parseTheoryLog(saved && saved.theories); version++; replayed = null; lastVerdict = ''; deps.onChange?.(); if (open) render(); },
     lastVerdict: () => lastVerdict,

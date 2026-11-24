@@ -209,6 +209,17 @@ namespace Frankenstein.Core
         public List<BoardContradiction> Resolutions = new List<BoardContradiction>();
         /// <summary>Evidence -> Confidence -> Belief for every revealed authored statement, in library order.</summary>
         public List<StatementScore> Scores = new List<StatementScore>();
+        /// <summary>Round 34, spec 170: source reliability of every revealed authored statement, heard mythos statement and aftermath statement (see <see cref="InvestigationRules.ReliabilityScore"/>). A separate list, so Scores is unchanged.</summary>
+        public List<StatementReliability> Reliabilities = new List<StatementReliability>();
+        /// <summary>The aftermath statements shown on the board (empty unless the caller supplied them).</summary>
+        public List<AftermathStatement> Aftermath = new List<AftermathStatement>();
+    }
+
+    /// <summary>How far the source of one statement can be trusted, whole percent 0 to 100. It informs the player and decides nothing: which evidence matters stays the player's choice.</summary>
+    public sealed class StatementReliability
+    {
+        public string StatementId;
+        public int Reliability;
     }
 
     /// <summary>Confidence is the source's own certainty; Belief is what the player should trust: confidence, less <see cref="InvestigationRules.InvalidatedPenalty"/> when the speaker is corrupted. Whole percent.</summary>
@@ -267,6 +278,41 @@ namespace Frankenstein.Core
         }
 
         private static string PlaceRulesSource(PlaceLibrary places, string clueId) { return VillagePlaces.SourceOfClue(places, clueId); }
+
+        /// <summary>Round 34, spec 170: reliability of a source, before penalties. Clues are physical, journals written, lore hearsay, chats spoken; a mythos rumor is the least certain.</summary>
+        public const int ClueReliability = 90, JournalReliability = 75, LoreReliability = 60, ChatReliability = 50, MythosRumorReliability = 40, MythosEventReliability = 55;
+        /// <summary>Percent taken off reliability: a corrupted speaker, a paranoid or obsessed speaker, a statement a displaced person's aftermath contradicts.</summary>
+        public const int CorruptedReliabilityPenalty = 25, MemoryReliabilityPenalty = 15, DisplacedContradictionPenalty = 20;
+
+        public static int BaseReliability(StatementSource source)
+        {
+            switch (source)
+            {
+                case StatementSource.Clue: return ClueReliability;
+                case StatementSource.Journal: return JournalReliability;
+                case StatementSource.Lore: return LoreReliability;
+                default: return ChatReliability;
+            }
+        }
+
+        /// <summary>Reliability, whole percent 0 to 100: the base of the source, less the penalty for each of a corrupted speaker, a paranoid or obsessed speaker (memory) and a displaced contradiction. Pure.</summary>
+        public static int ReliabilityScore(int baseReliability, bool corruptedSpeaker, MemoryOutcome memory, bool displacedContradiction)
+        {
+            int r = baseReliability - (corruptedSpeaker ? CorruptedReliabilityPenalty : 0) - (memory == MemoryOutcome.Paranoid || memory == MemoryOutcome.Obsessed ? MemoryReliabilityPenalty : 0) - (displacedContradiction ? DisplacedContradictionPenalty : 0);
+            return r < 0 ? 0 : r > 100 ? 100 : r;
+        }
+
+        private static MemoryOutcome MemoryOf(IList<MemoryOutcome> memory, int villager)
+        {
+            return memory != null && villager >= 0 && villager < memory.Count ? memory[villager] : MemoryOutcome.None;
+        }
+
+        /// <summary>The aftermath text of a card key in a language, or the key when unknown.</summary>
+        public static string AftermathText(InvestigationBoard board, string key, string lang)
+        {
+            foreach (var a in board.Aftermath) if (a.Id == key) return a.Text.Get(lang);
+            return key;
+        }
 
         /// <summary>Belief in a statement, whole percent from 0 to 100: its confidence, less <see cref="InvalidatedPenalty"/> when its speaker is corrupted.</summary>
         public static int BeliefScore(int confidence, bool invalidated)
@@ -380,8 +426,17 @@ namespace Frankenstein.Core
             return Build(story, lore, statements, evidence, corruption, mythos, knowledge, null);
         }
 
-        /// <summary>As above plus the places: a found place clue gets a Clue card linked to the landmark its place stands beside. With a null library the board is exactly the one without places.</summary>
         public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos, int knowledge, PlaceLibrary places)
+        {
+            return Build(story, lore, statements, evidence, corruption, mythos, knowledge, places, null, null);
+        }
+
+        /// <summary>
+        /// As above plus the places: a found place clue gets a Clue card linked to the landmark its place stands beside. With a null library the board is exactly the one without places.
+        /// Round 34, spec 170: <paramref name="memory"/> is the memory outcome of each villager (null: none), which lowers the reliability of a paranoid or obsessed speaker;
+        /// <paramref name="aftermath"/> (<see cref="MissingOutcomes.Aftermath"/>, null: none) adds the statements the missing leave behind. A displaced statement contradicts the first revealed statement of the person's kin or witness.
+        /// </summary>
+        public static InvestigationBoard Build(VillageStory story, LoreLibrary lore, StatementLibrary statements, InvestigationEvidence evidence, IList<CorruptionStage> corruption, MythosFeed mythos, int knowledge, PlaceLibrary places, IList<MemoryOutcome> memory, IList<AftermathStatement> aftermath)
         {
             var board = new InvestigationBoard();
             var roster = story.Roster;
@@ -488,6 +543,7 @@ namespace Frankenstein.Core
                 var card = addCard(BoardCardKind.Event, EventId(s.Id), s.Id, true);
                 card.Invalidated = Corrupted(StageOf(corruption, speaker));
                 board.Scores.Add(new StatementScore { StatementId = s.Id, Confidence = s.Confidence, Belief = BeliefScore(s.Confidence, card.Invalidated) });
+                board.Reliabilities.Add(new StatementReliability { StatementId = s.Id, Reliability = ReliabilityScore(BaseReliability(s.Source), card.Invalidated, MemoryOf(memory, speaker), false) });
                 events.Add(new TimelineEvent { StatementId = s.Id, Villager = speaker, Night = night, Minute = s.Minute });
             }
             board.Timeline = OrderTimeline(events);
@@ -500,11 +556,13 @@ namespace Frankenstein.Core
                 if (c.ResolvesAtKnowledge > 0 && knowledge >= c.ResolvesAtKnowledge) board.Resolutions.Add(pair);
                 else board.Contradictions.Add(pair);
             }
-            if (mythos != null && mythos.Current != null) AddMythos(board, mythos, evidence, corruption, addCard, events);
+            if (mythos != null && mythos.Current != null) AddMythos(board, mythos, evidence, corruption, memory, addCard, events);
+            if (aftermath != null) AddAftermath(board, aftermath, story, statements, evidence, revealedStatements, addCard, events);
+            board.Timeline = OrderTimeline(events);
             return board;
         }
 
-        private static void AddMythos(InvestigationBoard board, MythosFeed mythos, InvestigationEvidence evidence, IList<CorruptionStage> corruption,
+        private static void AddMythos(InvestigationBoard board, MythosFeed mythos, InvestigationEvidence evidence, IList<CorruptionStage> corruption, IList<MemoryOutcome> memory,
                                       Func<BoardCardKind, string, string, bool, BoardCard> addCard, List<TimelineEvent> events)
         {
             var heard = new HashSet<string>();
@@ -516,6 +574,7 @@ namespace Frankenstein.Core
                 var card = addCard(BoardCardKind.Event, EventId(s.Id), s.Id, true);
                 card.Invalidated = Corrupted(StageOf(corruption, speaker)) || (s.Rumor != null && MythosRules.IsDistorted(s.Rumor, speaker));
                 heard.Add(s.Id);
+                board.Reliabilities.Add(new StatementReliability { StatementId = s.Id, Reliability = ReliabilityScore(s.Rumor != null ? MythosRumorReliability : MythosEventReliability, card.Invalidated, MemoryOf(memory, speaker), false) });
                 events.Add(new TimelineEvent { StatementId = s.Id, Villager = speaker, Night = s.Night, Minute = s.Minute });
                 if (s.Rumor == null || !MythosRules.IsDistorted(s.Rumor, speaker)) continue;
                 string truth = MythosRules.TruthStatementId(s.Rumor);
@@ -524,6 +583,32 @@ namespace Frankenstein.Core
             }
             board.Timeline = OrderTimeline(events);
         }
+
+        /// <summary>Round 34, spec 170: an Event card and a timeline entry for each aftermath statement. A displaced one contradicts the first revealed authored statement of the missing person's kin or witness, and lowers that statement's reliability.</summary>
+        private static void AddAftermath(InvestigationBoard board, IList<AftermathStatement> aftermath, VillageStory story, StatementLibrary statements, InvestigationEvidence evidence, HashSet<string> revealedStatements,
+                                         Func<BoardCardKind, string, string, bool, BoardCard> addCard, List<TimelineEvent> events)
+        {
+            foreach (var a in aftermath)
+            {
+                addCard(BoardCardKind.Event, EventId(a.Id), a.Id, true).Invalidated = a.Reliability < 50;
+                board.Aftermath.Add(a);
+                board.Reliabilities.Add(new StatementReliability { StatementId = a.Id, Reliability = a.Reliability });
+                events.Add(new TimelineEvent { StatementId = a.Id, Villager = -1, Night = a.Night, Minute = a.Minute });
+                if (a.Kind != AftermathKind.DisplacedStatement) continue;
+                var m = story.Missing[a.Missing];
+                foreach (var s in statements.Statements)
+                {
+                    if (!revealedStatements.Contains(s.Id)) continue;
+                    int speaker = SpeakerOf(s, story.Roster, evidence);
+                    if (speaker < 0 || (speaker != m.KinIndex && speaker != m.WitnessIndex)) continue;
+                    board.Contradictions.Add(new BoardContradiction { PairId = AftermathPairPrefix + a.Missing, CardA = EventId(a.Id), CardB = EventId(s.Id) });
+                    foreach (var r in board.Reliabilities) if (r.StatementId == s.Id) r.Reliability = Math.Max(0, r.Reliability - DisplacedContradictionPenalty);
+                    break;
+                }
+            }
+        }
+
+        public const string AftermathPairPrefix = "aftermath:contradiction:";
 
         /// <summary>The text a card shows in a language, built from the story's own names (round 24 seeded names through <paramref name="nameLib"/> when given).</summary>
         public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang)

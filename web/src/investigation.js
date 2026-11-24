@@ -36,6 +36,13 @@ export function knowledgeSources(e, places = null) {
 
 /** Belief in a statement, whole percent 0..100: its confidence, less INVALIDATED_PENALTY when its speaker is corrupted. Core BeliefScore. */
 export const beliefScore = (confidence, invalidated) => Math.max(0, Math.min(100, confidence - (invalidated ? INVALIDATED_PENALTY : 0)));
+// Round 34 (spec 170): source reliability, whole percent 0..100, beside confidence and belief. Core InvestigationRules.ReliabilityScore. It informs the player and decides nothing.
+export const CLUE_RELIABILITY = 90, JOURNAL_RELIABILITY = 75, LORE_RELIABILITY = 60, CHAT_RELIABILITY = 50, MYTHOS_RUMOR_RELIABILITY = 40, MYTHOS_EVENT_RELIABILITY = 55;
+export const CORRUPTED_RELIABILITY_PENALTY = 25, MEMORY_RELIABILITY_PENALTY = 15, DISPLACED_CONTRADICTION_PENALTY = 20;
+const MEMORY_PARANOID_ID = 2, MEMORY_OBSESSED_ID = 4;
+export const baseReliability = (source) => (source === SOURCE_CLUE ? CLUE_RELIABILITY : source === SOURCE_JOURNAL ? JOURNAL_RELIABILITY : source === SOURCE_LORE ? LORE_RELIABILITY : CHAT_RELIABILITY);
+export const reliabilityScore = (base, corruptedSpeaker, memoryOutcome, displacedContradiction) => Math.max(0, Math.min(100, base - (corruptedSpeaker ? CORRUPTED_RELIABILITY_PENALTY : 0) - (memoryOutcome === MEMORY_PARANOID_ID || memoryOutcome === MEMORY_OBSESSED_ID ? MEMORY_RELIABILITY_PENALTY : 0) - (displacedContradiction ? DISPLACED_CONTRADICTION_PENALTY : 0)));
+const memoryOf = (memory, villager) => (memory && villager >= 0 && villager < memory.length ? memory[villager] : 0);
 export const STATEMENT_LANGUAGES = ['en', 'fr'];
 export const SUSPECT_PREFIX = 'suspect:', VICTIM_PREFIX = 'victim:', HOME_PREFIX = 'location:home:', LANDMARK_PREFIX = 'location:landmark:', CLUE_PREFIX = 'clue:', LEGEND_PREFIX = 'clue:legend:', EVENT_PREFIX = 'event:';
 
@@ -132,8 +139,8 @@ export function orderTimeline(events) {
  * exactly the board without it): a contradiction whose resolvesAtKnowledge is at or below it moves from contradictions to resolutions (the statements speak of different nights).
  * scores lists confidence and belief of every revealed authored statement.
  */
-export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null, knowledge = 0, places = null) {
-  const cards = [], links = [], contradictions = [], resolutions = [], scores = [], index = new Map(), roster = story.roster;
+export function buildBoard(story, lore, statements, evidence, corruption = null, mythos = null, knowledge = 0, places = null, memory = null, aftermath = null) {
+  const cards = [], links = [], contradictions = [], resolutions = [], scores = [], reliabilities = [], index = new Map(), roster = story.roster;
   const addCard = (kind, id, key, revealed) => {
     const existing = index.get(id);
     if (existing) { existing.revealed = existing.revealed || revealed; return existing; }
@@ -209,6 +216,7 @@ export function buildBoard(story, lore, statements, evidence, corruption = null,
     const card = addCard(CARD_EVENT, eventId(s.id), s.id, true);
     card.invalidated = isCorrupted(stageOf(corruption, speaker));
     scores.push({ statementId: s.id, confidence: s.confidence, belief: beliefScore(s.confidence, card.invalidated) });
+    reliabilities.push({ statementId: s.id, reliability: reliabilityScore(baseReliability(s.source), card.invalidated, memoryOf(memory, speaker), false) });
     events.push({ statementId: s.id, villager: speaker, night, minute: s.minute });
   }
   for (const c of statements.contradictions) {
@@ -217,17 +225,40 @@ export function buildBoard(story, lore, statements, evidence, corruption = null,
     const pair = { pairId: c.id, cardA: eventId(c.a), cardB: eventId(c.b) };
     (c.resolvesAtKnowledge > 0 && knowledge >= c.resolvesAtKnowledge ? resolutions : contradictions).push(pair);
   }
-  if (mythos && mythos.current) addMythos(contradictions, mythos, evidence, corruption, addCard, events);
-  return { cards, links, contradictions, resolutions, scores, timeline: orderTimeline(events) };
+  if (mythos && mythos.current) addMythos(contradictions, mythos, evidence, corruption, memory, reliabilities, addCard, events);
+  const shown = aftermath || [];
+  if (shown.length) addAftermath(shown, story, statements, evidence, revealed, contradictions, reliabilities, addCard, events);
+  return { cards, links, contradictions, resolutions, scores, reliabilities, aftermath: shown.slice(), timeline: orderTimeline(events) };
+}
+
+/** Round 34 (spec 170): an Event card and timeline entry per aftermath statement. A displaced one contradicts the first revealed statement of the person's kin or witness and lowers that statement's reliability (Core AddAftermath). */
+function addAftermath(aftermath, story, statements, evidence, revealed, contradictions, reliabilities, addCard, events) {
+  for (const a of aftermath) {
+    addCard(CARD_EVENT, eventId(a.id), a.id, true).invalidated = a.reliability < 50;
+    reliabilities.push({ statementId: a.id, reliability: a.reliability });
+    events.push({ statementId: a.id, villager: -1, night: a.night, minute: a.minute });
+    if (a.kind !== 1) continue;
+    const m = story.missing[a.missing];
+    for (const s of statements.statements) {
+      if (!revealed.has(s.id)) continue;
+      const speaker = speakerOf(s, story.roster, evidence);
+      if (speaker < 0 || (speaker !== m.kinIndex && speaker !== m.witnessIndex)) continue;
+      contradictions.push({ pairId: `aftermath:contradiction:${a.missing}`, cardA: eventId(a.id), cardB: eventId(s.id) });
+      for (const r of reliabilities) if (r.statementId === s.id) r.reliability = Math.max(0, r.reliability - DISPLACED_CONTRADICTION_PENALTY);
+      break;
+    }
+  }
 }
 
 /** Round 27: an Event card for every mythos statement the player heard. A rumor passed on distorted is invalidated and contradicts the statement it distorts once that is heard too. */
-function addMythos(contradictions, mythos, evidence, corruption, addCard, events) {
+function addMythos(contradictions, mythos, evidence, corruption, memory, reliabilities, addCard, events) {
   for (const s of mythosStatements(mythos)) {
     const h = heardIndex(evidence, s.id);
     if (h < 0) continue;
     const speaker = evidence.heard[h].villager, distorted = isDistorted(s.rumor, speaker);
-    addCard(CARD_EVENT, eventId(s.id), s.id, true).invalidated = isCorrupted(stageOf(corruption, speaker)) || distorted;
+    const card = addCard(CARD_EVENT, eventId(s.id), s.id, true);
+    card.invalidated = isCorrupted(stageOf(corruption, speaker)) || distorted;
+    reliabilities.push({ statementId: s.id, reliability: reliabilityScore(s.rumor ? MYTHOS_RUMOR_RELIABILITY : MYTHOS_EVENT_RELIABILITY, card.invalidated, memoryOf(memory, speaker), false) });
     events.push({ statementId: s.id, villager: speaker, night: s.night, minute: s.minute });
     if (!s.rumor || !distorted) continue;
     const truth = truthStatementId(s.rumor);

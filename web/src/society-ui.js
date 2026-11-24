@@ -112,8 +112,9 @@ export function createSocietyController(deps) {
   function mythosFeed() {
     const s = society();
     if (!s || !mythosLib || !s.roster.length) return null;
-    const key = `${state.seed}|${night()}|${s.roster.length}`;
-    if (key !== mythosKey) { mythosKey = key; mythosCache = buildMythosFeed(mythosLib, runMythos(s, deps.story(), mythosLib, mythosSchedule(night()), night()), night()); }
+    const recruited = deps.recruitedByNight ? deps.recruitedByNight(night()) : null; // Round 34 (spec 170): aftermath of recruited missing persons, null until known
+    const key = `${state.seed}|${night()}|${s.roster.length}${recruited ? `|${recruited.join('.')}` : ''}`;
+    if (key !== mythosKey) { mythosKey = key; const inputs = mythosSchedule(night()); if (recruited) inputs.recruitedByNight = recruited; mythosCache = buildMythosFeed(mythosLib, runMythos(s, deps.story(), mythosLib, inputs, night()), night()); }
     return mythosCache;
   }
 

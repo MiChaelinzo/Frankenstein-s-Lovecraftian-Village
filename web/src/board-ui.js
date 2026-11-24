@@ -3,8 +3,9 @@
 // Nothing runs per frame: the board is recomputed when evidence changes and redrawn only while it is open.
 import {
   buildBoard, cardTitle, parseStatementLibrary, emptyEvidence,
-  CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT, SUSPECT_PREFIX,
+  CARD_SUSPECT, CARD_VICTIM, CARD_LOCATION, CARD_CLUE, CARD_EVENT, SUSPECT_PREFIX, eventId,
 } from './investigation.js';
+import { AFTERMATH_PAIR_PREFIX } from './outcomes.js';
 import { MINUTES_PER_DAY } from './clock.js';
 import { mythosStatements } from './mythos.js';
 import { parseKnowledgeLibrary, knowledgeFromSourceIds, realityDistortion, tierFor as knowledgeTierFor } from './knowledge.js';
@@ -139,15 +140,19 @@ export function createBoardController(deps) {
     if (!story || !lib || !statements) return null;
     const read = deps.lore ? deps.lore.readIds().size : 0, corruption = deps.corruption ? deps.corruption() : null;
     const feed = deps.mythos ? deps.mythos() : null, mythosKey = feed && deps.mythosKey ? deps.mythosKey() : '';
-    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}`;
+    const memory = deps.memory ? deps.memory() : null, after = deps.aftermath ? deps.aftermath() : null, afterKey = after ? after.statements.map((a) => a.id + (a.sighting ? '!' : '')).join(',') : '';
+    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}|${memory ? memory.join('') : ''}|${afterKey}`;
     if (key !== modelKey || !model) {
       modelKey = key;
-      model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier, placeLib);
+      model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier, placeLib, memory, after ? after.statements : null);
       titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib, deps.witnessTitle || null) : UNKNOWN_TITLE]));
+      for (const a of model.aftermath) titles.set(eventId(a.id), a.text[lang()] || a.text.en);
     }
     return model;
   }
   const titleOf = (id) => titles.get(id) || id;
+  /** Round 34 (spec 170): source reliability 0..100 of an Event card, or null for any other card. Informs only; the player decides which evidence matters. */
+  const reliabilityOf = (m, id) => { const r = (m.reliabilities || []).find((x) => `event:${x.statementId}` === id); return r ? r.reliability : null; };
   /** Round 34 reality instability (presentation only): at tier 5 some contradictions are not drawn. The model, the evidence and the saved board keep every one; the truth switch shows them all. */
   const rv = () => (deps.reality ? deps.reality() : null);
   const hiddenPair = (c) => { const v = rv(); return !!v && v.active() && v.contradictionHidden(c.pairId); };
@@ -155,6 +160,7 @@ export function createBoardController(deps) {
 
   /** Why two statements contradict: the authored reason, or the mythos reason for a distorted rumor against what it distorts. */
   function reasonOf(pairId) {
+    if (pairId.startsWith(AFTERMATH_PAIR_PREFIX)) { const t = deps.aftermath ? deps.aftermath()?.reason : null; return t ? t[lang()] || t.en : ''; }
     const def = statements.contradictions.find((x) => x.id === pairId), feed = pairId.startsWith('mythos:') && deps.mythos ? deps.mythos() : null, t = def ? def.reason : feed ? feed.library.contradictionReason : null;
     return t ? t[lang()] || t.en : '';
   }
@@ -313,10 +319,12 @@ export function createBoardController(deps) {
     for (const c of shown) {
       const slot = layout.slots.get(c.id), title = titleOf(c.id), contradictory = flagged.has(c.id);
       const trust = trustOf(c), trustText = trust === null ? '' : tr(`society.trust.${trust}`);
-      const label = [tr(`board.kind.${c.kind}`), title, trustText ? tr('society.card.aria', { text: trustText }) : '', contradictory ? tr('board.flag.contradiction') : '', c.invalidated ? tr('board.flag.invalid') : ''].filter(Boolean).join(', ');
+      const rel = reliabilityOf(m, c.id), relText = rel === null ? '' : tr('board.reliability.aria', { reliability: rel });
+      const label = [tr(`board.kind.${c.kind}`), title, relText, trustText ? tr('society.card.aria', { text: trustText }) : '', contradictory ? tr('board.flag.contradiction') : '', c.invalidated ? tr('board.flag.invalid') : ''].filter(Boolean).join(', ');
       const b = node('button', { type: 'button', class: `board-card board-kind-${c.kind}${c.revealed ? '' : ' board-unknown'}${contradictory ? ' board-contradiction' : ''}${c.invalidated ? ' board-invalid' : ''}`, 'data-card': c.id, 'aria-label': label, tabindex: '-1' });
       b.style.setProperty('left', `${slot.x}px`); b.style.setProperty('top', `${slot.y}px`); b.style.setProperty('width', `${CARD_W}px`); b.style.setProperty('height', `${CARD_H}px`);
       b.append(node('span', { class: 'board-card-kind' }, tr(`board.kind.${c.kind}`)), node('span', { class: 'board-card-title' }, title));
+      if (rel !== null) b.append(node('span', { class: `board-card-reliability board-reliability-${rel >= 66 ? 'high' : rel >= 33 ? 'mid' : 'low'}`, 'aria-hidden': 'true' }, tr('board.reliability.short', { reliability: rel })));
       if (trust !== null) b.append(node('span', { class: `board-card-trust board-trust-${trust}`, 'aria-hidden': 'true' }, tr(`society.trust.short.${trust}`)));
       const bars = barsOf(c);
       if (bars) b.append(miniBars(bars));
@@ -341,8 +349,8 @@ export function createBoardController(deps) {
     for (const l of m.links) { if (!l.revealed) continue; if (l.from === id) linked.push(titleOf(l.to)); else if (l.to === id) linked.push(titleOf(l.from)); }
     const reasons = shownContradictions(m).filter((c) => c.cardA === id || c.cardB === id).map((c) => reasonOf(c.pairId));
     const resolved = m.resolutions.filter((c) => c.cardA === id || c.cardB === id).map((c) => tr('board.detail.resolved', { reason: reasonOf(c.pairId) }));
-    const score = (m.scores || []).find((x) => `event:${x.statementId}` === id);
-    const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, score ? tr('board.detail.score', { confidence: score.confidence, belief: score.belief }) : '', linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r })), ...resolved].filter(Boolean);
+    const score = (m.scores || []).find((x) => `event:${x.statementId}` === id), rel = reliabilityOf(m, id), seen = (m.aftermath || []).some((a) => eventId(a.id) === id && a.sighting);
+    const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, score ? tr('board.detail.score', { confidence: score.confidence, belief: score.belief }) : '', rel === null ? '' : tr('board.detail.reliability', { reliability: rel }), seen ? tr('board.aftermath.sighting') : '', linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r })), ...resolved].filter(Boolean);
     const bars = barsOf(card);
     if (bars) parts.push(tr('society.bar.aria', { text: barsText(bars) }));
     const outcome = card.kind === CARD_VICTIM && deps.outcomeLine ? deps.outcomeLine(Number(card.key)) : '';

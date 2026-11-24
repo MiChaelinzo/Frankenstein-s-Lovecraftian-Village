@@ -13,6 +13,7 @@ export const [EVENT_CULT_FOUNDED, EVENT_CULT_JOINED, EVENT_SECRET_EXPOSED, EVENT
 export const CULT_STREAM = 0x43554c, FOUNDER_STREAM = 0x464f55, JOIN_STREAM = 0x4a4f4e, SECRET_STREAM = 0x534543, OMEN_STREAM = 0x4f4d4e, RUMOR_PICK_STREAM = 0x52504b, RUMOR_ORIGIN_STREAM = 0x524f52, DISTORT_STREAM = 0x444953;
 export const MAX_CULTS = 3, SECRET_FREE_OUT_OF = 3, START_EXPOSURE_RANGE = 300, CULT_NEIGHBOUR_PRESSURE = 40;
 export const EVENT_BASE_CHANCE = 150, EVENT_INTENSITY_DIVISOR = 2, RITUAL_INTENSITY_STEP = 100, JOIN_BOOST_MAX = 100, EXPOSURE_BOOST_MAX = 60, DISTORT_OUT_OF = 4;
+export const RECRUITED_JOIN_BOOST = 15, RECRUITED_EXPOSURE_BOOST = 10;
 const HOP_DISTORT_SALT = 7919;
 
 export const ID_PREFIX = 'mythos:', SECRET_PREFIX = 'mythos:secret:', RUMOR_PREFIX = 'mythos:rumor:', OMEN_PREFIX = 'mythos:omen:', CULT_PREFIX = 'mythos:cult:';
@@ -235,7 +236,8 @@ export function runMythos(society, story, lib, inputs, throughNight) {
   let previousIntensity = 0;
   for (let night = 1; night <= throughNight; night++) {
     const dread = clamp(inputAt(inputs.dreadPermille, night), 0, SCALE), ritual = clamp(inputAt(inputs.ritualStage, night), 0, MAX_RITUAL_STAGE);
-    const joinBoost = Math.trunc((previousIntensity * JOIN_BOOST_MAX) / SCALE), exposureBoost = Math.trunc((previousIntensity * EXPOSURE_BOOST_MAX) / SCALE);
+    const recruited = inputAt(inputs.recruitedByNight, night); // Round 34 (spec 170): optional, absent changes nothing
+    const joinBoost = Math.trunc((previousIntensity * JOIN_BOOST_MAX) / SCALE) + recruited * RECRUITED_JOIN_BOOST, exposureBoost = Math.trunc((previousIntensity * EXPOSURE_BOOST_MAX) / SCALE) + recruited * RECRUITED_EXPOSURE_BOOST;
     const events = [];
     if (night === 1) state.cults.forEach((c, index) => events.push({ kind: EVENT_CULT_FOUNDED, subject: c.founder, other: index, key: c.id, night }));
 

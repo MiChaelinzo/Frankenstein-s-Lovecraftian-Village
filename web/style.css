@@ -224,6 +224,9 @@ html.reduced .board-draw { animation: none; stroke-dasharray: none; stroke-dasho
 .board-card-kind { font-size: .66rem; color: #c9b583; text-transform: uppercase; }
 .board-card-title { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .board-card-trust { font-size: .62rem; color: #b9ad8f; font-style: italic; }
+.board-card-reliability { font-size: .62rem; color: #b9ad8f; letter-spacing: .02em; }
+.board-reliability-low { color: #e0a96a; }
+.board-reliability-high { color: #9fcfa8; }
 .board-trust-1 { color: #e0a96a; }
 .board-trust-2 { color: #9fcfa8; }
 .villager-trust { font-style: italic; color: #b9ad8f; }
@@ -420,6 +423,7 @@ button:focus-visible, a.btn:focus-visible, .board-card:focus-visible { outline: 
 .board-card-kind { color: var(--v-ink-soft); letter-spacing: .08em; }
 .board-card-trust { color: var(--v-ink-blue); }
 .board-trust-1 { color: #6e3609; } .board-trust-2 { color: #1d5232; }
+.board-card-reliability { color: var(--v-ink-blue); } .board-reliability-low { color: #6e3609; } .board-reliability-high { color: #1d5232; }
 .board-dialog .board-unknown { background-color: var(--v-paper-deep); border-style: dashed; color: var(--v-ink); opacity: 1; }
 .board-unknown .board-card-title { font-style: italic; }
 .board-dialog .board-card:hover { box-shadow: 0 5px 12px rgba(0,0,0,.7), 0 0 0 1px var(--v-brass); }

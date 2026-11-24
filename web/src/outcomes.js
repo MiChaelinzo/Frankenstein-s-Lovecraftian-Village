@@ -38,7 +38,13 @@ export function parseOutcomeLibrary(input) {
   const root = typeof input === 'string' ? JSON.parse(input) : input;
   if (!root || typeof root !== 'object') throw new Error('outcomes: root is not an object');
   if (!root.taken || typeof root.taken !== 'object') throw new Error('outcomes: missing taken object');
-  const lib = { taken: text(root.taken, 'taken'), epitaphs: [], constraints: [] };
+  const lib = { taken: text(root.taken, 'taken'), epitaphs: [], constraints: [], aftermath: null };
+  if (root.aftermath !== undefined) {
+    const a = root.aftermath;
+    if (!a || typeof a !== 'object' || Array.isArray(a)) throw new Error('outcomes: aftermath is not an object');
+    const part = (key) => { if (!a[key] || typeof a[key] !== 'object') throw new Error(`outcomes: aftermath lacks ${key}`); return text(a[key], `aftermath ${key}`); };
+    lib.aftermath = { planted: part('planted'), displaced: part('displaced'), reason: part('reason') };
+  }
   const epitaphs = new Array(OUTCOME_IDS.length).fill(null);
   for (const o of objects(root, 'outcomes')) {
     const id = str(o, 'id', 'outcome'), k = OUTCOME_IDS.indexOf(id);
@@ -63,6 +69,40 @@ export function parseOutcomeLibrary(input) {
     lib.constraints.push(c);
   }
   return lib;
+}
+
+// Round 34 (spec 170): Core MissingOutcomes aftermath. What a resolved outcome leaves behind: recruits feed the mythos run (cult joining, exposure) and plant a low reliability statement,
+// displaced people are glimpsed briefly on a seeded part of the nights after they resolve and leave a statement that contradicts the kin or witness. Shown only from OUTCOME_AT_LEADS leads.
+export const AFTERMATH_STREAM = 0x414654, FIRST_RESOLVE_NIGHT = 2, RESOLVE_NIGHT_SPAN = 4, SIGHTING_NIGHTS = 3, SIGHTING_OUT_OF = 2, RECRUITED_CAP = 3, PLANTED_RELIABILITY = 25, DISPLACED_RELIABILITY = 35, PLANTED_MINUTE_BASE = 1200, MINUTE_SPAN = 240;
+export const AFTERMATH_PREFIX = 'aftermath:', AFTERMATH_PAIR_PREFIX = 'aftermath:contradiction:';
+export const [AFTERMATH_PLANTED, AFTERMATH_DISPLACED] = [0, 1];
+
+export const resolveNight = (seed, missingIndex) => FIRST_RESOLVE_NIGHT + new SeededRandom(seed ^ AFTERMATH_STREAM ^ Math.imul(missingIndex, INDEX_STEP)).next(RESOLVE_NIGHT_SPAN);
+export const isAftermathActive = (seed, missingIndex, night) => night >= resolveNight(seed, missingIndex);
+export function sightingOn(seed, missingIndex, night) {
+  const resolve = resolveNight(seed, missingIndex);
+  if (night < resolve || night >= resolve + SIGHTING_NIGHTS) return false;
+  return new SeededRandom(seed ^ AFTERMATH_STREAM ^ Math.imul(missingIndex, INDEX_STEP) ^ (night * 131)).next(SIGHTING_OUT_OF) === 0;
+}
+/** Active recruits on each night 1..throughNight, for the mythos input recruitedByNight. Pass outcomes from a run without recruits. */
+export function recruitedByNight(seed, outcomes, throughNight) {
+  const counts = [];
+  for (let night = 1; night <= Math.max(0, throughNight); night++) counts.push(Math.min(RECRUITED_CAP, outcomes.filter((o, k) => o === OUTCOME_RECRUITED && isAftermathActive(seed, k, night)).length));
+  return counts;
+}
+/** The aftermath statements on a night: { id, missing, kind, text{en,fr}, night, minute, reliability, sighting } for each recruited or displaced person with at least OUTCOME_AT_LEADS leads. */
+export function aftermathStatements(story, library, outcomes, leads, night) {
+  const list = [];
+  if (!library || !library.aftermath) return list;
+  for (let k = 0; k < outcomes.length && k < story.missing.length; k++) {
+    const planted = outcomes[k] === OUTCOME_RECRUITED, displaced = outcomes[k] === OUTCOME_DISPLACED;
+    if ((!planted && !displaced) || !isAftermathActive(story.seed, k, night) || revealLevel(leads[k]) !== REVEAL_OUTCOME) continue;
+    const src = planted ? library.aftermath.planted : library.aftermath.displaced, text = {};
+    for (const lang of OUTCOME_LANGUAGES) text[lang] = render(src[lang], story.missingVars(story.missing[k], lang));
+    list.push({ id: `${AFTERMATH_PREFIX}${planted ? 'planted' : 'displaced'}:${k}`, missing: k, kind: planted ? AFTERMATH_PLANTED : AFTERMATH_DISPLACED, text, night: resolveNight(story.seed, k),
+      minute: PLANTED_MINUTE_BASE + new SeededRandom(story.seed ^ AFTERMATH_STREAM ^ Math.imul(k, INDEX_STEP) ^ 0x4d).next(MINUTE_SPAN), reliability: planted ? PLANTED_RELIABILITY : DISPLACED_RELIABILITY, sighting: displaced && sightingOn(story.seed, k, night) });
+  }
+  return list;
 }
 
 export const isSurvivable = (outcome) => outcome === OUTCOME_ESCAPED || outcome === OUTCOME_HIDDEN;

@@ -698,14 +698,14 @@ const lore = createLoreController({
 });
 // Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
 let theory = null; // the theory builder (created after the board); society and board read it lazily
-const society = createSocietyController({ trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+const society = createSocietyController({ recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
 let realityLib = null;
 const reality = createRealityView({ lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
   reality: () => reality, onReality: () => { villagers.refresh(); },
-  afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
+  afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), aftermath: () => (theory ? theory.aftermath() : null), memory: () => { const s = currentStory(); return s ? s.roster.map((v) => society.memoryOutcome(v.index)) : null; }, focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
   night: () => state.night + 1, journal: (text) => log('lore', text), witnessTitle: (id, l) => creatures.witnessTitle(id, l),
@@ -713,7 +713,7 @@ const board = createBoardController({
 });
 theory = createTheoryController({
   $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
-  board, lore, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
+  board, lore, night: () => state.night + 1, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
 // Places: the Abandoned Manor and later places (places.js, Core VillagePlaces). Draws props and boxes through the 3D scene; discoveries become board clues.
 const places = createPlacesController({ reality: () => reality, journal: (text) => log('lore', text), state, gridW: GRID_W, gridD: GRID_D, lang, night: () => state.night + 1, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });

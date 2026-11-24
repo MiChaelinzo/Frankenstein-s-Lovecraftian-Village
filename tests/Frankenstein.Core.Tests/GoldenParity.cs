@@ -403,6 +403,9 @@ namespace Frankenstein.Core.Tests
             AppendReality(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendAftermath(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendPlaces(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1621,6 +1624,67 @@ namespace Frankenstein.Core.Tests
                         + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, MissingOutcomes.MaxLeads)) + "], " + counted + ", [" + string.Join(", ", reveals) + "]]");
                 }
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"missing\": [").Append(string.Join(", ", people)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "aftermath" (round 34, spec 170): the reliability table over source x corrupted x memory x displaced contradiction, then per city seed with outcomes forced to Recruited, Displaced, Dead in turn: resolve night, sighting nights 1 to 8, active recruits per night, a mythos run with those recruits (cult members and events per night), the aftermath statements at night 8 (all missing at 6 leads) and the board reliabilities and contradictions built from the merged full evidence of every missing person with villager 1 paranoid and 2 obsessed.</summary>
+        private static void AppendAftermath(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(data, "statements.json")));
+            var mythos = MythosSimulationTests.Library();
+            var outcomes = MissingOutcomesTests.Library();
+            var table = new List<string>();
+            foreach (var source in new[] { StatementSource.Chat, StatementSource.Journal, StatementSource.Lore, StatementSource.Clue })
+                foreach (bool corrupted in new[] { false, true })
+                    for (int memory = 0; memory <= 4; memory++)
+                        foreach (bool displaced in new[] { false, true })
+                            table.Add(InvestigationRules.ReliabilityScore(InvestigationRules.BaseReliability(source), corrupted, (MemoryOutcome)memory, displaced).ToString());
+            sb.Append("  \"aftermath\": {\n    \"table\": [").Append(string.Join(", ", table)).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var forced = new List<MissingOutcome>();
+                for (int k = 0; k < story.Missing.Count; k++) forced.Add(new[] { MissingOutcome.Recruited, MissingOutcome.Displaced, MissingOutcome.Dead }[k % 3]);
+                var recruited = MissingOutcomes.RecruitedByNight(story.Seed, forced, MythosSimulationTests.Nights);
+                var inputs = MythosSimulationTests.GridInputs();
+                inputs.RecruitedByNight = recruited;
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                var perNight = state.Nights.Select(n => "[" + string.Join(", ", n.CultMembers.Select(m => m.Count)) + ", " + n.Events.Count + "]");
+                var sightings = new List<string>();
+                for (int k = 0; k < story.Missing.Count; k++)
+                    sightings.Add("[" + MissingOutcomes.ResolveNight(story.Seed, k) + ", \"" + string.Concat(Enumerable.Range(1, 8).Select(n => MissingOutcomes.SightingOn(story.Seed, k, n) ? "1" : "0")) + "\"]");
+                var leads = new List<int>();
+                for (int k = 0; k < story.Missing.Count; k++) leads.Add(MissingOutcomes.MaxLeads);
+                var after = MissingOutcomes.Aftermath(story, outcomes, forced, leads, 8);
+                var evidence = InvestigationModelTests.SynergyEvidence();
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    var one = MissingOutcomesTests.FullEvidence(story, lore, k);
+                    foreach (var b in one.BooksRead) evidence.BooksRead.Add(b);
+                    foreach (var c in one.ClueIds) evidence.ClueIds.Add(c);
+                    foreach (var m in one.Met) evidence.Met.Add(m);
+                    foreach (var h in one.Heard) if (!evidence.Heard.Exists(x => x.StatementId == h.StatementId)) evidence.Heard.Add(h);
+                }
+                var memoryOf = new MemoryOutcome[roster.Count];
+                memoryOf[1] = MemoryOutcome.Paranoid;
+                memoryOf[2] = MemoryOutcome.Obsessed;
+                var board = InvestigationRules.Build(story, lore, statements, evidence, null, null, 0, null, memoryOf, after);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"forced\": [").Append(string.Join(", ", forced.Select(o => ((int)o).ToString())))
+                  .Append("], \"recruited\": [").Append(string.Join(", ", recruited)).Append("], \"mythos\": [").Append(string.Join(", ", perNight)).Append("], \"resolve\": [").Append(string.Join(", ", sightings))
+                  .Append("], \"statements\": [").Append(string.Join(", ", after.Select(a => "[" + Q(a.Id) + ", " + (int)a.Kind + ", " + a.Night + ", " + a.Minute + ", " + a.Reliability + ", " + (a.Sighting ? 1 : 0) + ", " + Q(a.Text.Get("en")) + ", " + Q(a.Text.Get("fr")) + "]")))
+                  .Append("], \"reliabilities\": [").Append(string.Join(", ", board.Reliabilities.Select(r => "[" + Q(r.StatementId) + ", " + r.Reliability + "]")))
+                  .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Select(c => Q(c.PairId)))).Append("] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");

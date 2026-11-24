@@ -191,6 +191,8 @@ namespace Frankenstein.Core
     {
         public int[] DreadPermille;
         public int[] RitualStage;
+        /// <summary>Optional (round 34, spec 170): how many recruited missing persons are active on each night (<see cref="MissingOutcomes.RecruitedByNight"/>). Null (the default) changes nothing, so every existing run is byte identical.</summary>
+        public int[] RecruitedByNight;
 
         /// <summary>Dread per mille added by each night of the fixed replay schedule.</summary>
         public const int DreadPerNight = 100;
@@ -257,6 +259,8 @@ namespace Frankenstein.Core
         public const int RitualIntensityStep = 100;
         /// <summary>The most an omen (full intensity) lowers the corruption needed to join a cult, and adds to exposure pressure, the night after.</summary>
         public const int JoinBoostMax = 100, ExposureBoostMax = 60;
+        /// <summary>Per active recruited missing person: lowers the corruption needed to join a cult (cult strength) and adds to exposure pressure (rumors). Only applied when <see cref="MythosInputs.RecruitedByNight"/> is supplied.</summary>
+        public const int RecruitedJoinBoost = 15, RecruitedExposureBoost = 10;
         /// <summary>A hop distorts a rumor with chance 1/DistortOutOf.</summary>
         public const int DistortOutOf = 4;
 
@@ -285,6 +289,9 @@ namespace Frankenstein.Core
                 int ritual = Math.Max(0, Math.Min(VillageSociety.MaxRitualStage, MythosInputs.At(inputs.RitualStage, night)));
                 int joinBoost = previousIntensity * JoinBoostMax / VillageSociety.Scale;
                 int exposureBoost = previousIntensity * ExposureBoostMax / VillageSociety.Scale;
+                int recruited = MythosInputs.At(inputs.RecruitedByNight, night);
+                joinBoost += recruited * RecruitedJoinBoost;
+                exposureBoost += recruited * RecruitedExposureBoost;
                 var events = new List<MythosEvent>();
                 if (night == 1)
                     foreach (var c in state.Cults) events.Add(new MythosEvent { Kind = MythosEventKind.CultFounded, Subject = c.Founder, Other = state.Cults.IndexOf(c), Key = c.Id, Night = night });

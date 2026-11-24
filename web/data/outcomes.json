@@ -24,6 +24,20 @@
     "en": "{missing} stepped out of the order of the nights. The hour that holds {missing} is not one this village will reach.",
     "fr": "{missing} est sorti de l'ordre des nuits. L'heure qui retient {missing} n'est pas de celles que ce village atteindra." }
  ],
+ "aftermath": {
+  "planted": {
+   "en": "Someone swears {missing} was seen at the water door, calm and well, and asked that nobody look further. The voice was steady. It was too steady.",
+   "fr": "Quelqu'un jure avoir vu {missing} a la porte de l'eau, calme et en paix, demandant que personne ne cherche plus loin. La voix etait assuree. Trop assuree."
+  },
+  "displaced": {
+   "en": "A shape stood a moment at the edge of the lamplight, wearing the face of {missing}. It was gone before the eye could keep it, and it left a place where the day had run twice.",
+   "fr": "Une forme s'est tenue un instant au bord de la lumiere des lampes, portant le visage de {missing}. Elle a disparu avant que l'oeil la retienne, et elle a laisse un endroit ou le jour s'est joue deux fois."
+  },
+  "reason": {
+   "en": "Someone gone from the village is placed where they cannot have been. One of these two accounts has been bent by the thing that took them.",
+   "fr": "Quelqu'un qui a quitte le village est place la ou il ne peut pas avoir ete. L'un de ces deux recits a ete plie par ce qui l'a emporte."
+  }
+ },
  "constraints": [
   { "missing": "m1", "excludes": ["dead"], "basis": "story m1 chat 2 says she did not fall and was asked; lore p01 says it is not yet over" },
   { "missing": "m2", "excludes": ["dead", "escaped"], "basis": "story m2 chat 2 says he is aboard the wreck and counted twice; the letters still arrive" },

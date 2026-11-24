@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-005): Missing person aftermath and source reliability (spec 170 built)
+- Core `MissingOutcomes` gains `ResolveNight`, `SightingOn`, `RecruitedByNight` and `Aftermath`. Each outcome resolves on a seeded night (2 to 5) and leaves nothing before it. Recruited: each active recruit (at most 3) adds 15 to cult joining and 10 to exposure pressure through the new optional `MythosInputs.RecruitedByNight`, and plants a statement of reliability 25. Displaced: a statement of reliability 35 that contradicts the first revealed statement of the person's kin or witness, and a brief sighting on a seeded half of the 3 nights after it resolves (a board note, never a chase). Shown only from 4 leads, like the epitaph.
+- `RecruitedByNight` null (the default) changes nothing, so every existing mythos run stays byte identical. Outcomes are always resolved from the run without recruits, so aftermath never changes what happened.
+- Source reliability: `InvestigationBoard.Reliabilities` (a separate list, so `Scores` is unchanged). Base by source (clue 90, journal 75, lore 60, chat 50, mythos rumor 40, other mythos 55), less 25 for a corrupted speaker, 15 for a paranoid or obsessed speaker (memory), 20 for a statement an aftermath contradiction touches. Shown on the board cards and in the card detail, en and fr. It informs the player and decides nothing.
+- Data: `aftermath` object (planted, displaced, reason; en and fr) in `outcomes.json`, byte copy in `web/data`. Web: `outcomes.js`, `investigation.js`, `board-ui.js`, `theory-ui.js`, `society-ui.js`, `mythos.js`, `i18n.js`, `style.css`; `sw.js` cache `flv-shell-v79`.
+- Golden key `aftermath` added; existing keys unchanged (git diff shows only additions). New tests: dotnet 6 (469 total), node 5 (811 total).
+
 ### Round 34 (FEAT-002): Villager Memory Engine (spec 167 built)
 - Core `VillagerMemoryModel` and `Data/memory.json` (en and fr). Per villager and per memory kind (accused, accusing, clue found, rumor heard, ritual witnessed, family lost, mythos exposure, conversation) an intensity per mille. An event adds its weight; each night keeps 850 per mille of it, but a touched memory never drops under 20 (the floor), so the village never forgets completely. Replay of a log equals recording the events one at a time.
 - Four outcomes with documented scores and a threshold of 150: forgive, paranoid, loyal, obsessed. Each moves the society values by a table scaled with strength: `VillageSociety.AxesAfter` gains an optional memory parameter (fear, faith, loyalty, obsession), `VillagerMemoryModel.TrustAfter` moves trust. An empty memory leaves every existing value identical.
