@@ -21,23 +21,24 @@ export function createCreatureController(deps) {
   let cat = null, enc = new CreatureEncounter(null), builtKey = '', blockedFn = null, blockedKey = '', level = 0, nearestKind = '', owed = 0, lastNote = '';
   const lang = () => (typeof deps.lang === 'function' ? deps.lang() : deps.lang);
 
+  const placeCount = () => (deps.places ? deps.places().length : 0);
   function blocked() {
-    const key = `${state.seed}|${state.layout.length}`;
+    const key = `${state.seed}|${state.layout.length}|${placeCount()}`;
     if (key !== blockedKey) {
       blockedKey = key;
       const boxes = dressingBoxes([...composeDressing(state.seed, deps.gridW, deps.gridD, state.layout), ...landmarkDressing(state.seed, deps.gridW, deps.gridD), ...landmarkPathDressing(state.seed, deps.gridW, deps.gridD)]);
-      blockedFn = (x, z) => isBlocked(x, z, state.layout, boxes, state.seed, deps.gridW, deps.gridD);
+      blockedFn = (x, z) => isBlocked(x, z, state.layout, boxes, state.seed, deps.gridW, deps.gridD, deps.places ? deps.places() : null);
     }
     return blockedFn;
   }
   const tick = () => Math.floor(deps.tickNow());
   function ensure() {
     if (!cat || !state.layout.length) { if (enc.creatures.length) enc = new CreatureEncounter(cat); return; }
-    const t = tick(), key = `${state.seed}|${dayNumber(t)}|${phaseAt(t)}|${deps.weather()}|${Math.floor(state.sanity.dread * DREAD_BUCKET)}|${cat.defs.length}`;
+    const t = tick(), key = `${state.seed}|${dayNumber(t)}|${phaseAt(t)}|${deps.weather()}|${Math.floor(state.sanity.dread * DREAD_BUCKET)}|${cat.defs.length}|${placeCount()}`;
     if (key === builtKey) return;
     builtKey = key;
     const old = enc;
-    enc = CreatureEncounter.spawn(state.seed, deps.gridW, deps.gridD, t, state.sanity.dread, deps.weather(), cat, blocked());
+    enc = CreatureEncounter.spawn(state.seed, deps.gridW, deps.gridD, t, state.sanity.dread, deps.weather(), cat, blocked(), deps.places ? deps.places() : null);
     enc.wards = old.wards; enc.flareUntilTick = old.flareUntilTick; enc.flareReadyTick = old.flareReadyTick; // wards and the flare outlast a change of weather or dread
   }
 

@@ -5,6 +5,7 @@ import { landmarkDressing, landmarkPathDressing, landmarkBookSpots } from './lan
 import { composeDressing, dressingBoxes, footprintOf, dockU, walkBounds, coastToWorldAt, coastSideOf, CELL_M } from './dressing.js';
 import { isBuilding, facingYaw } from './streets.js';
 import { ROLE_IDS } from './villagers.js';
+import { insideAnyPlace } from './places.js';
 
 export const LORE_PLACES = ['house', 'chapel', 'inn', 'lighthouse', 'harbour', 'grave', 'cliffs', 'shipwreck', 'abbey', 'marsh', 'journal', 'standing_stones', 'hidden_cove', 'ritual_site', 'catacombs'];
 export const LORE_PER_PLACE = [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 1, 1, 1, 1];
@@ -45,10 +46,11 @@ function shuffle(list, rng) {
   for (let i = list.length - 1; i > 0; i--) { const j = rng.next(i + 1); [list[i], list[j]] = [list[j], list[i]]; }
 }
 
-/** True when a book at (x, z) is outside the walkable area, inside a layout cell rectangle (0.3 m clearance) or inside a solid prop's walking box. */
-export function isBlocked(x, z, layout, boxes, seed, gridW, gridD) {
+/** True when a book at (x, z) is outside the walkable area, inside a layout cell rectangle (0.3 m clearance), inside a solid prop's walking box or inside a place footprint plus margin (places: the placements of placeAll, may be null). */
+export function isBlocked(x, z, layout, boxes, seed, gridW, gridD, places = null) {
   const b = walkBounds(seed, gridW, gridD);
   if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) return true;
+  if (insideAnyPlace(places, x, z)) return true;
   if (layout) for (const p of layout) if (x > p.x * CELL_M - CLEARANCE && x < (p.x + p.sizeX) * CELL_M + CLEARANCE && z > p.z * CELL_M - CLEARANCE && z < (p.z + p.sizeZ) * CELL_M + CLEARANCE) return true;
   return boxes.some((bx) => x > bx.minX && x < bx.maxX && z > bx.minZ && z < bx.maxZ);
 }
@@ -86,13 +88,13 @@ function spotsFor(place, seed, gridW, gridD, buildings, items, rng) {
  * The books of one village in place order: [{ bookId, place, x, z }] in metres. Places with no free spot give no book. Without a story (buildStory) there are no journals
  * and no missing person pages; with one, each missing person's page is placed first at its landmark and each villager's journal lies in front of their home.
  */
-export function placeBooks(seed, gridW, gridD, layout, library, story = null) {
+export function placeBooks(seed, gridW, gridD, layout, library, story = null, places = null) {
   const result = [];
   if (!library || gridW <= 0 || gridD <= 0) return result;
   const items = [...composeDressing(seed, gridW, gridD, layout), ...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)], boxes = dressingBoxes(items);
   const buildings = (layout || []).filter((p) => isBuilding(p.sizeX, p.sizeZ));
   LORE_PLACES.forEach((place, pi) => {
-    if (place === 'journal') { placeJournals(result, story, library, layout, boxes, seed, gridW, gridD); return; }
+    if (place === 'journal') { placeJournals(result, story, library, layout, boxes, seed, gridW, gridD, places); return; }
     const rng = new SeededRandom(seed ^ (PLACE_SALT_BASE + pi * PLACE_SALT_STEP));
     let books = library.books.filter((b) => b.place === place && (!b.missing || (story && story.hasMissing(b.missing))));
     shuffle(books, rng);
@@ -101,7 +103,7 @@ export function placeBooks(seed, gridW, gridD, layout, library, story = null) {
     let taken = 0;
     for (const alts of spots) {
       if (taken >= LORE_PER_PLACE[pi] || taken >= books.length) break;
-      const c = alts.find((a) => !isBlocked(a[0], a[1], layout, boxes, seed, gridW, gridD));
+      const c = alts.find((a) => !isBlocked(a[0], a[1], layout, boxes, seed, gridW, gridD, places));
       if (c) { result.push({ bookId: books[taken].id, place, x: c[0], z: c[1] }); taken++; }
     }
   });
@@ -109,13 +111,13 @@ export function placeBooks(seed, gridW, gridD, layout, library, story = null) {
 }
 
 /** One journal per villager, in roster order, in front of their home; a spot already taken by another book gives way to the next lateral one. */
-function placeJournals(result, story, library, layout, boxes, seed, gridW, gridD) {
+function placeJournals(result, story, library, layout, boxes, seed, gridW, gridD, places) {
   if (!story || !layout) return;
   for (const v of story.roster) {
     if (v.homeIndex < 0 || v.homeIndex >= layout.length) continue;
     const book = library.books.find((b) => b.place === 'journal' && b.role === ROLE_IDS[v.role]);
     if (!book) continue;
-    const c = frontSpots(layout[v.homeIndex]).find((a) => !isBlocked(a[0], a[1], layout, boxes, seed, gridW, gridD) && !result.some((p) => Math.abs(p.x - a[0]) < JOURNAL_SPACING && Math.abs(p.z - a[1]) < JOURNAL_SPACING));
+    const c = frontSpots(layout[v.homeIndex]).find((a) => !isBlocked(a[0], a[1], layout, boxes, seed, gridW, gridD, places) && !result.some((p) => Math.abs(p.x - a[0]) < JOURNAL_SPACING && Math.abs(p.z - a[1]) < JOURNAL_SPACING));
     if (c) result.push({ bookId: book.id, place: 'journal', x: c[0], z: c[1] });
   }
 }

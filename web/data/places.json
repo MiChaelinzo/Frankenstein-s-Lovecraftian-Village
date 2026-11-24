@@ -1410,7 +1410,7 @@
   {
    "id": "catacomb",
    "anchor": "catacombs",
-   "radius": 6.5,
+   "radius": 7.5,
    "en": "Catacomb Interior",
    "fr": "Interieur des catacombes",
    "budget": {
@@ -1538,8 +1538,8 @@
   },
   {
    "id": "mine",
-   "anchor": "standing_stones",
-   "radius": 6.5,
+   "anchor": "ritual_site",
+   "radius": 7.5,
    "en": "The Forgotten Mine",
    "fr": "La mine oubliee",
    "budget": {

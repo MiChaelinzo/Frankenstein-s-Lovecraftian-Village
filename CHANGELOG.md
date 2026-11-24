@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 32 (FEAT-001): placements stay out of places (fix)
+- Root cause: the four places (Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine) were only collided with in the 3D view. `LoreBookRules.IsBlocked` and the creature home search knew nothing of them, so a lore book, item, chest, homestead plot or creature home could land inside a place.
+- Core: `VillagePlaces.PlaceAll` and `InsideAnyPlace` (footprint disc plus `ObstacleMargin` 1.5 m). `LoreBookRules.Place`, `IsBlocked`, `ItemWorld.Create`, `HomesteadPlot.Create` and `CreatureEncounter.Spawn` take an optional placement list; every creature habitat now redraws a home inside a place (up to `HomeTries`). Web mirrors in `places.js`, `lore.js`, `inventory.js`, `homestead.js`, `creatures.js`; the UI controllers get the placements from `place-ui.js`.
+- Margins: `Check` keeps `MinClearance` 1.5 m to every landmark disc and other place (was 0, the catacomb came within 0.13 m of the standing stones). The mine moves from the standing stones to the ritual site; the catacomb and mine radius grows from 6.5 to 7.5 m (room corners reach 5.94 m). Each ring now also tries the eight directions between the main eight, so the crowded city grid still fits every place for every tested seed.
+- Golden: only key `villagePlaces` changes (placements moved); every other key is byte identical. `sw.js` cache v72.
+- Tests: dotnet 415, node 753. New tests over 204 seeds and both grids in C# and JS; they fail when the place check is removed from `IsBlocked` and the creature home search. Unity runtime and browser render Unverified; the still `docs/media/places-mine.jpg` shows the old site.
+
 ### Round 31 (FEAT-005): integration, browser check and docs (spec 164 built)
 - Test `All_four_places_together_stand_valid_and_each_feeds_...` (5 seeds, both grids): every place in bounds, non overlapping, round trip, and each feeds a knowledge source, a board clue with a theory score, and a missing person lead. dotnet 411.
 - `tools/browser_check.mjs` gains `PLACES_ONLY=1` (placement in the page's modules; the 3D prompt at each entrance in en and fr; `PLACES_SHOT_DIR` saves stills). 3 of 3 on SwiftShader. Stills `docs/media/places-*.jpg`, each under 100 KB.

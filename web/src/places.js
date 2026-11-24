@@ -15,9 +15,16 @@ export const KNOWLEDGE_SOURCE_IDS = ['journal', 'ritual', 'investigation', 'ruin
 export const MANOR = 'manor', FOREST = 'forest', CATACOMB = 'catacomb', MINE = 'mine';
 export const PLACE_STREAM = 0x504c43, TRAIL_STREAM = 0x545241, GRAPH_STREAM = 0x475248;
 export const LANTERN_GAP = 4, LANTERN_REACH = 4, TRAIL_SPACING = 3, TRAIL_SIDE = 1.4, MAX_TRAIL_LENGTH = 36;
+/** Metres of clear ground kept around a place footprint: nothing is placed within the footprint plus this margin. Mirrors VillagePlaces.ObstacleMargin. */
+export const OBSTACLE_MARGIN = 1.5;
+/** Least clear distance in metres between a footprint and any landmark disc or other place footprint. Mirrors VillagePlaces.MinClearance. */
+export const MIN_CLEARANCE = 1.5;
 export const GAP = 2, RING_STEP = 4, MAX_DOOR_WALK = 6, RING_COUNT = 6, DIRECTION_COUNT = 8, TIERS = 3;
 const DIAG = Math.sqrt(0.5);
 const DIRECTIONS = [[1, 0], [DIAG, DIAG], [0, 1], [-DIAG, DIAG], [-1, 0], [-DIAG, -DIAG], [0, -1], [DIAG, -DIAG]];
+// cos and sin of 22.5 degrees, written out so C# and JavaScript use the same doubles; HALF_DIRECTIONS are DIRECTIONS turned by 22.5 degrees, tried on each ring after them.
+const HALF_COS = 0.9238795325112867, HALF_SIN = 0.3826834323650898;
+const HALF_DIRECTIONS = [[HALF_COS, HALF_SIN], [HALF_SIN, HALF_COS], [-HALF_SIN, HALF_COS], [-HALF_COS, HALF_SIN], [-HALF_COS, -HALF_SIN], [-HALF_SIN, -HALF_COS], [HALF_SIN, -HALF_COS], [HALF_COS, -HALF_SIN]];
 
 const text = (o, owner) => {
   const t = {};
@@ -146,7 +153,7 @@ export function inBounds(p, seed, gridW, gridD) {
   return [p.entrance, p.door, p.hatch, p.tunnelExit].every((pt) => pointInBounds(seed, gridW, gridD, pt[0], pt[1]));
 }
 export function overlappingLandmark(p, seed, gridW, gridD) {
-  for (const l of landmarks(seed, gridW, gridD)) if (Math.sqrt((p.x - l.x) ** 2 + (p.z - l.z) ** 2) < l.radius + p.radius) return l.id;
+  for (const l of landmarks(seed, gridW, gridD)) if (Math.sqrt((p.x - l.x) ** 2 + (p.z - l.z) ** 2) < l.radius + p.radius + MIN_CLEARANCE) return l.id;
   return null;
 }
 export function overlapsCity(p, gridW, gridD) {
@@ -154,7 +161,7 @@ export function overlapsCity(p, gridW, gridD) {
   return Math.sqrt(nx * nx + nz * nz) < p.radius;
 }
 export function overlappingPlace(p, placed) {
-  for (const o of placed || []) { if (o.id !== p.id && Math.sqrt((p.x - o.x) ** 2 + (p.z - o.z) ** 2) < o.radius + p.radius) return o.id; }
+  for (const o of placed || []) { if (o.id !== p.id && Math.sqrt((p.x - o.x) ** 2 + (p.z - o.z) ** 2) < o.radius + p.radius + MIN_CLEARANCE) return o.id; }
   return null;
 }
 /** Enter: the walker goes from the entrance point to just inside the door. */
@@ -293,8 +300,8 @@ export function placePlace(data, seed, gridW, gridD, placed = null) {
   let last = '';
   for (let ring = 0; ring < RING_COUNT; ring++) {
     const dist = anchor.radius + data.radius + GAP + ring * RING_STEP;
-    for (let k = 0; k < DIRECTION_COUNT; k++) {
-      const dir = DIRECTIONS[(start + k) % DIRECTION_COUNT], x = anchor.x + dir[0] * dist, z = anchor.z + dir[1] * dist, tx = anchor.x - x, tz = anchor.z - z;
+    for (let k = 0; k < 2 * DIRECTION_COUNT; k++) {
+      const dir = (k < DIRECTION_COUNT ? DIRECTIONS : HALF_DIRECTIONS)[(start + k) % DIRECTION_COUNT], x = anchor.x + dir[0] * dist, z = anchor.z + dir[1] * dist, tx = anchor.x - x, tz = anchor.z - z;
       let fx = 0, fz = 0;
       if (Math.abs(tx) >= Math.abs(tz)) fx = tx < 0 ? -1 : 1; else fz = tz < 0 ? -1 : 1;
       const p = buildPlacement(data, seed, gridW, gridD, x, z, fx, fz);
@@ -303,6 +310,18 @@ export function placePlace(data, seed, gridW, gridD, placed = null) {
     }
   }
   throw new Error(`places: ${data.id} fits nowhere around ${data.anchor} (last failure: ${last})`);
+}
+
+/** Every place of the library placed in this village, in data order, each clear of the ones before it. Mirrors VillagePlaces.PlaceAll. */
+export function placeAll(lib, seed, gridW, gridD) {
+  const standing = [];
+  if (lib) for (const data of lib.places) standing.push(placePlace(data, seed, gridW, gridD, standing));
+  return standing;
+}
+/** True when (x, z) lies within a place footprint disc plus OBSTACLE_MARGIN. Mirrors VillagePlaces.InsideAnyPlace. */
+export function insideAnyPlace(places, x, z) {
+  if (!places) return false;
+  return places.some((p) => { const dx = x - p.x, dz = z - p.z, reach = p.radius + OBSTACLE_MARGIN; return dx * dx + dz * dz < reach * reach; });
 }
 
 /** The props as dressing items (existing kinds, so collision and meshes come from dressing.js), world frame. */

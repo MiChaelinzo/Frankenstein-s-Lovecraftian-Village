@@ -4,6 +4,7 @@ import { SeededRandom } from './core.js';
 import { phaseAt } from './clock.js';
 import { CELL_M, coastToWorldAt, dockU, hiOf } from './dressing.js';
 import { landmarks } from './landmarks.js';
+import { insideAnyPlace } from './places.js';
 
 export const CREATURE_HABITATS = ['shore', 'fog', 'harbour', 'cliffs'];
 export const CREATURE_PHASE_RULES = ['night', 'dusk_night', 'any'];
@@ -81,25 +82,24 @@ export function isCreatureActive(def, tick, dreadPercent, weather) {
   return phaseOk && weatherOk && dreadPercent >= def.minDread;
 }
 
-function homeOf(def, rng, seed, gridW, gridD, blocked) {
+function homeOf(def, rng, seed, gridW, gridD, blocked, places) {
   const w = gridW * CELL_M, d = gridD * CELL_M, shore = hiOf(seed, gridW, gridD);
-  if (def.habitat === 'shore') {
-    const u = SHORE_MARGIN + rng.next(1000) / 1000.0 * Math.max(0.0, shore - 2 * SHORE_MARGIN);
-    return coastToWorldAt(seed, gridW, u, SHORE_V);
-  }
-  if (def.habitat === 'harbour') {
-    const u = dockU(seed, gridW, gridD) + (rng.next(2001) - 1000) / 1000.0 * HARBOUR_SPREAD;
-    return coastToWorldAt(seed, gridW, u, HARBOUR_V);
-  }
-  if (def.habitat === 'cliffs') {
-    const cliffs = landmarks(seed, gridW, gridD)[0];
-    const a = rng.next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.sqrt(rng.next(1000) / 1000.0) * cliffs.radius * CLIFF_SPREAD;
-    return { x: cliffs.x + Math.cos(a) * r, z: cliffs.z + Math.sin(a) * r };
-  }
   let x = 0, z = 0;
   for (let t = 0; t < HOME_TRIES; t++) {
-    x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
-    if (!blocked || !blocked(x, z)) break;
+    if (def.habitat === 'shore') {
+      const u = SHORE_MARGIN + rng.next(1000) / 1000.0 * Math.max(0.0, shore - 2 * SHORE_MARGIN);
+      ({ x, z } = coastToWorldAt(seed, gridW, u, SHORE_V));
+    } else if (def.habitat === 'harbour') {
+      const u = dockU(seed, gridW, gridD) + (rng.next(2001) - 1000) / 1000.0 * HARBOUR_SPREAD;
+      ({ x, z } = coastToWorldAt(seed, gridW, u, HARBOUR_V));
+    } else if (def.habitat === 'cliffs') {
+      const cliffs = landmarks(seed, gridW, gridD)[0];
+      const a = rng.next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.sqrt(rng.next(1000) / 1000.0) * cliffs.radius * CLIFF_SPREAD;
+      x = cliffs.x + Math.cos(a) * r; z = cliffs.z + Math.sin(a) * r;
+    } else {
+      x = rng.next(1000) / 1000.0 * w; z = rng.next(1000) / 1000.0 * d;
+    }
+    if (!insideAnyPlace(places, x, z) && (def.habitat !== 'fog' || !blocked || !blocked(x, z))) break;
   }
   return { x, z };
 }
@@ -110,7 +110,7 @@ export class CreatureEncounter {
   constructor(cat) { this.cat = cat; this.creatures = []; this.wards = []; this.flareUntilTick = -1; this.flareReadyTick = 0; this.fuelDebt = 0; }
 
   /** The creatures that appear for this phase, weather and dread (0..1), at their seeded homes. blocked(x, z) may be null. */
-  static spawn(seed, gridW, gridD, tick, dread, weather, cat, blocked) {
+  static spawn(seed, gridW, gridD, tick, dread, weather, cat, blocked, places = null) {
     const enc = new CreatureEncounter(cat);
     if (!cat || gridW <= 0 || gridD <= 0) return enc;
     const dreadPercent = Math.floor(Math.max(0, Math.min(1, Number.isNaN(dread) ? 0 : dread)) * 100.0 + 1e-9);
@@ -119,7 +119,7 @@ export class CreatureEncounter {
       const count = Math.max(1, 1 + Math.trunc((def.max - 1) * dreadPercent / 100));
       const rng = new SeededRandom(seed ^ HOME_SALT ^ (k * KIND_STEP));
       for (let i = 0; i < def.max; i++) {
-        const h = homeOf(def, rng, seed, gridW, gridD, blocked);
+        const h = homeOf(def, rng, seed, gridW, gridD, blocked, places);
         if (i >= count || enc.creatures.length >= MAX_CREATURES) continue;
         enc.creatures.push({ defId: def.id, homeX: h.x, homeZ: h.z, x: h.x, z: h.z });
       }

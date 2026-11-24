@@ -195,7 +195,7 @@ namespace Frankenstein.Core
         public double[] At(double a, double b) { return new[] { OriginX + SideX * a + DirX * b, OriginZ + SideZ * a + DirZ * b }; }
 
         /// <summary>Finds the plot beside the lodging house. An empty plot (Exists false) when there is no lodging house or no free spot.</summary>
-        public static HomesteadPlot Create(int seed, int gridW, int gridD, IList<PlacedPiece> layout, ItemWorld items)
+        public static HomesteadPlot Create(int seed, int gridW, int gridD, IList<PlacedPiece> layout, ItemWorld items, IList<PlacePlacement> places = null)
         {
             var plot = new HomesteadPlot();
             var lodging = items == null ? null : items.Lodging;
@@ -216,7 +216,7 @@ namespace Frankenstein.Core
                             SideX = sideX, SideZ = sideZ, DirX = flip * dirX, DirZ = flip * dirZ,
                         };
                         cand.Fill();
-                        if (cand.AllFree(layout, solids, seed, gridW, gridD)) { cand.Exists = true; return cand; }
+                        if (cand.AllFree(layout, solids, seed, gridW, gridD, places)) { cand.Exists = true; return cand; }
                     }
             return plot;
         }
@@ -230,13 +230,13 @@ namespace Frankenstein.Core
             for (int i = 0; i < HomesteadRules.MaxResidents; i++) ResidentSpots.Add(At((i - (HomesteadRules.MaxResidents - 1) / 2.0) * HomesteadRules.ResidentSpacing, HomesteadRules.ResidentForward));
         }
 
-        private bool AllFree(IList<PlacedPiece> layout, List<DressingItem> solids, int seed, int gridW, int gridD)
+        private bool AllFree(IList<PlacedPiece> layout, List<DressingItem> solids, int seed, int gridW, int gridD, IList<PlacePlacement> places)
         {
             var points = new List<double[]>(Beds);
             points.AddRange(Slots);
             points.AddRange(ResidentSpots);
             foreach (var o in CorruptionGrowth.PlotEdgeOffsets()) points.Add(At(o[0], o[1]));
-            foreach (var p in points) if (LoreBookRules.IsBlocked(p[0], p[1], layout, solids, seed, gridW, gridD)) return false;
+            foreach (var p in points) if (LoreBookRules.IsBlocked(p[0], p[1], layout, solids, seed, gridW, gridD, places)) return false;
             return true;
         }
     }

@@ -507,7 +507,7 @@ namespace Frankenstein.Core.Tests
         {
             var data = Mine();
             Assert.True(data.Procedural);
-            Assert.Equal("standing_stones", data.Anchor);
+            Assert.Equal("ritual_site", data.Anchor);
             var dumps = new HashSet<string>();
             foreach (int seed in Seeds())
             {
@@ -660,6 +660,132 @@ namespace Frankenstein.Core.Tests
                         Assert.InRange(target, 0, story.Missing.Count - 1);
                         Assert.True(VillagePlaces.LeadsFor(lib, all.ClueIds, seed, story.Missing.Count, target) >= 1, data.Id + " leads");
                         Assert.Equal(MissingOutcomes.CountLeads(story, lore, all, target) + VillagePlaces.LeadsFor(lib, all.ClueIds, seed, story.Missing.Count, target), MissingOutcomes.CountLeads(story, lore, all, target, lib));
+                    }
+                }
+        }
+
+        // ---------- round 32: nothing is placed inside a place ----------
+
+        private static readonly int[] ManySeeds = Enumerable.Range(-100, 200).Concat(new[] { 1818, 123456789, int.MaxValue, int.MinValue }).ToArray();
+        private static readonly int NightTick = GameClock.PhaseStart(DayPhase.Night) + 60;
+        private static string DataFile(string name) { return File.ReadAllText(DataPath(name)); }
+
+        private static PlacePlacement Disc(double x, double z, double radius) { return new PlacePlacement { Id = "test", X = x, Z = z, Radius = radius }; }
+
+        private static List<PlacedPiece> LayoutOf(int seed, int grid)
+        {
+            var catalog = GoldenParity.LoadCatalog(Root());
+            return grid == VillageDistricts.CityGrid ? VillageLayoutGenerator.GenerateCity(catalog, grid, grid, VillageDistricts.CityPieces, seed) : VillageLayoutGenerator.Generate(catalog, grid, grid, 80, seed);
+        }
+
+        [Fact]
+        public void No_book_item_homestead_spot_or_creature_home_lies_inside_a_place_for_many_seeds()
+        {
+            var lib = Library();
+            var lore = LoreLibrary.Parse(DataFile("lore_books.json"));
+            var items = ItemCatalog.Parse(DataFile("items.json"));
+            var creatures = CreatureCatalog.Parse(DataFile("creatures.json"));
+            foreach (int seed in ManySeeds)
+                foreach (int grid in Grids)
+                {
+                    var places = VillagePlaces.PlaceAll(lib, seed, grid, grid);
+                    var layout = LayoutOf(seed, grid);
+                    foreach (var b in LoreBookRules.Place(seed, grid, grid, layout, lore, null, places)) Assert.False(VillagePlaces.InsideAnyPlace(places, b.X, b.Z), "book " + b.BookId + " seed " + seed);
+                    var world = ItemWorld.Create(seed, grid, grid, layout, items, places);
+                    foreach (var c in world.Chests) Assert.False(VillagePlaces.InsideAnyPlace(places, c.X, c.Z), "chest seed " + seed);
+                    foreach (var g in world.Ground) Assert.False(VillagePlaces.InsideAnyPlace(places, g.X, g.Z), "item seed " + seed);
+                    var plot = HomesteadPlot.Create(seed, grid, grid, layout, world, places);
+                    foreach (var pt in plot.Beds.Concat(plot.Slots).Concat(plot.ResidentSpots)) Assert.False(VillagePlaces.InsideAnyPlace(places, pt[0], pt[1]), "plot seed " + seed);
+                    var solids = LoreBookRules.SolidProps(LoreBookRules.AllDressing(seed, grid, grid, layout));
+                    Func<double, double, bool> blocked = (x, z) => LoreBookRules.IsBlocked(x, z, layout, solids, seed, grid, grid, places);
+                    foreach (var c in CreatureEncounter.Spawn(seed, grid, grid, NightTick, 1.0, "fog", creatures, blocked, places).Creatures)
+                        Assert.False(VillagePlaces.InsideAnyPlace(places, c.HomeX, c.HomeZ), c.DefId + " seed " + seed);
+                }
+        }
+
+        [Fact]
+        public void A_footprint_over_a_spot_moves_the_book_item_homestead_spot_and_creature_home_off_it()
+        {
+            var lore = LoreLibrary.Parse(DataFile("lore_books.json"));
+            var items = ItemCatalog.Parse(DataFile("items.json"));
+            var creatures = CreatureCatalog.Parse(DataFile("creatures.json"));
+            int checkedBooks = 0, checkedChests = 0, checkedItems = 0, checkedPlots = 0, checkedHomes = 0;
+            foreach (int seed in ManySeeds.Take(60))
+            {
+                int grid = 24;
+                var layout = LayoutOf(seed, grid);
+                var first = LoreBookRules.Place(seed, grid, grid, layout, lore).First();
+                var books = LoreBookRules.Place(seed, grid, grid, layout, lore, null, new[] { Disc(first.X, first.Z, 2.0) });
+                foreach (var b in books) Assert.True(Math.Abs(b.X - first.X) > 0.5 || Math.Abs(b.Z - first.Z) > 0.5 || b.BookId != first.BookId, "book stayed, seed " + seed);
+                foreach (var b in books) Assert.False(VillagePlaces.InsideAnyPlace(new[] { Disc(first.X, first.Z, 2.0) }, b.X, b.Z));
+                checkedBooks++;
+
+                var world = ItemWorld.Create(seed, grid, grid, layout, items);
+                var chest = world.Chests[0];
+                var coverChest = new[] { Disc(chest.X, chest.Z, 2.0) };
+                var moved = ItemWorld.Create(seed, grid, grid, layout, items, coverChest);
+                foreach (var c in moved.Chests) Assert.False(VillagePlaces.InsideAnyPlace(coverChest, c.X, c.Z), "chest stayed, seed " + seed);
+                foreach (var g in moved.Ground) Assert.False(VillagePlaces.InsideAnyPlace(coverChest, g.X, g.Z), "item stayed, seed " + seed);
+                checkedChests++;
+                var ground = world.Ground[0];
+                var coverItem = new[] { Disc(ground.X, ground.Z, 2.0) };
+                foreach (var g in ItemWorld.Create(seed, grid, grid, layout, items, coverItem).Ground) Assert.False(VillagePlaces.InsideAnyPlace(coverItem, g.X, g.Z), "ground item stayed, seed " + seed);
+                checkedItems++;
+
+                var plot = HomesteadPlot.Create(seed, grid, grid, layout, world);
+                if (plot.Exists)
+                {
+                    var coverPlot = new[] { Disc(plot.OriginX, plot.OriginZ, 3.0) };
+                    var shifted = HomesteadPlot.Create(seed, grid, grid, layout, world, coverPlot);
+                    if (shifted.Exists) foreach (var pt in shifted.Beds.Concat(shifted.Slots).Concat(shifted.ResidentSpots)) Assert.False(VillagePlaces.InsideAnyPlace(coverPlot, pt[0], pt[1]), "plot stayed, seed " + seed);
+                    checkedPlots++;
+                }
+
+                foreach (var habitat in new[] { "shore", "fog", "harbour", "cliffs" })
+                {
+                    var def = creatures.Defs.First(d => d.Habitat == habitat);
+                    var bare = CreatureEncounter.Spawn(seed, grid, grid, NightTick, 1.0, "fog", creatures, null).Creatures.First(c => c.DefId == def.Id);
+                    var cover = new[] { Disc(bare.HomeX, bare.HomeZ, 2.0) };
+                    foreach (var c in CreatureEncounter.Spawn(seed, grid, grid, NightTick, 1.0, "fog", creatures, null, cover).Creatures)
+                        Assert.False(VillagePlaces.InsideAnyPlace(cover, c.HomeX, c.HomeZ), habitat + " home stayed, seed " + seed);
+                    checkedHomes++;
+                }
+            }
+            Assert.True(checkedBooks > 0 && checkedChests > 0 && checkedItems > 0 && checkedPlots > 0 && checkedHomes > 0);
+        }
+
+        [Fact]
+        public void The_footprint_plus_margin_is_the_blocked_zone()
+        {
+            var places = new[] { Disc(100.0, 100.0, 5.0) };
+            Assert.True(VillagePlaces.InsideAnyPlace(places, 100.0, 100.0));
+            Assert.True(VillagePlaces.InsideAnyPlace(places, 100.0 + 5.0 + VillagePlaces.ObstacleMargin - 0.01, 100.0));
+            Assert.False(VillagePlaces.InsideAnyPlace(places, 100.0 + 5.0 + VillagePlaces.ObstacleMargin + 0.01, 100.0));
+            Assert.False(VillagePlaces.InsideAnyPlace(null, 100.0, 100.0));
+            Assert.False(VillagePlaces.InsideAnyPlace(new List<PlacePlacement>(), 100.0, 100.0));
+        }
+
+        [Fact]
+        public void Places_keep_a_minimum_clearance_and_their_rooms_and_props_fit_inside_the_footprint()
+        {
+            var lib = Library();
+            foreach (int seed in ManySeeds)
+                foreach (int grid in Grids)
+                {
+                    var places = VillagePlaces.PlaceAll(lib, seed, grid, grid);
+                    foreach (var p in places)
+                    {
+                        foreach (var l in VillageLandmarks.All(seed, grid, grid))
+                            Assert.True(Math.Sqrt((p.X - l.X) * (p.X - l.X) + (p.Z - l.Z) * (p.Z - l.Z)) - l.Radius - p.Radius >= VillagePlaces.MinClearance - 1e-9, p.Id + " beside " + l.Id + " seed " + seed);
+                        foreach (var q in places)
+                            if (q != p) Assert.True(Math.Sqrt((p.X - q.X) * (p.X - q.X) + (p.Z - q.Z) * (p.Z - q.Z)) - q.Radius - p.Radius >= VillagePlaces.MinClearance - 1e-9, p.Id + " beside " + q.Id + " seed " + seed);
+                        var data = lib.Find(p.Id);
+                        foreach (var item in VillagePlaces.Dressing(data, p)) Assert.True(Math.Sqrt((item.X - p.X) * (item.X - p.X) + (item.Z - p.Z) * (item.Z - p.Z)) < p.Radius, p.Id + " prop " + item.Kind);
+                        if (p.Graph == null) continue;
+                        foreach (var part in p.Graph.Parts())
+                            foreach (var cx in new[] { part.X0, part.X1 })
+                                foreach (var cz in new[] { part.Z0, part.Z1 })
+                                    Assert.True(Math.Sqrt(cx * cx + cz * cz) <= p.Radius - 0.5, p.Id + " room corner " + cx + "," + cz + " seed " + seed);
                     }
                 }
         }

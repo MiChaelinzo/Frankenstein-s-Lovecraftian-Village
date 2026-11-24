@@ -4,12 +4,18 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { PrefabCatalog, generateCampaign } from '../src/core.js';
+import { PrefabCatalog, generateCampaign, generateLayout } from '../src/core.js';
 import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js';
 import { parseNameLibrary, assignNames } from '../src/names.js';
 import { generateRoster } from '../src/villagers.js';
 import { parseStoryLibrary, buildStory } from '../src/village-story.js';
-import { parseLoreLibrary } from '../src/lore.js';
+import { parseLoreLibrary, placeBooks, isBlocked } from '../src/lore.js';
+import { parseItemCatalog, ItemWorld } from '../src/inventory.js';
+import { HomesteadPlot } from '../src/homestead.js';
+import { parseCreatureCatalog, CreatureEncounter } from '../src/creatures.js';
+import { phaseStart } from '../src/clock.js';
+import { composeDressing, dressingBoxes } from '../src/dressing.js';
+import { landmarks, landmarkDressing, landmarkPathDressing } from '../src/landmarks.js';
 import { parseStatementLibrary, emptyEvidence, knowledgeSources, buildBoard, cardTitle, LINK_CLUE_SUBJECT } from '../src/investigation.js';
 import { parseKnowledgeLibrary, benefitsAt } from '../src/knowledge.js';
 import { countLeads } from '../src/outcomes.js';
@@ -20,6 +26,7 @@ import {
   GRAPH_ENTRANCE_CELL, toWorld, LANTERN_GAP, LANTERN_REACH, TRAIL_SPACING, MAX_TRAIL_LENGTH,
 } from '../src/places.js';
 import { footprintOf } from '../src/dressing.js';
+import { placeAll, insideAnyPlace, OBSTACLE_MARGIN, MIN_CLEARANCE } from '../src/places.js';
 import { tierSettings } from '../src/quality.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
@@ -275,7 +282,7 @@ test('catacomb clues earn catacombs, mythos_event and cult_discovery; the prison
 const mine = findPlace(lib, MINE);
 
 test('mine graph is its own seeded stream, named for the mine, connected with a way back to the entrance room', () => {
-  assert.ok(mine.procedural && mine.anchor === 'standing_stones');
+  assert.ok(mine.procedural && mine.anchor === 'ritual_site');
   const dumps = new Set();
   for (const seed of seeds) {
     const g = generateGraph(seed, 4);
@@ -342,6 +349,78 @@ test('mine discoveries: veins give ruins, a resonance gated by a reality distort
     for (let k = 0; k < story.missing.length; k++) {
       assert.equal(countLeads(story, lore, only, k, lib), countLeads(story, lore, only, k) + (k === target ? 1 : 0));
       assert.equal(countLeads(story, lore, rest, k, lib), countLeads(story, lore, rest, k));
+    }
+  }
+});
+
+// Round 32: nothing is placed inside a place. Mirrors the VillagePlacesTests round 32 block.
+const manySeeds = Array.from({ length: 200 }, (_, i) => i - 100).concat([1818, 123456789, 2147483647, -2147483648]);
+const nightTick = phaseStart(3) + 60; // the night phase, as GameClock.PhaseStart(DayPhase.Night) + 60
+const disc = (x, z, radius) => ({ id: 'test', x, z, radius });
+const prefabs = new PrefabCatalog(JSON.parse(text('village_catalog.json')).entries);
+const layoutOf = (seed, grid) => (grid === CITY_GRID ? generateCityLayout(prefabs, grid, grid, CITY_PIECES, seed) : generateLayout(prefabs, grid, grid, 80, seed));
+const loreLib = parseLoreLibrary(text('lore_books.json')), itemCat = parseItemCatalog(text('items.json')), creatureCat = parseCreatureCatalog(text('creatures.json'));
+
+test('no book, item, homestead spot or creature home lies inside a place for many seeds on both grids', () => {
+  for (const seed of manySeeds) for (const grid of [24, CITY_GRID]) {
+    const places = placeAll(lib, seed, grid, grid), layout = layoutOf(seed, grid);
+    for (const b of placeBooks(seed, grid, grid, layout, loreLib, null, places)) assert.ok(!insideAnyPlace(places, b.x, b.z), `book ${b.bookId} seed ${seed}`);
+    const world = ItemWorld.create(seed, grid, grid, layout, itemCat, places);
+    for (const c of world.chests) assert.ok(!insideAnyPlace(places, c.x, c.z), `chest seed ${seed}`);
+    for (const g of world.ground) assert.ok(!insideAnyPlace(places, g.x, g.z), `item seed ${seed}`);
+    const plot = HomesteadPlot.create(seed, grid, grid, layout, world, places);
+    if (plot.exists) for (const pt of [...plot.beds, ...plot.slots, ...plot.residentSpots]) assert.ok(!insideAnyPlace(places, pt[0], pt[1]), `plot seed ${seed}`);
+    const boxes = dressingBoxes([...composeDressing(seed, grid, grid, layout), ...landmarkDressing(seed, grid, grid), ...landmarkPathDressing(seed, grid, grid)]);
+    const blocked = (x, z) => isBlocked(x, z, layout, boxes, seed, grid, grid, places);
+    for (const c of CreatureEncounter.spawn(seed, grid, grid, nightTick, 1.0, 'fog', creatureCat, blocked, places).creatures) assert.ok(!insideAnyPlace(places, c.homeX, c.homeZ), `${c.defId} seed ${seed}`);
+  }
+});
+
+test('a footprint over a spot moves the book, item, homestead spot and creature home off it', () => {
+  let plots = 0;
+  for (const seed of manySeeds.slice(0, 60)) {
+    const grid = 24, layout = layoutOf(seed, grid);
+    const first = placeBooks(seed, grid, grid, layout, loreLib)[0], coverBook = [disc(first.x, first.z, 2)];
+    for (const b of placeBooks(seed, grid, grid, layout, loreLib, null, coverBook)) assert.ok(!insideAnyPlace(coverBook, b.x, b.z), `book stayed, seed ${seed}`);
+    const world = ItemWorld.create(seed, grid, grid, layout, itemCat), chest = world.chests[0], coverChest = [disc(chest.x, chest.z, 2)];
+    const moved = ItemWorld.create(seed, grid, grid, layout, itemCat, coverChest);
+    for (const c of moved.chests) assert.ok(!insideAnyPlace(coverChest, c.x, c.z), `chest stayed, seed ${seed}`);
+    for (const g of moved.ground) assert.ok(!insideAnyPlace(coverChest, g.x, g.z), `item stayed, seed ${seed}`);
+    const coverItem = [disc(world.ground[0].x, world.ground[0].z, 2)];
+    for (const g of ItemWorld.create(seed, grid, grid, layout, itemCat, coverItem).ground) assert.ok(!insideAnyPlace(coverItem, g.x, g.z), `ground item stayed, seed ${seed}`);
+    const plot = HomesteadPlot.create(seed, grid, grid, layout, world);
+    if (plot.exists) {
+      const coverPlot = [disc(plot.originX, plot.originZ, 3)], shifted = HomesteadPlot.create(seed, grid, grid, layout, world, coverPlot);
+      if (shifted.exists) for (const pt of [...shifted.beds, ...shifted.slots, ...shifted.residentSpots]) assert.ok(!insideAnyPlace(coverPlot, pt[0], pt[1]), `plot stayed, seed ${seed}`);
+      plots++;
+    }
+    for (const habitat of ['shore', 'fog', 'harbour', 'cliffs']) {
+      const def = creatureCat.defs.find((d) => d.habitat === habitat);
+      const bare = CreatureEncounter.spawn(seed, grid, grid, nightTick, 1.0, 'fog', creatureCat, null).creatures.find((c) => c.defId === def.id), cover = [disc(bare.homeX, bare.homeZ, 2)];
+      for (const c of CreatureEncounter.spawn(seed, grid, grid, nightTick, 1.0, 'fog', creatureCat, null, cover).creatures) assert.ok(!insideAnyPlace(cover, c.homeX, c.homeZ), `${habitat} home stayed, seed ${seed}`);
+    }
+  }
+  assert.ok(plots > 0);
+});
+
+test('the footprint plus margin is the blocked zone', () => {
+  const places = [disc(100, 100, 5)];
+  assert.ok(insideAnyPlace(places, 100, 100));
+  assert.ok(insideAnyPlace(places, 100 + 5 + OBSTACLE_MARGIN - 0.01, 100));
+  assert.ok(!insideAnyPlace(places, 100 + 5 + OBSTACLE_MARGIN + 0.01, 100));
+  assert.ok(!insideAnyPlace(null, 100, 100));
+  assert.ok(!insideAnyPlace([], 100, 100));
+});
+
+test('places keep a minimum clearance and their props and rooms fit inside the footprint for many seeds', () => {
+  for (const seed of manySeeds) for (const grid of [24, CITY_GRID]) {
+    const places = placeAll(lib, seed, grid, grid);
+    for (const p of places) {
+      for (const l of landmarks(seed, grid, grid)) assert.ok(Math.hypot(p.x - l.x, p.z - l.z) - l.radius - p.radius >= MIN_CLEARANCE - 1e-9, `${p.id} beside ${l.id} seed ${seed}`);
+      for (const q of places) if (q !== p) assert.ok(Math.hypot(p.x - q.x, p.z - q.z) - q.radius - p.radius >= MIN_CLEARANCE - 1e-9, `${p.id} beside ${q.id} seed ${seed}`);
+      for (const item of placeDressing(findPlace(lib, p.id), p)) assert.ok(Math.hypot(item.x - p.x, item.z - p.z) < p.radius, `${p.id} prop ${item.kind}`);
+      if (!p.graph) continue;
+      for (const part of graphParts(p.graph)) for (const cx of [part.x0, part.x1]) for (const cz of [part.z0, part.z1]) assert.ok(Math.hypot(cx, cz) <= p.radius - 0.5, `${p.id} room corner seed ${seed}`);
     }
   }
 });

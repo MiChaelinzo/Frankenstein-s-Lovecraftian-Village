@@ -139,9 +139,9 @@ function pickItem(rng, cat, usedUnique) {
   return null;
 }
 
-function freeSpot(house, layout, laterals, boxes, taken, seed, gridW, gridD) {
+function freeSpot(house, layout, laterals, boxes, taken, seed, gridW, gridD, places) {
   for (const c of frontSpots(layout[house], laterals)) {
-    if (isBlocked(c[0], c[1], layout, boxes, seed, gridW, gridD)) continue;
+    if (isBlocked(c[0], c[1], layout, boxes, seed, gridW, gridD, places)) continue;
     if (!taken.some((t) => Math.abs(t[0] - c[0]) < SPACING && Math.abs(t[1] - c[1]) < SPACING)) return c;
   }
   return null;
@@ -157,7 +157,7 @@ export class ItemWorld {
   constructor() { this.ground = []; this.chests = []; this.picked = new Set(); }
   get lodging() { return this.chests.find((c) => c.lodging) || null; }
 
-  static create(seed, gridW, gridD, layout, cat) {
+  static create(seed, gridW, gridD, layout, cat, places = null) {
     const world = new ItemWorld();
     if (!cat || !cat.items.length || !layout || gridW <= 0 || gridD <= 0) return world;
     const boxes = dressingBoxes([...composeDressing(seed, gridW, gridD, layout), ...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)]);
@@ -173,7 +173,7 @@ export class ItemWorld {
     order.unshift(lodgingHouse);
     const taken = [], usedUnique = new Set();
     for (let k = 0; k < order.length && world.chests.length < 1 + FOUND_CHESTS; k++) {
-      const spot = freeSpot(order[k], layout, CHEST_LATERAL, boxes, taken, seed, gridW, gridD);
+      const spot = freeSpot(order[k], layout, CHEST_LATERAL, boxes, taken, seed, gridW, gridD, places);
       if (!spot) continue;
       const chest = { houseIndex: order[k], lodging: k === 0, x: spot[0], z: spot[1], contents: new Inventory(CHEST_SLOTS) };
       if (chest.lodging) for (const id of LODGING_STOCK) chest.contents.add(cat, id, 1);
@@ -186,7 +186,7 @@ export class ItemWorld {
       const s = pickItem(rng, cat, usedUnique);
       if (!s) break;
       let spot = null;
-      for (let t = 0; t < order.length && !spot; t++) spot = freeSpot(order[(start + n + t) % order.length], layout, ITEM_LATERAL, boxes, taken, seed, gridW, gridD);
+      for (let t = 0; t < order.length && !spot; t++) spot = freeSpot(order[(start + n + t) % order.length], layout, ITEM_LATERAL, boxes, taken, seed, gridW, gridD, places);
       if (!spot) break;
       taken.push(spot);
       world.ground.push({ ...s, x: spot[0], z: spot[1] });

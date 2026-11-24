@@ -22,10 +22,10 @@ export function createHomesteadController(deps) {
   const level = () => corruptionLevel(state.sanity.dread, state.night + 1);
 
   function ensure() {
-    const key = `${state.seed}|${state.layout.length}|${cat ? 1 : 0}|${items() ? items().items.length : 0}`;
+    const key = `${state.seed}|${state.layout.length}|${cat ? 1 : 0}|${items() ? items().items.length : 0}|${deps.places ? deps.places().length : 0}`;
     if (key === builtKey) return;
     builtKey = key; version++;
-    home = cat && items() && state.layout.length ? new Homestead(cat, HomesteadPlot.create(state.seed, deps.gridW, deps.gridD, state.layout, deps.inventory.world)) : new Homestead(null, null);
+    home = cat && items() && state.layout.length ? new Homestead(cat, HomesteadPlot.create(state.seed, deps.gridW, deps.gridD, state.layout, deps.inventory.world, deps.places ? deps.places() : null)) : new Homestead(null, null);
   }
   function setCatalog(json) { cat = json && items() ? parseHomesteadCatalog(json, items()) : null; builtKey = ''; ensure(); render(); }
   const tick = () => Math.floor(deps.tickNow());

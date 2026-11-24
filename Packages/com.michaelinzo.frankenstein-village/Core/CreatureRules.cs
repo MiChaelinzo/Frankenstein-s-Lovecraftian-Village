@@ -140,8 +140,8 @@ namespace Frankenstein.Core
         public int FlareReadyTick;
         public double FuelDebt;
 
-        /// <summary>The creatures that appear for this phase, weather and dread (0..1), at their seeded homes. <paramref name="blocked"/> (may be null) says whether a point is inside a building or prop.</summary>
-        public static CreatureEncounter Spawn(int seed, int gridW, int gridD, int tick, double dread, string weather, CreatureCatalog cat, Func<double, double, bool> blocked)
+        /// <summary>The creatures that appear for this phase, weather and dread (0..1), at their seeded homes. <paramref name="blocked"/> (may be null) says whether a point is inside a building or prop. No home lies within a place of <paramref name="places"/> (footprint plus <see cref="VillagePlaces.ObstacleMargin"/>); a home that would is drawn again, up to <see cref="CreatureRules.HomeTries"/> times.</summary>
+        public static CreatureEncounter Spawn(int seed, int gridW, int gridD, int tick, double dread, string weather, CreatureCatalog cat, Func<double, double, bool> blocked, IList<PlacePlacement> places = null)
         {
             var enc = new CreatureEncounter { _cat = cat };
             if (cat == null || gridW <= 0 || gridD <= 0) return enc;
@@ -155,7 +155,7 @@ namespace Frankenstein.Core
                 for (int i = 0; i < def.Max; i++)
                 {
                     double x, z;
-                    Home(def, rng, seed, gridW, gridD, blocked, out x, out z);
+                    Home(def, rng, seed, gridW, gridD, blocked, places, out x, out z);
                     if (i >= count || enc.Creatures.Count >= CreatureRules.MaxCreatures) continue;
                     enc.Creatures.Add(new Creature { DefId = def.Id, HomeX = x, HomeZ = z, X = x, Z = z });
                 }
@@ -172,35 +172,35 @@ namespace Frankenstein.Core
             return phaseOk && weatherOk && dreadPercent >= def.MinDread;
         }
 
-        private static void Home(CreatureDef def, SeededRandom rng, int seed, int gridW, int gridD, Func<double, double, bool> blocked, out double x, out double z)
+        private static void Home(CreatureDef def, SeededRandom rng, int seed, int gridW, int gridD, Func<double, double, bool> blocked, IList<PlacePlacement> places, out double x, out double z)
         {
             double w = gridW * VillageDressing.Cell, d = gridD * VillageDressing.Cell;
             double shore = VillageDressing.ShoreLength(seed, gridW, gridD);
             x = 0; z = 0;
-            if (def.Habitat == "shore")
+            for (int t = 0; t < CreatureRules.HomeTries; t++)
             {
-                double u = CreatureRules.ShoreMargin + rng.Next(1000) / 1000.0 * Math.Max(0.0, shore - 2 * CreatureRules.ShoreMargin);
-                VillageDressing.CoastToWorld(seed, gridW, gridD, u, CreatureRules.ShoreV, out x, out z);
-            }
-            else if (def.Habitat == "harbour")
-            {
-                double u = VillageDressing.DockU(seed, gridW, gridD) + (rng.Next(2001) - 1000) / 1000.0 * CreatureRules.HarbourSpread;
-                VillageDressing.CoastToWorld(seed, gridW, gridD, u, CreatureRules.HarbourV, out x, out z);
-            }
-            else if (def.Habitat == "cliffs")
-            {
-                var all = VillageLandmarks.All(seed, gridW, gridD);
-                var cliffs = all[0];
-                double a = rng.Next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.Sqrt(rng.Next(1000) / 1000.0) * cliffs.Radius * CreatureRules.CliffSpread;
-                x = cliffs.X + Math.Cos(a) * r; z = cliffs.Z + Math.Sin(a) * r;
-            }
-            else
-            {
-                for (int t = 0; t < CreatureRules.HomeTries; t++)
+                if (def.Habitat == "shore")
+                {
+                    double u = CreatureRules.ShoreMargin + rng.Next(1000) / 1000.0 * Math.Max(0.0, shore - 2 * CreatureRules.ShoreMargin);
+                    VillageDressing.CoastToWorld(seed, gridW, gridD, u, CreatureRules.ShoreV, out x, out z);
+                }
+                else if (def.Habitat == "harbour")
+                {
+                    double u = VillageDressing.DockU(seed, gridW, gridD) + (rng.Next(2001) - 1000) / 1000.0 * CreatureRules.HarbourSpread;
+                    VillageDressing.CoastToWorld(seed, gridW, gridD, u, CreatureRules.HarbourV, out x, out z);
+                }
+                else if (def.Habitat == "cliffs")
+                {
+                    var cliffs = VillageLandmarks.All(seed, gridW, gridD)[0];
+                    double a = rng.Next(1000) / 1000.0 * 2.0 * Math.PI, r = Math.Sqrt(rng.Next(1000) / 1000.0) * cliffs.Radius * CreatureRules.CliffSpread;
+                    x = cliffs.X + Math.Cos(a) * r; z = cliffs.Z + Math.Sin(a) * r;
+                }
+                else
                 {
                     x = rng.Next(1000) / 1000.0 * w; z = rng.Next(1000) / 1000.0 * d;
-                    if (blocked == null || !blocked(x, z)) break;
                 }
+                bool open = !VillagePlaces.InsideAnyPlace(places, x, z) && (def.Habitat != "fog" || blocked == null || !blocked(x, z));
+                if (open) break;
             }
         }
 

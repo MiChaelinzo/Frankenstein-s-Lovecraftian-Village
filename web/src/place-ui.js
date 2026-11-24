@@ -86,5 +86,8 @@ export function createPlacesController(deps) {
     return false;
   }
 
-  return { setData, placed, dressing, parts, points, scene, interact, key, isReady: () => !!lib, manorId: MANOR };
+  /** The placements (the footprints other systems keep clear of), in data order; empty until the data is loaded. */
+  const placements = () => placed().map((s) => s.p);
+
+  return { setData, placed, placements, dressing, parts, points, scene, interact, key, isReady: () => !!lib, manorId: MANOR };
 }

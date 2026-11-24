@@ -272,7 +272,7 @@ namespace Frankenstein.Core
         }
 
         /// <summary>Places the items and chests of one village; an empty world when there are no buildings or no data.</summary>
-        public static ItemWorld Create(int seed, int gridW, int gridD, IList<PlacedPiece> layout, ItemCatalog cat)
+        public static ItemWorld Create(int seed, int gridW, int gridD, IList<PlacedPiece> layout, ItemCatalog cat, IList<PlacePlacement> places = null)
         {
             var world = new ItemWorld();
             if (cat == null || cat.Items.Count == 0 || layout == null || gridW <= 0 || gridD <= 0) return world;
@@ -291,7 +291,7 @@ namespace Frankenstein.Core
             var usedUnique = new HashSet<string>();
             for (int k = 0; k < order.Count && world.Chests.Count < 1 + ItemRules.FoundChests; k++)
             {
-                var spot = FreeSpot(order[k], layout, ItemRules.ChestLateral, solids, taken, seed, gridW, gridD);
+                var spot = FreeSpot(order[k], layout, ItemRules.ChestLateral, solids, taken, seed, gridW, gridD, places);
                 if (spot == null) continue;
                 var chest = new ItemChest { HouseIndex = order[k], Lodging = k == 0, X = spot[0], Z = spot[1] };
                 if (chest.Lodging) foreach (var id in ItemRules.LodgingStock) chest.Contents.Add(cat, id, 1);
@@ -305,7 +305,7 @@ namespace Frankenstein.Core
                 var s = PickItem(rng, cat, usedUnique);
                 double[] spot = null;
                 for (int t = 0; t < order.Count && spot == null; t++)
-                    spot = FreeSpot(order[(start + n + t) % order.Count], layout, ItemRules.ItemLateral, solids, taken, seed, gridW, gridD);
+                    spot = FreeSpot(order[(start + n + t) % order.Count], layout, ItemRules.ItemLateral, solids, taken, seed, gridW, gridD, places);
                 if (spot == null) break;
                 taken.Add(spot);
                 s.X = spot[0]; s.Z = spot[1];
@@ -314,11 +314,11 @@ namespace Frankenstein.Core
             return world;
         }
 
-        private static double[] FreeSpot(int house, IList<PlacedPiece> layout, double[] laterals, List<DressingItem> solids, List<double[]> taken, int seed, int gridW, int gridD)
+        private static double[] FreeSpot(int house, IList<PlacedPiece> layout, double[] laterals, List<DressingItem> solids, List<double[]> taken, int seed, int gridW, int gridD, IList<PlacePlacement> places)
         {
             foreach (var c in LoreBookRules.FrontSpots(layout[house], laterals))
             {
-                if (LoreBookRules.IsBlocked(c[0], c[1], layout, solids, seed, gridW, gridD)) continue;
+                if (LoreBookRules.IsBlocked(c[0], c[1], layout, solids, seed, gridW, gridD, places)) continue;
                 bool crowded = false;
                 foreach (var t in taken) if (Math.Abs(t[0] - c[0]) < ItemRules.Spacing && Math.Abs(t[1] - c[1]) < ItemRules.Spacing) { crowded = true; break; }
                 if (!crowded) return c;

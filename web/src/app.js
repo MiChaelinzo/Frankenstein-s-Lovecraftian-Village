@@ -686,6 +686,7 @@ function currentStory() {
 }
 // Lore books: seeded by Core rules (lore.js), read with E in 3D (J in 2D; C falls back to a book only when no villager is in range); the first reading applies the data file's clue and sanity effect.
 const lore = createLoreController({
+  places: () => places.placements(),
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   onChange: () => { drawMinimap(); mark(); chronicle?.refresh(); board.sync(); }, journal: (text) => log('lore', text), story: () => currentStory(),
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
@@ -709,6 +710,7 @@ theory = createTheoryController({
 const places = createPlacesController({ state, gridW: GRID_W, gridD: GRID_D, lang, night: () => state.night + 1, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
+  places: () => places.placements(),
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   sanity: () => state.sanity, onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.15); syncUi(); pushHash(); }, allows: (id) => vigil.allows(id), clue: (id) => { progress.arm(); vigil.clue(id); },
   journal: (text) => log('lore', text), houseName: (i, l) => { const piece = state.layout[i]; return piece ? placeName(piece, l) || kindName(piece.id, l) : ''; },
@@ -716,12 +718,14 @@ const inventory = createInventoryController({
 });
 // Creatures: seeded by Core rules (creatures.js) for the phase, weather and dread; exposure is 3D only (the 2D map shows marks). The vigil lock keeps its own sanity rules, so they rest during a live vigil.
 const creatures = createCreatureController({
+  places: () => places.placements(),
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, inventory, announce: (text) => announce(text), journal: (text) => log('lore', text), allows: (id) => vigil.allows(id), sanity: () => state.sanity,
   onWard: () => { const c = view3d.active ? view3d.camera : null; if (c) society.noteWard({ x: c.x, z: c.z }, villagerScene(state.villagers || [], CELL)); },
   onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); }, tickNow: clockTickExact, weather: () => withWeather(currentNight() || {}).weather || 'clear', camera: () => (view3d.active ? view3d.camera : null),
 });
 // Homestead: the yard beside the lodging house by Core rules (homestead.js): crops by village day, animals and pets with needs and mood, daily sanity. 2D shows marks, 3D the meshes.
 const homestead = createHomesteadController({
+  places: () => places.placements(),
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, inventory, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   journal: (text) => log('lore', text), allows: (id) => vigil.allows(id), sanity: () => state.sanity, onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); pushHash(); },
   tickNow: clockTick, camera: () => (view3d.active ? view3d.camera : null), onChange: () => { mark(); autosave(); },
