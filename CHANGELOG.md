@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 31 (FEAT-005): integration, browser check and docs (spec 164 built)
+- Test `All_four_places_together_stand_valid_and_each_feeds_...` (5 seeds, both grids): every place in bounds, non overlapping, round trip, and each feeds a knowledge source, a board clue with a theory score, and a missing person lead. dotnet 411.
+- `tools/browser_check.mjs` gains `PLACES_ONLY=1` (placement in the page's modules; the 3D prompt at each entrance in en and fr; `PLACES_SHOT_DIR` saves stills). 3 of 3 on SwiftShader. Stills `docs/media/places-*.jpg`, each under 100 KB.
+- Spec 164 marked built in tasks, requirements and design (design still said not built). Correction: the `sw.js` cache history is v67 to v71 over round 31 (the FEAT-003 entry says v70, FEAT-004 v71); no web files changed here. Unity runtime and real-GPU rendering Unverified.
+
 ### Round 31 (FEAT-004): Forgotten Mine (spec 164)
 - Core `VillagePlaces` and `Data/places.json` gain the Forgotten Mine beside the Standing Stones (chosen over the cliffs, the marsh and the cove, which left no free spot for many seeds). It reuses `PlaceGraph` as its seeded tunnel network (place index 4, its own stream, `Theme` "mine" names the dump and picks the geometry): the veins chamber, the underground lake and the deep tunnel's end are the graph roles `texts`, `tear` and `prison`, and every room has a path back to the entrance room.
 - Crystal veins earn `ruins`; the resonant vein earns `mythos_event` and shows only on nights `RealityDistortion` includes `altered_board_link` (Tier 3 and up); the deep tunnel earns `cult_discovery` and is one lead on one seed-chosen missing person; the underground lake earns `investigation` and needs the `new_deduction_the_bay` benefit (Outer Truth), with a clue statement about the bay. Four `Clue` statements in `Data/statements.json` (en and fr). The hidden crack (Forbidden Texts) comes up in the hidden cove.

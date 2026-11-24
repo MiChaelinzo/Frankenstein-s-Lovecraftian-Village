@@ -619,5 +619,49 @@ namespace Frankenstein.Core.Tests
                 }
             }
         }
+
+        [Fact]
+        public void All_four_places_together_stand_valid_and_each_feeds_knowledge_the_board_a_missing_trail_and_theory_evidence()
+        {
+            var lib = Library();
+            var lore = MissingOutcomesTests.Lore();
+            var statements = StatementLibrary.Parse(File.ReadAllText(DataPath("statements.json")));
+            Assert.Equal(new[] { VillagePlaces.Manor, VillagePlaces.Forest, VillagePlaces.Catacomb, VillagePlaces.Mine }, lib.Places.Select(p => p.Id).ToArray());
+            foreach (int seed in new[] { 1, 42, 1818, -7, 123456789 })
+                foreach (int grid in Grids)
+                {
+                    var placed = new List<PlacePlacement>();
+                    VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                    foreach (var data in lib.Places)
+                    {
+                        var p = VillagePlaces.Place(data, seed, grid, grid, placed);
+                        Assert.Equal("", VillagePlaces.Check(data, p, seed, grid, grid, placed));
+                        Assert.True(VillagePlaces.InBounds(p, seed, grid, grid), data.Id + " bounds");
+                        Assert.True(VillagePlaces.RoundTrip(p), data.Id + " round trip");
+                        Assert.Equal(p.Entrance, VillagePlaces.Leave(p, PlaceExit.Door));
+                        Assert.Equal(p.Door, VillagePlaces.Enter(p));
+                        Assert.Null(VillagePlaces.OverlappingPlace(p, placed));
+                        placed.Add(p);
+
+                        var all = new InvestigationEvidence();
+                        foreach (var d in data.Discoveries) all.ClueIds.Add(d.ClueId);
+                        Assert.Contains(InvestigationRules.KnowledgeSources(all, lib), s => data.Discoveries.Any(d => d.Source == s));
+                        foreach (var d in data.Discoveries) Assert.Equal(d.Source, VillagePlaces.SourceOfClue(lib, d.ClueId));
+
+                        var board = InvestigationRules.Build(story, lore, statements, all, null, null, 0, lib);
+                        foreach (var d in data.Discoveries)
+                        {
+                            Assert.True(board.Cards.Single(c => c.Id == InvestigationRules.ClueCardId(d.ClueId)).Revealed, d.ClueId + " on the board");
+                            Assert.Contains(board.Scores, s => s.StatementId == d.StatementId);
+                        }
+
+                        Assert.Contains(data.Discoveries, d => d.Lead);
+                        int target = VillagePlaces.TrailMissing(seed, data.Id, story.Missing.Count);
+                        Assert.InRange(target, 0, story.Missing.Count - 1);
+                        Assert.True(VillagePlaces.LeadsFor(lib, all.ClueIds, seed, story.Missing.Count, target) >= 1, data.Id + " leads");
+                        Assert.Equal(MissingOutcomes.CountLeads(story, lore, all, target) + VillagePlaces.LeadsFor(lib, all.ClueIds, seed, story.Missing.Count, target), MissingOutcomes.CountLeads(story, lore, all, target, lib));
+                    }
+                }
+        }
     }
 }

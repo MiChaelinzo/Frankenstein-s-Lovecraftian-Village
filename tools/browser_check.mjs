@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -171,6 +171,34 @@ async function main() {
       if (out[`${id}.${lang}`] !== want) out[`${id}.${lang}.want`] = want;
     }
     rec('landmarks: the HUD chip names each landmark of the wider world under the 3D camera in English and French, with no renderer warning', spots.every(([id,, en, fr]) => out[`${id}.en`] === en && out[`${id}.fr`] === fr) && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
+  };
+
+  /** Places (round 31, spec 164: Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine): the shared model puts all four inside the walkable world, clear of landmarks and each other, with a way back (seeds and both grids, in the page's own modules), and standing at each entrance in the 3D view the HUD prompt offers the way in in English and French with no renderer warning. PLACES_ONLY=1 runs only this; PLACES_SHOT_DIR=<dir> saves places-<id>.jpg stills. */
+  const placesRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.PLACES_SHOT_DIR || '';
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    const model = await ev(`(async()=>{const P=await import('/src/places.js');const lib=P.parsePlaceLibrary(await (await fetch('data/places.json')).json());const bad=[];let n=0;
+      for(const seed of [1,42,1818,-7,123456789])for(const grid of [24,36]){const placed=[];for(const data of lib.places){const p=P.placePlace(data,seed,grid,grid,placed);n++;
+        if(P.checkPlacement(data,p,seed,grid,grid,placed)!==''||!P.inBounds(p,seed,grid,grid)||!P.roundTrip(p)||P.overlappingPlace(p,placed))bad.push(data.id+'@'+seed+'/'+grid);placed.push(p);}}
+      const at=lib.places.map((d)=>{const p=P.placePlace(d,1818,36,36,[]);return {id:d.id,x:p.entrance[0],z:p.entrance[1],en:d.prompts.enter.en,fr:d.prompts.enter.fr};});
+      return {ids:lib.places.map((d)=>d.id),n,bad,at};})()`);
+    rec('places: all four stand in bounds, clear of landmarks, the city and each other, with a way back, for five seeds on both grids', model.ids.join() === 'manor,forest,catacomb,mine' && model.n === 40 && model.bad.length === 0, { ids: model.ids, checked: model.n, bad: model.bad });
+    // each place is placed one after the other in the app, so the entrance for the prompt check comes from the app's own list
+    warns.length = 0;
+    const out = {};
+    for (const lang of ['en', 'fr']) {
+      await nav(`?intro=0&view=3d&lang=${lang}#seed=1818&sanity=80`); await until(() => ev(`location.protocol==='http:'`), 20000);
+      const spots = await ev(`(async()=>{const P=await import('/src/places.js');const lib=P.parsePlaceLibrary(await (await fetch('data/places.json')).json());const standing=[];return lib.places.map((d)=>{const p=P.placePlace(d,1818,36,36,standing);standing.push(p);return {id:d.id,x:p.entrance[0],z:p.entrance[1],fx:p.faceX,fz:p.faceZ,en:d.prompts.enter.en,fr:d.prompts.enter.fr};});})()`);
+      for (const sp of spots) {
+        const yaw = Math.round(Math.atan2(-sp.fx, sp.fz) * 180 / Math.PI);
+        await nav(`?intro=0&view=3d&lang=${lang}&cam3d=${Math.round((sp.x + sp.fx * 1.5) * 10) / 10},${Math.round((sp.z + sp.fz * 1.5) * 10) / 10},${yaw},0#seed=1818&sanity=80`);
+        out[`${sp.id}.${lang}`] = await until(async () => { const v = await ev(`(()=>{const p=document.getElementById('view3dPrompt');return !p||p.hidden?'':p.textContent})()`); if (v.includes(sp[lang])) return 'prompt'; await hold('w', 'KeyW', 40); return null; }, 30000).catch(() => null);
+        if (!out[`${sp.id}.${lang}`]) out[`${sp.id}.${lang}.saw`] = await ev(`(document.getElementById('view3dPrompt')||{}).textContent`);
+        if (lang === 'en' && shotDir) writeFileSync(join(shotDir, `places-${sp.id}.jpg`), Buffer.from(await capture({ format: 'jpeg', quality: 70 }), 'base64'));
+      }
+    }
+    rec('places: standing at each entrance the 3D prompt offers the way in in English and French, with no renderer warning', ['manor','forest','catacomb','mine'].every((id) => out[`${id}.en`] === 'prompt' && out[`${id}.fr`] === 'prompt') && warns.length === 0, { ...out, warns: warns.slice(0, 2) });
   };
 
   /** Lighthouse and held lantern (round 24): at night the lighthouse beam is drawn on High and Medium, but not on Low, not with reduced motion and not in daylight (those keep the static lamp glow), and the held lantern is drawn (and absent in the fly-through). LIGHTHOUSE_ONLY=1 runs only this. */
@@ -605,6 +633,7 @@ async function main() {
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
+    if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);

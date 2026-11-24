@@ -135,7 +135,7 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Test cases.** C# and node tests above; golden key `knowledgeInvestigation` per seed and tier 0 to 5.
 
-**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 and 164 to 166.
+**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159, 165 and 166.
 
 ## Round 29: Trust Network, Horror Director, polish
 **Trust axes (spec 160, built).** `VillageSociety.AxesAfter` derives Fear, Faith, Loyalty and Obsession per villager and night from the seed, links and corruption stage, integer 0..1000, beside the unchanged Trust, Suspicion and Corruption. `VillagerRules.Chat` withholds the hint through `FearWithholds` (Fear 800 or more and above Trust). JS mirror `society.js`; dialog bars in `society-ui.js`. Golden key `axes`. Verified in Core and JS; bars Partially Verified; Unity Unverified.
@@ -144,7 +144,9 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Web polish.** CSS only in `style.css`; no Core change.
 
-**Specs 164 to 166 (not built, Unverified).** The four places extend the landmark layout (tasks 129 to 134). The Victorian reskin is CSS plus a presentation-only intensity setting. The creature path extends `Core/Creatures` and reads the director beat. Each keeps Core deterministic and puts only drawing in the web or Runtime. Goal, inputs, outputs, constraints, failure conditions and test cases are in requirements, Round 29.
+**Spec 164 (built in round 31).** The four places (Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine) share one Core model, `Core/VillagePlaces.cs` with `Data/places.json`, and extend the landmark layout (tasks 129 to 134). Each is placed by the seed beside an anchor landmark, inside the walk bounds, clear of landmarks, the city and each other, with a way back that returns to the entrance. Discoveries feed existing knowledge sources, board clues, missing person leads and theory evidence; no `KnowledgeSource` value was added. Verified by dotnet and node tests with golden key `villagePlaces`; Unity runtime Unverified; real-GPU rendering Unverified.
+
+**Specs 165 and 166 (not built, Unverified).** The Victorian reskin is CSS plus a presentation-only intensity setting. The creature path extends `Core/Creatures` and reads the director beat. Each keeps Core deterministic and puts only drawing in the web or Runtime. Goal, inputs, outputs, constraints, failure conditions and test cases are in requirements, Round 29.
 
 ## Round 30: theories and outcomes
 **Missing person outcomes (spec 163, built).** `Core/MissingOutcomes.cs` reads the finished `MythosSimulation` state and picks one outcome per missing person from a seed stream (weights in the class summary). `Data/outcomes.json` holds en and fr text and constraints against the story chat and lore pages. Leads are a reveal gate only: `Resolve` accepts a lead count (each lead raises Escaped and Hidden, covered by tests and goldens) but play always passes 0, so investigating never changes what happened, only how much the board shows. Web mirror `outcomes.js`. Golden key `outcomes`. Core and JS Verified; Unity Unverified.
