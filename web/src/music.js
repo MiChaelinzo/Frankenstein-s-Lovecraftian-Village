@@ -150,12 +150,12 @@ export function cueNotes(kind, seed = 0) {
 export function createAmbient(AC, opts = {}) {
   const seed = opts.seed | 0, reduced = !!opts.reduced;
   let ctx = null, master = null, lfoGain = null, filter = null, voices = [], noiseGain = null, timer = null, batch = 0, noiseBuf = null, wavesGain = null, wavesFilter = null, wavesLfo = null, coast = 0, foot = 0, noiseCursor = 0; // noiseCursor walks the noise buffer deterministically so bursts differ without randomness
-  let volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true }, weather = 'clear', rainGain = null, rainFilter = null, creatureGain = null, creatureOscA = null, creatureOscB = null, creatureLevel = 0, creatureKind = '';
+  let directorGain = 1, volume = clampVolume(opts.volume ?? 0.6), muted = false, dread = 0, running = false, mix = { drone: 1, wind: 1, waves: 1, whispers: true }, weather = 'clear', rainGain = null, rainFilter = null, creatureGain = null, creatureOscA = null, creatureOscB = null, creatureLevel = 0, creatureKind = '';
 
   const apply = () => {
     if (!ctx) return;
     const t = ctx.currentTime;
-    const g = masterGain(volume, muted, dread) * clamp(num(mix.drone, 1), 0, 1.5);
+    const g = masterGain(volume, muted, dread) * clamp(num(mix.drone, 1), 0, 1.5) * directorGain;
     master.gain.setTargetAtTime(g, t, 0.25);
     // the LFO adds to the gain param, so gate it too or a muted master still swings around zero
     if (lfoGain) lfoGain.gain.setTargetAtTime(g > 0 ? 0.02 * modulation(reduced).depth : 0, t, 0.25);
@@ -281,6 +281,8 @@ export function createAmbient(AC, opts = {}) {
     /** How near the closest creature is, 0..1, and its kind: a slow, quiet low swell that follows it (never abrupt; sound is kept under reduced motion). */
     setCreatureProximity(level, kind) { creatureLevel = clamp(num(level, 0), 0, 1); creatureKind = String(kind || ''); apply(); },
     setDread(d) { dread = clampDread(d); apply(); },
+    /** The Horror Director's ambient lift (director.js presentation().ambienceGain, 1..1.12): a slow swell of the drone, never a stab. Other values are clamped to that range. */
+    setDirectorGain(g) { const v = clamp(num(g, 1), 1, 1.12); if (v !== directorGain) { directorGain = v; apply(); } },
     /** The night's weather name (clock.js WEATHER_NAMES): sets the rain hiss and wind bed. Unknown names are dry. */
     setWeather(w) { weather = String(w || 'clear'); apply(); },
     /** Thunder trailing a lightning flash by delayMs. Silent when stopped, muted or never started. */

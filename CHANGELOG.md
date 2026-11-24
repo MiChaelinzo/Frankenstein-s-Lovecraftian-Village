@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 29 (FEAT-003): Dynamic Horror Director (spec 161)
+- Core `HorrorDirector` (extends `GameClock` night weighting and `DreadCurve.FromIntensity`): from sanity, knowledge, stress, safe-zone time, clue progress, cult exposure, creature encounters and the night it steps a deterministic beat (Quiet, Unease, Pressure, Omen, Relief). Intensity is 0..1000 and moves at most 40 per step (no spikes). An Omen (intensity 600+, 35% seeded roll) forces 10 quiet steps (Relief, then Quiet) with a target ceiling of 200. Every non-quiet beat carries a narrative cause id (`waning_sanity`, `mounting_stress`, `cult_exposure`, `creature_sighting`, `nightfall`, `forbidden_knowledge`, `omen_passed`).
+- Web mirror `director.js`; `app.js` steps it once per game minute (inputs not tracked yet, such as safe-zone time and clue progress, stay 0). Presentation is capped and slow: fog up to +12%, lamplight down to -8%, ambient drone up to +12%, smoothed at 5% of range per second. Reduced motion keeps fog and light still and leaves a steady ambient lift of +4%; Low tier skips the fog. The vigil UI is not touched.
+- Golden key `director` added (3 seeds, 160 steps each); every existing golden key is byte identical. `sw.js` cache `flv-shell-v63`. Status: dotnet 362 and node 710 Verified; presentation Partially Verified (no browser run); Unity runtime Unverified.
+
 ### Round 29 (FEAT-002): Trust Network axes
 - Core `VillageSociety.AxesAfter` adds Fear, Faith, Loyalty and Obsession (integer, 0..1000, seeded, documented constants) beside the unchanged Trust, Suspicion and Corruption. `SocialStanding` gains optional `Trust` and `Fear`; `VillagerRules.Chat` withholds the hint (`Withheld` and `FearWithheld`) when `Fear >= TerrifiedAt (800)` and Fear is above Trust, whatever the tier (Trust 900, Fear 950 still shows trust but says nothing). A default standing is unchanged.
 - Web mirror `society.js` (`axesAfter`, `standingWithAxes`, `fearWithholds`), `villagers.js` chat, `society-ui.js` `axes`, readable axis bars in the villager dialog, i18n en and fr, `sw.js` cache `flv-shell-v62`.

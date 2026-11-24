@@ -41,6 +41,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
+import { startState as directorStart, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -137,6 +138,20 @@ function skipClock(minutes, done) {
 const weatherParam = optParam('weather');
 const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
+// Horror Director (spec 161): steps once per game minute from what the app already knows; the smoothed level only ramps (director.js caps it).
+// Inputs not tracked here (safe-zone time, clue progress, knowledge) stay 0, so the director leans on sanity, creatures, night and the campaign's cult progress.
+let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null;
+function directorFrame() {
+  const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
+  if (tick !== directorTick) {
+    directorTick = tick;
+    directorState = directorStep(state.seed, directorState, { tick, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
+  }
+  directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
+  const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium' });
+  if (ambient) ambient.setDirectorGain(look.ambienceGain);
+  return look;
+}
 // Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
 let gpuRenderer = '', quality = null;
 const view3d = createView3d({
@@ -146,7 +161,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    director: directorFrame(), tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),

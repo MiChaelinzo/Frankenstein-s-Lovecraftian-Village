@@ -370,6 +370,9 @@ namespace Frankenstein.Core.Tests
             AppendAxes(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendDirector(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendInvestigation(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1429,6 +1432,23 @@ namespace Frankenstein.Core.Tests
                         }
                 sb.Append(", \"grid\": [").Append(string.Join(", ", grid2)).Append(']');
                 sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "director" (round 29): per seed the scenario inputs and the director's intensity, beat, quiet counter and cause at every step.</summary>
+        private static void AppendDirector(StringBuilder sb)
+        {
+            sb.Append("  \"director\": {\n    \"runs\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var inputs = HorrorDirectorTests.Scenario(seed, 160);
+                var states = HorrorDirectorTests.Run(seed, inputs);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"inputs\": [").Append(string.Join(", ", inputs.Select(x => "[" + x.Tick + ", " + x.Sanity + ", " + x.Knowledge + ", " + x.Stress + ", " + x.SafeZoneTicks + ", " + x.ClueProgress + ", " + x.CultExposure + ", " + x.Encounters + "]"))).Append(']');
+                sb.Append(", \"steps\": [").Append(string.Join(", ", states.Select(s => "[" + s.Intensity + ", " + (int)s.Beat + ", " + s.QuietLeft + ", " + Q(s.Cause) + "]"))).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }
