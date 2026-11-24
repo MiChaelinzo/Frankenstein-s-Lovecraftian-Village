@@ -36,6 +36,8 @@ namespace Frankenstein.Core
     public sealed class CreatureCatalog
     {
         public List<CreatureDef> Defs = new List<CreatureDef>();
+        /// <summary>The four-tier upgrade path (spec 166), from the optional "manifestations" array. See <see cref="CreatureTiers"/>.</summary>
+        public List<ManifestationDef> Manifestations = new List<ManifestationDef>();
 
         public CreatureDef Find(string id)
         {
@@ -85,17 +87,19 @@ namespace Frankenstein.Core
                 }
                 cat.Defs.Add(d);
             }
+            var tiers = root.ContainsKey("manifestations") ? root["manifestations"] as List<object> : null;
+            if (tiers != null) cat.Manifestations = ManifestationDef.ParseAll(tiers, seen);
             return cat;
         }
 
-        private static string Str(Dictionary<string, object> o, string key, string owner)
+        internal static string Str(Dictionary<string, object> o, string key, string owner)
         {
             var s = o.ContainsKey(key) ? o[key] as string : null;
             if (string.IsNullOrEmpty(s)) throw new FormatException("creatures: " + owner + " lacks " + key);
             return s;
         }
 
-        private static double Num(Dictionary<string, object> o, string key, string owner)
+        internal static double Num(Dictionary<string, object> o, string key, string owner)
         {
             if (!o.ContainsKey(key) || !(o[key] is double)) throw new FormatException("creatures: " + owner + " lacks number " + key);
             return (double)o[key];
@@ -393,5 +397,231 @@ namespace Frankenstein.Core
         public const int FlareFuelCost = 30, FlareMinutes = 20, FlareCooldownMinutes = 120;
         public const double SaltLength = 6.0, SaltAhead = 1.5, SigilRadius = 4.0;
         public const int SaltMinutes = 180, SigilMinutes = 360, MaxWards = 6;
+    }
+}
+
+namespace Frankenstein.Core
+{
+    /// <summary>
+    /// One manifestation of the creature upgrade path (spec 166) from the "manifestations" array of Data/creatures.json. Tier 1 is human-adjacent, 2 a corrupted villager,
+    /// 3 a reality-breaker, 4 a cosmic glimpse. Every entry names the narrative cause (one of <see cref="HorrorDirector.CauseIds"/>) that lets it appear.
+    /// </summary>
+    public sealed class ManifestationDef
+    {
+        public string Id;
+        public int Tier;
+        public int MinDread;
+        /// <summary>"night", "dusk_night" or "any".</summary>
+        public string Phase;
+        /// <summary>Least <see cref="CorruptionStage"/> (0..4) any villager must have reached.</summary>
+        public int Society;
+        /// <summary>Least knowledge tier (0..5, <see cref="KnowledgeLibrary.MaxTier"/>).</summary>
+        public int Knowledge;
+        /// <summary>Least number of cosmic omens the Mythos simulation has produced.</summary>
+        public int Omens;
+        /// <summary>"village" (the player is outside every place), "place" (inside one) or "any".</summary>
+        public string Context;
+        /// <summary>Percent chance per day phase that an unlocked entry appears.</summary>
+        public int Chance;
+        public string Cause;
+        /// <summary>"warded" (salt, sigil, flare and lantern turn it), "avoided" (only distance helps) or "witnessed" (nothing helps; it is only seen).</summary>
+        public string Ward;
+        public Dictionary<string, string> Names = new Dictionary<string, string>();
+        public Dictionary<string, string> Texts = new Dictionary<string, string>();
+        /// <summary>What the investigator writes down afterwards. It records the sighting and explains nothing.</summary>
+        public Dictionary<string, string> Witness = new Dictionary<string, string>();
+
+        internal static List<ManifestationDef> ParseAll(List<object> list, HashSet<string> seen)
+        {
+            var result = new List<ManifestationDef>();
+            foreach (var entry in list)
+            {
+                var o = entry as Dictionary<string, object>;
+                if (o == null) throw new FormatException("manifestations: entry is not an object");
+                var d = new ManifestationDef { Id = CreatureCatalog.Str(o, "id", "?") };
+                if (!seen.Add(d.Id)) throw new FormatException("manifestations: duplicate id " + d.Id);
+                d.Tier = (int)CreatureCatalog.Num(o, "tier", d.Id);
+                if (d.Tier < 1 || d.Tier > CreatureTiers.TierCount) throw new FormatException("manifestations: " + d.Id + " has tier outside 1.." + CreatureTiers.TierCount);
+                d.MinDread = (int)CreatureCatalog.Num(o, "minDread", d.Id);
+                if (d.MinDread < 0 || d.MinDread > 100) throw new FormatException("manifestations: " + d.Id + " has minDread outside 0..100");
+                d.Phase = CreatureCatalog.Str(o, "phase", d.Id);
+                if (Array.IndexOf(CreatureRules.PhaseRules, d.Phase) < 0) throw new FormatException("manifestations: " + d.Id + " has unknown phase rule " + d.Phase);
+                d.Society = (int)CreatureCatalog.Num(o, "society", d.Id);
+                if (d.Society < 0 || d.Society > (int)CorruptionStage.Missing) throw new FormatException("manifestations: " + d.Id + " has society outside 0..4");
+                d.Knowledge = (int)CreatureCatalog.Num(o, "knowledge", d.Id);
+                if (d.Knowledge < 0 || d.Knowledge > KnowledgeLibrary.MaxTier) throw new FormatException("manifestations: " + d.Id + " has knowledge outside 0.." + KnowledgeLibrary.MaxTier);
+                d.Omens = (int)CreatureCatalog.Num(o, "omens", d.Id);
+                if (d.Omens < 0) throw new FormatException("manifestations: " + d.Id + " has negative omens");
+                d.Context = CreatureCatalog.Str(o, "context", d.Id);
+                if (Array.IndexOf(CreatureTiers.Contexts, d.Context) < 0) throw new FormatException("manifestations: " + d.Id + " has unknown context " + d.Context);
+                d.Chance = (int)CreatureCatalog.Num(o, "chance", d.Id);
+                if (d.Chance < 1 || d.Chance > 100) throw new FormatException("manifestations: " + d.Id + " has chance outside 1..100");
+                d.Cause = CreatureCatalog.Str(o, "cause", d.Id);
+                if (Array.IndexOf(HorrorDirector.CauseIds, d.Cause) < 0 || d.Cause == "omen_passed") throw new FormatException("manifestations: " + d.Id + " has unknown cause " + d.Cause);
+                d.Ward = CreatureCatalog.Str(o, "ward", d.Id);
+                if (Array.IndexOf(CreatureTiers.WardKinds, d.Ward) < 0) throw new FormatException("manifestations: " + d.Id + " has unknown ward kind " + d.Ward);
+                foreach (var lang in CreatureRules.Languages)
+                {
+                    var t = o.ContainsKey(lang) ? o[lang] as Dictionary<string, object> : null;
+                    if (t == null) throw new FormatException("manifestations: " + d.Id + " lacks language " + lang);
+                    d.Names[lang] = CreatureCatalog.Str(t, "name", d.Id);
+                    d.Texts[lang] = CreatureCatalog.Str(t, "text", d.Id);
+                    d.Witness[lang] = CreatureCatalog.Str(t, "witness", d.Id);
+                }
+                result.Add(d);
+            }
+            for (int t = 1; t <= CreatureTiers.TierCount; t++)
+            {
+                bool any = false;
+                foreach (var d in result) if (d.Tier == t) any = true;
+                if (!any) throw new FormatException("manifestations: tier " + t + " has no entry");
+            }
+            return result;
+        }
+    }
+
+    /// <summary>What the player is, knows and stands in at one moment. The caller fills it from the society, the knowledge state and the Mythos run; Core reads nothing else.</summary>
+    public struct TierContext
+    {
+        public int Seed, GridW, GridD, Tick;
+        public int DreadPercent;
+        /// <summary>Highest <see cref="CorruptionStage"/> (as int) any villager has reached, and that villager's roster index (-1 when none).</summary>
+        public int SocietyStage, CorruptedVillager;
+        public int KnowledgeTier;
+        public int CosmicOmens;
+        /// <summary>Id of the place the player is inside, "" in the village.</summary>
+        public string PlaceId;
+        /// <summary>Tick of the last tier 4 glimpse, or a negative number when there was none.</summary>
+        public int LastGlimpseTick;
+        public bool ReducedMotion;
+    }
+
+    /// <summary>One appearance. Seconds is 0 for tiers 1 to 3 (they linger while the player is near) and the capped exposure for tier 4. Cause is always one the HorrorDirector accepted.</summary>
+    public sealed class Appearance
+    {
+        public string DefId;
+        public int Tier;
+        public string Cause;
+        /// <summary>Roster index of the villager a tier 2 or tier 3 villager appearance wears, else -1.</summary>
+        public int Subject = -1;
+        public string PlaceId = "";
+        public double X, Z;
+        public double Seconds;
+        /// <summary>Reduced motion: the figure does not drift or flicker; it is simply there, then not.</summary>
+        public bool Still;
+        public string Ward;
+    }
+
+    /// <summary>
+    /// The creature upgrade path (spec 166): four tiers unlocked by state, never by a timer alone. Tier 1 needs dread, tier 2 a corrupted villager,
+    /// tier 3 forbidden knowledge (reality distortion) and tier 4 a late knowledge tier plus a cosmic omen. Selection is seeded and made once per day phase, so the
+    /// same inputs give the same appearances. Each appearance carries a narrative cause that <see cref="HorrorDirector.CauseHolds"/> must accept, or it is dropped.
+    /// No tier chases; tier 4 shows for at most <see cref="MaxGlimpseSeconds"/> and then rests for <see cref="GlimpseCooldownTicks"/>.
+    /// </summary>
+    public static class CreatureTiers
+    {
+        public const int TierCount = 4;
+        public const int TierSalt = 0x544952, StateStep = 40503;
+        public const int PositionTries = 12;
+        public const double GlimpseSeconds = 3.0, GlimpseReducedSeconds = 2.0, MaxGlimpseSeconds = 4.0;
+        /// <summary>Two days of ticks (minutes) between tier 4 glimpses.</summary>
+        public const int GlimpseCooldownTicks = 2 * GameClock.MinutesPerDay;
+        public const string WitnessPrefix = "witness@";
+        public static readonly string[] Contexts = { "village", "place", "any" };
+        public static readonly string[] WardKinds = { "warded", "avoided", "witnessed" };
+        public static readonly string[] WardActions = { "salt", "sigil", "flare", "lantern" };
+
+        /// <summary>The director input a context stands for, used to check every cause. Sanity falls with dread, cult exposure rises with the corruption stage, knowledge with its tier.</summary>
+        public static DirectorInput DirectorInputFor(TierContext c)
+        {
+            return new DirectorInput { Tick = c.Tick, Sanity = 1000 - Math.Max(0, Math.Min(100, c.DreadPercent)) * 10, Knowledge = c.KnowledgeTier * 200, CultExposure = c.SocietyStage * 250 };
+        }
+
+        /// <summary>The most corrupted villager at this moment: the highest stage and the first roster index holding it. Stage 0 and index -1 when nobody has reached Uneasy.</summary>
+        public static int MostCorrupted(VillageSociety society, int night, float dread, int ritualStage, out int index)
+        {
+            int best = 0; index = -1;
+            for (int i = 0; i < society.Roster.Count; i++)
+            {
+                int s = (int)society.CorruptionAt(i, night, dread, ritualStage);
+                if (s > best) { best = s; index = i; }
+            }
+            return best;
+        }
+
+        /// <summary>Whether the context meets every unlock condition of the entry. The cooldown of tier 4 is part of it.</summary>
+        public static bool Unlocked(ManifestationDef def, TierContext c)
+        {
+            var phase = GameClock.PhaseAt(c.Tick);
+            bool phaseOk = def.Phase == "any" || (def.Phase == "night" && phase == DayPhase.Night) || (def.Phase == "dusk_night" && (phase == DayPhase.Dusk || phase == DayPhase.Night));
+            bool inPlace = !string.IsNullOrEmpty(c.PlaceId);
+            bool contextOk = def.Context == "any" || (def.Context == "place" ? inPlace : !inPlace);
+            bool cooled = def.Tier != 4 || c.LastGlimpseTick < 0 || c.Tick - c.LastGlimpseTick >= GlimpseCooldownTicks;
+            bool subjectOk = def.Tier != 2 || c.CorruptedVillager >= 0;
+            return phaseOk && contextOk && cooled && subjectOk && c.DreadPercent >= def.MinDread && c.SocietyStage >= def.Society && c.KnowledgeTier >= def.Knowledge && c.CosmicOmens >= def.Omens;
+        }
+
+        /// <summary>
+        /// The appearances for the current day phase, at most one per tier, in tier order. <paramref name="places"/> (may be null) keeps village spawns out of place footprints.
+        /// An entry whose cause the director does not accept is left out and named in <paramref name="rejected"/> (may be null).
+        /// </summary>
+        public static List<Appearance> Select(TierContext c, CreatureCatalog cat, IList<PlacePlacement> places, List<string> rejected = null)
+        {
+            var result = new List<Appearance>();
+            if (cat == null || cat.Manifestations.Count == 0 || c.GridW <= 0 || c.GridD <= 0) return result;
+            int day = c.Tick >= 0 ? c.Tick / GameClock.MinutesPerDay : -1 - (-c.Tick - 1) / GameClock.MinutesPerDay;
+            int slot = day * GameClock.PhaseCount + (int)GameClock.PhaseAt(c.Tick);
+            var input = DirectorInputFor(c);
+            for (int tier = 1; tier <= TierCount; tier++)
+            {
+                var eligible = new List<ManifestationDef>();
+                foreach (var d in cat.Manifestations) if (d.Tier == tier && Unlocked(d, c)) eligible.Add(d);
+                if (eligible.Count == 0) continue;
+                var rng = new SeededRandom(c.Seed ^ TierSalt ^ (slot * StateStep) ^ (tier * CreatureRules.KindStep));
+                var def = eligible[rng.Next(eligible.Count)];
+                if (rng.Next(100) >= def.Chance) continue;
+                if (!HorrorDirector.CauseHolds(def.Cause, input))
+                {
+                    if (rejected != null) rejected.Add(def.Id + ": cause " + def.Cause + " does not hold");
+                    continue;
+                }
+                var a = new Appearance { DefId = def.Id, Tier = tier, Cause = def.Cause, Ward = def.Ward, Still = c.ReducedMotion };
+                if (tier == 2 || def.Id == "doubled_villager") a.Subject = c.CorruptedVillager;
+                if (def.Context == "place") a.PlaceId = c.PlaceId ?? "";
+                else Position(rng, c, places, a);
+                a.Seconds = tier == 4 ? (c.ReducedMotion ? GlimpseReducedSeconds : GlimpseSeconds) : 0.0;
+                result.Add(a);
+            }
+            return result;
+        }
+
+        private static void Position(SeededRandom rng, TierContext c, IList<PlacePlacement> places, Appearance a)
+        {
+            double w = c.GridW * VillageDressing.Cell, d = c.GridD * VillageDressing.Cell;
+            double x = 0, z = 0;
+            for (int t = 0; t < PositionTries; t++)
+            {
+                x = rng.Next(1000) / 1000.0 * w; z = rng.Next(1000) / 1000.0 * d;
+                if (!VillagePlaces.InsideAnyPlace(places, x, z)) break;
+            }
+            a.X = x; a.Z = z;
+        }
+
+        /// <summary>Whether the appearance is still on screen after <paramref name="elapsedSeconds"/>. Tier 4 ends at its capped exposure; the others last while the caller keeps them.</summary>
+        public static bool Visible(Appearance a, double elapsedSeconds)
+        {
+            return a.Tier != 4 || (elapsedSeconds >= 0 && elapsedSeconds < Math.Min(a.Seconds, MaxGlimpseSeconds));
+        }
+
+        /// <summary>Whether a ward action turns the appearance away. Only tier 1 is warded; tier 2 is avoided by distance and tiers 3 and 4 are only witnessed.</summary>
+        public static bool WardTurns(Appearance a, string action)
+        {
+            return a.Ward == "warded" && Array.IndexOf(WardActions, action) >= 0;
+        }
+
+        /// <summary>The investigation clue id recorded when the appearance is witnessed.</summary>
+        public static string WitnessClueId(string defId) { return WitnessPrefix + defId; }
+
+        public static bool IsWitnessClue(string clueId) { return clueId != null && clueId.StartsWith(WitnessPrefix, StringComparison.Ordinal); }
     }
 }

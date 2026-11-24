@@ -395,8 +395,40 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendPlaces(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendCreatureTiers(sb);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "creatureTiers" (round 32, spec 166): the manifestation data digest and, per seed and named scenario, the appearances of three days at every phase (id, position, exposure seconds, still flag, cause, subject, place).</summary>
+        private static void AppendCreatureTiers(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var cat = CreatureTierTests.Catalog();
+            var lib = VillagePlacesTests.Library();
+            sb.Append("  \"creatureTiers\": {\n    \"defs\": [");
+            sb.Append(string.Join(", ", cat.Manifestations.Select(m => "[" + Q(m.Id) + ", " + m.Tier + ", " + m.MinDread + ", " + Q(m.Phase) + ", " + m.Society + ", " + m.Knowledge + ", " + m.Omens + ", " + Q(m.Context) + ", " + m.Chance + ", " + Q(m.Cause) + ", " + Q(m.Ward) + "]")));
+            sb.Append("],\n    \"runs\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+            {
+                var places = VillagePlaces.PlaceAll(lib, seed, 24, 24);
+                for (int sc = 0; sc < CreatureTierTests.ScenarioNames.Length; sc++)
+                {
+                    var slots = new List<string>();
+                    for (int day = 0; day < 3; day++)
+                        foreach (DayPhase p in new[] { DayPhase.Dawn, DayPhase.Day, DayPhase.Dusk, DayPhase.Night })
+                        {
+                            var list = CreatureTiers.Select(CreatureTierTests.Scenario(sc, seed, CreatureTierTests.Tick(day, p)), cat, places);
+                            slots.Add(Q(string.Join(";", list.Select(a => a.DefId + "@" + Math.Round(a.X, 3).ToString("0.###", inv) + "," + Math.Round(a.Z, 3).ToString("0.###", inv) + ",s" + a.Seconds.ToString("0.###", inv) + ",m" + (a.Still ? 1 : 0) + "," + a.Cause + ",v" + a.Subject + ",p" + a.PlaceId))));
+                        }
+                    sb.Append(first ? "\n      " : ",\n      ").Append("[").Append(seed).Append(", ").Append(Q(CreatureTierTests.ScenarioNames[sc])).Append(", [").Append(string.Join(", ", slots)).Append("]]");
+                    first = false;
+                }
+            }
+            sb.Append("\n    ]\n  }\n");
         }
 
         /// <summary>Top level key "villagePlaces" (round 31, spec 164): per seed and grid, the placement of each place (centre, facing, entrance, door, hatch, tunnel exit), its dressing, the triangle counts per tier, the tunnel gate and the trail of the lead.</summary>
