@@ -277,6 +277,50 @@
    "minute": 1290,
    "en": "Below the cemetery the air has a seam, and what lies on the other side of it is this same place, lit.",
    "fr": "Sous le cimetiere l'air a une couture, et ce qui se trouve de l'autre cote est ce meme lieu, eclaire."
+  },
+  {
+   "id": "k_mine_veins",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_veins",
+   "place": "standing_stones",
+   "night": 1,
+   "minute": 1110,
+   "en": "The old mine under the cliffs is veined with a crystal that gives its own light, and it hums when the tide turns.",
+   "fr": "La vieille mine sous les falaises est veinee d'un cristal qui donne sa propre lumiere, et il vibre quand la maree tourne."
+  },
+  {
+   "id": "k_mine_resonance",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_resonance",
+   "place": "standing_stones",
+   "night": 3,
+   "minute": 1230,
+   "en": "On the wrong nights the crystal answers the village, and the village answers it back in the dark.",
+   "fr": "Les nuits fausses le cristal repond au village, et le village lui repond en retour dans le noir."
+  },
+  {
+   "id": "k_mine_deep",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_deep",
+   "place": "standing_stones",
+   "night": 2,
+   "minute": 1290,
+   "en": "The deep tunnel was dug after the mine closed, and a boot of the missing lies at its end.",
+   "fr": "Le tunnel profond a ete creuse apres la fermeture de la mine, et une botte du disparu gisait a son bout."
+  },
+  {
+   "id": "k_mine_lake",
+   "source": "clue",
+   "role": "",
+   "ref": "place@mine_lake",
+   "place": "standing_stones",
+   "night": 5,
+   "minute": 1350,
+   "en": "The black lake under the mine rises and falls with the bay, though no water joins them that anyone has found.",
+   "fr": "Le lac noir sous la mine monte et descend avec la baie, sans qu'aucun cours d'eau les relie que l'on ait trouve."
   }
  ],
  "contradictions": [

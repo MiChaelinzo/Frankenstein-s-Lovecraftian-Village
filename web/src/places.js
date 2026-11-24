@@ -12,7 +12,7 @@ export const PLACE_LANGUAGES = ['en', 'fr'];
 export const PLACE_CLUE_PREFIX = 'place@';
 export const PLACE_PROMPT_IDS = ['enter', 'leave', 'hatch', 'sealed'];
 export const KNOWLEDGE_SOURCE_IDS = ['journal', 'ritual', 'investigation', 'ruins', 'catacombs', 'mythos_event', 'cult_discovery'];
-export const MANOR = 'manor', FOREST = 'forest', CATACOMB = 'catacomb';
+export const MANOR = 'manor', FOREST = 'forest', CATACOMB = 'catacomb', MINE = 'mine';
 export const PLACE_STREAM = 0x504c43, TRAIL_STREAM = 0x545241, GRAPH_STREAM = 0x475248;
 export const LANTERN_GAP = 4, LANTERN_REACH = 4, TRAIL_SPACING = 3, TRAIL_SIDE = 1.4, MAX_TRAIL_LENGTH = 36;
 export const GAP = 2, RING_STEP = 4, MAX_DOOR_WALK = 6, RING_COUNT = 6, DIRECTION_COUNT = 8, TIERS = 3;
@@ -122,7 +122,7 @@ export const findByClue = (lib, clueId) => { for (const p of lib.places) for (co
 
 /** A point in the place's local frame (right, forward) as a world point [x, z]. */
 export const toWorld = (p, lx, lz) => [p.x + p.faceZ * lx + p.faceX * lz, p.z - p.faceX * lx + p.faceZ * lz];
-const placeIndex = (id) => (id === MANOR ? 1 : id === FOREST ? 2 : id === CATACOMB ? 3 : 4);
+const placeIndex = (id) => (id === MANOR ? 1 : id === FOREST ? 2 : id === CATACOMB ? 3 : id === MINE ? 4 : 5);
 
 /** The placement at a given centre and facing with every point of the way in and back worked out. No validation: see checkPlacement. */
 export function buildPlacement(data, seed, gridW, gridD, x, z, faceX, faceZ) {
@@ -131,6 +131,7 @@ export function buildPlacement(data, seed, gridW, gridD, x, z, faceX, faceZ) {
   p.door = toWorld(p, data.door.x, data.door.z);
   p.hatch = toWorld(p, data.hatch.x, data.hatch.z);
   p.graph = data.procedural ? generateGraph(seed, placeIndex(data.id)) : null;
+  if (p.graph) p.graph.theme = data.id;
   const target = landmarks(seed, gridW, gridD).find((l) => l.id === data.tunnelExitsTo);
   let dx = x - target.x, dz = z - target.z, len = Math.sqrt(dx * dx + dz * dz);
   if (len < 1e-9) { dx = 1; dz = 0; len = 1; }
@@ -183,7 +184,7 @@ export const graphRoomWithRole = (g, role) => g.rooms.find((r) => r.role === rol
 export function generateGraph(seed, index) {
   const rng = new SeededRandom(seed ^ GRAPH_STREAM ^ Math.imul(index, INDEX_STEP));
   const target = GRAPH_MIN_ROOMS + rng.next(GRAPH_COLS * GRAPH_ROWS - GRAPH_MIN_ROOMS + 1);
-  const g = { rooms: [], edges: [], loops: 0 }, present = new Array(GRAPH_COLS * GRAPH_ROWS).fill(false);
+  const g = { theme: CATACOMB, rooms: [], edges: [], loops: 0 }, present = new Array(GRAPH_COLS * GRAPH_ROWS).fill(false);
   const add = (cell, parent, depth) => g.rooms.push({ cell, x: ((cell % GRAPH_COLS) - 1) * GRAPH_PITCH, z: (1 - Math.floor(cell / GRAPH_COLS)) * GRAPH_PITCH, depth, parent, role: CHAMBER_ROLE });
   add(GRAPH_ENTRANCE_CELL, -1, 0); present[GRAPH_ENTRANCE_CELL] = true;
   while (g.rooms.length < target) {
@@ -218,7 +219,7 @@ export function graphPathBack(g, cell) {
   return path;
 }
 /** One line naming the whole graph for a seed (debugging and golden). */
-export const graphDump = (g, seed) => `catacomb seed=${seed} rooms=${g.rooms.length} loops=${g.loops} |${g.rooms.map((r) => ` c${r.cell}@(${r.x},${r.z})d${r.depth} ${r.role};`).join('')} |${g.edges.map((e) => ` ${e[0]}-${e[1]}`).join('')}`;
+export const graphDump = (g, seed) => `${g.theme} seed=${seed} rooms=${g.rooms.length} loops=${g.loops} |${g.rooms.map((r) => ` c${r.cell}@(${r.x},${r.z})d${r.depth} ${r.role};`).join('')} |${g.edges.map((e) => ` ${e[0]}-${e[1]}`).join('')}`;
 const box = (id, x0, x1, z0, z1, y0, y1, color, glow, tier) => ({ id, x0, x1, z0, z1, y0, y1, taper: 1, color, glow, tier });
 const corridor = (g, e, prefix, y0, y1, color, tier) => {
   const a = graphRoom(g, e[0]), c = graphRoom(g, e[1]), id = `${prefix}${e[0]}_${e[1]}`;
@@ -227,6 +228,7 @@ const corridor = (g, e, prefix, y0, y1, color, tier) => {
 };
 /** The graph's own geometry in the local frame: floors, corridor floors, role markers (tier 0), pillars (tier 1), lintels and embers (tier 2). */
 export function graphParts(g) {
+  if (g.theme === MINE) return mineParts(g);
   const parts = [];
   for (const r of g.rooms) parts.push(box(`floor_${r.cell}`, r.x - ROOM_HALF, r.x + ROOM_HALF, r.z - ROOM_HALF, r.z + ROOM_HALF, 0, 0.04, [0.11, 0.1, 0.12], 0, 0));
   for (const e of g.edges) parts.push(corridor(g, e, 'corridor_', 0, 0.04, [0.09, 0.08, 0.1], 0));
@@ -241,6 +243,25 @@ export function graphParts(g) {
   }
   for (const e of g.edges) parts.push(corridor(g, e, 'lintel_', 1.9, 2.1, [0.16, 0.15, 0.17], 2));
   for (const r of g.rooms) parts.push(box(`ember_${r.cell}`, r.x - 0.95, r.x - 0.8, r.z + 0.8, r.z + 0.95, 0, 0.2, [0.9, 0.5, 0.2], 1, 2));
+  return parts;
+}
+
+/** The mine's geometry, same part counts per tier as the catacomb: rock and tunnel floors, a crystal spire (veins), a sheet of black water (lake), a rockfall (deep end), timber props, beams and small crystals. Mirrors PlaceGraph.MineParts. */
+function mineParts(g) {
+  const parts = [], pyramid = (p) => { p.taper = 0; return p; };
+  for (const r of g.rooms) parts.push(box(`rock_${r.cell}`, r.x - ROOM_HALF, r.x + ROOM_HALF, r.z - ROOM_HALF, r.z + ROOM_HALF, 0, 0.04, [0.12, 0.11, 0.1], 0, 0));
+  for (const e of g.edges) parts.push(corridor(g, e, 'tunnel_', 0, 0.04, [0.1, 0.09, 0.08], 0));
+  for (const r of g.rooms) {
+    if (r.role === 'texts') parts.push(pyramid(box(`vein_${r.cell}`, r.x - 0.5, r.x + 0.5, r.z + 0.4, r.z + 1.0, 0, 2.0, [0.45, 0.35, 0.95], 1, 0)));
+    else if (r.role === 'tear') parts.push(box(`lake_${r.cell}`, r.x - 1.1, r.x + 1.1, r.z - 1.1, r.z + 1.1, 0.04, 0.1, [0.04, 0.12, 0.2], 1, 0));
+    else if (r.role === 'prison') parts.push(pyramid(box(`rockfall_${r.cell}`, r.x - 0.8, r.x + 0.8, r.z - 0.9, r.z - 0.2, 0, 1.6, [0.14, 0.13, 0.12], 0, 0)));
+  }
+  for (const r of g.rooms) {
+    parts.push(box(`prop_a_${r.cell}`, r.x - 1.1, r.x - 0.9, r.z - 1.1, r.z - 0.9, 0, 2.2, [0.25, 0.17, 0.1], 0, 1));
+    parts.push(box(`prop_b_${r.cell}`, r.x + 0.9, r.x + 1.1, r.z + 0.9, r.z + 1.1, 0, 2.2, [0.25, 0.17, 0.1], 0, 1));
+  }
+  for (const e of g.edges) parts.push(corridor(g, e, 'beam_', 1.9, 2.1, [0.22, 0.15, 0.09], 2));
+  for (const r of g.rooms) parts.push(pyramid(box(`crystal_${r.cell}`, r.x - 0.95, r.x - 0.75, r.z + 0.75, r.z + 0.95, 0, 0.5, [0.5, 0.4, 1.0], 1, 2)));
   return parts;
 }
 

@@ -1535,6 +1535,153 @@
     }
    ],
    "parts": []
+  },
+  {
+   "id": "mine",
+   "anchor": "standing_stones",
+   "radius": 6.5,
+   "en": "The Forgotten Mine",
+   "fr": "La mine oubliee",
+   "budget": {
+    "low": 240,
+    "medium": 420,
+    "high": 600
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 5.6
+   },
+   "door": {
+    "x": 0.0,
+    "z": 3.9
+   },
+   "prompts": {
+    "enter": {
+     "en": "Duck under the rotten timbers into the mine",
+     "fr": "Se courber sous les etais pourris pour entrer dans la mine"
+    },
+    "leave": {
+     "en": "Follow the rails back up to daylight",
+     "fr": "Remonter les rails jusqu'a la lumiere du jour"
+    },
+    "hatch": {
+     "en": "Squeeze through the crack in the wall",
+     "fr": "Se glisser par la fissure du mur"
+    },
+    "sealed": {
+     "en": "A crack breathes cold air, but you cannot tell where it leads",
+     "fr": "Une fissure souffle un air froid, sans que vous sachiez ou elle mene"
+    }
+   },
+   "procedural": true,
+   "tunnel": {
+    "hatch": {
+     "x": -0.7,
+     "z": 2.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "hidden_cove",
+    "found": {
+     "en": "The crack opens on a flooded gallery that climbs to the shingle of the hidden cove.",
+     "fr": "La fissure s'ouvre sur une galerie noyee qui remonte jusqu'aux galets de la crique cachee."
+    }
+   },
+   "rooms": [
+    {
+     "id": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    },
+    {
+     "id": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "halfX": 1.2,
+     "halfZ": 1.2
+    }
+   ],
+   "props": [],
+   "discoveries": [
+    {
+     "id": "crystal_veins",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.0,
+     "clue": "place@mine_veins",
+     "source": "ruins",
+     "lead": false,
+     "statement": "k_mine_veins",
+     "en": "Crystal veins",
+     "fr": "Veines de cristal",
+     "text": {
+      "en": "Veins of a pale crystal run through the rock and glow without any lamp. Each one is cut square, as if the mine had been dug to follow them.",
+      "fr": "Des veines d'un cristal pale courent dans la roche et luisent sans lampe. Chacune est taillee droit, comme si la mine avait ete creusee pour les suivre."
+     }
+    },
+    {
+     "id": "vein_resonance",
+     "room": "texts",
+     "x": -3.0,
+     "z": 0.5,
+     "clue": "place@mine_resonance",
+     "source": "mythos_event",
+     "lead": false,
+     "statement": "k_mine_resonance",
+     "en": "Resonant vein",
+     "fr": "Veine resonante",
+     "text": {
+      "en": "The crystal rings once, and the air bends around it. For a moment the tunnel behind you is not the one you came down.",
+      "fr": "Le cristal sonne une fois et l'air se plie autour de lui. Un instant, le tunnel derriere vous n'est plus celui par lequel vous etes descendu."
+     },
+     "requires": "place@mine_veins",
+     "requiresEffect": "altered_board_link"
+    },
+    {
+     "id": "deep_tunnel",
+     "room": "prison",
+     "x": 0.0,
+     "z": -3.0,
+     "clue": "place@mine_deep",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_mine_deep",
+     "en": "Deep tunnel",
+     "fr": "Tunnel profond",
+     "text": {
+      "en": "The tunnel ends in a fall of rock, newer than the rest. A boot lies half under it, and the mud before it holds many small prints, all going in.",
+      "fr": "Le tunnel s'acheve sur un eboulis plus recent que le reste. Une botte est a moitie prise dessous, et la boue devant elle garde de nombreuses petites empreintes, toutes vers l'interieur."
+     },
+     "requires": "place@mine_veins"
+    },
+    {
+     "id": "underground_lake",
+     "room": "tear",
+     "x": 3.0,
+     "z": -3.0,
+     "clue": "place@mine_lake",
+     "source": "investigation",
+     "lead": false,
+     "statement": "k_mine_lake",
+     "en": "Underground lake",
+     "fr": "Lac souterrain",
+     "text": {
+      "en": "A lake of black water fills the chamber, perfectly still. It stands as high as the tide in the bay, and when you look away it is the tide's height that you remember.",
+      "fr": "Un lac d'eau noire emplit la salle, parfaitement immobile. Il monte aussi haut que la maree dans la baie, et quand on detourne les yeux on ne retient que la hauteur de la maree."
+     },
+     "requires": "place@mine_veins",
+     "requiresBenefit": "new_deduction_the_bay"
+    }
+   ],
+   "parts": []
   }
  ]
 }

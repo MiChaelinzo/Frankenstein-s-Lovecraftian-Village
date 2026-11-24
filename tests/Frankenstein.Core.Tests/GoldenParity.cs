@@ -416,6 +416,9 @@ namespace Frankenstein.Core.Tests
             sb.Append("],\n    \"tearGate\": [");
             var tear = lib.Find(VillagePlaces.Catacomb).Discoveries.First(d => d.RequiresEffect.Length > 0);
             sb.Append(string.Join(", ", new[] { 1, 42, 1818 }.SelectMany(seed => Enumerable.Range(1, 6).SelectMany(night => Enumerable.Range(0, KnowledgeLibrary.MaxTier + 1).Select(t => "[" + seed + ", " + night + ", " + t + ", " + (VillagePlaces.Revealed(tear, new string[0], know, seed, night, t) ? "1" : "0") + "]")))));
+            sb.Append("],\n    \"veinGate\": [");
+            var vein = lib.Find(VillagePlaces.Mine).Discoveries.First(d => d.RequiresEffect.Length > 0);
+            sb.Append(string.Join(", ", new[] { 1, 42, 1818 }.SelectMany(seed => Enumerable.Range(1, 6).SelectMany(night => Enumerable.Range(0, KnowledgeLibrary.MaxTier + 1).Select(t => "[" + seed + ", " + night + ", " + t + ", " + (VillagePlaces.Revealed(vein, new[] { "place@mine_veins" }, know, seed, night, t) ? "1" : "0") + "]")))));
             sb.Append("],\n    \"worlds\": [");
             bool first = true;
             foreach (var seed in VigilSeeds)

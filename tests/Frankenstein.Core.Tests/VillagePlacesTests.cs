@@ -499,5 +499,125 @@ namespace Frankenstein.Core.Tests
             }
             Assert.NotEqual(VillagePlaces.TrailMissing(1, VillagePlaces.Forest, 7) * 100 + VillagePlaces.TrailMissing(42, VillagePlaces.Forest, 7), -1);
         }
+
+        private static PlaceData Mine() { return Library().Find(VillagePlaces.Mine); }
+
+        [Fact]
+        public void Mine_graph_is_its_own_seeded_stream_named_for_the_mine_with_a_way_back()
+        {
+            var data = Mine();
+            Assert.True(data.Procedural);
+            Assert.Equal("standing_stones", data.Anchor);
+            var dumps = new HashSet<string>();
+            foreach (int seed in Seeds())
+            {
+                var g = PlaceGraph.Generate(seed, 4);
+                Assert.True(g.Connected());
+                foreach (var r in g.Rooms)
+                {
+                    var path = g.PathBack(r.Cell);
+                    Assert.Equal(r.Depth + 1, path.Count);
+                    Assert.Equal(PlaceGraph.EntranceCell, path[path.Count - 1]);
+                }
+                foreach (var role in PlaceGraph.Roles) Assert.Single(g.Rooms, r => r.Role == role);
+                var p = VillagePlaces.Place(data, seed, 24, 24, null);
+                Assert.Equal("mine", p.Graph.Theme);
+                string dump = p.Graph.Dump(seed);
+                Assert.StartsWith("mine seed=" + seed + " rooms=", dump);
+                Assert.Equal(g.Dump(seed).Substring(g.Dump(seed).IndexOf('|')), dump.Substring(dump.IndexOf('|')));
+                dumps.Add(dump.Substring(dump.IndexOf('|')));
+            }
+            Assert.True(dumps.Count > 10);
+        }
+
+        [Fact]
+        public void Mine_stands_clear_of_landmarks_the_city_and_other_places_with_a_way_back_for_many_seeds_and_both_grids()
+        {
+            var lib = Library();
+            var data = lib.Find(VillagePlaces.Mine);
+            for (int seed = -40; seed < 400; seed++)
+                foreach (int grid in Grids)
+                {
+                    var placed = Standing(lib, seed, grid);
+                    var p = placed.Single(x => x.Id == VillagePlaces.Mine);
+                    Assert.Equal("", VillagePlaces.Check(data, p, seed, grid, grid, placed.Where(x => x != p).ToList()));
+                    Assert.True(VillagePlaces.RoundTrip(p));
+                    Assert.Equal(p.Entrance, VillagePlaces.Leave(p, PlaceExit.Door));
+                    foreach (var r in p.Graph.Rooms)
+                    {
+                        var w = VillagePlaces.ToWorld(p, r.X, r.Z);
+                        Assert.True(Math.Sqrt((w[0] - p.X) * (w[0] - p.X) + (w[1] - p.Z) * (w[1] - p.Z)) + PlaceGraph.RoomHalf * Math.Sqrt(2.0) <= p.Radius + 1e-9, "room inside the footprint");
+                    }
+                    for (int t = 0; t < VillagePlaces.Tiers; t++)
+                    {
+                        Assert.True(VillagePlaces.TotalTriangles(data, p, t) <= data.Budget[t], "budget tier " + t);
+                        if (t > 0) Assert.True(VillagePlaces.TotalTriangles(data, p, t) > VillagePlaces.TotalTriangles(data, p, t - 1));
+                    }
+                }
+        }
+
+        [Fact]
+        public void Mine_geometry_has_emissive_crystals_and_water_with_the_catacombs_part_counts_and_cheap_pyramids()
+        {
+            var g = PlaceGraph.Generate(42, 4);
+            g.Theme = VillagePlaces.Mine;
+            var parts = g.Parts();
+            Assert.Equal(g.Rooms.Count * 4 + g.Edges.Count * 2 + 3, parts.Count);
+            Assert.Equal(g.Rooms.Count, parts.Count(x => x.Tier == 2 && x.Glow == 1));
+            Assert.Contains(parts, x => x.Id.StartsWith("lake_") && x.Glow == 1);
+            Assert.Contains(parts, x => x.Id.StartsWith("vein_") && x.Glow == 1 && x.Taper == 0.0);
+            Assert.All(parts, x => Assert.Equal(x.Taper > 0.0 ? 10 : 8, VillagePlaces.TrianglesOf(x)));
+        }
+
+        [Fact]
+        public void Mine_veins_resonance_deep_tunnel_and_lake_feed_knowledge_the_board_one_lead_and_the_bay_evidence()
+        {
+            var lib = Library();
+            var data = Mine();
+            var know = KnowledgeLibrary.Parse(File.ReadAllText(DataPath("knowledge.json")));
+            var statements = File.ReadAllText(DataPath("statements.json"));
+            Assert.Equal(new[] { "crystal_veins:ruins:False", "vein_resonance:mythos_event:False", "deep_tunnel:cult_discovery:True", "underground_lake:investigation:False" }, data.Discoveries.Select(d => d.Id + ":" + d.Source + ":" + d.Lead).ToArray());
+            foreach (var d in data.Discoveries) Assert.Contains("\"id\": \"" + d.StatementId + "\"", statements);
+            var veins = new[] { "place@mine_veins" };
+            var res = data.Discoveries.Single(d => d.Id == "vein_resonance");
+            Assert.False(VillagePlaces.Revealed(res, new string[0], know, 1, 1, 5));
+            int shown = 0, hidden = 0;
+            foreach (int seed in new[] { 1, 42, 1818, -7 })
+                for (int night = 1; night <= 8; night++)
+                    for (int tier = 0; tier <= KnowledgeLibrary.MaxTier; tier++)
+                    {
+                        bool open = VillagePlaces.Revealed(res, veins, know, seed, night, tier);
+                        if (tier < 3) Assert.False(open);
+                        else if (open) { shown++; Assert.Contains("altered_board_link", RealityDistortion.For(know, seed, night, tier)); }
+                        else hidden++;
+                    }
+            Assert.True(shown > 0 && hidden > 0);
+            Assert.True(VillagePlaces.Revealed(data.Discoveries.Single(d => d.Id == "crystal_veins"), null, know, 1, 1, 0));
+            Assert.False(VillagePlaces.Revealed(data.Discoveries.Single(d => d.Id == "deep_tunnel"), new string[0], know, 1, 1, 5));
+            Assert.True(VillagePlaces.Revealed(data.Discoveries.Single(d => d.Id == "deep_tunnel"), veins, know, 1, 1, 0));
+            var lake = data.Discoveries.Single(d => d.Id == "underground_lake");
+            Assert.Equal("new_deduction_the_bay", lake.RequiresBenefit);
+            Assert.False(VillagePlaces.Revealed(lake, veins, know, 1, 1, 4));
+            Assert.True(VillagePlaces.Revealed(lake, veins, know, 1, 1, 5));
+            Assert.False(VillagePlaces.Revealed(lake, new string[0], know, 1, 1, 5));
+            var e = new InvestigationEvidence();
+            foreach (var d in data.Discoveries) e.ClueIds.Add(d.ClueId);
+            Assert.Equal(new[] { "cult_discovery", "investigation", "mythos_event", "ruins" }, InvestigationRules.KnowledgeSources(e, lib).OrderBy(x => x, StringComparer.Ordinal).ToArray());
+            var lore = MissingOutcomesTests.Lore();
+            foreach (int seed in new[] { 1, 42, 1818, -7 })
+            {
+                VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                int target = VillagePlaces.TrailMissing(seed, VillagePlaces.Mine, story.Missing.Count);
+                Assert.InRange(target, 0, story.Missing.Count - 1);
+                var only = new InvestigationEvidence(); only.ClueIds.Add("place@mine_deep");
+                var rest = new InvestigationEvidence();
+                foreach (var id in new[] { "place@mine_veins", "place@mine_resonance", "place@mine_lake" }) rest.ClueIds.Add(id);
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, only, k) + (k == target ? 1 : 0), MissingOutcomes.CountLeads(story, lore, only, k, lib));
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, rest, k), MissingOutcomes.CountLeads(story, lore, rest, k, lib));
+                }
+            }
+        }
     }
 }

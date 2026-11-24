@@ -270,6 +270,8 @@ namespace Frankenstein.Core
         /// <summary>The roles discoveries may name as their room.</summary>
         public static readonly string[] Roles = { TextsRole, TearRole, PrisonRole };
 
+        /// <summary>The place that grows this graph (<see cref="VillagePlaces.Catacomb"/> or <see cref="VillagePlaces.Mine"/>): it names the graph in <see cref="Dump"/> and picks the look of <see cref="Parts"/>. In the mine the three roles are the crystal veins (texts), the underground lake (tear) and the deep tunnel's end (prison).</summary>
+        public string Theme = VillagePlaces.Catacomb;
         public List<PlaceGraphRoom> Rooms = new List<PlaceGraphRoom>();
         /// <summary>Pairs of cells joined by a corridor: the tree edges in growth order, then the loop edge when there is one.</summary>
         public List<int[]> Edges = new List<int[]>();
@@ -371,7 +373,7 @@ namespace Frankenstein.Core
         {
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             var sb = new System.Text.StringBuilder();
-            sb.Append("catacomb seed=").Append(seed.ToString(inv)).Append(" rooms=").Append(Rooms.Count.ToString(inv)).Append(" loops=").Append(Loops.ToString(inv)).Append(" |");
+            sb.Append(Theme).Append(" seed=").Append(seed.ToString(inv)).Append(" rooms=").Append(Rooms.Count.ToString(inv)).Append(" loops=").Append(Loops.ToString(inv)).Append(" |");
             foreach (var r in Rooms) sb.Append(" c").Append(r.Cell.ToString(inv)).Append("@(").Append(r.X.ToString(inv)).Append(',').Append(r.Z.ToString(inv)).Append(")d").Append(r.Depth.ToString(inv)).Append(' ').Append(r.Role).Append(';');
             sb.Append(" |");
             foreach (var e in Edges) sb.Append(' ').Append(e[0].ToString(inv)).Append('-').Append(e[1].ToString(inv));
@@ -389,6 +391,7 @@ namespace Frankenstein.Core
         /// </summary>
         public List<PlacePart> Parts()
         {
+            if (Theme == VillagePlaces.Mine) return MineParts();
             var parts = new List<PlacePart>();
             foreach (var r in Rooms) parts.Add(Box("floor_" + r.Cell, r.X - RoomHalf, r.X + RoomHalf, r.Z - RoomHalf, r.Z + RoomHalf, 0.0, 0.04, 0.11, 0.1, 0.12, 0, 0));
             foreach (var e in Edges) { var c = Corridor(e, "corridor_", 0.0, 0.04, 0.09, 0.08, 0.1, 0); parts.Add(c); }
@@ -405,6 +408,31 @@ namespace Frankenstein.Core
             }
             foreach (var e in Edges) parts.Add(Corridor(e, "lintel_", 1.9, 2.1, 0.16, 0.15, 0.17, 2));
             foreach (var r in Rooms) parts.Add(Box("ember_" + r.Cell, r.X - 0.95, r.X - 0.8, r.Z + 0.8, r.Z + 0.95, 0.0, 0.2, 0.9, 0.5, 0.2, 1, 2));
+            return parts;
+        }
+
+        /// <summary>
+        /// The mine's geometry, with the same part counts per tier as the catacomb so the same budgets hold: rock floors and tunnel floors (tier 0) with a glowing crystal spire in the vein chamber, a flat glowing sheet of black water in the lake
+        /// chamber and a rockfall at the deep end; timber props (tier 1); timber beams over the tunnels and a small glowing crystal in every chamber (tier 2). Crystals are pyramids (taper 0), the cheapest solid.
+        /// </summary>
+        private List<PlacePart> MineParts()
+        {
+            var parts = new List<PlacePart>();
+            foreach (var r in Rooms) parts.Add(Box("rock_" + r.Cell, r.X - RoomHalf, r.X + RoomHalf, r.Z - RoomHalf, r.Z + RoomHalf, 0.0, 0.04, 0.12, 0.11, 0.1, 0, 0));
+            foreach (var e in Edges) parts.Add(Corridor(e, "tunnel_", 0.0, 0.04, 0.1, 0.09, 0.08, 0));
+            foreach (var r in Rooms)
+            {
+                if (r.Role == TextsRole) { var v = Box("vein_" + r.Cell, r.X - 0.5, r.X + 0.5, r.Z + 0.4, r.Z + 1.0, 0.0, 2.0, 0.45, 0.35, 0.95, 1, 0); v.Taper = 0.0; parts.Add(v); }
+                else if (r.Role == TearRole) parts.Add(Box("lake_" + r.Cell, r.X - 1.1, r.X + 1.1, r.Z - 1.1, r.Z + 1.1, 0.04, 0.1, 0.04, 0.12, 0.2, 1, 0));
+                else if (r.Role == PrisonRole) { var f = Box("rockfall_" + r.Cell, r.X - 0.8, r.X + 0.8, r.Z - 0.9, r.Z - 0.2, 0.0, 1.6, 0.14, 0.13, 0.12, 0, 0); f.Taper = 0.0; parts.Add(f); }
+            }
+            foreach (var r in Rooms)
+            {
+                parts.Add(Box("prop_a_" + r.Cell, r.X - 1.1, r.X - 0.9, r.Z - 1.1, r.Z - 0.9, 0.0, 2.2, 0.25, 0.17, 0.1, 0, 1));
+                parts.Add(Box("prop_b_" + r.Cell, r.X + 0.9, r.X + 1.1, r.Z + 0.9, r.Z + 1.1, 0.0, 2.2, 0.25, 0.17, 0.1, 0, 1));
+            }
+            foreach (var e in Edges) parts.Add(Corridor(e, "beam_", 1.9, 2.1, 0.22, 0.15, 0.09, 2));
+            foreach (var r in Rooms) { var c = Box("crystal_" + r.Cell, r.X - 0.95, r.X - 0.75, r.Z + 0.75, r.Z + 0.95, 0.0, 0.5, 0.5, 0.4, 1.0, 1, 2); c.Taper = 0.0; parts.Add(c); }
             return parts;
         }
 
@@ -438,7 +466,7 @@ namespace Frankenstein.Core
     /// </summary>
     public static class VillagePlaces
     {
-        public const string Manor = "manor", Forest = "forest", Catacomb = "catacomb";
+        public const string Manor = "manor", Forest = "forest", Catacomb = "catacomb", Mine = "mine";
         public const int PlaceStream = 0x504c43, TrailStream = 0x545241, GraphStream = 0x475248;
         /// <summary>Metres kept between the footprint and an anchor landmark's own disc, extra metres per further ring, rings tried, and the longest walk from the entrance point to the inside of the door.</summary>
         public const double Gap = 2.0, RingStep = 4.0, MaxDoorWalk = 6.0;
@@ -488,7 +516,7 @@ namespace Frankenstein.Core
             throw new InvalidOperationException("places: " + data.Id + " fits nowhere around " + data.Anchor + " (last failure: " + last + ")");
         }
 
-        private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : id == Catacomb ? 3 : 4; }
+        private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : id == Catacomb ? 3 : id == Mine ? 4 : 5; }
 
         /// <summary>The placement of a place at a given centre and facing, with every point of the way in and back worked out. No validation: see <see cref="Check"/>.</summary>
         public static PlacePlacement Build(PlaceData data, int seed, int gridW, int gridD, double x, double z, double faceX, double faceZ)
@@ -497,7 +525,7 @@ namespace Frankenstein.Core
             p.Entrance = ToWorld(p, data.EntranceX, data.EntranceZ);
             p.Door = ToWorld(p, data.DoorX, data.DoorZ);
             p.Hatch = ToWorld(p, data.HatchX, data.HatchZ);
-            if (data.Procedural) p.Graph = PlaceGraph.Generate(seed, PlaceIndex(data.Id));
+            if (data.Procedural) { p.Graph = PlaceGraph.Generate(seed, PlaceIndex(data.Id)); p.Graph.Theme = data.Id; }
             Landmark target = default(Landmark);
             foreach (var l in VillageLandmarks.All(seed, gridW, gridD)) if (l.Id == data.TunnelExitsTo) target = l;
             double dx = x - target.X, dz = z - target.Z, len = Math.Sqrt(dx * dx + dz * dz);

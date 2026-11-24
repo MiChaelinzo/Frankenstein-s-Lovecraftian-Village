@@ -16,7 +16,7 @@ import { countLeads } from '../src/outcomes.js';
 import {
   parsePlaceLibrary, findPlace, placePlace, buildPlacement, checkPlacement, inBounds, overlappingLandmark, overlapsCity, roundTrip, enterPlace, leavePlace, EXIT_DOOR, EXIT_TUNNEL,
   triangles, withinBudget, placeDressing, placeParts, discoveryPoint, tunnelOpen, trailMissing, pointInBounds, TIERS, MANOR, FOREST,
-  lanternPoints, huntingTrail, trailDressing, revealed, revealedAt, CATACOMB, generateGraph, graphConnected, graphPathBack, graphDump, graphRoomWithRole, graphRoom, totalTriangles, GRAPH_ROLES, GRAPH_MIN_ROOMS, ROOM_HALF,
+  lanternPoints, huntingTrail, trailDressing, revealed, revealedAt, CATACOMB, generateGraph, graphConnected, graphPathBack, graphDump, graphRoomWithRole, graphRoom, totalTriangles, MINE, graphParts, trianglesOf, GRAPH_ROLES, GRAPH_MIN_ROOMS, ROOM_HALF,
   GRAPH_ENTRANCE_CELL, toWorld, LANTERN_GAP, LANTERN_REACH, TRAIL_SPACING, MAX_TRAIL_LENGTH,
 } from '../src/places.js';
 import { footprintOf } from '../src/dressing.js';
@@ -60,6 +60,8 @@ test('triangle counts, the tunnel gate and the trails match C#', () => {
   assert.deepEqual(golden.tunnel, [0, 1, 2, 3, 4, 5].map((t) => (tunnelOpen(manor, benefitsAt(know, t)) ? 1 : 0)));
   const knowledgeLib = parseKnowledgeLibrary(text('knowledge.json')), tearData = findPlace(lib, CATACOMB).discoveries.find((d) => d.requiresEffect);
   for (const [seed, night, tier, open] of golden.tearGate) assert.equal(revealedAt(tearData, new Set(), knowledgeLib, seed, night, tier) ? 1 : 0, open);
+  const veinData = findPlace(lib, MINE).discoveries.find((d) => d.requiresEffect);
+  for (const [seed, night, tier, open] of golden.veinGate) assert.equal(revealedAt(veinData, new Set(['place@mine_veins']), knowledgeLib, seed, night, tier) ? 1 : 0, open);
   for (const [id, seed, n, who] of golden.trails) assert.equal(trailMissing(seed, id, n), who);
 });
 
@@ -263,6 +265,80 @@ test('catacomb clues earn catacombs, mythos_event and cult_discovery; the prison
     const story = buildStory(storyLib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
     const target = trailMissing(seed, CATACOMB, story.missing.length), only = emptyEvidence(); only.clueIds.add('place@catacomb_prison');
     const rest = emptyEvidence(); rest.clueIds.add('place@catacomb_texts'); rest.clueIds.add('place@catacomb_tear');
+    for (let k = 0; k < story.missing.length; k++) {
+      assert.equal(countLeads(story, lore, only, k, lib), countLeads(story, lore, only, k) + (k === target ? 1 : 0));
+      assert.equal(countLeads(story, lore, rest, k, lib), countLeads(story, lore, rest, k));
+    }
+  }
+});
+
+const mine = findPlace(lib, MINE);
+
+test('mine graph is its own seeded stream, named for the mine, connected with a way back to the entrance room', () => {
+  assert.ok(mine.procedural && mine.anchor === 'standing_stones');
+  const dumps = new Set();
+  for (const seed of seeds) {
+    const g = generateGraph(seed, 4);
+    assert.ok(graphConnected(g));
+    for (const r of g.rooms) { const path = graphPathBack(g, r.cell); assert.equal(path[path.length - 1], GRAPH_ENTRANCE_CELL); assert.equal(path.length, r.depth + 1); }
+    for (const role of GRAPH_ROLES) assert.equal(g.rooms.filter((r) => r.role === role).length, 1);
+    const p = placePlace(mine, seed, 24, 24);
+    assert.equal(graphDump(p.graph, seed), graphDump(generateGraph(seed, 4), seed).replace('catacomb seed', 'mine seed'));
+    assert.ok(graphDump(p.graph, seed).startsWith(`mine seed=${seed} rooms=`));
+    dumps.add(graphDump(p.graph, seed).split('|')[1]);
+  }
+  assert.ok(dumps.size > 10);
+});
+
+test('mine stands clear of landmarks, the city and every other place over many seeds and both grids, with a way back and budgets held', () => {
+  for (let seed = -40; seed < 400; seed++) for (const grid of [24, CITY_GRID]) {
+    const standing = [];
+    for (const data of lib.places) standing.push(placePlace(data, seed, grid, grid, standing));
+    const p = standing.find((x) => x.id === MINE), others = standing.filter((x) => x !== p);
+    assert.equal(checkPlacement(mine, p, seed, grid, grid, others), '');
+    assert.ok(roundTrip(p)); assert.deepEqual(leavePlace(p, EXIT_DOOR), p.entrance);
+    assert.deepEqual(placePlace(mine, seed, grid, grid, standing.filter((x) => x !== p)), p);
+    for (const r of p.graph.rooms) { const w = toWorld(p, r.x, r.z); assert.ok(Math.hypot(w[0] - p.x, w[1] - p.z) + ROOM_HALF * Math.SQRT2 <= p.radius + 1e-9); }
+    for (let t = 0; t < TIERS; t++) { assert.ok(totalTriangles(mine, p, t) <= mine.budget[t]); if (t > 0) assert.ok(totalTriangles(mine, p, t) > totalTriangles(mine, p, t - 1)); }
+  }
+});
+
+test('mine geometry has emissive crystals and water, the same part counts per tier as the catacomb, and cheap pyramids', () => {
+  const g = generateGraph(42, 4); g.theme = MINE;
+  const parts = graphParts(g);
+  assert.equal(parts.length, g.rooms.length * 4 + g.edges.length * 2 + 3);
+  assert.equal(parts.filter((x) => x.tier === 2 && x.glow === 1).length, g.rooms.length);
+  assert.ok(parts.some((x) => x.id.startsWith('lake_') && x.glow === 1) && parts.some((x) => x.id.startsWith('vein_') && x.glow === 1 && x.taper === 0));
+  assert.ok(parts.every((x) => trianglesOf(x) === (x.taper > 0 ? 10 : 8)));
+});
+
+test('mine discoveries: veins give ruins, a resonance gated by a reality distortion gives mythos_event, the deep tunnel is one lead and the lake is bay evidence', () => {
+  const know = parseKnowledgeLibrary(text('knowledge.json')), statements = parseStatementLibrary(text('statements.json'));
+  const by = (id) => mine.discoveries.find((d) => d.id === id);
+  assert.deepEqual(mine.discoveries.map((d) => [d.id, d.source, d.lead]), [['crystal_veins', 'ruins', false], ['vein_resonance', 'mythos_event', false], ['deep_tunnel', 'cult_discovery', true], ['underground_lake', 'investigation', false]]);
+  for (const d of mine.discoveries) { const st = statements.statements.find((x) => x.id === d.statement); assert.ok(st && st.ref === d.clue && st.source === 3); }
+  assert.ok(revealedAt(by('crystal_veins'), null, know, 1, 1, 0));
+  const veins = new Set(['place@mine_veins']), res = by('vein_resonance');
+  assert.ok(!revealedAt(res, new Set(), know, 1, 1, 5));
+  let shown = 0, hidden = 0;
+  for (const seed of [1, 42, 1818, -7]) for (let night = 1; night <= 8; night++) for (let tier = 0; tier <= 5; tier++) {
+    const open = revealedAt(res, veins, know, seed, night, tier);
+    if (tier < 3) assert.ok(!open); else if (open) shown++; else hidden++;
+  }
+  assert.ok(shown > 0 && hidden > 0);
+  assert.ok(!revealedAt(by('deep_tunnel'), new Set(), know, 1, 1, 5) && revealedAt(by('deep_tunnel'), veins, know, 1, 1, 0));
+  const lake = by('underground_lake');
+  assert.equal(lake.requiresBenefit, 'new_deduction_the_bay');
+  assert.ok(!revealedAt(lake, veins, know, 1, 1, 4) && revealedAt(lake, veins, know, 1, 1, 5) && !revealedAt(lake, new Set(), know, 1, 1, 5));
+  const e = emptyEvidence(); for (const d of mine.discoveries) e.clueIds.add(d.clue);
+  assert.deepEqual(knowledgeSources(e, lib).sort(), ['cult_discovery', 'investigation', 'mythos_event', 'ruins']);
+  const lore = parseLoreLibrary(text('lore_books.json')), storyLib = parseStoryLibrary(text('story.json')), nameLib = parseNameLibrary(text('names.json'));
+  const catalog = new PrefabCatalog(JSON.parse(text('village_catalog.json')).entries);
+  for (const seed of [1, 42, 1818, -7]) {
+    const layout = generateCityLayout(catalog, CITY_GRID, CITY_GRID, CITY_PIECES, seed), roster = generateRoster(seed, layout);
+    const story = buildStory(storyLib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
+    const target = trailMissing(seed, MINE, story.missing.length), only = emptyEvidence(); only.clueIds.add('place@mine_deep');
+    const rest = emptyEvidence(); for (const id of ['place@mine_veins', 'place@mine_resonance', 'place@mine_lake']) rest.clueIds.add(id);
     for (let k = 0; k < story.missing.length; k++) {
       assert.equal(countLeads(story, lore, only, k, lib), countLeads(story, lore, only, k) + (k === target ? 1 : 0));
       assert.equal(countLeads(story, lore, rest, k, lib), countLeads(story, lore, rest, k));
