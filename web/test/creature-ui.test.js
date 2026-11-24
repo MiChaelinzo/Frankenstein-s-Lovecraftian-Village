@@ -222,3 +222,18 @@ test('buildManifestations: bounded triangles, deterministic, still under reduced
 test('creature upgrade path strings exist in both languages', () => {
   for (const lang of ['en', 'fr']) assert.ok(t('creature.witness', lang, { text: 'x' }).includes('x'));
 });
+
+test('the glimpse cooldown is saved as elapsed ticks and rebased onto a clock that restarted (round 33 review)', () => {
+  const tier = { societyStage: 0, corruptedVillager: -1, knowledgeTier: 0, cosmicOmens: 0, placeId: '' };
+  const late = make({ tier, at: 5000 }).c;
+  assert.deepEqual(late.snapshot(), { glimpse: '' });
+  late.restore({ glimpse: 'gl1;300' });
+  assert.deepEqual(late.snapshot(), { glimpse: 'gl1;300' });
+  const fresh = make({ tier, at: 100 }).c;
+  fresh.restore({ glimpse: 'gl1;300' });
+  assert.deepEqual(fresh.snapshot(), { glimpse: 'gl1;100' }, 'a young clock clamps to tick 0 instead of going negative');
+  fresh.restore({ glimpse: 'gl1;99999999' });
+  assert.deepEqual(fresh.snapshot(), { glimpse: '' }, 'an ended cooldown is not kept');
+  fresh.restore({ glimpse: 'bad' });
+  assert.deepEqual(fresh.snapshot(), { glimpse: '' });
+});

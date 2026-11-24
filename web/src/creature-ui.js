@@ -3,7 +3,7 @@
 // The rules live in creatures.js; this file only wires them to the app. Creature names and texts are written through textContent or esc() only.
 import {
   parseCreatureCatalog, CreatureEncounter, SIGIL_RADIUS, creatureName, creatureText,
-  selectAppearances, appearanceVisible, wardTurns, witnessClueId, isWitnessClue, WITNESS_PREFIX, manifestationName, manifestationText, manifestationWitness,
+  GLIMPSE_COOLDOWN_TICKS, selectAppearances, appearanceVisible, wardTurns, witnessClueId, isWitnessClue, WITNESS_PREFIX, manifestationName, manifestationText, manifestationWitness,
 } from './creatures.js';
 import { landmarkDressing, landmarkPathDressing } from './landmarks.js';
 import { composeDressing, dressingBoxes } from './dressing.js';
@@ -176,8 +176,10 @@ export function createCreatureController(deps) {
   function layNow(kind) { return () => ward(kind); }
 
   return {
-    snapshot: () => ({ glimpse: lastGlimpseTick >= 0 ? `gl1;${lastGlimpseTick}` : '' }),
-    restore(saved) { const m = saved && typeof saved.glimpse === 'string' ? /^gl1;(\d{1,8})$/.exec(saved.glimpse) : null; lastGlimpseTick = m ? Number(m[1]) : -1; tierKey = ''; },
+    /** Saved as ticks elapsed since the last glimpse, because the session clock restarts on every load. A cooldown that has already ended is not saved. */
+    snapshot: () => { const since = tick() - lastGlimpseTick; return { glimpse: lastGlimpseTick >= 0 && since >= 0 && since < GLIMPSE_COOLDOWN_TICKS ? `gl1;${since}` : '' }; },
+    /** Rebases the saved elapsed ticks onto the new clock. A clock younger than the elapsed time clamps to tick 0, so the cooldown can only end later by the clock's age, never be skipped. */
+    restore(saved) { const m = saved && typeof saved.glimpse === 'string' ? /^gl1;(\d{1,8})$/.exec(saved.glimpse) : null; lastGlimpseTick = m && Number(m[1]) < GLIMPSE_COOLDOWN_TICKS ? Math.max(0, tick() - Number(m[1])) : -1; tierKey = ''; },
     setCatalog, update, scene, wards, marks, ward, layNow, manifest, witnessTitle,
     get level() { return level; }, get nearestKind() { return nearestKind; }, get encounter() { ensure(); return enc; }, get catalog() { return cat; },
   };

@@ -419,7 +419,7 @@ button:focus-visible, a.btn:focus-visible, .board-card:focus-visible { outline: 
 .board-card::before { content: ""; position: absolute; top: 2px; left: 50%; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f0d58a, var(--v-brass-dim)); box-shadow: 0 1px 2px rgba(0,0,0,.6); }
 .board-card-kind { color: var(--v-ink-soft); letter-spacing: .08em; }
 .board-card-trust { color: var(--v-ink-blue); }
-.board-trust-1 { color: #7a3d0c; } .board-trust-2 { color: #1d5232; }
+.board-trust-1 { color: #6e3609; } .board-trust-2 { color: #1d5232; }
 .board-dialog .board-unknown { background-color: var(--v-paper-deep); border-style: dashed; color: var(--v-ink); opacity: 1; }
 .board-unknown .board-card-title { font-style: italic; }
 .board-dialog .board-card:hover { box-shadow: 0 5px 12px rgba(0,0,0,.7), 0 0 0 1px var(--v-brass); }
