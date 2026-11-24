@@ -400,3 +400,12 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Checks: dotnet 350, node 701, tools tests and validate_repo OK, UnityCompileCheck 0 warnings 0 errors, `MYTHOS_ONLY=1` 7 of 7 on SwiftShader. `SOCIETY_ONLY=1` 11 of 11 (logs not committed).
 - Finding: a new statement for a role whose journal the golden scenarios read would have changed the existing `investigation` golden key, so the example pair uses the innkeeper journal (j03), which they do not read.
 - Unverified: Unity runtime, real GPU, the knowledge badge in a real browser.
+
+## Round 29 (branch feat/round29)
+- `8cdf9d0` feat: trust network axes (fear, faith, loyalty, obsession), spec 160. Golden key `axes`.
+- `efc366f` feat: horror director, spec 161. Golden key `director`.
+- `a43435b` feat: feed horror director real knowledge, clue and safe-zone inputs (web wiring).
+- `d702f04` feat: web visual polish (CSS only).
+- Docs commit: specs 162 to 166 written (goal, inputs, outputs, constraints, failure conditions, test cases), not built.
+- Checks: dotnet 362, node 710, tools tests and validate_repo. Stitch data regenerated last.
+- Verified: Core and JS for 160 and 161. Partially Verified: dialog bars, fog and lamp ramps, visual polish (headless screenshots, fake DOM). Unverified: Unity runtime, real GPU, specs 162 to 166.

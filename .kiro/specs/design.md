@@ -135,4 +135,13 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Test cases.** C# and node tests above; golden key `knowledgeInvestigation` per seed and tier 0 to 5.
 
-**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 to 166.
+**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 and 162 to 166.
+
+## Round 29: Trust Network, Horror Director, polish
+**Trust axes (spec 160, built).** `VillageSociety.AxesAfter` derives Fear, Faith, Loyalty and Obsession per villager and night from the seed, links and corruption stage, integer 0..1000, beside the unchanged Trust, Suspicion and Corruption. `VillagerRules.Chat` withholds the hint through `FearWithholds` (Fear 800 or more and above Trust). JS mirror `society.js`; dialog bars in `society-ui.js`. Golden key `axes`. Verified in Core and JS; bars Partially Verified; Unity Unverified.
+
+**Horror Director (spec 161, built).** `HorrorDirector.Step` takes the previous state and the inputs and returns a beat, an intensity (at most 40 per step) and a cause id; `Target` and `DominantCause` pick them, `DreadCurve.FromIntensity` maps intensity to dread. `app.js` steps once per game minute with real knowledge, clue progress and safe-zone ticks (`director.js` `nearLitLamp`). View ramps are slow and capped (fog +12%, light -8%, ambience +12%) and still under reduced motion. Golden key `director`. Core and JS Verified; presentation Partially Verified; Unity Unverified.
+
+**Web polish.** CSS only in `style.css`; no Core change.
+
+**Specs 162 to 166 (not built, Unverified).** Branching investigations extend `InvestigationModel` with a theory record and a choice log. Missing person outcomes extend `NightTicks.NewMissingPerson` and `MythosSimulation`. The four places extend the landmark layout (tasks 129 to 134). The Victorian reskin is CSS plus a presentation-only intensity setting. The creature path extends `Core/Creatures` and reads the director beat. Each keeps Core deterministic and puts only drawing in the web or Runtime. Goal, inputs, outputs, constraints, failure conditions and test cases are in requirements, Round 29.

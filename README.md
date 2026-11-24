@@ -79,6 +79,9 @@ The village now acts in the background. From the seed and the night, cults recru
 ### Knowledge and the board (round 28)
 What you have learned (journals read, clues found, mythos statements heard) sets a knowledge tier from 0 to 5. Each statement on the board has a confidence and a belief percent (shown when you inspect it). With knowledge 0 to 3 the innkeeper's silent bell and his tolling bell contradict each other; at knowledge 4 you see they are different nights and the contradiction falls away. The board shows the tier and tonight's reality effects; reduced motion switches the slow drift off. Status: Core and JS Verified, board UI Partially Verified, Unity runtime Unverified. Payments: never put PayPal, Stripe or other secrets in source or chat; a support link is safe, and any checkout must keep keys in server-side environment variables.
 
+### Trust, fear and the Horror Director (round 29)
+Villagers now carry fear, faith, loyalty and obsession beside trust. A terrified villager can trust you and still refuse to talk. A Horror Director paces the dread from your sanity, knowledge, clues, time near a lit lantern and the night: quiet stretches follow every omen, and fog, lamplight and ambience change slowly, never suddenly. Status: Core and JS Verified, the 3D ramps and the polished panels Partially Verified, Unity runtime Unverified. Specs 162 to 166 (branching investigations, missing person outcomes, four new places, Victorian UI, creature path) are written but not built.
+
 ### Round 26 controls
 | Input | What it does |
 |-------|--------------|

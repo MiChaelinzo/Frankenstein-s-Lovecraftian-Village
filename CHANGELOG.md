@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 29 (FEAT-005): specs and status
+- Specs 162 to 166 recorded with goal, inputs, outputs, constraints, failure conditions and test cases (not built, Unverified). Specs 160 and 161 marked built. README, BUILD_LOG and `.kiro/specs` aligned. Docs only.
+
 ### Round 29 (FEAT-004): web visual polish
 - `style.css` polish layer: lamplight accent, panel gradient framing, heading rules, stage vignette and static film grain (hidden in high contrast, cinema and forced colors), lamplit button hover/focus, parchment dialogs for board and satchel, readable axis bars, panel rise transition (off under `prefers-reduced-motion` and `html.reduced`). No new strings, no gameplay or Core change. `sw.js` cache `flv-shell-v65`. Partially Verified: headless screenshots only.
 
