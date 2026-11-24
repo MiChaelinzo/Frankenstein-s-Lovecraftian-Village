@@ -79,9 +79,11 @@ export const dreadFromIntensity = (i) => Math.max(0, Math.min(1, num(i) / MAX_IN
 export const FOG_GAIN_MAX = 0.12, LIGHT_DIM_MAX = 0.08, AMBIENCE_GAIN_MAX = 0.12;
 export const RAMP_PER_SECOND = 0.05; // the smoothed level moves at most 5% of its range per second
 
-/** Look gains from the smoothed level (0..1). Reduced motion keeps fog and light still (zero) and leaves only a steady, tiny ambient lift; Low tier skips the fog. */
-export function presentation(level, { reduced = false, tier = 'medium' } = {}) {
-  const l = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0));
+/** Look gains from the smoothed level (0..1), scaled by the optional Horror Intensity (scale, per mille). Reduced motion keeps fog and light still (zero) and leaves only a steady, tiny ambient lift; Low tier skips the fog. */
+export function presentation(level, { reduced = false, tier = 'medium', scale = 1000 } = {}) {
+  // scale is the Horror Intensity setting in per mille (500 gentle, 1000 standard, 1500 dread): it scales only how much of the level shows, never the level itself.
+  const k = Number.isFinite(scale) ? Math.max(0, Math.min(1500, scale)) / 1000 : 1;
+  const l = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0)) * k;
   return {
     fogGain: reduced || tier === 'low' ? 1 : 1 + FOG_GAIN_MAX * l,
     lightGain: reduced ? 1 : 1 - LIGHT_DIM_MAX * l,

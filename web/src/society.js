@@ -156,7 +156,7 @@ export function buildSociety(story, layout) {
       return { tier: tierOf(opinions.trust[index], opinions.suspicion[index]), corruption: society.corruptionAt(index, night, dread, ritualStage) };
     },
     /** Round 29: { fear, faith, loyalty, obsession } arrays (0..1000) for the opinions, night (1-based), dread and ritual stage. Additive; mirrors VillageSociety.AxesAfter. */
-    axesAfter(opinions, night, dread, ritualStage) {
+    axesAfter(opinions, night, dread, ritualStage, memory = null) {
       const dp = dreadPermille(dread), nt = Math.max(1, night), rs = Math.max(0, Math.min(MAX_RITUAL_STAGE, ritualStage));
       const jitter = (stream, i) => new SeededRandom(seed ^ stream ^ Math.imul(i, INDEX_STEP)).next(2 * AXIS_JITTER + 1) - AXIS_JITTER;
       const a = { fear: [], faith: [], loyalty: [], obsession: [] };
@@ -167,11 +167,16 @@ export function buildSociety(story, layout) {
         a.loyalty.push(clamp(LOYALTY_BASE + Math.min(familyLinks[i].length, LOYALTY_FAMILY_CAP) * LOYALTY_FAMILY_STEP + div(opinions.trust[i], LOYALTY_OPINION_DIVISOR) - div(opinions.suspicion[i], LOYALTY_OPINION_DIVISOR) + jitter(LOYALTY_STREAM, i)));
         a.obsession.push(clamp(new SeededRandom(seed ^ OBSESSION_STREAM ^ Math.imul(i, INDEX_STEP)).next(OBSESSION_SPREAD + 1) + nt * OBSESSION_NIGHT_STEP + (disp === DISPOSITION_HAUNTED ? OBSESSION_HAUNTED_BONUS : 0) + div(dp, OBSESSION_DREAD_DIVISOR)));
       }
+      // Round 34: what each villager remembers (memory.js effectsOfAll) added on top and clamped. Null or short adds nothing, so the result equals the plain call.
+      if (memory) for (let i = 0; i < n && i < memory.length; i++) {
+        a.fear[i] = clamp(a.fear[i] + memory[i].fear); a.faith[i] = clamp(a.faith[i] + memory[i].faith);
+        a.loyalty[i] = clamp(a.loyalty[i] + memory[i].loyalty); a.obsession[i] = clamp(a.obsession[i] + memory[i].obsession);
+      }
       return a;
     },
     /** standingOf plus { trust, fear } so chat() can withhold from a terrified villager. */
-    standingWithAxes(index, opinions, axes, night, dread, ritualStage) {
-      return { ...society.standingOf(index, opinions, night, dread, ritualStage), trust: opinions.trust[index], fear: axes.fear[index] };
+    standingWithAxes(index, opinions, axes, night, dread, ritualStage, memory = 0) {
+      return { ...society.standingOf(index, opinions, night, dread, ritualStage), trust: opinions.trust[index], fear: axes.fear[index], memory };
     },
   };
   return society;

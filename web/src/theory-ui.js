@@ -5,7 +5,8 @@ import {
   parseTheoryLibrary, theoryInstances, replayTheories, legalChoices, choice, theoryQuestion, theoryOptionText, verdictText, theoryKnowledge, theoryTrustLost,
   epilogueVariant, epilogueText, serializeTheoryLog, parseTheoryLog, GRADE_IDS, CHOICE_THEORY, CHOICE_OPTION, CHOICE_EVIDENCE, CHOICE_CONCLUDE, MAX_EVIDENCE,
 } from './theory.js';
-import { parseOutcomeLibrary, resolveOutcome, countLeads, revealOutcome } from './outcomes.js';
+import { theoryExportText, exportFileName } from './export-text.js';
+import { parseOutcomeLibrary, resolveOutcome, countLeads, revealOutcome, aftermathStatements, recruitedByNight } from './outcomes.js';
 
 export const MAX_LOG = 300;
 export const FINAL_NIGHTS_DEFAULT = 5;
@@ -94,6 +95,34 @@ export function createTheoryController(deps) {
     const leads = countLeads(story, lib, deps.board.evidence(), missingIndex, deps.board.places ? deps.board.places() : null);
     const outcome = resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, missingIndex, 0);
     return revealOutcome(story, outcomes, outcome, missingIndex, leads, lang()).text;
+  }
+
+  /** Round 34: what really happened to one missing person and how many leads the player has, for the generated chronicle (it reveals only as far as the leads allow). Null without data. */
+  function outcomeState(missingIndex) {
+    if (!ready() || !Number.isInteger(missingIndex) || missingIndex < 0 || missingIndex >= deps.story().missing.length) return null;
+    const story = deps.story(), lib = deps.lore.library();
+    if (!lib) return null;
+    return { outcome: resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, missingIndex, 0), leads: countLeads(story, lib, deps.board.evidence(), missingIndex, deps.board.places ? deps.board.places() : null) };
+  }
+
+  /** Round 34 (spec 170): recruits active on each night 1..night (mythos input recruitedByNight), from outcomes resolved on the run without recruits. Null without data. */
+  function recruited(night) {
+    if (!ready() || !outcomes.aftermath) return null;
+    const story = deps.story(), baseline = deps.mythosFinal();
+    return recruitedByNight(story.seed, story.missing.map((_, k) => resolveOutcome(deps.society(), story, baseline, outcomes, k, 0)), night);
+  }
+
+  /** Round 34 (spec 170): the aftermath of the missing persons on the current night, as far as the leads allow ({ statements, reason } or null without data). Same outcomes as outcomeState (ground truth never changes). */
+  let aftermathKey = '', aftermathCache = null;
+  function aftermath() {
+    if (!ready() || !outcomes.aftermath) return null;
+    const story = deps.story(), lib = deps.lore.library();
+    if (!lib) return null;
+    const night = Math.max(1, deps.night ? deps.night() : 1), places = deps.board.places ? deps.board.places() : null, ev = deps.board.evidence();
+    const states = story.missing.map((_, k) => ({ outcome: resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, k, 0), leads: countLeads(story, lib, ev, k, places) }));
+    const key = `${state.seed}|${night}|${states.map((x) => `${x.outcome}.${x.leads}`).join(',')}`;
+    if (key !== aftermathKey) { aftermathKey = key; aftermathCache = { statements: aftermathStatements(story, outcomes, states.map((x) => x.outcome), states.map((x) => x.leads), night), reason: outcomes.aftermath.reason }; }
+    return aftermathCache;
   }
 
   /** Applies one log entry when it is legal now. Returns true when the log grew. */
@@ -185,9 +214,26 @@ export function createTheoryController(deps) {
         ul.append(li);
       }
       body.append(ul);
+      if (deps.download) {
+        const row = node('div', { class: 'row theory-export' });
+        for (const format of ['md', 'txt']) {
+          const b = node('button', { type: 'button', 'data-k': `export-${format}` }, tr(`export.theory.${format}`));
+          b.addEventListener('click', () => exportTheory(format));
+          row.append(b);
+        }
+        body.append(row);
+      }
     }
     if (lastVerdict) { const live = $('boardLive'); if (live) live.textContent = lastVerdict; }
     if (focusId) { const again = body.querySelector?.(`[data-k="${focusId}"]`); again?.focus?.(); }
+  }
+
+  /** Round 34 (spec 172): downloads the theory log and conclusions, with the seed code. Only concluded theories appear; nothing unconcluded is revealed. */
+  function exportTheory(format) {
+    if (!ready() || !deps.download) return;
+    const code = deps.seedCode ? deps.seedCode() : String(state.seed), name = exportFileName('theories', code, format);
+    deps.download(name, theoryExportText(summary(), { tr, format, seedCode: code, endings: deps.endings ? deps.endings() : null }), format === 'md' ? 'text/markdown' : 'text/plain');
+    deps.announce?.(tr('export.done', { name }));
   }
 
   /** The panel is part of the board: it redraws with it. */
@@ -197,7 +243,7 @@ export function createTheoryController(deps) {
   const owns = (el) => !!(el && $('boardTheory') && $('boardTheory').contains?.(el));
 
   return {
-    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
+    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, aftermath, recruited, exportTheory, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
     snapshot: () => { ensureSeed(); return { theories: log.length ? serializeTheoryLog(log) : '' }; },
     restore(saved) { ensureSeed(); log = parseTheoryLog(saved && saved.theories); version++; replayed = null; lastVerdict = ''; deps.onChange?.(); if (open) render(); },
     lastVerdict: () => lastVerdict,

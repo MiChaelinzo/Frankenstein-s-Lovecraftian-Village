@@ -27,6 +27,8 @@ namespace Frankenstein.Core
         /// <summary>One epitaph per outcome, in <see cref="MissingOutcome"/> order. Templates with {missing} and {village}.</summary>
         public List<LocalizedName> Epitaphs = new List<LocalizedName>();
         public List<OutcomeConstraint> Constraints = new List<OutcomeConstraint>();
+        /// <summary>Round 34, spec 170: the aftermath texts (all null when the file has no aftermath object). Planted and Displaced are templates with {missing}; Reason is why the board marks the displaced statement as contradicting another.</summary>
+        public LocalizedName AftermathPlanted, AftermathDisplaced, AftermathReason;
 
         public OutcomeConstraint ConstraintFor(string missingId)
         {
@@ -56,6 +58,18 @@ namespace Frankenstein.Core
             {
                 if (epitaphs[k] == null) throw new FormatException("outcomes: lacks outcome " + OutcomeIds[k]);
                 lib.Epitaphs.Add(epitaphs[k]);
+            }
+            if (root.ContainsKey("aftermath"))
+            {
+                var after = root["aftermath"] as Dictionary<string, object>;
+                if (after == null) throw new FormatException("outcomes: aftermath is not an object");
+                foreach (var key in new[] { "planted", "displaced", "reason" })
+                {
+                    var part = after.ContainsKey(key) ? after[key] as Dictionary<string, object> : null;
+                    if (part == null) throw new FormatException("outcomes: aftermath lacks " + key);
+                    var t = Text(part, "aftermath " + key);
+                    if (key == "planted") lib.AftermathPlanted = t; else if (key == "displaced") lib.AftermathDisplaced = t; else lib.AftermathReason = t;
+                }
             }
             foreach (var o in Objects(root, "constraints"))
             {
@@ -109,6 +123,21 @@ namespace Frankenstein.Core
         }
     }
 
+    /// <summary>Which kind of aftermath evidence a missing person leaves. Order is stable (golden data uses the integers).</summary>
+    public enum AftermathKind { PlantedStatement = 0, DisplacedStatement = 1 }
+
+    /// <summary>One piece of aftermath evidence for the board: a statement with a rendered text in each language, the night and minute it is placed at, and its source reliability (0 to 100).</summary>
+    public sealed class AftermathStatement
+    {
+        public string Id;
+        public int Missing;
+        public AftermathKind Kind;
+        public LocalizedName Text;
+        public int Night, Minute, Reliability;
+        /// <summary>Displaced only: the person was glimpsed tonight (a brief sighting at the edge of the light, never a chase).</summary>
+        public bool Sighting;
+    }
+
     /// <summary>What the board may show of one missing person: nothing, only that they were taken, or the epitaph. Text is "" at <see cref="RevealLevel.Nothing"/>.</summary>
     public struct MissingReveal
     {
@@ -135,6 +164,68 @@ namespace Frankenstein.Core
         public const int TakenAtLeads = 1, OutcomeAtLeads = 4;
         /// <summary>Cumulative order of the roll. The two survivable outcomes come first.</summary>
         private static readonly MissingOutcome[] RollOrder = { MissingOutcome.Escaped, MissingOutcome.Hidden, MissingOutcome.Dead, MissingOutcome.Recruited, MissingOutcome.Transformed, MissingOutcome.Displaced };
+
+        /// <summary>
+        /// Round 34, spec 170: what a resolved outcome leaves behind. The outcome resolves on a seeded night (<see cref="FirstResolveNight"/> to <see cref="FirstResolveNight"/> + <see cref="ResolveNightSpan"/> - 1) and has no aftermath before it.
+        /// Recruited: each active recruit adds <see cref="MythosSimulation.RecruitedJoinBoost"/> to cult joining and <see cref="MythosSimulation.RecruitedExposureBoost"/> to exposure pressure (at most <see cref="RecruitedCap"/> recruits count), through <see cref="MythosInputs.RecruitedByNight"/>,
+        /// and plants a statement of <see cref="PlantedReliability"/> reliability. Displaced: leaves a statement of <see cref="DisplacedReliability"/> reliability that contradicts what the kin or witness said, and is glimpsed
+        /// on a seeded part of the <see cref="SightingNights"/> nights after it resolves. The aftermath is only shown from <see cref="OutcomeAtLeads"/> leads, like the epitaph.
+        /// </summary>
+        public const int AftermathStream = 0x414654, FirstResolveNight = 2, ResolveNightSpan = 4, SightingNights = 3, SightingOutOf = 2, RecruitedCap = 3, PlantedReliability = 25, DisplacedReliability = 35;
+        public const int PlantedMinuteBase = 1200, MinuteSpan = 240;
+
+        public static int ResolveNight(int seed, int missingIndex)
+        {
+            return FirstResolveNight + new SeededRandom(seed ^ AftermathStream ^ (missingIndex * VillageSociety.IndexStep)).Next(ResolveNightSpan);
+        }
+
+        public static bool IsActive(int seed, int missingIndex, int night) { return night >= ResolveNight(seed, missingIndex); }
+
+        /// <summary>True on the nights a displaced person is glimpsed: within <see cref="SightingNights"/> nights of resolving, on a seeded half of them.</summary>
+        public static bool SightingOn(int seed, int missingIndex, int night)
+        {
+            int resolve = ResolveNight(seed, missingIndex);
+            if (night < resolve || night >= resolve + SightingNights) return false;
+            return new SeededRandom(seed ^ AftermathStream ^ (missingIndex * VillageSociety.IndexStep) ^ (night * 131)).Next(SightingOutOf) == 0;
+        }
+
+        /// <summary>Active recruits on each night 1 to <paramref name="throughNight"/>, for <see cref="MythosInputs.RecruitedByNight"/>. The outcomes passed come from a run without recruits, so aftermath never changes what happened.</summary>
+        public static int[] RecruitedByNight(int seed, IList<MissingOutcome> outcomes, int throughNight)
+        {
+            var counts = new int[Math.Max(0, throughNight)];
+            for (int night = 1; night <= counts.Length; night++)
+            {
+                int n = 0;
+                for (int k = 0; k < outcomes.Count; k++) if (outcomes[k] == MissingOutcome.Recruited && IsActive(seed, k, night)) n++;
+                counts[night - 1] = Math.Min(RecruitedCap, n);
+            }
+            return counts;
+        }
+
+        /// <summary>The aftermath evidence on <paramref name="night"/> for every missing person whose outcome leaves some and whose leads (<paramref name="leads"/>) reach the outcome reveal. Empty without aftermath texts.</summary>
+        public static List<AftermathStatement> Aftermath(VillageStory story, OutcomeLibrary library, IList<MissingOutcome> outcomes, IList<int> leads, int night)
+        {
+            var list = new List<AftermathStatement>();
+            if (library == null || library.AftermathPlanted == null) return list;
+            for (int k = 0; k < outcomes.Count && k < story.Missing.Count; k++)
+            {
+                bool planted = outcomes[k] == MissingOutcome.Recruited, displaced = outcomes[k] == MissingOutcome.Displaced;
+                if ((!planted && !displaced) || !IsActive(story.Seed, k, night) || LevelFor(leads[k]) != RevealLevel.Outcome) continue;
+                var text = new LocalizedName();
+                foreach (var lang in VillageNames.Languages)
+                    text.Text[lang] = VillageStory.Render((planted ? library.AftermathPlanted : library.AftermathDisplaced).Get(lang), story.MissingVars(story.Missing[k], lang));
+                int resolve = ResolveNight(story.Seed, k);
+                list.Add(new AftermathStatement
+                {
+                    Id = AftermathPrefix + (planted ? "planted:" : "displaced:") + k, Missing = k, Kind = planted ? AftermathKind.PlantedStatement : AftermathKind.DisplacedStatement, Text = text,
+                    Night = resolve, Minute = PlantedMinuteBase + new SeededRandom(story.Seed ^ AftermathStream ^ (k * VillageSociety.IndexStep) ^ 0x4D).Next(MinuteSpan),
+                    Reliability = planted ? PlantedReliability : DisplacedReliability, Sighting = displaced && SightingOn(story.Seed, k, night)
+                });
+            }
+            return list;
+        }
+
+        public const string AftermathPrefix = "aftermath:";
 
         public static bool IsSurvivable(MissingOutcome outcome) { return outcome == MissingOutcome.Escaped || outcome == MissingOutcome.Hidden; }
 

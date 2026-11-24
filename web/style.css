@@ -224,6 +224,9 @@ html.reduced .board-draw { animation: none; stroke-dasharray: none; stroke-dasho
 .board-card-kind { font-size: .66rem; color: #c9b583; text-transform: uppercase; }
 .board-card-title { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .board-card-trust { font-size: .62rem; color: #b9ad8f; font-style: italic; }
+.board-card-reliability { font-size: .62rem; color: #b9ad8f; letter-spacing: .02em; }
+.board-reliability-low { color: #e0a96a; }
+.board-reliability-high { color: #9fcfa8; }
 .board-trust-1 { color: #e0a96a; }
 .board-trust-2 { color: #9fcfa8; }
 .villager-trust { font-style: italic; color: #b9ad8f; }
@@ -420,6 +423,7 @@ button:focus-visible, a.btn:focus-visible, .board-card:focus-visible { outline: 
 .board-card-kind { color: var(--v-ink-soft); letter-spacing: .08em; }
 .board-card-trust { color: var(--v-ink-blue); }
 .board-trust-1 { color: #6e3609; } .board-trust-2 { color: #1d5232; }
+.board-card-reliability { color: var(--v-ink-blue); } .board-reliability-low { color: #6e3609; } .board-reliability-high { color: #1d5232; }
 .board-dialog .board-unknown { background-color: var(--v-paper-deep); border-style: dashed; color: var(--v-ink); opacity: 1; }
 .board-unknown .board-card-title { font-style: italic; }
 .board-dialog .board-card:hover { box-shadow: 0 5px 12px rgba(0,0,0,.7), 0 0 0 1px var(--v-brass); }
@@ -478,3 +482,15 @@ html.hc .board-dialog, html.hc .inv-dialog, html.hc .villager-dialog, html.hc .t
 html.hc .board-card::before { display: none; }
 html.hc button, html.hc a.btn { background: #000; color: #fff; border-color: #fff; }
 @media (forced-colors: active) { .board-card::before, .lore-page::first-letter { display: none; } .chronicle, .lore-dialog, .board-card, .theory-form { forced-color-adjust: auto; background: Canvas; color: CanvasText; } }
+
+/* Round 34: reality instability badge. Static on purpose (no animation, no flicker), so it needs no reduced-motion override. */
+.reality-badge { border: 1px solid currentColor; padding: 0 .4em; font-style: italic; }
+.vfalse .vname { font-style: italic; opacity: .85; }
+
+/* round 34 (spec 172): seed share code on the title screen and the chronicle tools */
+.title-seed { margin: 0 0 4px; font-size: .95rem; color: #cfd8d3; }
+.title-seed strong { letter-spacing: .06em; }
+.title-seed-entry { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin: 6px 0 2px; }
+.title-seed-entry input { min-width: 14rem; padding: 6px 8px; background: #0c1214; color: #e8efe9; border: 1px solid #5a6b64; border-radius: 4px; font: inherit; text-transform: uppercase; }
+.title-seed-entry input:focus-visible { outline: 2px solid #d9b98a; outline-offset: 2px; }
+.chronicle-tools { gap: 8px; align-items: center; margin-bottom: 8px; }

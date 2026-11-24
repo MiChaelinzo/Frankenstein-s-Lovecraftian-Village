@@ -80,6 +80,10 @@ namespace Frankenstein.Core
         public string LieStatementId;
         /// <summary>Set by the trust overload: a corrupted villager speaks the colder variant of the line.</summary>
         public bool ColdLine;
+        /// <summary>Round 34: the memory outcome of the villager (<see cref="VillagerMemoryModel"/>), copied from the standing. None unless the trust overload ran with a memory.</summary>
+        public MemoryOutcome Memory;
+        /// <summary>Set with Withheld when a paranoid memory (not suspicion or fear) kept the hint back.</summary>
+        public bool MemoryWithheld;
     }
 
     /// <summary>
@@ -615,12 +619,13 @@ namespace Frankenstein.Core
         /// <summary>
         /// Chat with the villager's social standing (<see cref="VillageSociety"/>). Without any standing change this equals <see cref="Chat(int, Villager, int, float, int, int, int, int, int)"/>.
         /// Corruption can worsen the behavior (never improve it) and a vanished villager is gone. A lucid villager then answers by tier: trusting gives a strong hint,
-        /// neutral the usual hint, a terrified villager (Fear at least TerrifiedAt and above Trust) withholds whatever their tier, suspicious withholds it or tells a lie flagged by LieStatementId.
+        /// neutral the usual hint (a paranoid memory then withholds it, a loyal memory strengthens it, round 34), a terrified villager (Fear at least TerrifiedAt and above Trust) withholds whatever their tier, suspicious withholds it or tells a lie flagged by LieStatementId.
         /// </summary>
         public static VillagerChatResult Chat(int seed, Villager v, int tick, float dread, int night, int topic, int cluesLeft, int lampsLeft, int sanity, SocialStanding standing)
         {
             var result = Chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity);
             result.ColdLine = VillageSociety.ColdLine(standing.Corruption);
+            result.Memory = standing.Memory;
             var combined = VillageSociety.CombinedBehavior(result.Behavior, standing.Corruption);
             if (combined != result.Behavior)
             {
@@ -641,6 +646,16 @@ namespace Frankenstein.Core
                 result.LieStatementId = VillageSociety.SuspiciousStatement(seed, v.Index, night, result.Topic);
                 result.Withheld = result.LieStatementId.Length == 0;
                 result.HintId = "";
+            }
+            if (result.HintId.Length > 0)
+            {
+                if (standing.Memory == MemoryOutcome.Paranoid)
+                {
+                    result.Withheld = true;
+                    result.MemoryWithheld = true;
+                    result.HintId = "";
+                }
+                else if (standing.Memory == MemoryOutcome.Loyal) result.StrongHint = true;
             }
             return result;
         }

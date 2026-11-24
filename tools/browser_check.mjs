@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -597,6 +597,55 @@ async function main() {
     rec('theory: nothing in the builder animates under reduced motion and its buttons are keyboard reachable', motion.anim === false && motion.tab === true, motion);
   };
 
+  /** Reality instability (round 34, spec 169): in the page's own modules tiers 0 to 2 change nothing, tier 5 alters something, the same inputs give the same answer, the truth switch restores every true value, and the board has a hidden "reality unreliable" badge and truth button. Static by design, so reduced motion needs no separate path. Presentation only, SwiftShader, Partially Verified. REALITY_ONLY=1 runs only this. */
+  const realityRun = async () => {
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    const out = await ev(`(async()=>{const R=await import('/src/reality.js');const lib=R.parseRealityLibrary(await (await fetch('data/reality.json')).json());
+      const mk=(tier)=>R.createRealityView({lib:()=>lib,seed:()=>1818,night:()=>3,tier:()=>tier,lang:()=>'en'});const names=['A','B','C','D','E','F','G'];
+      const sig=(v)=>JSON.stringify([names.map((n,i)=>v.shownName(i,names)),[0,1,2,3].map((h)=>v.houseName(h,'H')),v.falseVillager(),['p','q','r','s'].map((id)=>v.placeLabel(id,'L')),['a','b','c','d'].map((id)=>v.contradictionHidden(id))]);
+      let changed=false;for(let night=1;night<=9&&!changed;night++){const v=R.createRealityView({lib:()=>lib,seed:()=>1818,night:()=>night,tier:()=>5,lang:()=>'en'});changed=sig(v)!==sig(mk(0));}
+      const low=[0,1,2].every((t)=>sig(mk(t))===sig(mk(0)));const v5=mk(5);const same=sig(v5)===sig(mk(5));const t5=mk(5);t5.setTruth(true);const truth=sig(t5)===sig(mk(0));
+      const badge=document.getElementById('boardReality'),btn=document.getElementById('boardRealityTruth');
+      return {low,changed,same,truth,badge:!!badge&&badge.hidden,btn:!!btn&&btn.hidden&&!!btn.textContent.trim()};})()`);
+    rec('reality: tiers 0 to 2 change nothing, tier 5 alters something, the same inputs answer the same and the truth switch restores every true value', out.low && out.changed && out.same && out.truth, out);
+    rec('reality: the board carries a hidden "reality unreliable" badge and a labelled truth button until tier 3', out.badge && out.btn, out);
+  };
+
+  /** Horror intensity (round 34, spec 165): the settings button is focusable and labelled, each activation cycles Standard, Dread, Gentle and stores the choice, a reload keeps it, ?intensity= wins over storage, the seed in the address never changes, and the label has readable contrast against its background. Presentation only, SwiftShader, Partially Verified. INTENSITY_ONLY=1 runs only this. */
+  const intensityRun = async () => {
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    await ev(`localStorage.removeItem('flv.intensity.v1')`);
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('intensityToggle')&&/Standard/.test(document.getElementById('intensityToggle').textContent)`), 20000);
+    const first = await ev(`(()=>{const b=document.getElementById('intensityToggle');b.focus();const lum=(c)=>{const m=c.match(/\\d+(\\.\\d+)?/g).slice(0,3).map(Number).map((v)=>{v/=255;return v<=0.03928?v/12.92:((v+0.055)/1.055)**2.4});return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]};const cs=getComputedStyle(b);const a=lum(cs.color),bg=lum(cs.backgroundColor.startsWith('rgba(0, 0, 0, 0')?getComputedStyle(document.body).backgroundColor:cs.backgroundColor);const ratio=(Math.max(a,bg)+0.05)/(Math.min(a,bg)+0.05);return {tab:b.tabIndex>=0&&!b.disabled,label:!!b.getAttribute('aria-label'),text:b.textContent,ratio:Math.round(ratio*10)/10}})()`);
+    rec('intensity: the settings button is keyboard focusable, labelled, starts at Standard and has readable contrast', first.tab && first.label && /Standard/.test(first.text) && first.ratio >= 4.5, first);
+    await ev(`document.getElementById('intensityToggle').click()`); const dread = await ev(`document.getElementById('intensityToggle').textContent+'|'+localStorage.getItem('flv.intensity.v1')`);
+    await ev(`document.getElementById('intensityToggle').click()`); const gentle = await ev(`document.getElementById('intensityToggle').textContent+'|'+localStorage.getItem('flv.intensity.v1')`);
+    rec('intensity: activating cycles Standard to Dread to Gentle and stores each choice', /Dread\|dread/.test(dread) && /Gentle\|gentle/.test(gentle), { dread, gentle });
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`/Gentle/.test(document.getElementById('intensityToggle')?.textContent||'')`), 20000);
+    const kept = await ev(`location.hash`); await nav('?intro=0&intensity=dread#seed=1818&sanity=80'); await until(() => ev(`/Dread/.test(document.getElementById('intensityToggle')?.textContent||'')`), 20000);
+    rec('intensity: a reload keeps the stored level, ?intensity= wins, and the seed in the address is untouched', /seed=1818/.test(kept) && /seed=1818/.test(await ev(`location.hash`)), { kept });
+    await ev(`localStorage.removeItem('flv.intensity.v1')`);
+  };
+
+  /** Seed sharing (round 34, spec 172): the title shows the village seed code and today's challenge code, a wrong code gives a readable error and keeps the seed, a right code (any case) opens that village, the chronicle shows the same code and its export buttons exist. Presentation only, SwiftShader, Partially Verified. SEED_ONLY=1 runs only this. */
+  const seedRun = async () => {
+    await nav('?lang=en&webgl=0'); await until(() => ev(`!document.getElementById('title').hidden&&document.getElementById('titleSeedCode').textContent.length>0`), 30000);
+    const shown = await ev(`(()=>({code:document.getElementById('titleSeedCode').textContent,daily:document.getElementById('titleDaily').textContent,label:!!document.querySelector('label[for=titleSeedInput]')}))()`);
+    rec('seed: the title shows the village seed code like 1818-WORD-WORD, today\'s challenge code and a labelled input', /^\d+-[A-Z]+-[A-Z]+$/.test(shown.code) && /Daily Village Challenge/.test(shown.daily) && shown.label, shown);
+    await ev(`(()=>{const i=document.getElementById('titleSeedInput');i.value='1818-STRAY-WORD';document.getElementById('titleSeedApply').click()})()`);
+    const bad = await ev(`({msg:document.getElementById('titleSeedMsg').textContent,code:document.getElementById('titleSeedCode').textContent,invalid:document.getElementById('titleSeedInput').getAttribute('aria-invalid')})`);
+    rec('seed: a code whose words do not match gives a readable error and keeps the village', /do not belong/.test(bad.msg) && bad.code === shown.code && bad.invalid === 'true', bad);
+    await ev(`(()=>{const i=document.getElementById('titleSeedInput');i.value=' 4242 ';document.getElementById('titleSeedApply').click()})()`);
+    const good = await ev(`({msg:document.getElementById('titleSeedMsg').textContent,code:document.getElementById('titleSeedCode').textContent,seed:document.getElementById('seed').value})`);
+    rec('seed: a bare number opens that village and the title shows its code', /^4242-/.test(good.code) && good.seed === '4242' && /opened/.test(good.msg), good);
+    await ev(`(()=>{const i=document.getElementById('titleSeedInput');i.value=document.getElementById('titleSeedCode').textContent.toLowerCase();document.getElementById('titleSeedApply').click()})()`);
+    rec('seed: the code itself in lower case is accepted', /opened/.test(await ev(`document.getElementById('titleSeedMsg').textContent`)), {});
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('chronicleToggle')`), 20000);
+    await ev(`document.getElementById('chronicleToggle').click()`);
+    const chron = await ev(`({seed:document.getElementById('chronicleSeed').textContent,md:!!document.getElementById('chronicleExportMd'),txt:!!document.getElementById('chronicleExportTxt'),daily:document.getElementById('dailyCode').textContent})`);
+    rec('seed: the chronicle shows the seed code and both export buttons, the tools row shows today\'s code', /Village seed: 1818-[A-Z]+-[A-Z]+/.test(chron.seed) && chron.md && chron.txt && /Daily Village Challenge/.test(chron.daily), chron);
+  };
+
   /** Victorian reskin (round 33, spec 165: aged paper, brass and ink over the round 29 layer; VICTORIAN_ONLY=1 runs only this). VICTORIAN_SHOT_DIR=<dir> with VICTORIAN_SHOT_PREFIX (default r33-after) saves <prefix>-title.jpg, -board.jpg, -chronicle.jpg and -journal.jpg. Checks run in English and French: no horizontal overflow at 1280 px wide and at 150% zoom, a visible keyboard focus ring, chronicle ink reveal that stops under reduced motion. */
   const victorianRun = async () => {
     const { writeFileSync } = await import('node:fs');
@@ -720,6 +769,9 @@ async function main() {
     if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
     if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
+    if (process.env.REALITY_ONLY) { await realityRun(); break suite; }
+    if (process.env.SEED_ONLY) { await seedRun(); break suite; }
+    if (process.env.INTENSITY_ONLY) { await intensityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);

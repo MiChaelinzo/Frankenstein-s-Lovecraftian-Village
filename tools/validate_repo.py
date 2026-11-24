@@ -105,6 +105,14 @@ if os.path.isfile("web/data/places.json") and not filecmp.cmp("web/data/places.j
     errors.append("web/data/places.json differs from Packages/com.michaelinzo.frankenstein-village/Data/places.json")
 if os.path.isfile("web/data/outcomes.json") and not filecmp.cmp("web/data/outcomes.json", "Packages/com.michaelinzo.frankenstein-village/Data/outcomes.json", shallow=False):
     errors.append("web/data/outcomes.json differs from Packages/com.michaelinzo.frankenstein-village/Data/outcomes.json")
+if os.path.isfile("web/data/memory.json") and not filecmp.cmp("web/data/memory.json", "Packages/com.michaelinzo.frankenstein-village/Data/memory.json", shallow=False):
+    errors.append("web/data/memory.json differs from Packages/com.michaelinzo.frankenstein-village/Data/memory.json")
+if os.path.isfile("web/data/chronicle.json") and not filecmp.cmp("web/data/chronicle.json", "Packages/com.michaelinzo.frankenstein-village/Data/chronicle.json", shallow=False):
+    errors.append("web/data/chronicle.json differs from Packages/com.michaelinzo.frankenstein-village/Data/chronicle.json")
+if os.path.isfile("web/data/seedshare.json") and not filecmp.cmp("web/data/seedshare.json", "Packages/com.michaelinzo.frankenstein-village/Data/seedshare.json", shallow=False):
+    errors.append("web/data/seedshare.json differs from Packages/com.michaelinzo.frankenstein-village/Data/seedshare.json")
+if os.path.isfile("web/data/reality.json") and not filecmp.cmp("web/data/reality.json", "Packages/com.michaelinzo.frankenstein-village/Data/reality.json", shallow=False):
+    errors.append("web/data/reality.json differs from Packages/com.michaelinzo.frankenstein-village/Data/reality.json")
 if os.path.isfile("web/data/theories.json") and not filecmp.cmp("web/data/theories.json", "Packages/com.michaelinzo.frankenstein-village/Data/theories.json", shallow=False):
     errors.append("web/data/theories.json differs from Packages/com.michaelinzo.frankenstein-village/Data/theories.json")
 if os.path.isfile("web/data/knowledge.json") and not filecmp.cmp("web/data/knowledge.json", "Packages/com.michaelinzo.frankenstein-village/Data/knowledge.json", shallow=False):
@@ -132,6 +140,8 @@ import gen_stitch
 if not os.path.isfile(gen_stitch.OUT) or open(gen_stitch.OUT, encoding="utf-8").read() != gen_stitch.render(gen_stitch.build()):
     errors.append("web/data/stitch.json is stale: run python3 tools/gen_stitch.py")
 
+import content_schemas
+errors.extend(content_schemas.check_all())
 import verification_labels
 import third_party_assets
 third_party = [f for f in tracked if f.startswith(third_party_assets.PREFIX) and os.path.isfile(f)]

@@ -191,5 +191,138 @@ namespace Frankenstein.Core.Tests
                 Assert.Equal(story.Missing[k].KinIndex >= 0 ? 1 : 0, MissingOutcomes.CountLeads(story, lore, kinOnly, k));
             }
         }
+
+        // ---- Round 34, spec 170: aftermath and source reliability ----
+
+        private static List<MissingOutcome> Forced(VillageStory story)
+        {
+            var list = new List<MissingOutcome>();
+            for (int k = 0; k < story.Missing.Count; k++) list.Add(new[] { MissingOutcome.Recruited, MissingOutcome.Displaced, MissingOutcome.Dead }[k % 3]);
+            return list;
+        }
+
+        private static List<int> LeadsOf(VillageStory story, int leads) => Enumerable.Repeat(leads, story.Missing.Count).ToList();
+
+        [Fact]
+        public void Aftermath_waits_for_its_resolve_night_and_for_the_outcome_reveal_and_is_deterministic()
+        {
+            var lib = Library();
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                var forced = Forced(story);
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    int resolve = MissingOutcomes.ResolveNight(story.Seed, k);
+                    Assert.InRange(resolve, MissingOutcomes.FirstResolveNight, MissingOutcomes.FirstResolveNight + MissingOutcomes.ResolveNightSpan - 1);
+                    Assert.Equal(resolve, MissingOutcomes.ResolveNight(story.Seed, k));
+                }
+                Assert.Empty(MissingOutcomes.Aftermath(story, lib, forced, LeadsOf(story, MissingOutcomes.MaxLeads), 1));
+                Assert.Empty(MissingOutcomes.Aftermath(story, lib, forced, LeadsOf(story, MissingOutcomes.OutcomeAtLeads - 1), 12));
+                var late = MissingOutcomes.Aftermath(story, lib, forced, LeadsOf(story, MissingOutcomes.OutcomeAtLeads), 12);
+                Assert.Equal(forced.Count(o => o == MissingOutcome.Recruited || o == MissingOutcome.Displaced), late.Count);
+                var again = MissingOutcomes.Aftermath(story, lib, forced, LeadsOf(story, MissingOutcomes.OutcomeAtLeads), 12);
+                Assert.Equal(late.Select(a => a.Id + a.Text.Get("fr") + a.Minute), again.Select(a => a.Id + a.Text.Get("fr") + a.Minute));
+                foreach (var a in late)
+                {
+                    Assert.Equal(a.Kind == AftermathKind.PlantedStatement ? MissingOutcomes.PlantedReliability : MissingOutcomes.DisplacedReliability, a.Reliability);
+                    Assert.False(a.Text.Get("en").Contains('\u2014') || a.Text.Get("fr").Contains('\u2014'));
+                }
+            }
+        }
+
+        [Fact]
+        public void Sightings_are_limited_to_the_nights_after_resolving()
+        {
+            for (int seed = 1; seed <= 40; seed++)
+                for (int k = 0; k < 3; k++)
+                {
+                    int resolve = MissingOutcomes.ResolveNight(seed, k);
+                    for (int night = 1; night <= 20; night++)
+                        if (night < resolve || night >= resolve + MissingOutcomes.SightingNights) Assert.False(MissingOutcomes.SightingOn(seed, k, night));
+                }
+            Assert.Contains(Enumerable.Range(1, 40), seed => Enumerable.Range(1, 12).Any(n => MissingOutcomes.SightingOn(seed, 0, n)));
+        }
+
+        [Fact]
+        public void Recruits_change_the_mythos_run_only_when_supplied()
+        {
+            var lib = MythosSimulationTests.Library();
+            bool differed = false;
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                var society = VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                var plain = MythosSimulationTests.GridInputs();
+                var baseline = MythosSimulation.Run(society, story, lib, plain, MythosSimulationTests.Nights);
+                var none = MythosSimulationTests.GridInputs();
+                none.RecruitedByNight = new int[MythosSimulationTests.Nights];
+                Assert.Equal(Signature(baseline), Signature(MythosSimulation.Run(society, story, lib, none, MythosSimulationTests.Nights)));
+                var recruits = MythosSimulationTests.GridInputs();
+                recruits.RecruitedByNight = MissingOutcomes.RecruitedByNight(story.Seed, Forced(story), MythosSimulationTests.Nights);
+                var boosted = MythosSimulation.Run(society, story, lib, recruits, MythosSimulationTests.Nights);
+                Assert.True(boosted.AtNight(MythosSimulationTests.Nights).CultMembers.Sum(m => m.Count) >= baseline.AtNight(MythosSimulationTests.Nights).CultMembers.Sum(m => m.Count), "seed " + seed);
+                if (Signature(boosted) != Signature(baseline)) differed = true;
+            }
+            Assert.True(differed);
+        }
+
+        private static string Signature(MythosState state)
+        {
+            return string.Join("|", state.Nights.Select(n => string.Join(",", n.CultMembers.Select(m => string.Join(".", m))) + ";" + string.Join(",", n.Events.Select(e => (int)e.Kind + ":" + e.Subject + ":" + e.Other)) + ";" + n.Exposed.Count));
+        }
+
+        [Fact]
+        public void Reliability_follows_source_corruption_memory_and_displaced_contradiction()
+        {
+            int clue = InvestigationRules.ReliabilityScore(InvestigationRules.BaseReliability(StatementSource.Clue), false, MemoryOutcome.None, false);
+            Assert.Equal(InvestigationRules.ClueReliability, clue);
+            Assert.True(clue > InvestigationRules.BaseReliability(StatementSource.Journal) && InvestigationRules.BaseReliability(StatementSource.Journal) > InvestigationRules.BaseReliability(StatementSource.Lore) && InvestigationRules.BaseReliability(StatementSource.Lore) > InvestigationRules.BaseReliability(StatementSource.Chat));
+            Assert.Equal(clue - InvestigationRules.CorruptedReliabilityPenalty, InvestigationRules.ReliabilityScore(clue, true, MemoryOutcome.None, false));
+            Assert.Equal(clue - InvestigationRules.MemoryReliabilityPenalty, InvestigationRules.ReliabilityScore(clue, false, MemoryOutcome.Paranoid, false));
+            Assert.Equal(clue - InvestigationRules.MemoryReliabilityPenalty, InvestigationRules.ReliabilityScore(clue, false, MemoryOutcome.Obsessed, false));
+            Assert.Equal(clue, InvestigationRules.ReliabilityScore(clue, false, MemoryOutcome.Loyal, false));
+            Assert.Equal(clue - InvestigationRules.DisplacedContradictionPenalty, InvestigationRules.ReliabilityScore(clue, false, MemoryOutcome.None, true));
+            Assert.Equal(0, InvestigationRules.ReliabilityScore(10, true, MemoryOutcome.Paranoid, true));
+        }
+
+        [Fact]
+        public void Displaced_aftermath_contradicts_a_kin_or_witness_statement_and_lowers_its_reliability()
+        {
+            var lib = Library();
+            var lore = Lore();
+            var statements = StatementLibrary.Parse(File.ReadAllText(DataFile("statements.json")));
+            bool found = false;
+            for (int seed = 1; seed <= 60 && !found; seed++)
+            {
+                VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                var forced = Enumerable.Repeat(MissingOutcome.Displaced, story.Missing.Count).ToList();
+                var evidence = InvestigationModelTests.SynergyEvidence();
+                for (int k = 0; k < story.Missing.Count; k++) { var one = FullEvidence(story, lore, k); foreach (var b in one.BooksRead) evidence.BooksRead.Add(b); foreach (var c in one.ClueIds) evidence.ClueIds.Add(c); foreach (var m in one.Met) evidence.Met.Add(m); foreach (var h in one.Heard) if (!evidence.Heard.Exists(x => x.StatementId == h.StatementId)) evidence.Heard.Add(h); }
+                var plain = InvestigationRules.Build(story, lore, statements, evidence, null, null, 0, null, null, null);
+                var after = MissingOutcomes.Aftermath(story, lib, forced, LeadsOf(story, MissingOutcomes.MaxLeads), 12);
+                var board = InvestigationRules.Build(story, lore, statements, evidence, null, null, 0, null, null, after);
+                Assert.Equal(plain.Scores.Count, board.Scores.Count);
+                foreach (var c in board.Contradictions.Where(c => c.PairId.StartsWith(InvestigationRules.AftermathPairPrefix, StringComparison.Ordinal)))
+                {
+                    found = true;
+                    string other = c.CardB.Substring(InvestigationRules.EventPrefix.Length);
+                    int before = plain.Reliabilities.First(r => r.StatementId == other).Reliability;
+                    Assert.Equal(Math.Max(0, before - InvestigationRules.DisplacedContradictionPenalty), board.Reliabilities.First(r => r.StatementId == other).Reliability);
+                }
+                Assert.Equal(after.Count, board.Reliabilities.Count - plain.Reliabilities.Count);
+            }
+            Assert.True(found, "no seed produced a displaced contradiction");
+        }
+
+        [Fact]
+        public void Reliabilities_are_listed_for_every_revealed_statement_and_leave_scores_unchanged()
+        {
+            var lore = Lore();
+            var statements = StatementLibrary.Parse(File.ReadAllText(DataFile("statements.json")));
+            VillageSocietyTests.SocietyOf(1, out var story, out _);
+            var board = InvestigationRules.Build(story, lore, statements, InvestigationModelTests.SynergyEvidence(), null);
+            Assert.Equal(board.Scores.Select(x => x.StatementId), board.Reliabilities.Select(x => x.StatementId));
+            foreach (var r in board.Reliabilities) Assert.InRange(r.Reliability, 0, 100);
+        }
     }
 }

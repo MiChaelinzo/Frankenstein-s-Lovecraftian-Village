@@ -1,0 +1,48 @@
+{
+ "version": 1,
+ "lines": [
+  { "id": "forgive",
+    "variants": [
+      { "en": "I said hard things to you once. The village keeps its quarrels short, and I have put mine down.",
+        "fr": "Je vous ai dit des choses dures un jour. Le village garde ses querelles courtes, et j'ai pose la mienne." },
+      { "en": "You were accused and so was I, in my way. Let us not give the dark another reason to stand between us.",
+        "fr": "On vous a accuse et moi aussi, a ma facon. Ne donnons pas a l'ombre une raison de plus de se tenir entre nous." },
+      { "en": "I remember the accusation, and I remember your kindness after it. The kindness weighs more.",
+        "fr": "Je me souviens de l'accusation, et de votre bonte apres elle. La bonte pese davantage." }
+    ] },
+  { "id": "paranoid",
+    "variants": [
+      { "en": "I have not forgotten who was named, or who named them. The walls keep that, even when I try not to.",
+        "fr": "Je n'ai pas oublie qui a ete nomme, ni qui l'a nomme. Les murs gardent cela, meme quand j'essaie de ne pas le faire." },
+      { "en": "Every voice here sounds rehearsed to me now. Yours too. Forgive me if I do not say more.",
+        "fr": "Chaque voix ici me semble repetee maintenant. La votre aussi. Pardonnez-moi si je n'en dis pas davantage." },
+      { "en": "Someone told someone, and then the whispering began. I would rather say nothing than say it to the wrong ear.",
+        "fr": "Quelqu'un a dit a quelqu'un, et les chuchotements ont commence. Je prefere me taire que parler a la mauvaise oreille." }
+    ] },
+  { "id": "loyal",
+    "variants": [
+      { "en": "You have been decent to me, again and again. I will not forget it, whatever the village says.",
+        "fr": "Vous avez ete honnete avec moi, encore et encore. Je ne l'oublierai pas, quoi que dise le village." },
+      { "en": "Ask what you need. A kindness remembered is a debt I am glad to carry.",
+        "fr": "Demandez ce qu'il vous faut. Une bonte dont on se souvient est une dette que je porte volontiers." },
+      { "en": "There are few here I would trust at my door after dark. You are one of them.",
+        "fr": "Il y en a peu ici que je laisserais a ma porte apres la nuit tombee. Vous etes l'un d'eux." }
+    ] },
+  { "id": "obsessed",
+    "variants": [
+      { "en": "I keep seeing it, the shape at the site, the way the words fit. I cannot stop turning it over.",
+        "fr": "Je le revois sans cesse, la forme sur le site, la facon dont les mots s'ajustent. Je ne peux cesser de le retourner." },
+      { "en": "Do you hear it count? I have started to count with it. It is almost a comfort.",
+        "fr": "L'entendez-vous compter ? J'ai commence a compter avec lui. C'est presque un reconfort." },
+      { "en": "What I saw is the only thing I think about now. The rest of the village is a thin painting in front of it.",
+        "fr": "Ce que j'ai vu est la seule chose a laquelle je pense maintenant. Le reste du village est une peinture mince devant cela." }
+    ] },
+  { "id": "faded",
+    "variants": [
+      { "en": "Something happened between us, I think. The details have gone soft, like writing left out in the rain.",
+        "fr": "Il s'est passe quelque chose entre nous, je crois. Les details se sont adoucis, comme une ecriture laissee sous la pluie." },
+      { "en": "I know your face from somewhere that is not quite now. The rest will not come back, and I have stopped asking it to.",
+        "fr": "Je connais votre visage d'un endroit qui n'est pas tout a fait maintenant. Le reste ne revient pas, et j'ai cesse de le lui demander." }
+    ] }
+ ]
+}

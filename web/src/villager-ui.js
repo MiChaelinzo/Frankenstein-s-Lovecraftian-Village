@@ -15,6 +15,7 @@ import { esc } from './util.js';
  * Optional society deps (Round 26): standing(index) -> { tier, corruption } or null, stageOf(index) -> corruption stage, chatStatement(index, night, result) -> authored statement or null, onChat(index, result, night).
  * deps: { $, tr, lang, chatNeeds() -> { cluesLeft, lampsLeft, sanity } (what the vigil still needs), state (seed, layout, sanity, campaign, night), gridW, gridD, tickNow(), announce(text), applyEffect(result, placement),
  *   story() -> the village story or null, onGossip(missingId, stage), narratorUrl, fetchImpl, exitPointerLock(), onChange() }
+ * Optional reality dep (Round 34): reality() -> reality view (reality.js) or null, journal?(text).
  * state.villagers (placements) is kept current for the 2D and 3D renderers.
  */
 export function createVillagerController(deps) {
@@ -26,6 +27,23 @@ export function createVillagerController(deps) {
     const key = `${state.seed}|${state.layout.length}`;
     if (key !== rosterKey) { rosterKey = key; chatCounts.clear(); roster = state.layout.length ? generateTownRoster(state.seed, state.layout, deps.gridW, deps.gridD) : []; }
     return roster;
+  }
+  // Round 34 reality instability (presentation only, Core RealityInstability): a blurred villager is listed under another principal's name, a house can carry a wrong name and a false villager
+  // stands in the list. Placements, the roster, chat results and the save keep the true names; the truth switch on the board shows them again.
+  const PRINCIPALS = 7;
+  const rv = () => (deps.reality ? deps.reality() : null);
+  const realityNote = (id) => { const v = rv(), text = v ? v.noteOnce(id) : ''; if (text) deps.journal?.(text); };
+  function shownName(index, trueName) {
+    const v = rv();
+    if (!v || !v.active() || index >= PRINCIPALS) return trueName;
+    const names = ensureRoster().slice(0, PRINCIPALS).map((r) => r.name), shown = v.shownName(index, names);
+    if (shown !== trueName) realityNote('identity');
+    return shown;
+  }
+  function shownHome(homeIndex, trueHome) {
+    const v = rv(), shown = v && v.active() ? v.houseName(homeIndex, trueHome) : trueHome;
+    if (shown !== trueHome) realityNote('house');
+    return shown;
   }
   const placementOf = (index) => state.villagers.find((p) => p.index === index) || null;
 
@@ -52,12 +70,14 @@ export function createVillagerController(deps) {
     if (!clock || !list) return;
     const c = clockParts(tick), text = tr('villagerui.clock', { day: c.day, phase: tr(c.phaseKey) });
     if (clock.textContent !== text) clock.textContent = text;
-    const rows = whoIsWhereRows(state.villagers), key = rows.map((r) => `${r.index}${r.whereKey}`).join('|');
+    const rows = whoIsWhereRows(state.villagers), v = rv(), fake = v && v.active() ? v.falseVillager() : null, key = `${rows.map((r) => `${r.index}${r.whereKey}${shownName(r.index, r.name)}`).join('|')}|${fake || ''}`;
     if (key === listKey) return;
     listKey = key;
     const focused = deps.focusedVillager ? deps.focusedVillager() : -1;
-    list.innerHTML = rows.map((r) => `<li><span class="vname">${esc(r.name)}</span> <span class="vrole">${esc(tr(r.roleKey))}</span> <span class="vwhere">${esc(tr(r.whereKey))}</span> `
-      + `<button type="button" data-villager="${r.index}"${r.gone ? ' disabled' : ''}>${esc(tr('villagerui.talk'))}</button></li>`).join('');
+    list.innerHTML = rows.map((r) => `<li><span class="vname">${esc(shownName(r.index, r.name))}</span> <span class="vrole">${esc(tr(r.roleKey))}</span> <span class="vwhere">${esc(tr(r.whereKey))}</span> `
+      + `<button type="button" data-villager="${r.index}"${r.gone ? ' disabled' : ''}>${esc(tr('villagerui.talk'))}</button></li>`).join('')
+      + (fake ? `<li class="vfalse"><span class="vname">${esc(fake)}</span> <span class="vrole">${esc(tr('reality.false.role'))}</span></li>` : '');
+    if (fake) realityNote('villager');
     if (focused >= 0) list.querySelector?.(`[data-villager="${focused}"]`)?.focus?.();
   }
 
@@ -89,9 +109,9 @@ export function createVillagerController(deps) {
 
   function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
-    $('villagerName').textContent = p.name;
+    $('villagerName').textContent = shownName(p.index, p.name);
     const story = deps.story ? deps.story() : null, v = story && story.roster[p.index], role = tr(`villager.role.${p.roleId}`);
-    $('villagerRole').textContent = v ? tr('villagerui.roleAt', { role, home: story.pieceName(v.homeIndex, deps.lang, v.name.split(' ').pop()) }) : role;
+    $('villagerRole').textContent = v ? tr('villagerui.roleAt', { role, home: shownHome(v.homeIndex, story.pieceName(v.homeIndex, deps.lang, v.name.split(' ').pop())) }) : role;
     $('villagerLine').textContent = line;
     const effect = [];
     if (result.yieldsClue) effect.push(tr('villagerui.effect.clue'));
@@ -157,12 +177,15 @@ export function createVillagerController(deps) {
     const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity, standing || undefined);
     const authored = deps.chatStatement ? deps.chatStatement(index, night, result) : null, spoken = result.lieStatementId ? deps.statementText?.(result.lieStatementId) : '';
     let line;
+    const remembered = result.available && deps.memoryLine ? deps.memoryLine(index, night) : '';
     if (result.fearWithheld) line = tr('society.chat.afraid', { name: v.name });
+    else if (result.memoryWithheld) line = remembered || tr('society.chat.withheld', { name: v.name });
     else if (result.withheld) line = tr('society.chat.withheld', { name: v.name });
     else if (spoken) line = spoken;
     else if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
     else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    if (remembered && !result.memoryWithheld && !result.fearWithheld) line += ` ${remembered}`; // Round 34: what this villager remembers of the player and the village
     const told = deps.mythosChat ? deps.mythosChat(index, night, result) : [];
     if (told.length) line += ` ${told.map((t) => t.text).join(' ')}`; // what the background simulation lets this villager honestly say (rumor, its truth, a cult tie)
     if (authored && result.hintId) line += ` ${authored.text[deps.lang] || authored.text.en}`; // what this villager says they saw, after the hint

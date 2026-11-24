@@ -51,6 +51,8 @@ namespace Frankenstein.Core
         public CorruptionStage Corruption;
         public int Trust;
         public int Fear;
+        /// <summary>Round 34: what the villager remembers adds up to (see <see cref="VillagerMemoryModel"/>). None by default, which changes nothing in chat.</summary>
+        public MemoryOutcome Memory;
     }
 
     /// <summary>
@@ -314,6 +316,16 @@ namespace Frankenstein.Core
         /// </summary>
         public SocietyAxes AxesAfter(SocietyOpinions opinions, int night, float dread, int ritualStage)
         {
+            return AxesAfter(opinions, night, dread, ritualStage, null);
+        }
+
+        /// <summary>
+        /// <see cref="AxesAfter(SocietyOpinions, int, float, int)"/> with what each villager remembers (round 34, <see cref="VillagerMemoryModel.EffectsOfAll"/>) added on top and clamped to
+        /// [0, Scale]. A null or short array adds nothing for the missing entries, so an empty memory gives exactly the plain result. Trust is not an axis: pass opinions from
+        /// <see cref="VillagerMemoryModel.TrustAfter"/> to apply it.
+        /// </summary>
+        public SocietyAxes AxesAfter(SocietyOpinions opinions, int night, float dread, int ritualStage, IList<MemoryEffect> memory)
+        {
             int n = Roster.Count;
             var a = new SocietyAxes { Fear = new int[n], Faith = new int[n], Loyalty = new int[n], Obsession = new int[n] };
             int dp = DreadPermille(dread), nt = Math.Max(1, night), rs = Math.Max(0, Math.Min(MaxRitualStage, ritualStage));
@@ -325,6 +337,14 @@ namespace Frankenstein.Core
                 a.Loyalty[i] = Clamp(LoyaltyBase + Math.Min(FamilyLinks[i].Count, LoyaltyFamilyCap) * LoyaltyFamilyStep + opinions.Trust[i] / LoyaltyOpinionDivisor - opinions.Suspicion[i] / LoyaltyOpinionDivisor + AxisJitter_(LoyaltyStream, i));
                 a.Obsession[i] = Clamp(new SeededRandom(Seed ^ ObsessionStream ^ (i * IndexStep)).Next(ObsessionSpread + 1) + nt * ObsessionNightStep + (Roster[i].Disposition == VillagerDisposition.Haunted ? ObsessionHauntedBonus : 0) + dp / ObsessionDreadDivisor);
             }
+            if (memory != null)
+                for (int i = 0; i < n && i < memory.Count; i++)
+                {
+                    a.Fear[i] = Clamp(a.Fear[i] + memory[i].Fear);
+                    a.Faith[i] = Clamp(a.Faith[i] + memory[i].Faith);
+                    a.Loyalty[i] = Clamp(a.Loyalty[i] + memory[i].Loyalty);
+                    a.Obsession[i] = Clamp(a.Obsession[i] + memory[i].Obsession);
+                }
             return a;
         }
 
@@ -337,6 +357,14 @@ namespace Frankenstein.Core
             var st = StandingOf(index, opinions, night, dread, ritualStage);
             st.Trust = opinions.Trust[index];
             st.Fear = axes.Fear[index];
+            return st;
+        }
+
+        /// <summary><see cref="StandingWithAxes(int, SocietyOpinions, SocietyAxes, int, float, int)"/> plus the memory outcome of the villager.</summary>
+        public SocialStanding StandingWithAxes(int index, SocietyOpinions opinions, SocietyAxes axes, int night, float dread, int ritualStage, MemoryOutcome memory)
+        {
+            var st = StandingWithAxes(index, opinions, axes, night, dread, ritualStage);
+            st.Memory = memory;
             return st;
         }
 

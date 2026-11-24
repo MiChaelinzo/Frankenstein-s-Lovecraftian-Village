@@ -62,6 +62,7 @@
             <h2 id="boardTitle" data-i18n="board.title">Investigation board</h2>
             <p id="boardNote" class="stats"></p>
             <p id="boardKnowledge" class="stats board-knowledge" aria-live="off"></p>
+            <p class="stats"><span id="boardReality" class="reality-badge" role="status" hidden></span> <button id="boardRealityTruth" type="button" aria-pressed="false" data-i18n="reality.truth.show" hidden>Show the truth</button></p>
             <p id="boardHelp" class="stats" data-i18n="board.help">Arrow keys move between cards, Enter inspects one, Esc closes.</p>
             <p id="boardLive" class="sr-only" role="status" aria-live="polite"></p>
             <div id="boardScroll" class="board-scroll">
@@ -237,7 +238,9 @@
             <button id="codexToggle" type="button" aria-pressed="false" aria-controls="codexPanel" data-i18n="btn.codex">Codex (K)</button>
             <button id="stitchToggle" type="button" aria-pressed="false" aria-controls="stitchPanel" data-i18n="btn.stitch">Stitch (Y)</button>
             <button id="contrastToggle" type="button" aria-pressed="false" data-i18n="btn.contrast">High contrast (H)</button>
+            <button id="intensityToggle" type="button">Horror intensity: Standard</button>
             <button id="dailyBtn" type="button" data-i18n="btn.daily">Today's village (Z)</button>
+            <span id="dailyCode" class="stats"></span>
             <button id="aboutBtn" type="button" aria-haspopup="dialog" data-i18n="btn.about">About (A)</button>
           </div>
           </details>
@@ -267,6 +270,12 @@
         </section>
         <section id="chroniclePanel" class="panel chronicle" aria-labelledby="chronicleTitle" hidden>
           <h2 id="chronicleTitle" data-i18n="chronicle.title">Village chronicle</h2>
+          <div class="row chronicle-tools">
+            <span id="chronicleSeed" class="stats"></span>
+            <button id="chronicleSeedCopy" type="button" hidden data-i18n="seed.code.copy">Copy code</button>
+            <button id="chronicleExportMd" type="button" data-i18n="export.chronicle.md">Export chronicle (.md)</button>
+            <button id="chronicleExportTxt" type="button" data-i18n="export.chronicle.txt">Export chronicle (.txt)</button>
+          </div>
           <div id="chronicleBody" class="chronicle-body"></div>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
@@ -306,6 +315,14 @@
       <h2 id="titleHeading" data-i18n="page.title">Frankenstein's Lovecraftian Village</h2>
       <p class="title-pitch" data-i18n="title.pitch">A procedural cosmic-horror village. Change the seed, lose your sanity.</p>
       <p id="titleRumor" class="title-rumor"></p>
+      <p class="title-seed"><span data-i18n="seed.code.label">Village seed code</span>: <strong id="titleSeedCode"></strong> <button id="titleSeedCopy" type="button" hidden data-i18n="seed.code.copy">Copy code</button></p>
+      <p id="titleDaily" class="stats"></p>
+      <div class="title-seed-entry">
+        <label for="titleSeedInput" data-i18n="seed.code.enter">Enter a shared seed code</label>
+        <input id="titleSeedInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="40" aria-describedby="titleSeedMsg" placeholder="1818-BLACK-TIDE">
+        <button id="titleSeedApply" type="button" data-i18n="seed.code.apply">Use this code</button>
+      </div>
+      <p id="titleSeedMsg" class="title-reason" role="status"></p>
       <div class="title-actions">
         <button id="titleEnter3d" class="cta" type="button" aria-describedby="titleReason" data-i18n="btn.enter3d">Enter the village (3D)</button>
         <button id="titleMap2d" class="cta" type="button" aria-describedby="titleReason" data-i18n="btn.map2d">Map view (2D)</button>
@@ -376,6 +393,7 @@
       <section class="help-group">
         <h3 data-i18n="help.g.access">Accessibility</h3>
         <ul>
+          <li data-i18n-html="keys.intensity">Horror intensity: Tools and settings button (also ?intensity=gentle, standard or dread). Presentation only.</li>
           <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
         </ul>
       </section>

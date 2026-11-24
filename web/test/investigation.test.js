@@ -173,3 +173,24 @@ test('journal ids count as knowledge sources only with ASCII digits (Core parity
   for (const id of ['j07', 'j\u0663\u0664', 'j0\uFF15']) e.booksRead.add(id);
   assert.deepEqual(knowledgeSources(e), ['journal']);
 });
+
+// Round 34 (spec 170): board reliabilities and aftermath contradictions per golden seed. Golden key "aftermath".
+import { parseOutcomeLibrary, aftermathStatements, MAX_LEADS } from '../src/outcomes.js';
+const aftermathGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).aftermath;
+test('board reliabilities and aftermath contradictions match C# for every golden seed', () => {
+  const outcomes = parseOutcomeLibrary(text('outcomes.json'));
+  for (const c of aftermathGolden.cities) {
+    const story = storyOf(c.seed), ev = synergyEvidence();
+    for (let k = 0; k < story.missing.length; k++) {
+      const m = story.missing[k];
+      for (const b of lore.books.filter((x) => x.missing === m.id)) { ev.booksRead.add(b.id); ev.clueIds.add(`book@${b.id}`); }
+      if (m.kinIndex >= 0) { ev.met.add(m.kinIndex); for (const [id, night] of [['lie_not_me', 1], ['lie_saw_nothing', 2]]) if (!ev.heard.some((y) => y.statementId === id)) ev.heard.push({ villager: m.kinIndex, statementId: id, night }); }
+      if (m.witnessIndex >= 0) ev.met.add(m.witnessIndex);
+    }
+    const memory = new Array(story.roster.length).fill(0);
+    memory[1] = 2; memory[2] = 4;
+    const after = aftermathStatements(story, outcomes, c.forced, c.forced.map(() => MAX_LEADS), 8), b = buildBoard(story, lore, statements, ev, null, null, 0, null, memory, after);
+    assert.deepEqual(b.reliabilities.map((r) => [r.statementId, r.reliability]), c.reliabilities, `reliabilities ${c.seed}`);
+    assert.deepEqual(b.contradictions.map((x) => x.pairId), c.contradictions, `contradictions ${c.seed}`);
+  }
+});

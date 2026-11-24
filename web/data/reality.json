@@ -1,0 +1,107 @@
+{
+ "houseNames": [
+  {
+   "en": "The House That Was Not Here",
+   "fr": "La maison qui n'etait pas la"
+  },
+  {
+   "en": "Mother's House, Again",
+   "fr": "La maison de mere, encore"
+  },
+  {
+   "en": "The Lamp-Eaten Cottage",
+   "fr": "La chaumiere mangee par les lampes"
+  },
+  {
+   "en": "Number Thirteen",
+   "fr": "Le numero treize"
+  },
+  {
+   "en": "The Listening House",
+   "fr": "La maison qui ecoute"
+  },
+  {
+   "en": "Nobody's Hearth",
+   "fr": "L'atre de personne"
+  }
+ ],
+ "falseVillagers": [
+  {
+   "en": "Old Silas Harrow",
+   "fr": "Le vieux Silas Harrow"
+  },
+  {
+   "en": "The Widow Pellam",
+   "fr": "La veuve Pellam"
+  },
+  {
+   "en": "Tobias Vane",
+   "fr": "Tobias Vane"
+  },
+  {
+   "en": "A Child Called Wren",
+   "fr": "Un enfant nomme Wren"
+  },
+  {
+   "en": "Mrs. Aldous Crane",
+   "fr": "Madame Aldous Crane"
+  },
+  {
+   "en": "The Man in the Wet Coat",
+   "fr": "L'homme au manteau mouille"
+  }
+ ],
+ "locationLooks": [
+  {
+   "en": "its windows now face inward",
+   "fr": "ses fenetres donnent maintenant vers l'interieur"
+  },
+  {
+   "en": "it stands a little nearer the water",
+   "fr": "elle se tient un peu plus pres de l'eau"
+  },
+  {
+   "en": "it seems older than the stones around it",
+   "fr": "elle semble plus ancienne que les pierres autour"
+  },
+  {
+   "en": "it has one more door than you counted",
+   "fr": "elle a une porte de plus que vous n'en avez compte"
+  },
+  {
+   "en": "its shadow falls toward the light",
+   "fr": "son ombre tombe vers la lumiere"
+  },
+  {
+   "en": "every sign on it is written backwards",
+   "fr": "chaque inscription y est ecrite a l'envers"
+  }
+ ],
+ "notes": [
+  {
+   "id": "house",
+   "en": "A house on the lane is called something it was not called before. The ledger still holds the old name.",
+   "fr": "Une maison de la ruelle porte un nom qu'elle n'avait pas. Le registre garde l'ancien nom."
+  },
+  {
+   "id": "villager",
+   "en": "A face stands in the square that no page of the ledger remembers. Nobody else seems to see the gap.",
+   "fr": "Un visage se tient sur la place, qu'aucune page du registre ne se rappelle. Personne ne semble voir le vide."
+  },
+  {
+   "id": "board",
+   "en": "The board no longer shows the contradiction the ledger once held. The evidence is still here. The board will not say so.",
+   "fr": "Le tableau ne montre plus la contradiction que le registre contenait. Les preuves sont toujours la. Le tableau refuse de le dire."
+  },
+  {
+   "id": "identity",
+   "en": "Two villagers wore each other's names today. The ledger knows which is which.",
+   "fr": "Deux villageois portaient le nom l'un de l'autre aujourd'hui. Le registre sait lequel est lequel."
+  },
+  {
+   "id": "location",
+   "en": "A place I know has changed in small ways. I wrote down what it was, so I could not be argued out of it.",
+   "fr": "Un lieu que je connais a change en petits details. J'ai note ce qu'il etait, pour qu'on ne puisse pas m'en dissuader."
+  }
+ ]
+}

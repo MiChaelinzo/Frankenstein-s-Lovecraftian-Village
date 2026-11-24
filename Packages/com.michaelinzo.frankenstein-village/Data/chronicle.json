@@ -1,0 +1,281 @@
+{
+ "version": 1,
+ "roles": [
+  {"en": "the fisherman", "fr": "le pecheur"},
+  {"en": "the priest", "fr": "le pretre"},
+  {"en": "the innkeeper", "fr": "l'aubergiste"},
+  {"en": "the lamplighter", "fr": "l'allumeur de lampes"},
+  {"en": "the lighthouse keeper", "fr": "le gardien du phare"},
+  {"en": "the widow", "fr": "la veuve"},
+  {"en": "the child", "fr": "l'enfant"}
+ ],
+ "lines": [
+  { "id": "opener_early",
+    "variants": [
+      {"en": "The first nights in {village} were quiet in the way a held breath is quiet.", "fr": "Les premieres nuits a {village} furent calmes comme un souffle retenu."},
+      {"en": "Night fell on {village} early, and it did not seem in any hurry to leave.", "fr": "La nuit tomba tot sur {village}, et elle ne semblait pas presse de partir."},
+      {"en": "The lamps of {village} were lit at dusk. Nobody remembered lighting them.", "fr": "Les lampes de {village} s'allumerent au crepuscule. Personne ne se souvenait de les avoir allumees."},
+      {"en": "Fog came up from the harbour and settled over the roofs like a hand.", "fr": "Le brouillard monta du port et se posa sur les toits comme une main."},
+      {"en": "The shutters closed one by one along the street, each a little too soon.", "fr": "Les volets se fermerent un par un le long de la rue, chacun un peu trop tot."},
+      {"en": "The tide went out farther than the old charts allow, and the mud kept its secrets.", "fr": "La maree se retira plus loin que ne le permettent les vieilles cartes, et la vase garda ses secrets."}
+    ] },
+  { "id": "opener_mid",
+    "variants": [
+      {"en": "By now the nights in {village} had weight, and the dark pressed on the windows.", "fr": "A present les nuits de {village} avaient du poids, et l'ombre pesait sur les fenetres."},
+      {"en": "The dogs of {village} had stopped barking at the sea and begun to watch the streets.", "fr": "Les chiens de {village} avaient cesse d'aboyer a la mer et surveillaient maintenant les rues."},
+      {"en": "The night came on slowly, as though it were reading the village before it entered.", "fr": "La nuit vint lentement, comme si elle lisait le village avant d'y entrer."},
+      {"en": "Candles burned low in every window, and every flame leaned toward the water.", "fr": "Les bougies brulaient bas a chaque fenetre, et chaque flamme se penchait vers l'eau."},
+      {"en": "Doors that had once been left on the latch were barred, and no one explained why.", "fr": "Les portes autrefois laissees au loquet furent verrouillees, et nul n'expliqua pourquoi."},
+      {"en": "The cold of that night had a taste, like iron held in the mouth.", "fr": "Le froid de cette nuit avait un gout, comme du fer garde dans la bouche."}
+    ] },
+  { "id": "opener_late",
+    "variants": [
+      {"en": "The last nights in {village} no longer felt like nights at all, only the same dark returning.", "fr": "Les dernieres nuits a {village} ne ressemblaient plus a des nuits, seulement a la meme ombre qui revenait."},
+      {"en": "The village held still. Even the gulls had gone, and the sky waited.", "fr": "Le village ne bougeait plus. Meme les goelands etaient partis, et le ciel attendait."},
+      {"en": "Every house in {village} seemed to face the same direction, though no one had turned them.", "fr": "Chaque maison de {village} semblait regarder dans la meme direction, sans que personne ne les eut tournees."},
+      {"en": "The night was thin as paper, and something moved behind it.", "fr": "La nuit etait fine comme du papier, et quelque chose bougeait derriere."},
+      {"en": "The sea had gone silent, which was worse than any storm.", "fr": "La mer s'etait tue, ce qui etait pire que n'importe quelle tempete."},
+      {"en": "The streets of {village} filled with a stillness that listened.", "fr": "Les rues de {village} se remplirent d'un silence qui ecoutait."}
+    ] },
+  { "id": "omen_tide_wrong",
+    "variants": [
+      {"en": "The tide came in twice before morning, the second time against the wind.", "fr": "La maree monta deux fois avant le matin, la seconde contre le vent."},
+      {"en": "The harbour rose and fell twice in one night, and the boats strained at ropes that held nothing.", "fr": "Le port monta et descendit deux fois en une nuit, et les barques tirerent sur des cordes qui ne retenaient rien."},
+      {"en": "Fishermen swore the water ran uphill past the breakwater, and the stones were wet at dawn.", "fr": "Les pecheurs jurerent que l'eau remontait la pente passe la digue, et les pierres etaient mouillees a l'aube."},
+      {"en": "The sea kept two timetables that night, and neither was the moon's.", "fr": "La mer suivit deux horaires cette nuit-la, et aucun n'etait celui de la lune."},
+      {"en": "Villagers watched the tide return before it had left.", "fr": "Les villageois virent la maree revenir avant d'etre partie."}
+    ] },
+  { "id": "omen_stars_wrong",
+    "variants": [
+      {"en": "The stars over {village} stood in a pattern no almanac records.", "fr": "Les etoiles au-dessus de {village} formaient un dessin que nul almanach ne connait."},
+      {"en": "The constellations had moved in the night, and nobody had seen them go.", "fr": "Les constellations avaient bouge dans la nuit, et personne ne les avait vues partir."},
+      {"en": "Villagers swore the stars glowed silver, then pale green, then went out one by one.", "fr": "Les villageois jurerent que les etoiles brillaient d'argent, puis de vert pale, puis s'eteignaient une a une."},
+      {"en": "A new star hung low over the cliffs, and it blinked as an eye does.", "fr": "Une etoile nouvelle pendait bas au-dessus des falaises, et elle clignait comme un oeil."},
+      {"en": "The sky showed a shape the old priests had a word for, and no one would say it.", "fr": "Le ciel montra une forme pour laquelle les vieux pretres avaient un mot, et nul ne voulut le dire."}
+    ] },
+  { "id": "omen_bell_unrung",
+    "variants": [
+      {"en": "The bells rang before dawn, and no rope was pulled.", "fr": "Les cloches sonnerent avant l'aube, et aucune corde ne fut tiree."},
+      {"en": "The church bell struck thirteen at midnight. The ringer was asleep across the square.", "fr": "La cloche de l'eglise frappa treize coups a minuit. Le sonneur dormait de l'autre cote de la place."},
+      {"en": "A single toll rolled across the roofs, and every dog in {village} lifted its head.", "fr": "Un seul glas roula sur les toits, et tous les chiens de {village} leverent la tete."},
+      {"en": "The bell spoke once in the dark. The clapper, when they checked, was bound with cobweb.", "fr": "La cloche parla une fois dans le noir. Le battant, quand on le verifia, etait pris dans des toiles."},
+      {"en": "Bronze sounded in the tower with no hand to move it, and the echo lasted too long.", "fr": "Le bronze sonna dans la tour sans main pour le mouvoir, et l'echo dura trop longtemps."}
+    ] },
+  { "id": "omen_black_tide",
+    "variants": [
+      {"en": "The water turned black as ink at the harbour wall and stayed black until dawn.", "fr": "L'eau devint noire comme de l'encre au pied de la digue et le resta jusqu'a l'aube."},
+      {"en": "A dark stain spread through the harbour, and the gulls refused to land on it.", "fr": "Une tache sombre s'etendit dans le port, et les goelands refuserent de s'y poser."},
+      {"en": "The sea went black at the edge of the quay, and the lamplight sank into it without a ripple.", "fr": "La mer devint noire au bord du quai, et la lumiere des lampes y sombra sans une ride."},
+      {"en": "Something dark rose through the harbour water, and the reflections stopped matching the sky.", "fr": "Quelque chose de sombre monta dans l'eau du port, et les reflets cesserent de ressembler au ciel."},
+      {"en": "The tide ran black and thick, and the nets came up smelling of old rooms.", "fr": "La maree coula noire et epaisse, et les filets remonterent avec une odeur de vieilles chambres."}
+    ] },
+  { "id": "vanished",
+    "variants": [
+      {"en": "{missing} vanished. The door at {home} was found open and the lamp still warm.", "fr": "{missing} disparut. La porte de {home} fut trouvee ouverte, la lampe encore tiede."},
+      {"en": "{missing} was gone by morning. Nobody at {home} had heard a door.", "fr": "Au matin, {missing} avait disparu. Personne a {home} n'avait entendu une porte."},
+      {"en": "{missing} vanished from {home}. The chair was still turned toward the window.", "fr": "{missing} disparut de {home}. La chaise etait encore tournee vers la fenetre."},
+      {"en": "{missing} did not come home. The village searched until the lanterns burned out.", "fr": "{missing} ne rentra pas. Le village chercha jusqu'a ce que les lanternes s'eteignent."},
+      {"en": "{missing} was taken in the night, or walked out of it. At {home} they set the table for two.", "fr": "La nuit prit {missing}, ou {missing} en sortit a pied. A {home} on mit le couvert pour deux."},
+      {"en": "{missing} was last seen near {home}, walking toward the water without a lantern.", "fr": "On vit {missing} pour la derniere fois pres de {home}, marchant vers l'eau sans lanterne."}
+    ] },
+  { "id": "cult",
+    "variants": [
+      {"en": "People said they saw {who} among {cult}, chanting where the tide should not reach.", "fr": "On dit avoir vu {who} parmi {cult}, a chanter la ou la maree ne devrait pas monter."},
+      {"en": "Someone swore that {who} had joined {cult}, and the morning prayers sounded different after.", "fr": "Quelqu'un jura que {who} avait rejoint {cult}, et les prieres du matin sonnerent autrement ensuite."},
+      {"en": "It was whispered that {who} knelt with {cult} in a cellar that had no stairs.", "fr": "On chuchota que {who} s'agenouillait avec {cult} dans une cave sans escalier."},
+      {"en": "Smoke rose from the cliffs, and {who} was seen leaving it, with {cult} behind.", "fr": "De la fumee monta des falaises, et on vit {who} en sortir, {cult} derriere."},
+      {"en": "The villagers began to watch {who}, whose name now belonged to {cult}.", "fr": "Les villageois se mirent a observer {who}, dont le nom appartenait desormais a {cult}."},
+      {"en": "{who} was heard humming a hymn that only {cult} are said to know.", "fr": "On entendit {who} fredonner un hymne que seuls {cult} sont censes connaitre."}
+    ] },
+  { "id": "secret_debt",
+    "variants": [
+      {"en": "Word spread that {who} owed a debt to the men who row out at night.", "fr": "Le bruit courut que {who} devait de l'argent aux hommes qui rament la nuit."},
+      {"en": "The ledger was out. {who} had borrowed from the wrong boatmen, and everyone now knew.", "fr": "Le registre fut expose. {who} avait emprunte aux mauvais bateliers, et tout le monde le savait."},
+      {"en": "It came out that {who} had been paying the night rowers in silver and silence.", "fr": "On apprit que {who} payait les rameurs de nuit en argent et en silence."},
+      {"en": "The village learned what {who} had long hidden, a debt that no coin could settle.", "fr": "Le village apprit ce que {who} cachait depuis longtemps, une dette qu'aucune piece ne pouvait solder."}
+    ] },
+  { "id": "secret_affair",
+    "variants": [
+      {"en": "It was said that {who} slipped out after the last lamp to meet someone not a spouse.", "fr": "On dit que {who} se glissait dehors apres la derniere lampe pour retrouver quelqu'un qui n'etait pas un conjoint."},
+      {"en": "The shutters told the story: {who} had been seen at a back door long after dark.", "fr": "Les volets racontaient l'histoire : on avait vu {who} a une porte de derriere bien apres la nuit."},
+      {"en": "The village knew now where {who} went after midnight, and with whom.", "fr": "Le village savait maintenant ou allait {who} apres minuit, et avec qui."},
+      {"en": "A scrap of ribbon and a late lamp gave away {who}, and gossip did the rest.", "fr": "Un bout de ruban et une lampe tardive trahirent {who}, et les commeres firent le reste."}
+    ] },
+  { "id": "secret_forbidden_book",
+    "variants": [
+      {"en": "A book the abbey ordered burned was found beneath the floor of {who}.", "fr": "Un livre que l'abbaye avait ordonne de bruler fut trouve sous le plancher, chez {who}."},
+      {"en": "It was learned that {who} had been reading by candle a book that should not exist.", "fr": "On apprit que {who} lisait a la chandelle un livre qui ne devrait pas exister."},
+      {"en": "The floorboards of {who} gave up a forbidden volume, and its margins were still wet.", "fr": "Chez {who}, les lattes rendirent un volume interdit, et ses marges etaient encore humides."},
+      {"en": "Rumor said that {who} kept a black book, and that the book kept {who}.", "fr": "La rumeur disait que {who} gardait un livre noir, et que le livre gardait {who}."}
+    ] },
+  { "id": "secret_witnessed_body",
+    "variants": [
+      {"en": "It came out that {who} had seen a body carried down to the water and told no one.", "fr": "On apprit que {who} avait vu porter un corps jusqu'a l'eau sans en parler a personne."},
+      {"en": "{who} finally admitted what was seen on the quay at night, and the village went quiet.", "fr": "{who} avoua enfin ce qu'on avait vu sur le quai la nuit, et le village se tut."},
+      {"en": "Someone had to say it, and it was {who}: a shape wrapped in sailcloth, carried to the tide.", "fr": "Il fallait que quelqu'un le dise, et ce fut {who} : une forme enroulee de toile, portee a la maree."},
+      {"en": "The old silence broke when {who} spoke of a burden carried down to the black water.", "fr": "Le vieux silence se rompit quand {who} parla d'un fardeau porte vers l'eau noire."}
+    ] },
+  { "id": "secret_cult_ties",
+    "variants": [
+      {"en": "The truth about {who} came out: the call from the cliffs had been answered more than once.", "fr": "La verite sur {who} fut connue : l'appel des falaises avait recu plus d'une reponse."},
+      {"en": "Neighbors learned that {who} had walked to the cliffs on more nights than any would confess.", "fr": "Les voisins apprirent que {who} etait alle aux falaises plus de nuits que quiconque l'avouerait."},
+      {"en": "It was whispered that {who} kept faith with something older than the church.", "fr": "On chuchota que {who} gardait foi en quelque chose de plus ancien que l'eglise."},
+      {"en": "A salt-stained robe turned up at the door of {who}, and no explanation satisfied anyone.", "fr": "Chez {who}, une robe tachee de sel apparut sur le seuil, et aucune explication ne satisfit personne."}
+    ] },
+  { "id": "rumor",
+    "variants": [
+      {"en": "The old story changed in the telling. By the next door it had grown teeth.", "fr": "La vieille histoire changea en etant racontee. D'une porte a l'autre elle avait pris des dents."},
+      {"en": "A rumor that began as a whisper in {village} came back to its teller altered, and the teller did not recognize it.", "fr": "Une rumeur nee d'un murmure a {village} revint a son conteur changee, et il ne la reconnut pas."},
+      {"en": "What was said on one night was repeated on the next, and the facts slid a little farther each time.", "fr": "Ce qui fut dit une nuit fut repete la suivante, et les faits glissaient un peu plus loin a chaque fois."},
+      {"en": "The tale passed from mouth to mouth and learned new details no one had witnessed.", "fr": "Le conte passa de bouche en bouche et apprit des details que personne n'avait vus."},
+      {"en": "Gossip had rewritten itself overnight, and every version insisted that it was the original.", "fr": "Les commerages s'etaient reecrits pendant la nuit, et chaque version pretendait etre l'originale."}
+    ] },
+  { "id": "memory_forgive",
+    "variants": [
+      {"en": "{who} nodded to you in the street, and the old quarrel seemed to have been put down for good.", "fr": "{who} vous salua dans la rue, et l'ancienne querelle semblait deposee pour de bon."},
+      {"en": "Even {who} had softened. The bitter words were no longer repeated.", "fr": "Meme {who} s'etait adouci. Les mots amers n'etaient plus repetes."},
+      {"en": "{who} spoke of you kindly, as someone does who has decided to let a grievance drown.", "fr": "{who} parlait de vous avec bonte, comme quelqu'un qui a decide de laisser se noyer une rancune."},
+      {"en": "The accusation was not forgotten, but {who} had chosen to carry it lightly.", "fr": "L'accusation n'etait pas oubliee, mais {who} avait choisi de la porter legerement."}
+    ] },
+  { "id": "memory_paranoid",
+    "variants": [
+      {"en": "{who} flinched when you passed, and watched the shadows behind you.", "fr": "{who} sursauta a votre passage, et surveilla les ombres derriere vous."},
+      {"en": "The walls held what {who} had been told, and {who} no longer trusted a kind word.", "fr": "Les murs gardaient ce que {who} avait entendu, et {who} ne croyait plus aux mots aimables."},
+      {"en": "{who} locked the door twice and spoke through the crack, as if you were the sea.", "fr": "{who} ferma la porte a double tour et parla par la fente, comme si vous etiez la mer."},
+      {"en": "{who} kept looking over a shoulder, and the village began to do the same.", "fr": "{who} regardait sans cesse par-dessus l'epaule, et le village se mit a faire de meme."}
+    ] },
+  { "id": "memory_loyal",
+    "variants": [
+      {"en": "{who} stood by you, and said so aloud, which in {village} takes courage.", "fr": "{who} resta de votre cote, et le dit tout haut, ce qui demande du courage a {village}."},
+      {"en": "A lamp was left burning in the window of {who}, and everyone understood for whom.", "fr": "Chez {who}, une lampe restait allumee a la fenetre, et chacun comprit pour qui."},
+      {"en": "{who} remembered your kindness and repaid it with a door that opened without knocking.", "fr": "{who} se souvenait de votre bonte et la rendit par une porte qui s'ouvrait sans qu'on frappe."},
+      {"en": "{who} would hear no ill of you, and said as much to those who tried.", "fr": "{who} ne voulait entendre aucun mal de vous, et le dit a ceux qui essayaient."}
+    ] },
+  { "id": "memory_obsessed",
+    "variants": [
+      {"en": "{who} spoke only of what was seen at the water, and had stopped sleeping.", "fr": "{who} ne parlait plus que de ce qu'on avait vu pres de l'eau, et ne dormait plus."},
+      {"en": "{who} pored over clues until the candle drowned in its own wax.", "fr": "{who} se pencha sur les indices jusqu'a ce que la chandelle se noie dans sa cire."},
+      {"en": "The eyes of {who} were bright and wrong, fixed on something just behind the village.", "fr": "{who} avait les yeux brillants et faux, fixes sur quelque chose juste derriere le village."},
+      {"en": "{who} drew the same symbol over and over, and could not say where it came from.", "fr": "{who} dessinait sans cesse le meme signe, et ne savait dire d'ou il venait."}
+    ] },
+  { "id": "quiet_early",
+    "variants": [
+      {"en": "Nothing was learned. The village kept its counsel and the dark kept its own.", "fr": "On n'apprit rien. Le village garda son conseil et l'ombre garda le sien."},
+      {"en": "No one spoke of the night after, which is its own kind of speech.", "fr": "Nul ne parla de la nuit ensuite, ce qui est une facon de parler."},
+      {"en": "The streets were empty by dusk, and the quiet felt rehearsed.", "fr": "Les rues etaient vides des le crepuscule, et le calme semblait repete."},
+      {"en": "Nothing happened that anyone would admit to.", "fr": "Il ne se passa rien que quelqu'un voulut admettre."}
+    ] },
+  { "id": "quiet_mid",
+    "variants": [
+      {"en": "The villagers told you nothing, and their silences grew longer than their words.", "fr": "Les villageois ne vous dirent rien, et leurs silences devinrent plus longs que leurs mots."},
+      {"en": "Whatever moved in the night left no mark that anyone would point to.", "fr": "Quoi qu'il ait bouge dans la nuit, nul ne voulut en montrer la trace."},
+      {"en": "The night passed and the village wore its ordinary face, badly.", "fr": "La nuit passa et le village porta son visage ordinaire, mal."},
+      {"en": "There was no word of it by morning, and the lack of words was louder than a bell.", "fr": "On n'en dit mot au matin, et ce manque de mots resonnait plus fort qu'une cloche."}
+    ] },
+  { "id": "quiet_late",
+    "variants": [
+      {"en": "No one would say what had happened. They looked at the sea instead.", "fr": "Nul ne voulut dire ce qui s'etait passe. On regarda la mer a la place."},
+      {"en": "The night gave up nothing, and the village seemed to have expected that.", "fr": "La nuit ne livra rien, et le village semblait s'y attendre."},
+      {"en": "Even the whispers had gone, as though the village were listening for the next.", "fr": "Meme les murmures avaient cesse, comme si le village ecoutait le suivant."},
+      {"en": "Nothing was learned, and you felt that it was being watched not to be learned.", "fr": "On n'apprit rien, et vous sentiez qu'on veillait a ce que rien ne soit appris."}
+    ] },
+  { "id": "outcome_dead",
+    "variants": [
+      {"en": "No bodies were found, but {missing} was mourned all the same, and a candle was lit at the quay.", "fr": "On ne trouva aucun corps, mais on pleura {missing} quand meme, et une chandelle fut allumee au quai."},
+      {"en": "{missing} was given to the ground, or to the water. The village agreed to call it rest.", "fr": "On rendit {missing} a la terre, ou a l'eau. Le village convint d'appeler cela le repos."},
+      {"en": "In the end {missing} lay still, and the sea took the name along with the rest.", "fr": "A la fin {missing} reposa, et la mer prit le nom avec le reste."},
+      {"en": "The truth was as cold as it was plain: {missing} would not be coming back.", "fr": "La verite etait aussi froide que simple : {missing} ne reviendrait pas."}
+    ] },
+  { "id": "outcome_escaped",
+    "variants": [
+      {"en": "{missing} got out. Past the last road a door stood open, and no one here will be told which.", "fr": "{missing} a pu partir. Passe la derniere route une porte etait ouverte, et nul ici ne saura laquelle."},
+      {"en": "A letter with no stamp suggested that {missing} was alive somewhere the village was not.", "fr": "Une lettre sans timbre laissait entendre que {missing} vivait la ou le village n'etait pas."},
+      {"en": "{missing} walked away from {village} and did not look back, and the road forgave it.", "fr": "{missing} s'eloigna de {village} sans se retourner, et la route le lui pardonna."},
+      {"en": "It was whispered that {missing} had boarded a ship that left at an hour no ship leaves.", "fr": "On chuchota que {missing} avait embarque sur un navire parti a une heure ou nul navire ne part."}
+    ] },
+  { "id": "outcome_recruited",
+    "variants": [
+      {"en": "{missing} answered the call of the cliffs, and now sings with those who keep the old hours.", "fr": "{missing} repondit a l'appel des falaises, et chante maintenant avec ceux qui gardent les heures anciennes."},
+      {"en": "{missing} was not taken but chosen, and wears the salt-stained robe with calm.", "fr": "Personne ne prit {missing} : la secte l'appela, et {missing} porte la robe tachee de sel avec calme."},
+      {"en": "A voice that sounded like {missing} was heard in the chanting, steady and unafraid.", "fr": "Une voix qui ressemblait a {missing} fut entendue dans le chant, ferme et sans peur."},
+      {"en": "{missing} belongs to them now, and the cult does not give its own back.", "fr": "{missing} leur appartient maintenant, et la secte ne rend pas les siens."}
+    ] },
+  { "id": "outcome_transformed",
+    "variants": [
+      {"en": "{missing} came back wrong. Something wore the face and walked as {missing} had walked.", "fr": "Au retour, {missing} etait autre. Quelque chose portait le visage et marchait comme {missing} marchait."},
+      {"en": "{missing} changed, and the village learned to cross the street instead of say so.", "fr": "{missing} changea, et le village apprit a traverser la rue plutot que de le dire."},
+      {"en": "What stands in the doorway at {home} is not {missing}, though it answers to the name.", "fr": "Ce qui se tient sur le seuil de {home} n'est pas {missing}, bien que cela reponde au nom."},
+      {"en": "The tide kept {missing} and returned something else, patient and very polite.", "fr": "La maree garda {missing} et rendit autre chose, patient et tres poli."}
+    ] },
+  { "id": "outcome_hidden",
+    "variants": [
+      {"en": "{missing} was hiding, somewhere the lamps do not reach, and the village was too afraid to look.", "fr": "{missing} se cachait, quelque part ou les lampes n'atteignent pas, et le village avait trop peur pour chercher."},
+      {"en": "Behind a wall or beneath a floor, {missing} lived on in the dark and waited.", "fr": "Derriere un mur ou sous un plancher, {missing} vivait dans le noir et attendait."},
+      {"en": "{missing} was still in {village}, just out of sight, watching the street through a crack.", "fr": "{missing} etait encore a {village}, juste hors de vue, a regarder la rue par une fente."},
+      {"en": "A scratch of movement in the cellar suggested that {missing} had never really left.", "fr": "Un frottement dans la cave laissa entendre que {missing} n'etait jamais vraiment parti."}
+    ] },
+  { "id": "outcome_displaced",
+    "variants": [
+      {"en": "{missing} was displaced, pushed out of the hours the village keeps, and wanders those hours still.", "fr": "Les heures que le village garde chasserent {missing}, qui les erre encore."},
+      {"en": "The omens touched {missing}, and the world slid sideways, out of time.", "fr": "Les presages toucherent {missing}, et le monde glissa de cote, hors du temps."},
+      {"en": "{missing} is somewhere between one night and the next, and the clocks of {village} disagree.", "fr": "{missing} est quelque part entre une nuit et la suivante, et les horloges de {village} se contredisent."},
+      {"en": "Nobody saw {missing} go. The place where {missing} stood simply stopped being there.", "fr": "Nul ne vit partir {missing}. L'endroit ou se tenait {missing} cessa simplement d'etre la."}
+    ] },
+  { "id": "taken",
+    "variants": [
+      {"en": "{missing} was taken. That much the village will say, and no more.", "fr": "On prit {missing}. Cela, le village veut bien le dire, et rien de plus."},
+      {"en": "{missing} is gone, and the way of it is a door nobody has yet found.", "fr": "{missing} n'est plus la, et la facon est une porte que nul n'a encore trouvee."},
+      {"en": "{missing} was taken from {village}. What happened after belongs to the dark.", "fr": "On prit {missing} a {village}. Ce qui suivit appartient a l'ombre."},
+      {"en": "The name of {missing} is spoken softly now, and the end of the sentence is never given.", "fr": "Le nom de {missing} se dit doucement maintenant, et la fin de la phrase n'est jamais donnee."}
+    ] },
+  { "id": "summary_open",
+    "variants": [
+      {"en": "This is the chronicle of {village}, as far as anyone would tell it.", "fr": "Voici la chronique de {village}, autant que quiconque ait voulu la raconter."},
+      {"en": "The record of {village} is incomplete, and the missing pages are the point.", "fr": "Le registre de {village} est incomplet, et les pages manquantes en sont le sens."},
+      {"en": "What follows is what was learned in {village}, and nothing that was not.", "fr": "Ce qui suit est ce qu'on apprit a {village}, et rien de ce qu'on n'apprit pas."},
+      {"en": "{village} kept its own account of those nights, and this is the copy that survives.", "fr": "{village} tint son propre compte de ces nuits, et ceci en est la copie qui subsiste."}
+    ] },
+  { "id": "summary_unknown",
+    "variants": [
+      {"en": "Fates never learned: {count}. The village never offered them.", "fr": "Destins jamais connus : {count}. Le village ne les offrit jamais."},
+      {"en": "Pages left blank for the missing: {count}. The blank is not empty.", "fr": "Pages laissees blanches pour les disparus : {count}. Le blanc n'est pas vide."},
+      {"en": "Names left without an ending: {count}, which may be the cruelest ending.", "fr": "Noms laisses sans fin : {count}, ce qui est peut-etre la fin la plus cruelle."},
+      {"en": "Missing and unanswered: {count}. The sea keeps them company.", "fr": "Disparus restes sans reponse : {count}. La mer leur tient compagnie."}
+    ] },
+  { "id": "summary_cults",
+    "variants": [
+      {"en": "Whispers named the cults' faithful: {count}, and more were suspected.", "fr": "Les murmures nommerent des fideles des sectes : {count}, et d'autres furent soupconnes."},
+      {"en": "Villagers seen among the cults: {count}, kneeling where the tide should not reach.", "fr": "Villageois vus parmi les sectes : {count}, agenouilles la ou la maree ne devrait pas monter."},
+      {"en": "Cult members you learned of: {count}. The true number is a locked door.", "fr": "Fideles des sectes connus de vous : {count}. Le vrai nombre est une porte close."},
+      {"en": "Singers with the cults you heard of: {count}. You wondered who else had learned the hymn.", "fr": "Chanteurs des sectes dont vous entendites parler : {count}. Vous vous demandates qui d'autre savait l'hymne."}
+    ] },
+  { "id": "summary_omens",
+    "variants": [
+      {"en": "Omens told: {count}. Each one made the next easier to believe.", "fr": "Presages racontes : {count}. Chacun rendit le suivant plus facile a croire."},
+      {"en": "Warnings from the sky and the sea: {count}. The village understood none of them in time.", "fr": "Avertissements du ciel et de la mer : {count}. Le village n'en comprit aucun a temps."},
+      {"en": "Signs reported: {count}. The order they came in seemed deliberate.", "fr": "Signes rapportes : {count}. Leur ordre d'arrivee semblait voulu."},
+      {"en": "Omens you learned of: {count}. You learned also that the village had been counting.", "fr": "Presages dont vous apprites l'existence : {count}. Vous apprites aussi que le village comptait."}
+    ] },
+  { "id": "summary_close_low",
+    "variants": [
+      {"en": "Very little was learned, and what was learned felt like a courtesy.", "fr": "On apprit tres peu, et ce qu'on apprit ressemblait a une politesse."},
+      {"en": "The village told you almost nothing, and it was watching to see what you made of it.", "fr": "Le village ne vous dit presque rien, et regarda ce que vous en feriez."},
+      {"en": "You leave {village} knowing little, and the little is enough to keep you awake.", "fr": "Vous quittez {village} en sachant peu, et ce peu suffit a vous garder eveille."},
+      {"en": "The chronicle is thin. The silence around it is thick, and it is the part that watched.", "fr": "La chronique est mince. Le silence autour est epais, et c'est lui qui regardait."}
+    ] },
+  { "id": "summary_close_mid",
+    "variants": [
+      {"en": "The shape of the story is visible now, and it does not look back at you kindly.", "fr": "La forme de l'histoire est visible maintenant, et elle ne vous regarde pas avec bonte."},
+      {"en": "Enough was learned to be afraid with some precision.", "fr": "On apprit assez pour avoir peur avec une certaine precision."},
+      {"en": "You hold half a pattern, and {village} seems content to let you finish it alone.", "fr": "Vous tenez la moitie d'un motif, et {village} semble content de vous laisser l'achever seul."},
+      {"en": "What you learned fits together almost too well, and that is its own warning.", "fr": "Ce que vous avez appris s'emboite presque trop bien, et c'est un avertissement en soi."}
+    ] },
+  { "id": "summary_close_high",
+    "variants": [
+      {"en": "The whole story lies open, and {village} knows that you have read it.", "fr": "Toute l'histoire est ouverte, et {village} sait que vous l'avez lue."},
+      {"en": "You understand now. The understanding does not feel like victory, only like being seen.", "fr": "Vous comprenez maintenant. Comprendre ne ressemble pas a une victoire, seulement a etre vu."},
+      {"en": "Nothing was hidden at the last, and the village waited to see what you would do with it.", "fr": "Rien ne resta cache a la fin, et le village attendit de voir ce que vous en feriez."},
+      {"en": "The chronicle is complete, and the final line has your name in it.", "fr": "La chronique est complete, et la derniere ligne porte votre nom."}
+    ] }
+ ]
+}

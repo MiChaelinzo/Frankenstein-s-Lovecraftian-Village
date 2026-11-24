@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "quests": [
+  {
+   "id": "missing_fisher_01",
+   "theory": ["missing.dead", "missing.displaced"],
+   "evidence": ["j_fisher_out", "c_fisher_home"],
+   "conclusions": [
+    { "theory": "missing.dead", "en": "The boat was never touched, so the fisher did not row out alive.", "fr": "Le bateau n'a jamais ete touche, donc le pecheur n'a pas rame vivant." },
+    { "theory": "missing.displaced", "en": "Two honest accounts of one night cannot both be true in the same hour.", "fr": "Deux recits sinceres d'une meme nuit ne peuvent pas etre vrais a la meme heure." }
+   ]
+  }
+ ]
+}
