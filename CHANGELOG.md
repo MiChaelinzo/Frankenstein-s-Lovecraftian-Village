@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Accessibility: palette tokens `--v-*` tested for 4.5:1 text contrast in `web/test/victorian-theme.test.js`; brass focus outline 3 px; `html.reduced` and `prefers-reduced-motion` stop the page turn and ink reveal; high contrast and forced colors drop the decoration; layouts use `overflow-wrap` for longer French strings.
 - `web/sw.js` cache `flv-shell-v75`; `web/data/stitch.json` regenerated. `touch-controls.test.js` now looks for animation only in the touch rules, since the new layer follows them.
 - Browser check `VICTORIAN_ONLY=1` (title, board, chronicle, journal, en and fr, no overflow at 150% zoom, focus ring, animations on and reduced). Stills `docs/media/r33-before-*.jpg` and `r33-after-*.jpg` (each under 130 KB). The horror-intensity setting of spec 165 is not built.
+- Full `node tools/browser_check.mjs` on SwiftShader: 114 of 115 passed. The one failure was the indicative villager 3D frame-time budget (6 frames, mean 751 ms) during the long run; `VILLAGER_ONLY=1` rerun passed 2 of 2. The reskin touches no canvas code.
 - Verified: contrast test and JS tests. Partially Verified: SwiftShader visual quality. Unverified: real GPU, Unity runtime.
 
 ### Round 33 (FEAT-001): round 32 cleanup (fix)
