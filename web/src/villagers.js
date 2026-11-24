@@ -202,7 +202,7 @@ const CHAT_SEEKING = ['clues_seek', 'lamps_light', 'sanity_low'], CHAT_DONE = ['
  */
 export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity, standing) {
   const t = ((topic % CHAT_TOPICS) + CHAT_TOPICS) % CHAT_TOPICS, base = talk(seed, v, tick, dread, null, night);
-  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0, strongHint: false, withheld: false, fearWithheld: false, lieStatementId: '', coldLine: false };
+  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0, strongHint: false, withheld: false, fearWithheld: false, lieStatementId: '', coldLine: false, memory: 0, memoryWithheld: false };
   if (!base.available) return withStanding(result, seed, v, night, standing);
   result.lineVariant = new SeededRandom(seed ^ (v.index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).next(LINE_VARIANTS);
   if (base.behavior === 0) {
@@ -215,6 +215,7 @@ export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, s
 function withStanding(result, seed, v, night, standing) {
   if (!standing) return result;
   result.coldLine = coldLine(standing.corruption || 0);
+  result.memory = standing.memory || 0; // Round 34: the villager's memory outcome (memory.js)
   const combined = combinedBehavior(result.behavior, standing.corruption || 0);
   if (combined !== result.behavior) {
     result.behavior = combined;
@@ -228,6 +229,10 @@ function withStanding(result, seed, v, night, standing) {
     result.lieStatementId = suspiciousStatement(seed, v.index, night, result.topic);
     result.withheld = result.lieStatementId === '';
     result.hintId = '';
+  }
+  if (result.hintId) { // Round 34: paranoid memory keeps the hint back, loyal memory strengthens it (Core VillagerRules.Chat)
+    if (result.memory === 2) { result.withheld = true; result.memoryWithheld = true; result.hintId = ''; }
+    else if (result.memory === 3) result.strongHint = true;
   }
   return result;
 }

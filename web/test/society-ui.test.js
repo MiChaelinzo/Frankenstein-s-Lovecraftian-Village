@@ -248,3 +248,29 @@ test('app.js wires the society into the board, villagers, session, doors, wards 
   for (const needle of ['createSocietyController(', 'society.stages()', 'trust: (i)', 'stageOf: (i) => society.stageOf(i)', 'standing: (i) => society.standing(i)', '...society.snapshot()', 'society.restore(v)', 'society.restore(saved)', 'society.noteDoor(', 'onWard:', 'society.watch(', "data/statements.json", 'society.setStatements(']) assert.ok(app.includes(needle), needle);
   assert.ok(!app.includes('corruption: () => null'), 'the placeholder is gone');
 });
+
+// ---- round 34: villager memory ----
+test('a villager the player was seen near a body by remembers on day 2 and differs on day 15; the memory saves and restores', () => {
+  const memLib = JSON.parse(readFileSync(join(root, 'web', 'data', 'memory.json'), 'utf8'));
+  const { society, state } = make({ night: 1 });
+  society.setMemory(memLib);
+  const before = society.memoryLine(0, 2, 'en');
+  assert.equal(society.record(3, 0), true); // seen_near_body
+  assert.equal(society.memoryOutcome(0), 2, 'accused on night 2 is paranoid');
+  assert.ok(society.standing(0).memory === 2);
+  const early = society.memoryLine(0, 2, 'en'), earlyBars = society.bars(0);
+  assert.notEqual(early, before);
+  const saved = society.snapshot();
+  assert.match(saved.memory, /^mm1;2:0:0:500:-1/);
+  state.night = 14;
+  assert.equal(society.memoryOutcome(0), 0, 'the accusation fades by day 15 but is not gone');
+  assert.notEqual(society.memoryLine(0, 15, 'en'), '');
+  assert.notEqual(society.memoryLine(0, 15, 'en'), early);
+  assert.notDeepEqual(society.bars(0), earlyBars);
+  const again = make({ night: 1 }).society;
+  again.setMemory(memLib);
+  again.restore(saved);
+  assert.equal(again.memoryOutcome(0), 2);
+  const none = make({ night: 1 }).society; // no memory data: effects still apply, no line
+  assert.equal(none.memoryLine(0, 2, 'en'), '');
+});

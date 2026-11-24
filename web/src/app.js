@@ -249,6 +249,7 @@ async function loadCatalog() {
   try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
   try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
   try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
+  try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
@@ -746,7 +747,7 @@ const villagers = createVillagerController({
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
   onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => { society.noteChat(i, result); board.noteChat(i, result, night); },
-  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), axes: (i) => society.axes(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
+  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), memoryLine: (i, night) => society.memoryLine(i, night, lang), axes: (i) => society.axes(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk

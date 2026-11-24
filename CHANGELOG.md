@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-002): Villager Memory Engine (spec 167 built)
+- Core `VillagerMemoryModel` and `Data/memory.json` (en and fr). Per villager and per memory kind (accused, accusing, clue found, rumor heard, ritual witnessed, family lost, mythos exposure, conversation) an intensity per mille. An event adds its weight; each night keeps 850 per mille of it, but a touched memory never drops under 20 (the floor), so the village never forgets completely. Replay of a log equals recording the events one at a time.
+- Four outcomes with documented scores and a threshold of 150: forgive, paranoid, loyal, obsessed. Each moves the society values by a table scaled with strength: `VillageSociety.AxesAfter` gains an optional memory parameter (fear, faith, loyalty, obsession), `VillagerMemoryModel.TrustAfter` moves trust. An empty memory leaves every existing value identical.
+- Dialogue: `VillagerRules.Chat` copies the outcome from `SocialStanding.Memory`; a paranoid memory withholds the hint (`MemoryWithheld`), a loyal one strengthens it. `memory.json` holds authored lines per outcome plus one for a faded memory, picked by seed, villager and night. A villager accused on day 2 is paranoid; on day 15 the same villager is only faintly unsure and speaks a different line.
+- Web: `web/src/memory.js`, wiring in `society-ui.js` (every society action leaves a memory event, a rumor told in chat leaves one, the story's family losses are the baseline), `villager-ui.js` line, `villagers.js` chat fields. The live log is saved as the session field `memory` (`mm1;night:villager:kind:weight:subject,...`, validated item by item). `web/sw.js` cache `flv-shell-v76`.
+- Golden key `memory` added; existing keys unchanged (git diff shows only additions). New tests: dotnet 15, node 10.
+- Verified: dotnet and node tests, golden parity. Unverified: Unity runtime, browser presentation of the memory lines (no browser section run in this round yet).
+
 ### Round 33 (FEAT-002): Victorian UI reskin (spec 165 built)
 - Extends the round 29 layer at the end of `web/style.css` (no second stylesheet). CSS gradients only: no images, no web fonts (system serif stack), no inline styles; CSP unchanged in `netlify.toml`, `vercel.json` and `web/_headers`.
 - Title plaque in dark wood with brass border; investigation board with pinned paper slips (brass pins, slight deterministic tilt by position), red thread on a wood board; theory builder as a ruled notepad; chronicle as a paper ledger that turns in from its spine, entries reveal like ink (`pageTurn`, `inkReveal`); journal page with ruled lines and a drop cap; inventory, villager dialog and HUD chips on wood with brass; stronger narration and hint halos.

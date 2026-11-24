@@ -157,12 +157,15 @@ export function createVillagerController(deps) {
     const result = chat(state.seed, v, deps.tickNow(), state.sanity.dread, night, topic, need.cluesLeft, need.lampsLeft, need.sanity, standing || undefined);
     const authored = deps.chatStatement ? deps.chatStatement(index, night, result) : null, spoken = result.lieStatementId ? deps.statementText?.(result.lieStatementId) : '';
     let line;
+    const remembered = result.available && deps.memoryLine ? deps.memoryLine(index, night) : '';
     if (result.fearWithheld) line = tr('society.chat.afraid', { name: v.name });
+    else if (result.memoryWithheld) line = remembered || tr('society.chat.withheld', { name: v.name });
     else if (result.withheld) line = tr('society.chat.withheld', { name: v.name });
     else if (spoken) line = spoken;
     else if (result.hintId === 'village' && deps.story && deps.story()) line = villageLine(v, night, result);
     else if (result.hintId === 'village') line = tr('villagerui.chat.clues_done.0', { name: v.name }); // no story data this session: the plainest hint
     else line = result.hintId ? tr(`villagerui.chat.${result.hintId}.${result.lineVariant}`, { name: v.name }) : tr(lineKey(v, result.behavior, result.lineVariant), { name: v.name });
+    if (remembered && !result.memoryWithheld && !result.fearWithheld) line += ` ${remembered}`; // Round 34: what this villager remembers of the player and the village
     const told = deps.mythosChat ? deps.mythosChat(index, night, result) : [];
     if (told.length) line += ` ${told.map((t) => t.text).join(' ')}`; // what the background simulation lets this villager honestly say (rumor, its truth, a cult tie)
     if (authored && result.hintId) line += ` ${authored.text[deps.lang] || authored.text.en}`; // what this villager says they saw, after the hint

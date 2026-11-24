@@ -394,6 +394,9 @@ namespace Frankenstein.Core.Tests
             AppendTheories(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendMemory(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendPlaces(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1612,6 +1615,45 @@ namespace Frankenstein.Core.Tests
                         + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, MissingOutcomes.MaxLeads)) + "], " + counted + ", [" + string.Join(", ", reveals) + "]]");
                 }
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"missing\": [").Append(string.Join(", ", people)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "memory" (round 34, spec 167): per city seed, the baseline events, then over a fixed event log (VillagerMemoryTests.ScriptedLog) at nights 2, 8 and 15 for villagers 0 to 5: outcome, strength, the four scores, the effect and the memory line in en and fr; plus the night 15 axes of those villagers without and with memory.</summary>
+        private static void AppendMemory(StringBuilder sb)
+        {
+            var lib = VillagerMemoryTests.Library();
+            sb.Append("  \"memory\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var soc = VillageSocietyTests.SocietyOf(seed, out var story, out var roster);
+                var baseline = VillagerMemoryModel.BaselineEvents(story);
+                var log = VillagerMemoryTests.ScriptedLog(baseline);
+                var nights = new List<string>();
+                foreach (int night in new[] { 2, 8, 15 })
+                {
+                    var m = VillagerMemoryModel.Replay(roster.Count, log, night);
+                    var people = new List<string>();
+                    for (int v = 0; v < 6; v++)
+                    {
+                        var ef = m.EffectOf(v);
+                        people.Add("[" + (int)m.OutcomeOf(v) + ", " + m.StrengthOf(v) + ", [" + string.Join(", ", m.ScoresOf(v)) + "], [" + ef.Trust + ", " + ef.Fear + ", " + ef.Faith + ", " + ef.Loyalty + ", " + ef.Obsession + "], "
+                            + Q(m.LineFor(lib, seed, v, night, "en")) + ", " + Q(m.LineFor(lib, seed, v, night, "fr")) + "]");
+                    }
+                    nights.Add("{ \"night\": " + night + ", \"people\": [" + string.Join(", ", people) + "] }");
+                }
+                var opinions = soc.OpinionsAfter(new List<SocietyAction>());
+                var final = VillagerMemoryModel.Replay(roster.Count, log, 15);
+                var effects = final.EffectsOfAll();
+                var plain = soc.AxesAfter(opinions, 15, 0.5f, 2);
+                var withMemory = soc.AxesAfter(VillagerMemoryModel.TrustAfter(opinions, effects), 15, 0.5f, 2, effects);
+                string Axes(SocietyAxes a) { return "[" + string.Join(", ", Enumerable.Range(0, 6).Select(v => "[" + a.Fear[v] + ", " + a.Faith[v] + ", " + a.Loyalty[v] + ", " + a.Obsession[v] + "]")) + "]"; }
+                var trusts = VillagerMemoryModel.TrustAfter(opinions, effects).Trust;
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"baseline\": [").Append(string.Join(", ", baseline.Select(e => "[" + e.Villager + ", " + e.Subject + ", " + e.Weight + "]")))
+                  .Append("], \"nights\": [").Append(string.Join(", ", nights)).Append("], \"axesPlain\": ").Append(Axes(plain)).Append(", \"axesMemory\": ").Append(Axes(withMemory))
+                  .Append(", \"trustMemory\": [").Append(string.Join(", ", Enumerable.Range(0, 6).Select(v => trusts[v].ToString()))).Append("] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");

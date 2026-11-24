@@ -429,3 +429,9 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Checks: dotnet 433, node 778, tools tests, validate_repo, UnityCompileCheck 0/0. Core unchanged. `VICTORIAN_ONLY=1` 14 of 14 on SwiftShader.
 - Findings: `.board-dialog button` outranks `.board-card`, so card rules need the `.board-dialog` prefix; `?capture=1` implies reduced motion, so animation checks use a non-capture URL.
 - Verified: contrast and JS tests. Partially Verified: SwiftShader look. Unverified: real GPU, Unity runtime. Horror-intensity setting not built.
+
+## Round 34 (branch feat/round34)
+- FEAT-001 baseline: dotnet 433, node 780, UnityCompileCheck 0/0, validate_repo OK, tools tests pass. FEAT-002 `feat: add villager memory engine` (spec 167): Core `VillagerMemoryModel`, `Data/memory.json`, golden key `memory` (additions only), web `memory.js`, session field `memory`, cache v76.
+- Checks after FEAT-002: dotnet 448, node 790 (see the commit for the final counts), tools tests, validate_repo, UnityCompileCheck 0/0.
+- Findings: a first scoring let Paranoid (accusation alone) always outrank Forgive and Loyal, so Paranoid now subtracts half the conversation and Loyal subtracts twice the accusation. The `memory` session field required `session.test.js` fixtures to list it.
+- Verified: Core and JS tests. Unverified: Unity runtime, real GPU, in-browser rendering of the memory lines.

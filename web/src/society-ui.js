@@ -4,9 +4,30 @@ import { buildSociety, ACTION_IDS, ALL_VILLAGERS, CHAT_POLITE, SEEN_AT_RITUAL_SI
 import { landmarkAt } from './landmarks.js';
 import { SOURCE_CHAT } from './investigation.js';
 import { ROLE_IDS } from './villagers.js';
+import { parseMemoryLibrary, replayMemory, baselineEvents, eventFor, trustAfter, KIND_RUMOR_HEARD, MEMORY_NONE } from './memory.js';
 import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosChatLines, suspicionPressure, mythosSchedule } from './mythos.js';
 
 export const SOCIETY_SAVE_TAG = 'sc1', MAX_LOG = 150;
+export const MEMORY_SAVE_TAG = 'mm1', MAX_MEMORY_LOG = 150, RUMOR_MEMORY_WEIGHT = 300;
+const MEMORY_ENTRY_RE = /^(\d{1,3}):(\d{1,3}):(\d):(\d{1,4}):(-?\d{1,3})$/;
+
+/** Compact memory save string: mm1;night:villager:kind:weight:subject,... Oldest entries go first when over MAX_MEMORY_LOG. The baseline is rebuilt from the story, never saved. */
+export const serializeMemoryLog = (log) => `${MEMORY_SAVE_TAG};${log.slice(-MAX_MEMORY_LOG).map((e) => `${e.night}:${e.villager}:${e.kind}:${e.weight}:${e.subject}`).join(',')}`;
+
+/** Parses a memory save string item by item; anything malformed or out of range is dropped, so an old or edited save loads as an empty or shorter log. */
+export function parseMemoryLog(text) {
+  const out = [];
+  if (typeof text !== 'string') return out;
+  const [tag, body = ''] = text.split(';');
+  if (tag !== MEMORY_SAVE_TAG) return out;
+  for (const item of body.split(',')) {
+    const m = MEMORY_ENTRY_RE.exec(item);
+    if (!m) continue;
+    const e = { night: Number(m[1]), villager: Number(m[2]), kind: Number(m[3]), weight: Number(m[4]), subject: Number(m[5]) };
+    if (e.night >= 1 && e.kind < 8 && e.weight >= 1 && e.weight <= 1000 && out.length < MAX_MEMORY_LOG) out.push(e);
+  }
+  return out;
+}
 export const WITNESS_RADIUS_M = 14;     // a villager this close (metres) sees what the player does
 export const NIGHT_PHASE = 3;            // clock.js phase index of the night
 const SAVE_ENTRY_RE = /^(\d{1,2}):(-?\d{1,3})$/;
@@ -63,6 +84,7 @@ export function barRows(trust, axes, stage) {
 export function createSocietyController(deps) {
   const { state } = deps;
   let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
+  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null;
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
 
   function society() {
@@ -115,15 +137,34 @@ export function createSocietyController(deps) {
     const s = society(), feed = mythosFeed(), st = standing(index);
     if (!s || !feed || !st) return [];
     if (!graph) graph = buildGraph(s);
-    return mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang);
+    const lines = mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang);
+    const noteKey = `${night1}:rumor:${index}`;
+    if (lines.length && !noted.has(noteKey)) { noted.add(noteKey); remember({ night: night1, villager: index, kind: KIND_RUMOR_HEARD, subject: -1, weight: RUMOR_MEMORY_WEIGHT }); changed(); } // a rumor told to the player was heard by the villager first
+    return lines;
+  }
+
+  /** Round 34: what every villager remembers (memory.js replay of the story baseline and the live events) at the current night; null without a society. Cached per event count, night and roster. */
+  function memory() {
+    const s = society();
+    if (!s) return null;
+    const key = `${memoryLog.length}|${night()}|${s.roster.length}|${state.seed}`;
+    if (key !== memoryKeyOf) { memoryKeyOf = key; memoryCache = replayMemory(s.roster.length, [...baselineEvents(deps.story()), ...memoryLog], night()); }
+    return memoryCache;
+  }
+  /** Opinions with what each villager remembers added to their trust (memory.js trustAfter). Identical to currentOpinions() while nobody remembers anything strongly. */
+  function adjustedOpinions() {
+    const o = currentOpinions(), m = memory();
+    if (!o || !m) return o;
+    if (adjustedFor !== o || adjustedKey !== memoryKeyOf) { adjustedFor = o; adjustedKey = memoryKeyOf; adjusted = trustAfter(o, m.effectsOfAll()); }
+    return adjusted;
   }
 
   /** Round 29: Fear, Faith, Loyalty and Obsession of the whole roster for the current night, dread and ritual stage; null without a society. Cached per opinions, night, dread and ritual stage. */
   function axesList() {
-    const s = society(), o = currentOpinions();
+    const s = society(), o = adjustedOpinions();
     if (!s || !o) return null;
-    const key = `${opinionsLen}|${opinionsKey}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
-    if (key !== axesKey) { axesKey = key; axesCache = s.axesAfter(o, night(), state.sanity.dread, state.ritualStage); }
+    const key = `${opinionsLen}|${opinionsKey}|${memoryKeyOf}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
+    if (key !== axesKey) { axesKey = key; axesCache = s.axesAfter(o, night(), state.sanity.dread, state.ritualStage, memory().effectsOfAll()); }
     return axesCache;
   }
   /** { fear, faith, loyalty, obsession } (0..1000) of one villager, or null for someone outside the story roster. */
@@ -135,16 +176,21 @@ export function createSocietyController(deps) {
 
   /** { tier, corruption, trust, fear } for villagers.js chat(), or null for someone outside the story roster. Fear above trust makes chat withhold (Core FearWithholds). */
   function standing(index) {
-    const s = society(), o = currentOpinions(), a = axesList();
+    const s = society(), o = adjustedOpinions(), a = axesList();
     if (!s || !o || !a || index < 0 || index >= s.roster.length) return null;
-    return s.standingWithAxes(index, o, a, night(), state.sanity.dread, state.ritualStage);
+    return s.standingWithAxes(index, o, a, night(), state.sanity.dread, state.ritualStage, memory().outcomeOf(index));
   }
+
+  /** Adds one live memory event (Core VillagerMemoryModel.Record) and drops the oldest past MAX_MEMORY_LOG. */
+  function remember(ev) { memoryLog.push(ev); if (memoryLog.length > MAX_MEMORY_LOG) memoryLog.shift(); }
 
   function record(kind, subject) {
     if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_IDS.length || !Number.isInteger(subject)) return false;
     if (subject !== ALL_VILLAGERS && !(society() && subject >= 0 && subject < society().roster.length)) return false;
     log.push({ kind, subject });
     if (log.length > MAX_LOG) log.shift();
+    const ev = eventFor(kind, subject, night());
+    if (ev) remember(ev);
     opinions = null; changed();
     return true;
   }
@@ -183,6 +229,12 @@ export function createSocietyController(deps) {
     setStatements(lib) { statements = lib || null; },
     /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
     setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; finalKey = ''; opinions = null; },
+    /** Loads data/memory.json (object); without it villagers still remember (effects apply) but say no memory line. */
+    setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
+    /** What a villager says because of what they remember in a language, '' when nothing or no data. */
+    memoryLine(index, night1, lang) { const m = memory(); return m && memoryLib ? m.lineFor(memoryLib, state.seed, index, night1, lang) : ''; },
+    /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */
+    memoryOutcome(index) { const m = memory(); return m ? m.outcomeOf(index) : MEMORY_NONE; },
     mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
     stages, stageOf, standing, axes, record,
     /** The six bars (trust, fear, faith, loyalty, obsession, corruption) of a villager, or null. */
@@ -205,7 +257,7 @@ export function createSocietyController(deps) {
       return s && st ? authoredChatStatement(statements, ROLE_IDS[s.roster[index].role], night1, result, st.tier) : null;
     },
     log: () => log.slice(),
-    snapshot: () => ({ society: serializeSocietyLog(log) }),
-    restore(saved) { log = parseSocietyLog(saved && saved.society); noted.clear(); opinions = null; changed(); },
+    snapshot: () => ({ society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }),
+    restore(saved) { log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
   };
 }
