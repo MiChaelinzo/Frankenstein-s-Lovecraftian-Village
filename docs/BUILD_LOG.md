@@ -409,3 +409,11 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - Docs commit: specs 162 to 166 written (goal, inputs, outputs, constraints, failure conditions, test cases), not built.
 - Checks: dotnet 362, node 710, tools tests and validate_repo. Stitch data regenerated last.
 - Verified: Core and JS for 160 and 161. Partially Verified: dialog bars, fog and lamp ramps, visual polish (headless screenshots, fake DOM). Unverified: Unity runtime, real GPU, specs 162 to 166.
+
+## Round 30 (branch feat/round30)
+- `7d8ce66` feat: missing person outcomes (spec 163). Golden key `outcomes`.
+- `4d9b816` feat: branching investigations (spec 162). Golden key `theories`.
+- `c3f096c` feat: theory and outcome UI, trust bars, director tick.
+- Docs commit: specs 162 and 163 marked built, stills `theory-*.jpg`.
+- Checks: dotnet 383, node 728, tools tests and validate_repo, UnityCompileCheck 0 warnings 0 errors. Browser (SwiftShader headless Chromium, logs not committed): `THEORY_ONLY` 9 of 9, `SOCIETY_ONLY` 11 of 11, `NARRATIVE_ONLY` 2 of 2; no full run.
+- Verified: Core and JS for 162 and 163, web UI in the three sections above. Partially Verified: trust penalty scaling. Unverified: Unity runtime, real GPU, specs 164 to 166.

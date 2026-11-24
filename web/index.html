@@ -68,6 +68,12 @@
               <div id="boardWrap" class="board-wrap"><svg id="boardLines" class="board-lines" aria-hidden="true" focusable="false"></svg><div id="boardCards" role="group" aria-label="Cards" data-i18n-aria="board.cards"></div></div>
             </div>
             <p id="boardDetail" class="stats board-detail"></p>
+            <ul id="boardBars" class="axis-bars board-bars" aria-label="Trust bars" data-i18n-aria="society.bar.label" hidden></ul>
+            <section id="boardTheory" class="board-theory" aria-labelledby="boardTheoryTitle">
+              <h3 id="boardTheoryTitle" data-i18n="theory.title">Theories</h3>
+              <p class="stats" data-i18n="theory.help">Pick a question, choose an answer, attach up to three statements you have found as evidence, then conclude. Being wrong costs a little trust and still teaches you something.</p>
+              <div id="boardTheoryBody"></div>
+            </section>
             <h3 data-i18n="board.timeline">Timeline</h3>
             <ol id="boardTimeline" class="board-timeline" aria-label="Timeline" data-i18n-aria="board.timeline"></ol>
             <button id="boardClose" type="button" data-i18n="board.close">Close (Esc)</button>
@@ -411,6 +417,7 @@
     <p id="endingName"></p>
     <p id="endingStats" class="stats"></p>
     <p id="endingFound" class="stats"></p>
+    <p id="endingTheory" class="epitaph"></p>
     <p id="endingNote" class="stats" role="status"></p>
     <div class="row">
       <button id="endingCard" type="button" data-i18n="btn.vigilcard">Result card (PNG)</button>

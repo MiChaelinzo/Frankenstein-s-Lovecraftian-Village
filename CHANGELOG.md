@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 30 (FEAT-005): specs, screenshots and status
+- Specs 162 and 163 marked built in `.kiro/specs` (tasks, requirements, design); 164 to 166 stay unbuilt. README status row and section added. Stills `docs/media/theory-board.jpg`, `theory-chronicle.jpg`, `theory-journal.jpg` (each under 700 KB, no pack data), captured with `THEORY_SHOT_DIR` in `tools/browser_check.mjs`. Docs and tooling only.
+
+### Round 30 (FEAT-004): theory and outcome UI, trust bars, director tick
+- `web/src/theory-ui.js`: the theory builder inside the investigation board (pick a question, pick an answer with radios, attach up to three revealed statements as checkboxes, Conclude). Verdicts read TRUE, PARTIALLY TRUE or FALSE with the Core wording; the choice log is saved as the session `theories` field. The board knowledge tier now includes theory knowledge points, wrong villager theories lower every villager's trust (Core trust cost times 10 on the 0..1000 scale, documented in `society-ui.js`), and the ending dialog shows the epilogue line (`#endingTheory`) without changing the ending.
+- Missing person outcomes show only as far as leads allow: on the victim card detail and in the chronicle (taken line from one lead, epitaph from four).
+- Round 29 open item: the six trust bars (Trust, Fear, Faith, Loyalty, Obsession, Corruption) are drawn on met suspect cards (small decoration bars), as labelled meters in the board detail, and in a new chronicle "People you have met" section.
+- Round 29 open item: the Horror Director is stepped from a 100 ms timer in `app.js` (`directorUpdate`), no longer from the 3D `getScene` callback, which only reads `directorLookNow`. Same inputs and behavior; a wiring test guards it.
+- i18n en and fr (`theory.*`, `society.bar.*`, `chronicle.people*`), `sw.js` precaches `theory-ui.js` (cache stays `flv-shell-v67`, CSP untouched), `tools/browser_check.mjs` section `THEORY_ONLY`. Status: node tests Verified; theory, board and bar UI Verified in headless Chromium sections THEORY_ONLY, SOCIETY_ONLY and NARRATIVE_ONLY (see BUILD_LOG); trust penalty scaling Partially Verified (no Core equivalent); Unity runtime Unverified.
+
+### Round 30 (FEAT-002): missing person outcomes (spec 163)
+- `Core/MissingOutcomes.cs`, `Data/outcomes.json` (en and fr) and `web/src/outcomes.js`: each missing person resolves to exactly one of Dead, Escaped, Recruited, Transformed, Hidden or Displaced from a seed stream, weighted by the finished Mythos run and shifted toward Escaped and Hidden by the player's leads. Authored constraints keep outcomes from contradicting the story and lore text; the board reveals nothing at 0 leads, then only "taken", then the epitaph at 4 leads. Golden key `outcomes` added (other keys unchanged). Verified by dotnet and node tests; UI comes later; Unity runtime Unverified.
+
 ### Round 29 (FEAT-005): specs and status
 - Specs 162 to 166 recorded with goal, inputs, outputs, constraints, failure conditions and test cases (not built, Unverified). Specs 160 and 161 marked built. README, BUILD_LOG and `.kiro/specs` aligned. Docs only.
 

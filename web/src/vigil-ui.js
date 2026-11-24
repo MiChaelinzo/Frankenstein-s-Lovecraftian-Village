@@ -200,6 +200,7 @@ export function createVigilController(deps) {
     $('endingStats').textContent = endingStatsText(model, tr);
     $('endingFound').textContent = tr('vigil.end.found', { n: model.found, total: model.foundTotal });
     $('endingNote').textContent = '';
+    const th = $('endingTheory'); if (th) { th.textContent = deps.epilogue ? deps.epilogue(model.id) : ''; th.hidden = !th.textContent; } // Round 30: the theory epilogue line; it never changes which ending was reached
     const shore = $('endingEpilogue');
     if (shore) shore.href = epilogueHref(model.id, { seed: state.seed, nightNumber: vigil.night, gridW: deps.gridW, gridD: deps.gridD }) || '#';
     const d = $('ending'); endingIsOpen = true;

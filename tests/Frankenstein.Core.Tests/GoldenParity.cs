@@ -386,6 +386,12 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendShapes(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendOutcomes(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendTheories(sb, cat);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -1484,6 +1490,116 @@ namespace Frankenstein.Core.Tests
                       .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }");
                 }
                 sb.Append("\n      ] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "outcomes" (round 30, spec 163): per city seed and missing person, the outcome at 0 to 6 leads, the weights at 0 and 6 leads, the leads counted from a full evidence set, and the board reveal at 0, 1 and 4 leads in en and fr.</summary>
+        private static void AppendOutcomes(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(data, "lore_books.json")));
+            var mythos = MythosSimulationTests.Library();
+            var outcomes = MissingOutcomesTests.Library();
+            var inputs = MythosSimulationTests.GridInputs();
+            sb.Append("  \"outcomes\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                var people = new List<string>();
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    var perLead = Enumerable.Range(0, MissingOutcomes.MaxLeads + 1).Select(l => ((int)MissingOutcomes.Resolve(soc, story, state, outcomes, k, l)).ToString()).ToList();
+                    var full = MissingOutcomesTests.FullEvidence(story, lore, k);
+                    int counted = MissingOutcomes.CountLeads(story, lore, full, k);
+                    var o = MissingOutcomes.Resolve(soc, story, state, outcomes, k, counted);
+                    var reveals = new List<string>();
+                    foreach (int l in new[] { 0, 1, 4 })
+                        foreach (var lang in new[] { "en", "fr" })
+                        {
+                            var r = MissingOutcomes.Reveal(story, outcomes, o, k, l, lang);
+                            reveals.Add("[" + (int)r.Level + ", " + Q(r.Text) + "]");
+                        }
+                    people.Add("[" + Q(story.Missing[k].Id) + ", [" + string.Join(", ", perLead) + "], [" + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, 0)) + "], ["
+                        + string.Join(", ", MissingOutcomes.Weights(soc, story, state, outcomes, k, MissingOutcomes.MaxLeads)) + "], " + counted + ", [" + string.Join(", ", reveals) + "]]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"missing\": [").Append(string.Join(", ", people)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "theories" (round 30, spec 162): per city seed, the instances (kind, subject, truth), the question and option texts in en and fr, and a fixed choice log played over beliefs {0:90, 1:40, 2:70}: the conclusions, counts, knowledge, trust lost, epilogue variant and the epilogue of every ending in en and fr.</summary>
+        private static void AppendTheories(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var mythos = MythosSimulationTests.Library();
+            var outcomes = MissingOutcomesTests.Library();
+            var theories = TheoryModelTests.Library();
+            var inputs = MythosSimulationTests.GridInputs();
+            var beliefs = TheoryModelTests.Beliefs();
+            sb.Append("  \"theories\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, inputs, MythosSimulationTests.Nights);
+                var instances = TheoryRules.Instances(soc, story, state, theories, outcomes);
+                var log = new List<int>();
+                for (int i = 0; i < instances.Count; i++)
+                {
+                    int options = theories.TemplateOf(instances[i].Kind).Options.Count;
+                    log.Add(TheoryRules.Choice(TheoryRules.ChoiceTheory, i));
+                    log.Add(TheoryRules.Choice(TheoryRules.ChoiceOption, (instances[i].Truth + i % 3) % options));
+                    for (int e = 0; e < i % 4; e++) log.Add(TheoryRules.Choice(TheoryRules.ChoiceEvidence, e));
+                    log.Add(TheoryRules.Choice(TheoryRules.ChoiceConclude, 0));
+                }
+                log.Add(TheoryRules.Choice(TheoryRules.ChoiceConclude, 0));
+                log.Add(99999);
+                var result = TheoryRules.Replay(theories, instances, beliefs, log);
+                var variant = TheoryRules.VariantOf(result);
+                var texts = new List<string>();
+                foreach (var inst in instances)
+                {
+                    var parts = new List<string>();
+                    foreach (var lang in new[] { "en", "fr" })
+                    {
+                        parts.Add(Q(TheoryRules.Question(theories, soc, story, inst, lang)));
+                        for (int o = 0; o < theories.TemplateOf(inst.Kind).Options.Count; o++) parts.Add(Q(TheoryRules.OptionText(theories, soc, story, inst, o, lang)));
+                    }
+                    texts.Add("[" + string.Join(", ", parts) + "]");
+                }
+                var epilogues = new List<string>();
+                foreach (var ending in VigilRules.EndingIds)
+                    foreach (var lang in new[] { "en", "fr" }) epilogues.Add(Q(TheoryRules.Epilogue(theories, ending, variant, lang)));
+                var verdicts = new List<string>();
+                foreach (var c in result.Conclusions.Values)
+                    foreach (var lang in new[] { "en", "fr" }) verdicts.Add(Q(TheoryRules.Verdict(theories, c.Grade, c.Tier, lang)));
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed)
+                  .Append(", \"instances\": [").Append(string.Join(", ", instances.Select(x => "[" + (int)x.Kind + ", " + x.Subject + ", " + x.Truth + "]")))
+                  .Append("], \"texts\": [").Append(string.Join(", ", texts))
+                  .Append("], \"log\": [").Append(string.Join(", ", log))
+                  .Append("], \"conclusions\": [").Append(string.Join(", ", result.Conclusions.Values.Select(c => "[" + c.Instance + ", " + c.Option + ", " + (int)c.Grade + ", [" + string.Join(", ", c.Evidence) + "], " + c.AverageBelief + ", " + (int)c.Tier + "]")))
+                  .Append("], \"rejected\": ").Append(result.Rejected)
+                  .Append(", \"counts\": [").Append(result.Count(TheoryGrade.True)).Append(", ").Append(result.Count(TheoryGrade.Partial)).Append(", ").Append(result.Count(TheoryGrade.False))
+                  .Append("], \"knowledge\": ").Append(result.Knowledge).Append(", \"trustLost\": ").Append(TheoryRules.TrustLost(instances, result))
+                  .Append(", \"variant\": ").Append((int)variant).Append(", \"epilogues\": [").Append(string.Join(", ", epilogues))
+                  .Append("], \"verdicts\": [").Append(string.Join(", ", verdicts)).Append("] }");
+                first = false;
             }
             sb.Append("\n    ]\n  }\n");
         }

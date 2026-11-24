@@ -230,6 +230,20 @@ html.reduced .board-draw { animation: none; stroke-dasharray: none; stroke-dasho
 .axis-bars { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.85rem; color: #b9ad8f; }
 .axis-bars li { display: grid; grid-template-columns: 6rem 1fr; align-items: center; gap: 0.5rem; }
 .axis-bars meter { width: 100%; height: 0.6rem; }
+.board-card-bars { position: absolute; right: 4px; bottom: 3px; display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+.board-bar { display: block; width: 4px; background: #9fcfa8; }
+.board-bar-fear { background: #e0a96a; } .board-bar-faith { background: #b9c7ff; } .board-bar-loyalty { background: #c9b583; } .board-bar-obsession { background: #d89cff; } .board-bar-corruption { background: #ff8f8f; }
+html.hc .board-bar { background: #fff; }
+.board-bars[hidden], .board-theory [hidden] { display: none; }
+.board-theory { margin-top: .6rem; border-top: 1px solid #6b5230; padding-top: .4rem; }
+.theory-list, .theory-results { list-style: none; margin: .3rem 0; padding: 0; display: grid; gap: .3rem; }
+.theory-pick { text-align: left; width: 100%; }
+.theory-pick[aria-pressed="true"] { outline: 2px solid #ffe08a; }
+.theory-form { margin: .4rem 0; border: 1px solid #6b5230; }
+.theory-option, .theory-evidence { display: block; margin: .2rem 0; }
+.theory-true { border-left: 4px solid #9fcfa8; padding-left: .4rem; } .theory-partial { border-left: 4px solid #e0a96a; padding-left: .4rem; } .theory-false { border-left: 4px solid #ff8f8f; padding-left: .4rem; }
+html.hc .theory-form, html.hc .board-theory { border-color: #fff; }
+.chronicle-bars { list-style: none; margin: .2rem 0; padding: 0; }
 .board-unknown { opacity: .6; }
 .board-contradiction { border-color: #ff6b6b; border-width: 2px; }
 .board-invalid .board-card-title { text-decoration: line-through; }

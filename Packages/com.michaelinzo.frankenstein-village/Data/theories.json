@@ -1,0 +1,282 @@
+{
+ "version": 1,
+ "templates": [
+  {
+   "id": "missing",
+   "kind": "missing",
+   "grading": "group",
+   "en": "What became of {missing}?",
+   "fr": "Qu'est devenu {missing} ?",
+   "options": [
+    {
+     "id": "dead",
+     "group": 2,
+     "en": "{missing} is dead.",
+     "fr": "{missing} est mort."
+    },
+    {
+     "id": "escaped",
+     "group": 0,
+     "en": "{missing} escaped the village.",
+     "fr": "{missing} a fui le village."
+    },
+    {
+     "id": "recruited",
+     "group": 1,
+     "en": "{missing} answered the cult.",
+     "fr": "{missing} a repondu au culte."
+    },
+    {
+     "id": "transformed",
+     "group": 1,
+     "en": "{missing} was changed into something else.",
+     "fr": "{missing} a ete change en autre chose."
+    },
+    {
+     "id": "hidden",
+     "group": 0,
+     "en": "{missing} is hiding in {village}.",
+     "fr": "{missing} se cache a {village}."
+    },
+    {
+     "id": "displaced",
+     "group": 2,
+     "en": "{missing} was lost to another hour.",
+     "fr": "{missing} s'est perdu dans une autre heure."
+    }
+   ]
+  },
+  {
+   "id": "villager",
+   "kind": "villager",
+   "grading": "adjacent",
+   "en": "How far has the rot reached {name}?",
+   "fr": "Jusqu'ou la pourriture a-t-elle atteint {name} ?",
+   "options": [
+    {
+     "id": "untouched",
+     "group": 0,
+     "en": "{name} is untouched.",
+     "fr": "{name} est intact."
+    },
+    {
+     "id": "tainted",
+     "group": 1,
+     "en": "{name} is uneasy, and tainted by what is near.",
+     "fr": "{name} est inquiet, et souille par ce qui rode."
+    },
+    {
+     "id": "corrupted",
+     "group": 2,
+     "en": "{name} is corrupted but has sworn nothing.",
+     "fr": "{name} est corrompu mais n'a rien jure."
+    },
+    {
+     "id": "sworn",
+     "group": 3,
+     "en": "{name} is sworn to a cult.",
+     "fr": "{name} a prete serment a un culte."
+    }
+   ]
+  },
+  {
+   "id": "omen",
+   "kind": "omen",
+   "grading": "group",
+   "en": "Which omen hangs over night {night}?",
+   "fr": "Quel presage pese sur la nuit {night} ?",
+   "options": [
+    {
+     "id": "tide_wrong",
+     "group": 0,
+     "en": "The tide came in twice.",
+     "fr": "La maree est montee deux fois."
+    },
+    {
+     "id": "stars_wrong",
+     "group": 1,
+     "en": "The stars stood in no known pattern.",
+     "fr": "Les etoiles formaient une figure inconnue."
+    },
+    {
+     "id": "bell_unrung",
+     "group": 1,
+     "en": "The bell rang with no hand on the rope.",
+     "fr": "La cloche a sonne sans main sur la corde."
+    },
+    {
+     "id": "black_tide",
+     "group": 0,
+     "en": "The water went black at the wall.",
+     "fr": "L'eau est devenue noire au pied de la digue."
+    }
+   ]
+  }
+ ],
+ "verdicts": [
+  {
+   "grade": "true",
+   "tier": "firm",
+   "en": "The evidence holds. What you concluded is what happened.",
+   "fr": "Les preuves tiennent. Ce que vous avez conclu est ce qui s'est passe."
+  },
+  {
+   "grade": "true",
+   "tier": "doubtful",
+   "en": "You were right, though little of what you leaned on deserves trust. Luck, or something that wanted you to know.",
+   "fr": "Vous aviez raison, bien que peu de ce sur quoi vous vous appuyiez merite confiance. La chance, ou quelque chose qui voulait que vous sachiez."
+  },
+  {
+   "grade": "true",
+   "tier": "bare",
+   "en": "You were right with nothing to show for it. The village let you guess correctly.",
+   "fr": "Vous aviez raison sans rien pour le prouver. Le village vous a laisse deviner juste."
+  },
+  {
+   "grade": "partial",
+   "tier": "firm",
+   "en": "Your proof is sound and still the answer is only near the truth. The village keeps one detail back.",
+   "fr": "Vos preuves sont solides et pourtant la reponse n'est que proche de la verite. Le village garde un detail."
+  },
+  {
+   "grade": "partial",
+   "tier": "doubtful",
+   "en": "Close, by shaky roads. The truth stands beside your answer, not under it.",
+   "fr": "Pres du but, par des chemins branlants. La verite se tient a cote de votre reponse, pas dessous."
+  },
+  {
+   "grade": "partial",
+   "tier": "bare",
+   "en": "Close, with no proof. You felt the shape of it without seeing it.",
+   "fr": "Pres du but, sans preuve. Vous avez senti la forme de la chose sans la voir."
+  },
+  {
+   "grade": "false",
+   "tier": "firm",
+   "en": "Your proof was good and your answer is wrong. Something arranged for the evidence to lie convincingly.",
+   "fr": "Vos preuves etaient bonnes et votre reponse est fausse. Quelque chose a fait en sorte que les preuves mentent avec conviction."
+  },
+  {
+   "grade": "false",
+   "tier": "doubtful",
+   "en": "Wrong, and built on voices the village had already bent. Doubt would have served you better.",
+   "fr": "Faux, et bati sur des voix que le village avait deja pliees. Le doute vous aurait mieux servi."
+  },
+  {
+   "grade": "false",
+   "tier": "bare",
+   "en": "Wrong, and built on nothing. The village does not punish this. It only remembers it.",
+   "fr": "Faux, et bati sur rien. Le village ne punit pas cela. Il s'en souvient seulement."
+  }
+ ],
+ "epilogues": [
+  {
+   "ending": "hollowing",
+   "variant": "clear",
+   "en": "You had named every wrong thing correctly, and it did not help. Knowing the shape of the dark is not the same as keeping out of it.",
+   "fr": "Vous aviez nomme juste chaque chose mauvaise, et cela n'a pas aide. Connaitre la forme du noir n'est pas rester hors de lui."
+  },
+  {
+   "ending": "hollowing",
+   "variant": "misled",
+   "en": "What you believed about the village was wrong, and the hollow in you fills with those wrong things first.",
+   "fr": "Ce que vous croyiez du village etait faux, et le creux en vous se remplit d'abord de ces erreurs."
+  },
+  {
+   "ending": "hollowing",
+   "variant": "uncertain",
+   "en": "Half of what you concluded was true. The hollow keeps the other half for itself.",
+   "fr": "La moitie de vos conclusions etait juste. Le creux garde l'autre moitie pour lui."
+  },
+  {
+   "ending": "name_spoken",
+   "variant": "clear",
+   "en": "Every name you put to the village was the right one, so the sea had no doubt whom it was hearing.",
+   "fr": "Chaque nom que vous avez mis sur le village etait le bon, et la mer n'a pas doute de qui elle entendait."
+  },
+  {
+   "ending": "name_spoken",
+   "variant": "misled",
+   "en": "You named the sea correctly and the village wrongly. The sea went quiet. The village did not.",
+   "fr": "Vous avez nomme la mer juste et le village a tort. La mer s'est tue. Le village non."
+  },
+  {
+   "ending": "name_spoken",
+   "variant": "uncertain",
+   "en": "The sea heard a name it half knew. It forgave the rest, as one forgives a clerk's arithmetic.",
+   "fr": "La mer a entendu un nom qu'elle connaissait a demi. Elle a pardonne le reste, comme on pardonne l'arithmetique d'un commis."
+  },
+  {
+   "ending": "dawn",
+   "variant": "clear",
+   "en": "You left remembering every true thing you worked out. The village forgot you, and you, none of it.",
+   "fr": "Vous etes parti en vous souvenant de tout ce que vous aviez juste deduit. Le village vous a oublie, et vous, rien de lui."
+  },
+  {
+   "ending": "dawn",
+   "variant": "misled",
+   "en": "You walked out into the sun carrying conclusions that were wrong, and you will keep trusting them.",
+   "fr": "Vous etes sorti au soleil avec des conclusions fausses, et vous continuerez de vous y fier."
+  },
+  {
+   "ending": "dawn",
+   "variant": "uncertain",
+   "en": "By morning you could not say which of your conclusions were true. The sun did not help.",
+   "fr": "Au matin vous ne saviez plus lesquelles de vos conclusions etaient justes. Le soleil n'y a rien change."
+  },
+  {
+   "ending": "fever",
+   "variant": "clear",
+   "en": "The half spoken name is the only thing in your head that you doubt. Everything else you worked out was true.",
+   "fr": "Le nom a demi prononce est la seule chose dans votre tete dont vous doutiez. Tout le reste etait juste."
+  },
+  {
+   "ending": "fever",
+   "variant": "misled",
+   "en": "The fever feeds on false conclusions. Yours were many, and it is well fed.",
+   "fr": "La fievre se nourrit des fausses conclusions. Les votres etaient nombreuses, et elle est bien nourrie."
+  },
+  {
+   "ending": "fever",
+   "variant": "uncertain",
+   "en": "In the fever your true conclusions and your false ones trade places each night.",
+   "fr": "Dans la fievre, vos conclusions justes et vos conclusions fausses echangent leur place chaque nuit."
+  },
+  {
+   "ending": "witness",
+   "variant": "clear",
+   "en": "You could say afterward exactly what you had seen, and no one believed you, and every word was true.",
+   "fr": "Vous pouviez dire ensuite exactement ce que vous aviez vu, et nul ne vous a cru, et chaque mot etait vrai."
+  },
+  {
+   "ending": "witness",
+   "variant": "misled",
+   "en": "You told what you had seen, and half of it had never happened. They believed that half.",
+   "fr": "Vous avez dit ce que vous aviez vu, et la moitie n'avait jamais eu lieu. Ils ont cru cette moitie."
+  },
+  {
+   "ending": "witness",
+   "variant": "uncertain",
+   "en": "Your account of the village holds in some places and gives way in others, like the village itself.",
+   "fr": "Votre recit du village tient par endroits et cede ailleurs, comme le village lui-meme."
+  },
+  {
+   "ending": "vessel",
+   "variant": "clear",
+   "en": "Whatever wears your shape knows what you knew, and all of it was true. It will not be fooled.",
+   "fr": "Ce qui porte votre forme sait ce que vous saviez, et tout etait juste. Cela ne se laissera pas tromper."
+  },
+  {
+   "ending": "vessel",
+   "variant": "misled",
+   "en": "Whatever wears your shape inherited your errors. It walks home by the wrong road, and the village lets it.",
+   "fr": "Ce qui porte votre forme a herite de vos erreurs. Cela rentre par le mauvais chemin, et le village le laisse faire."
+  },
+  {
+   "ending": "vessel",
+   "variant": "uncertain",
+   "en": "Whatever wears your shape is unsure which of your memories to trust. It has begun to ask the villagers.",
+   "fr": "Ce qui porte votre forme ne sait pas quels souvenirs croire. Cela a commence a interroger les villageois."
+  }
+ ]
+}

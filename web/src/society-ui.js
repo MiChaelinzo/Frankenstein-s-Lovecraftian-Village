@@ -50,9 +50,19 @@ export function nearestWitness(scene, x, z) {
  * deps: { state (seed, layout, sanity, night 0-based, ritualStage), story() -> village story or null, gridW, gridD, cell, onChange?() }
  * Trust and corruption are ignored when there is no story (no society to build).
  */
+export const BAR_KEYS = ['trust', 'fear', 'faith', 'loyalty', 'obsession', 'corruption'];
+export const CORRUPTION_BAR_STEP = 250; // corruption stage 0..4 shown on the same 0..1000 scale as the other bars
+
+/** The six bars of one villager as [{ key, value }] (0..1000): trust, the four Round 29 axes and the corruption stage. Null when any part is missing (townsfolk outside the story roster). */
+export function barRows(trust, axes, stage) {
+  if (!Number.isFinite(trust) || !axes) return null;
+  const values = { trust, fear: axes.fear, faith: axes.faith, loyalty: axes.loyalty, obsession: axes.obsession, corruption: Math.max(0, stage | 0) * CORRUPTION_BAR_STEP };
+  return BAR_KEYS.map((key) => ({ key, value: values[key] }));
+}
+
 export function createSocietyController(deps) {
   const { state } = deps;
-  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, stageKey = '', stageList = [];
+  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
 
   function society() {
@@ -62,6 +72,7 @@ export function createSocietyController(deps) {
     return built;
   }
   const night = () => state.night + 1;
+  const TRUST_UNIT = 10; // a theory's trust cost is in points of 100; opinions run 0..1000
   const changed = () => deps.onChange?.();
 
   /** Corruption stage of each roster index for the current night, dread and ritual stage; empty without a society. Cached per (night, dread, ritual stage). */
@@ -88,7 +99,11 @@ export function createSocietyController(deps) {
     const s = society();
     if (!s) return null;
     const feed = mythosFeed(), key = feed ? mythosKey : '';
-    if (!opinions || opinionsLen !== log.length || opinionsKey !== key) { opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; }
+    const lost = Math.max(0, deps.trustLost ? deps.trustLost() | 0 : 0) * TRUST_UNIT;
+    if (!opinions || opinionsLen !== log.length || opinionsKey !== key || lostApplied !== lost) {
+      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost;
+      if (lost > 0) opinions = { ...opinions, trust: opinions.trust.map((t) => Math.max(0, t - lost)) }; // wrong theories about villagers cost trust (Core TheoryRules.TrustLost, whole points of 0..100)
+    }
     return opinions;
   }
 
@@ -167,9 +182,21 @@ export function createSocietyController(deps) {
   return {
     setStatements(lib) { statements = lib || null; },
     /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
-    setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; opinions = null; },
+    setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; finalKey = ''; opinions = null; },
     mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
-    stages, stageOf, standing, axes, record, noteChat, watch, noteDoor, noteWard,
+    stages, stageOf, standing, axes, record,
+    /** The six bars (trust, fear, faith, loyalty, obsession, corruption) of a villager, or null. */
+    bars(index) { const st = standing(index); return st ? barRows(st.trust, axes(index), stageOf(index)) : null; },
+    /** The built VillageSociety (Core mirror) or null without a story. */
+    villageSociety: society,
+    /** Mythos state replayed through the last night (ground truth for theories); null without data or a society. */
+    mythosFinal(nights) {
+      const s = society();
+      if (!s || !mythosLib || !s.roster.length) return null;
+      const n = Math.max(1, nights | 0), key = `${state.seed}|${n}|${s.roster.length}`;
+      if (key !== finalKey) { finalKey = key; finalState = runMythos(s, deps.story(), mythosLib, mythosSchedule(n), n); }
+      return finalState;
+    }, noteChat, watch, noteDoor, noteWard,
     /** Text of an authored statement (a lie or a chat statement) in a language, or ''. */
     statementText: (id, lang) => { const st = statements && statements.find(id); return st ? st.text[lang] || st.text.en : ''; },
     /** The authored chat statement a villager says in this chat, or null. */

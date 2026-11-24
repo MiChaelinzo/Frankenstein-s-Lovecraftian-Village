@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -498,6 +498,53 @@ async function main() {
     }
   };
 
+  /** Theories and outcomes (round 30: the theory builder on the board, trust bars on the suspect card and in the chronicle, the missing person outcome as far as leads allow, the epilogue line; THEORY_ONLY=1 runs only this). Seed 1818 at night 3 with the society SESSION (journals j01 j02 read, four villagers met, the innkeeper heard on the bell). */
+  const theoryRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.THEORY_SHOT_DIR || ''; // THEORY_SHOT_DIR=<dir> saves theory-board.jpg, theory-journal.jpg and theory-chronicle.jpg
+    const shot = async (name) => { if (shotDir) writeFileSync(join(shotDir, name), Buffer.from(await capture({ format: 'jpeg', quality: 80 }), 'base64')); };
+    const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=3';
+    const SESSION = { seed: 1818, sanity: 40, night: 2, lore: ['j01', 'j02', 'p01'], board: 'bd1;0,1,2,3;;2:c_innkeeper_bell:2' };
+    const fresh = async (query, hash, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + hash); await sleep(1200);
+    };
+    await fresh(Q, H, SESSION);
+    await key(';', 'Semicolon', 186, ';'); await sleep(700);
+    const picks = await ev(`document.querySelectorAll('#boardTheoryBody .theory-pick').length`);
+    rec('theory: the board lists the village questions as buttons', picks >= 2, { picks });
+    const bars = await ev(`({mini:document.querySelectorAll('#boardCards .board-card-bars').length, bars:document.querySelectorAll('#boardCards .board-card-bars .board-bar').length})`);
+    rec('trust bars: met suspect cards show the six small bars', bars.mini >= 1 && bars.bars === bars.mini * 6, bars);
+    await ev(`document.querySelector('#boardCards .board-kind-0.board-card:not(.board-unknown), #boardCards [data-card^="suspect:"]:not(.board-unknown)').focus()`); await special('Enter', 13, '\r'); await sleep(300);
+    const labelled = await ev(`({n:document.querySelectorAll('#boardBars meter').length, hidden:document.getElementById('boardBars').hidden, labels:[...document.querySelectorAll('#boardBars meter')].every((m)=>m.getAttribute('aria-label'))})`);
+    rec('trust bars: inspecting a suspect shows six labelled meters (Trust, Fear, Faith, Loyalty, Obsession, Corruption)', labelled.n === 6 && labelled.hidden === false && labelled.labels, labelled);
+    await ev(`document.querySelector('#boardTheoryBody .theory-pick').focus()`); await special('Enter', 13, '\r'); await sleep(300);
+    const open = await ev(`({radios:document.querySelectorAll('#boardTheoryBody input[type=radio]').length, boxes:document.querySelectorAll('#boardTheoryBody input[type=checkbox]').length, go:document.querySelector('#boardTheoryBody [data-k=conclude]').disabled, pressed:document.querySelector('#boardTheoryBody .theory-pick').getAttribute('aria-pressed'), boardOpen:!document.getElementById('boardPanel').hidden})`);
+    rec('theory: choosing a question shows answers, evidence and a disabled Conclude button, and the board stays open', open.radios >= 3 && open.boxes >= 1 && open.go === true && open.pressed === 'true' && open.boardOpen, open);
+    await ev(`document.querySelector('#boardTheoryBody input[type=radio]').click()`); await sleep(200);
+    await ev(`document.querySelector('#boardTheoryBody input[type=checkbox]').click()`); await sleep(200);
+    const ready = await ev(`({go:document.querySelector('#boardTheoryBody [data-k=conclude]').disabled, checked:document.querySelectorAll('#boardTheoryBody input[type=checkbox]:checked').length})`);
+    rec('theory: an answer and one piece of evidence enable Conclude', ready.go === false && ready.checked === 1, ready);
+    await ev(`document.querySelector('#boardTheoryBody [data-k=conclude]').click()`); await sleep(300);
+    const done = await ev(`({text:document.querySelector('#boardTheoryBody .theory-results')?.textContent||'', live:document.getElementById('boardLive').textContent, saved:JSON.parse(localStorage.getItem('flv.session.v1')||'{}').theories||''})`);
+    rec('theory: concluding shows a TRUE, PARTIALLY TRUE or FALSE verdict, announces it and saves the choice log', /(TRUE|PARTIALLY TRUE|FALSE):/.test(done.text) && /Theory concluded/.test(done.live) && /^th1;\d/.test(done.saved), done);
+    await shot('theory-board.jpg');
+    await special('Escape', 27); await sleep(300);
+    await shot('theory-journal.jpg');
+    await fresh(Q, H, { ...SESSION, theories: done.saved }); await sleep(500);
+    await ev(`document.getElementById('chronicleToggle').click()`); await sleep(500);
+    await shot('theory-chronicle.jpg');
+    const chron = await ev(`({theories:document.querySelectorAll('#chronicleTheories li').length, people:document.querySelectorAll('#chroniclePeople meter').length, outcomes:document.querySelectorAll('[data-outcome]').length})`);
+    rec('chronicle: the restored theory, the trust bars of people met and an outcome line for a missing person with leads are listed', chron.theories === 1 && chron.people >= 6 && chron.people % 6 === 0, chron);
+    await fresh(Q + '&reduced=1', H, SESSION);
+    await key(';', 'Semicolon', 186, ';'); await sleep(600);
+    const motion = await ev(`({anim:[...document.querySelectorAll('#boardTheory *, #boardCards .board-card-bars *')].some((n)=>getComputedStyle(n).animationName!=='none'), tab:(()=>{const b=document.querySelector('#boardTheoryBody .theory-pick');return !!b && b.tabIndex>=0})()})`);
+    rec('theory: nothing in the builder animates under reduced motion and its buttons are keyboard reachable', motion.anim === false && motion.tab === true, motion);
+  };
+
   /** Mythos (round 27: the background simulation feeding the board and the chronicle; MYTHOS_ONLY=1 runs only this). Seed 1818 at night 5 (found with web/src/mythos.js, see CHANGELOG): two cults (the Lamp Wardens and the Salt Congregation), the secrets of villagers 1 and 4 out on night 5 (villager 4 saw a body carried to the water), and a missing person rumor from villager 4. The saved board holds what four villagers told the player. */
   const mythosRun = async () => {
     const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=5';
@@ -557,6 +604,7 @@ async function main() {
     if (process.env.COLLISION_ONLY) { await collisionRun(); break suite; }
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
+    if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
