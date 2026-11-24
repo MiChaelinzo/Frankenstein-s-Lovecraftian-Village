@@ -12,13 +12,13 @@ import { parseStoryParam } from '../src/story.js';
 import { parseLang } from '../src/i18n.js';
 import { parseSession, serializeSession, saveSession, loadSession, safeStorage, sessionHash, buildShareLink, SESSION_KEY } from '../src/session.js';
 
-const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], lore: ['b03'], board: 'bd1;0,2;book@b03;1:lie_not_me:2', society: 'sc1;0:2,4:-1', theories: 'th1;10000,20003,40000', inv: 'inv1;60;bread:2;0;tea:1', hs: 'hs1;1;3;-,-,-,-,-,-;coop;chicken.10.2', vigil: '' };
+const good = { seed: 42, sanity: 55, night: 2, beat: 1, theme: 'bricks', cam: 'top', floor: 1, stage: 3, codex: ['s0', 'o1'], ach: ['whisper'], lore: ['b03'], board: 'bd1;0,2;book@b03;1:lie_not_me:2', society: 'sc1;0:2,4:-1', theories: 'th1;10000,20003,40000', inv: 'inv1;60;bread:2;0;tea:1', hs: 'hs1;1;3;-,-,-,-,-,-;coop;chicken.10.2', vigil: '', glimpse: 'gl1;4120' };
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) }; };
 
 test('round trips and clamps', () => {
   assert.deepEqual(parseSession(serializeSession(good)), good);
   const c = parseSession({ seed: '7', sanity: 900, night: 99, beat: -4, theme: 'x y', cam: 'zzz', floor: 50 });
-  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], lore: [], inv: '', hs: '', board: '', society: '', theories: '', vigil: '' });
+  assert.deepEqual(c, { seed: 7, sanity: 100, night: 8, beat: 0, theme: 'auto', cam: 'third', floor: 8, stage: -1, codex: [], ach: [], lore: [], inv: '', hs: '', board: '', society: '', theories: '', vigil: '', glimpse: '' });
 });
 test('rejects junk', () => {
   for (const bad of [null, undefined, 5, [], '{', '[]', {}, { seed: 'a', sanity: 1 }, { seed: 1 }, { seed: 1, sanity: NaN }, { seed: '', sanity: 1 }]) assert.equal(parseSession(bad), null);
@@ -112,4 +112,10 @@ test('the society log is saved as one validated string and older saves load empt
   assert.equal(parseSession({ seed: 1, sanity: 5, society: 'sc1;0:2,4:-1' }).society, 'sc1;0:2,4:-1');
   assert.equal(parseSession({ seed: 1, sanity: 5 }).society, '');
   for (const bad of ['<script>', 'sc2;0:1', 'sc1;a b', 'sc1;' + '1:1,'.repeat(600), 5, null]) assert.equal(parseSession({ seed: 1, sanity: 5, society: bad }).society, '');
+});
+
+test('the last glimpse tick is saved as one validated string and older saves load empty', () => {
+  assert.equal(parseSession({ seed: 1, sanity: 5, glimpse: 'gl1;4120' }).glimpse, 'gl1;4120');
+  assert.equal(parseSession({ seed: 1, sanity: 5 }).glimpse, '');
+  for (const bad of ['<script>', 'gl2;5', 'gl1;-1', 'gl1;123456789', 'gl1;', 5, null]) assert.equal(parseSession({ seed: 1, sanity: 5, glimpse: bad }).glimpse, '');
 });

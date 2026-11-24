@@ -241,5 +241,59 @@ namespace Frankenstein.Core.Tests
             e.ClueIds.Add("book@b39");
             Assert.Single(InvestigationRules.KnowledgeSources(e));
         }
+
+        [Fact]
+        public void DoubledVillagerNeverCarriesANegativeSubjectOtherThanMinusOne()
+        {
+            var cat = Catalog();
+            int doubled = 0;
+            for (int seed = 1; seed <= 20; seed++)
+                for (int day = 0; day < 8; day++)
+                    foreach (DayPhase phase in new[] { DayPhase.Dawn, DayPhase.Day, DayPhase.Dusk, DayPhase.Night })
+                    {
+                        var c = Scenario(2, seed, Tick(day, phase));
+                        c.CorruptedVillager = -5;
+                        foreach (var a in CreatureTiers.Select(c, cat, null))
+                        {
+                            Assert.NotEqual(2, a.Tier);
+                            if (a.DefId == "doubled_villager") { doubled++; Assert.Equal(-1, a.Subject); }
+                        }
+                    }
+            Assert.True(doubled > 0, "the doubled villager must still appear without a corrupted villager");
+        }
+
+        [Fact]
+        public void OnlyTierTwoRequiresACorruptedVillager()
+        {
+            var cat = Catalog();
+            var c = Scenario(2, 1, Tick(0, DayPhase.Night));
+            c.CorruptedVillager = -1;
+            Assert.True(CreatureTiers.Unlocked(cat.Manifestations.First(d => d.Id == "doubled_villager"), c));
+            foreach (var d in cat.Manifestations) if (d.Tier == 2) Assert.False(CreatureTiers.Unlocked(d, c), d.Id);
+        }
+
+        [Fact]
+        public void HomesFallBackToAnOpenLatticePointWhenEveryRedrawIsBlocked()
+        {
+            var cat = Catalog();
+            double w = 24 * VillageDressing.Cell;
+            Func<double, double, bool> blocked = (x, z) => x >= w / 8.0;
+            int checkedHomes = 0;
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                var enc = CreatureEncounter.Spawn(seed, 24, 24, GameClock.PhaseStart(DayPhase.Night) + 60, 1.0, "fog", cat, blocked);
+                var again = CreatureEncounter.Spawn(seed, 24, 24, GameClock.PhaseStart(DayPhase.Night) + 60, 1.0, "fog", cat, blocked);
+                for (int k = 0; k < enc.Creatures.Count; k++)
+                {
+                    Assert.Equal(enc.Creatures[k].HomeX, again.Creatures[k].HomeX);
+                    Assert.Equal(enc.Creatures[k].HomeZ, again.Creatures[k].HomeZ);
+                    var def = cat.Defs.First(d => d.Id == enc.Creatures[k].DefId);
+                    if (def.Habitat != "fog") continue;
+                    checkedHomes++;
+                    Assert.False(blocked(enc.Creatures[k].HomeX, enc.Creatures[k].HomeZ), "seed " + seed + " " + def.Id);
+                }
+            }
+            Assert.True(checkedHomes > 0);
+        }
     }
 }

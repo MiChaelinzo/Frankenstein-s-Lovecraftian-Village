@@ -11,6 +11,7 @@ const LORE_RE = /^[bjp]\d{2}$/; // b: found books, j: villager journals, p: miss
 const HS_RE = /^hs1;[0-9a-z_:,.;\-]{0,600}$/; // Added in round 25 (see homestead.js); Homestead.tryRestore validates the rest
 const BOARD_RE = /^bd1;[0-9,]{0,300};[A-Za-z0-9_@:.,\-]{0,5000};[0-9a-z_:.,]{0,2500}$/; // Added in round 26 (see board-ui.js); parseBoardEvidence validates item by item
 const SOCIETY_RE = /^sc1;[0-9:,\-]{0,1500}$/; // Added in round 26 (see society-ui.js); parseSocietyLog validates item by item
+const GL_RE = /^gl1;[0-9]{1,8}$/; // Added in round 33: the tick of the last tier 4 glimpse, so the two day cooldown survives a reload
 const TH_RE = /^th1;[0-9,]{0,2000}$/; // Added in round 30 (see theory.js): the theory choice log; parseTheoryLog validates item by item
 const INV_RE = /^inv1;[0-9a-z_:,.;\/]{0,1200}$/; // Added in round 25 (see inventory.js); ItemWorld.tryRestore validates the rest
 
@@ -46,6 +47,8 @@ export function parseSession(input) {
     society: typeof o.society === 'string' && SOCIETY_RE.test(o.society) ? o.society : '',
     // Added in round 30: the investigation theory choice log (Theory, Evidence, Conclusion); older saves load as empty. The state is replayed from it.
     theories: typeof o.theories === 'string' && TH_RE.test(o.theories) ? o.theories : '',
+    // Added in round 33: the tick of the last tier 4 glimpse (creature-ui); older saves load as empty (no glimpse yet).
+    glimpse: typeof o.glimpse === 'string' && GL_RE.test(o.glimpse) ? o.glimpse : '',
     // Added in round 17: the compact VigilState string. Anything that is not that shape is dropped (VigilState.tryRestore validates the rest).
     vigil: typeof o.vigil === 'string' && VIGIL_RE.test(o.vigil) ? o.vigil : '',
   };

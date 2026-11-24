@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 33 (FEAT-001): round 32 cleanup (fix)
+- Creature homes: when all 12 redraws land inside a place or a building, the home is now the first open point of a fixed 8 by 8 lattice (no random draws, so the seeded stream is unchanged) instead of the last blocked draw. C# `CreatureEncounter.Home` and JS `homeOf` match.
+- Doubled villager (tier 3, `society` 1, no villager requirement in `Data/creatures.json`): only tier 2 requires a corrupted villager. Its subject is the corrupted villager when one exists, otherwise exactly -1, never another negative value. C# and JS.
+- Tier 4 glimpse cooldown now survives a reload: the session stores `glimpse` as `gl1;<tick>` (older saves load as no glimpse). Not part of the share link.
+- `docs/media/places-*.jpg` re-shot with `PLACES_ONLY=1 PLACES_SHOT_DIR=docs/media` on SwiftShader (each under 100 KB). Golden unchanged. New tests fail if the fallback or the subject guard is reverted. Unity runtime and real-GPU rendering Unverified.
+
 ### Round 32 (FEAT-002): creature upgrade path (spec 166 built)
 - Four tiers extend the round 25 creature code, no parallel system. Tier 1 human-adjacent (watcher at the wall, drowned villager, silent pilgrim), tier 2 corrupted villagers (familiar face, wrong routine; need a villager at `CorruptionStage` Corrupted or beyond), tier 3 reality-breakers (impossible stair inside a place, doubled villager; need knowledge tier 3), tier 4 cosmic glimpses (a shape beyond the fog, the sky that blinked; need knowledge tier 4 or 5 and a cosmic omen).
 - Core: `ManifestationDef`, `TierContext`, `Appearance` and `CreatureTiers` in `Core/CreatureRules.cs`; data in the new `manifestations` array of `Data/creatures.json` (en and fr, existing `creatures` entries untouched). Selection is seeded once per day phase (XOR seeded `SeededRandom`, integer math), at most one appearance per tier, village positions avoid `VillagePlaces.InsideAnyPlace`.

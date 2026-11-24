@@ -176,6 +176,8 @@ export function createCreatureController(deps) {
   function layNow(kind) { return () => ward(kind); }
 
   return {
+    snapshot: () => ({ glimpse: lastGlimpseTick >= 0 ? `gl1;${lastGlimpseTick}` : '' }),
+    restore(saved) { const m = saved && typeof saved.glimpse === 'string' ? /^gl1;(\d{1,8})$/.exec(saved.glimpse) : null; lastGlimpseTick = m ? Number(m[1]) : -1; tierKey = ''; },
     setCatalog, update, scene, wards, marks, ward, layNow, manifest, witnessTitle,
     get level() { return level; }, get nearestKind() { return nearestKind; }, get encounter() { ensure(); return enc; }, get catalog() { return cat; },
   };
