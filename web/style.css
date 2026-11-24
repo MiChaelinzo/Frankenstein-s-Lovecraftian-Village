@@ -478,3 +478,7 @@ html.hc .board-dialog, html.hc .inv-dialog, html.hc .villager-dialog, html.hc .t
 html.hc .board-card::before { display: none; }
 html.hc button, html.hc a.btn { background: #000; color: #fff; border-color: #fff; }
 @media (forced-colors: active) { .board-card::before, .lore-page::first-letter { display: none; } .chronicle, .lore-dialog, .board-card, .theory-form { forced-color-adjust: auto; background: Canvas; color: CanvasText; } }
+
+/* Round 34: reality instability badge. Static on purpose (no animation, no flicker), so it needs no reduced-motion override. */
+.reality-badge { border: 1px solid currentColor; padding: 0 .4em; font-style: italic; }
+.vfalse .vname { font-style: italic; opacity: .85; }

@@ -40,6 +40,7 @@ import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
+import { createRealityView, parseRealityLibrary } from './reality.js';
 import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } from './names.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
@@ -249,6 +250,7 @@ async function loadCatalog() {
   try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
   try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
   try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
+  try { realityLib = parseRealityLibrary(await (await fetch('data/reality.json')).json()); board.sync(); } catch (err) { console.warn(`[reality] could not load data/reality.json, reality stays reliable this session: ${err.message}`); }
   try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
@@ -697,8 +699,12 @@ const lore = createLoreController({
 // Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
 let theory = null; // the theory builder (created after the board); society and board read it lazily
 const society = createSocietyController({ trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+// Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
+let realityLib = null;
+const reality = createRealityView({ lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
+  reality: () => reality, onReality: () => { villagers.refresh(); },
   afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
@@ -710,7 +716,7 @@ theory = createTheoryController({
   board, lore, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
 // Places: the Abandoned Manor and later places (places.js, Core VillagePlaces). Draws props and boxes through the 3D scene; discoveries become board clues.
-const places = createPlacesController({ state, gridW: GRID_W, gridD: GRID_D, lang, night: () => state.night + 1, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
+const places = createPlacesController({ reality: () => reality, journal: (text) => log('lore', text), state, gridW: GRID_W, gridD: GRID_D, lang, night: () => state.night + 1, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
   places: () => places.placements(),
@@ -744,6 +750,7 @@ state.homesteadMarks = () => homestead.pieces().map((p) => ({ kind: p.kind, x: p
 state.creatureMarks = () => creatures.marks().map((c) => ({ kind: c.kind, x: c.x / CELL, z: c.z / CELL }));
 // Villagers: positions follow the session clock (frozen by ?tick=N), talking applies Core's clue and sanity result, ?narrator= only adds display text.
 const villagers = createVillagerController({
+  reality: () => reality, journal: (text) => log('lore', text),
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, narratorUrl, fetchImpl: fetch.bind(globalThis), keyTarget: window,
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },

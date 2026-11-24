@@ -400,6 +400,9 @@ namespace Frankenstein.Core.Tests
             AppendChronicleProse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendReality(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendPlaces(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1657,6 +1660,26 @@ namespace Frankenstein.Core.Tests
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"baseline\": [").Append(string.Join(", ", baseline.Select(e => "[" + e.Villager + ", " + e.Subject + ", " + e.Weight + "]")))
                   .Append("], \"nights\": [").Append(string.Join(", ", nights)).Append("], \"axesPlain\": ").Append(Axes(plain)).Append(", \"axesMemory\": ").Append(Axes(withMemory))
                   .Append(", \"trustMemory\": [").Append(string.Join(", ", Enumerable.Range(0, 6).Select(v => trusts[v].ToString()))).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "reality" (round 34, spec 169): per city seed, night and knowledge tier, the alterations of RealityInstability (wrong house names, false villager, hidden contradictions, blurred identities, altered places) as one signature string, plus the notes in en and fr.</summary>
+        private static void AppendReality(StringBuilder sb)
+        {
+            var lib = RealityInstabilityTests.Library();
+            sb.Append("  \"reality\": {\n    \"pairIds\": [").Append(string.Join(", ", RealityInstabilityTests.PairIds.Select(Q))).Append("],\n    \"placeIds\": [").Append(string.Join(", ", RealityInstabilityTests.PlaceIds.Select(Q)));
+            sb.Append("],\n    \"houses\": ").Append(RealityInstabilityTests.Houses).Append(", \"villagers\": ").Append(RealityInstabilityTests.Villagers).Append(",\n    \"notes\": {");
+            foreach (var lang in new[] { "en", "fr" }) sb.Append(lang == "en" ? " " : ", ").Append(Q(lang)).Append(": [").Append(string.Join(", ", lib.Notes.Select(n => Q(n.Get(lang))))).Append("]");
+            sb.Append(" },\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var nights = new List<string>();
+                for (int night = 1; night <= RealityInstabilityTests.Nights; night++)
+                    nights.Add("[" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => Q(RealityInstabilityTests.Signature(lib, seed, night, t)))) + "]");
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");

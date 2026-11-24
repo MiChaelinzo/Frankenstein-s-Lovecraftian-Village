@@ -39,12 +39,21 @@ export function createPlacesController(deps) {
   const findable = (d, found) => revealedAt(d, found, knowledge, state.seed, deps.night ? deps.night() : 1, deps.board.knowledge().tier);
   const tunnelIsOpen = (data) => !!knowledge && tunnelOpen(data, benefitsAt(knowledge, deps.board.knowledge().tier));
 
+  /** Round 34 reality instability (presentation only): at tier 5 a known place can be described with a small change. The place data and what can be found stay the same. */
+  const realityLabel = (id, label) => {
+    const v = deps.reality ? deps.reality() : null;
+    if (!v || !v.active()) return label;
+    const shown = v.placeLabel(id, label);
+    if (shown !== label) { const note = v.noteOnce('location'); if (note) deps.journal?.(note); }
+    return shown;
+  };
+
   /** Interaction points for the view: the way in, the way back, each discovery and the hatch. Each is { key, pos: [x, y, z], label }. */
   function points() {
     const out = [];
     for (const { data, p } of placed()) {
       const at = (pt) => [pt[0], EYE, pt[1]];
-      out.push({ key: `${data.id}:enter`, pos: at(p.entrance), label: say(data.prompts.enter) });
+      out.push({ key: `${data.id}:enter`, pos: at(p.entrance), label: realityLabel(data.id, say(data.prompts.enter)) });
       out.push({ key: `${data.id}:leave`, pos: at(p.door), label: say(data.prompts.leave) });
       const lanterns = lanternPoints(data, p);
       if (lanterns.length) out.push({ key: `${data.id}:follow`, pos: at(lanterns[0]), label: say(data.prompts.leave) }); // the way back: follow the lanterns out

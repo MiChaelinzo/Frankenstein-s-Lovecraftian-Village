@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -597,6 +597,20 @@ async function main() {
     rec('theory: nothing in the builder animates under reduced motion and its buttons are keyboard reachable', motion.anim === false && motion.tab === true, motion);
   };
 
+  /** Reality instability (round 34, spec 169): in the page's own modules tiers 0 to 2 change nothing, tier 5 alters something, the same inputs give the same answer, the truth switch restores every true value, and the board has a hidden "reality unreliable" badge and truth button. Static by design, so reduced motion needs no separate path. Presentation only, SwiftShader, Partially Verified. REALITY_ONLY=1 runs only this. */
+  const realityRun = async () => {
+    await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    const out = await ev(`(async()=>{const R=await import('/src/reality.js');const lib=R.parseRealityLibrary(await (await fetch('data/reality.json')).json());
+      const mk=(tier)=>R.createRealityView({lib:()=>lib,seed:()=>1818,night:()=>3,tier:()=>tier,lang:()=>'en'});const names=['A','B','C','D','E','F','G'];
+      const sig=(v)=>JSON.stringify([names.map((n,i)=>v.shownName(i,names)),[0,1,2,3].map((h)=>v.houseName(h,'H')),v.falseVillager(),['p','q','r','s'].map((id)=>v.placeLabel(id,'L')),['a','b','c','d'].map((id)=>v.contradictionHidden(id))]);
+      let changed=false;for(let night=1;night<=9&&!changed;night++){const v=R.createRealityView({lib:()=>lib,seed:()=>1818,night:()=>night,tier:()=>5,lang:()=>'en'});changed=sig(v)!==sig(mk(0));}
+      const low=[0,1,2].every((t)=>sig(mk(t))===sig(mk(0)));const v5=mk(5);const same=sig(v5)===sig(mk(5));const t5=mk(5);t5.setTruth(true);const truth=sig(t5)===sig(mk(0));
+      const badge=document.getElementById('boardReality'),btn=document.getElementById('boardRealityTruth');
+      return {low,changed,same,truth,badge:!!badge&&badge.hidden,btn:!!btn&&btn.hidden&&!!btn.textContent.trim()};})()`);
+    rec('reality: tiers 0 to 2 change nothing, tier 5 alters something, the same inputs answer the same and the truth switch restores every true value', out.low && out.changed && out.same && out.truth, out);
+    rec('reality: the board carries a hidden "reality unreliable" badge and a labelled truth button until tier 3', out.badge && out.btn, out);
+  };
+
   /** Victorian reskin (round 33, spec 165: aged paper, brass and ink over the round 29 layer; VICTORIAN_ONLY=1 runs only this). VICTORIAN_SHOT_DIR=<dir> with VICTORIAN_SHOT_PREFIX (default r33-after) saves <prefix>-title.jpg, -board.jpg, -chronicle.jpg and -journal.jpg. Checks run in English and French: no horizontal overflow at 1280 px wide and at 150% zoom, a visible keyboard focus ring, chronicle ink reveal that stops under reduced motion. */
   const victorianRun = async () => {
     const { writeFileSync } = await import('node:fs');
@@ -720,6 +734,7 @@ async function main() {
     if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
     if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
+    if (process.env.REALITY_ONLY) { await realityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');
     const s0 = await ev(`document.getElementById('sanityOut').textContent+'|'+document.getElementById('whispers').children.length`);
