@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 28 (FEAT-001): chronicle night tick records
+- Added Core `NightTicks.Build` and `NightTickRecord` (night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered), counted only from `MythosNight`. `realityShift` is an integer for presentation and never changes a Vigil rule or an ending. An unknown omen id throws a `FormatException` naming `newOmen`.
+- Added the omen `black_tide` (and its two rumor lines) to `Data/mythos.json`. Because omens are picked by index, the golden `mythos` key and the omen of some nights changed.
+- JS mirror `buildNightTicks` and `nightTickAt` in `web/src/mythos.js`, golden `mythos.cities[].ticks`, an en and fr chronicle line (`chronicle.tick`), `sw.js` cache `flv-shell-v58`.
+
 ### Round 27 (review fixes)
 - Fixed: the mythos replay no longer raises tonight to the live dread and ritual stage. Every night uses the fixed schedule, so a statement heard on night N is identical on night N+1 (rumor holders only grow). The schedule moved into Core (`MythosInputs.Schedule`) with the same vectors in C# and JS tests, plus a replay N then N+1 test.
 - Removed the unused `Suspicion` input of the simulation (C# and JS). Society still reads the mythos through `SuspicionPressure`.

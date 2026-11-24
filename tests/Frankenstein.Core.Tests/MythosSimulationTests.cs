@@ -375,5 +375,75 @@ namespace Frankenstein.Core.Tests
             var bare = new MythosFeed { Library = new MythosLibrary { Secrets = feed.Library.Secrets, Omens = feed.Library.Omens, Cults = feed.Library.Cults }, State = feed.State, Night = Nights };
             Assert.Equal(story.RumorText(rumor.Night, rumor.Stage, rumor.Tier, "en"), MythosRules.RumorText(bare, story, rumor, false, "en"));
         }
+
+        [Fact]
+        public void Night_ticks_are_deterministic_and_equal_the_counts_of_each_MythosNight()
+        {
+            var lib = Library();
+            foreach (var seed in Seeds)
+            {
+                var state = Run(seed, GridInputs(), Nights, out _, out _);
+                var ticks = NightTicks.Build(state, lib);
+                Assert.Equal(Nights, ticks.Count);
+                var again = NightTicks.Build(Run(seed, GridInputs(), Nights, out _, out _), lib);
+                Assert.Equal(TickSignature(ticks), TickSignature(again));
+                int reality = 0;
+                for (int i = 0; i < ticks.Count; i++)
+                {
+                    var t = ticks[i];
+                    var n = state.Nights[i];
+                    Assert.Equal(i + 1, t.Night);
+                    Assert.Equal(n.Events.Count(e => e.Kind == MythosEventKind.CultFounded || e.Kind == MythosEventKind.CultJoined), t.CultGrowth);
+                    Assert.Equal(n.Events.Count(e => e.Kind == MythosEventKind.RumorStarted), t.RumorsAdded);
+                    Assert.Equal(n.Events.Any(e => e.Kind == MythosEventKind.SecretExposed), t.SecretDiscovered);
+                    var omen = n.Events.FirstOrDefault(e => e.Kind == MythosEventKind.CosmicOmen);
+                    Assert.Equal(omen.Key ?? "", t.NewOmen);
+                    Assert.Equal(n.Rumors.Where(r => r.Night < n.Night).Sum(r => r.Holders.Count(h => h.Night == n.Night)), t.RumorsChanged);
+                    Assert.Equal(n.Rumors.Where(r => r.Source == RumorSource.Missing).Select(r => r.Subject).Distinct().Count(), t.MissingPersons);
+                    reality += t.RealityShift;
+                    Assert.Equal(reality, t.Reality);
+                    Assert.True(t.RealityShift >= 0);
+                }
+            }
+        }
+
+        [Fact]
+        public void Night_ticks_of_a_shorter_run_equal_the_first_nights_of_a_longer_run()
+        {
+            var lib = Library();
+            var full = NightTicks.Build(Run(42, GridInputs(), Nights, out _, out _), lib);
+            var part = NightTicks.Build(Run(42, GridInputs(), 5, out _, out _), lib);
+            Assert.Equal(TickSignature(full.Take(5).ToList()), TickSignature(part));
+        }
+
+        [Fact]
+        public void Night_ticks_differ_between_seeds_and_read_missing_input_as_empty()
+        {
+            var lib = Library();
+            var sigs = new HashSet<string>(Seeds.Select(s => TickSignature(NightTicks.Build(Run(s, GridInputs(), Nights, out _, out _), lib))));
+            Assert.True(sigs.Count > 1, "villages should evolve differently");
+            Assert.Empty(NightTicks.Build(null, lib));
+            Assert.Null(NightTicks.At(new MythosState(), lib, 3));
+            var state = Run(42, GridInputs(), Nights, out _, out _);
+            Assert.Equal(1, NightTicks.At(state, lib, -5).Night);
+            Assert.Equal(Nights, NightTicks.At(state, lib, 999).Night);
+        }
+
+        [Fact]
+        public void Night_ticks_name_the_field_of_an_unknown_omen_and_black_tide_is_authored()
+        {
+            var lib = Library();
+            Assert.True(MythosLibrary.IndexOf(lib.Omens, "black_tide") >= 0);
+            var state = new MythosState();
+            state.Nights.Add(new MythosNight { Night = 1, Events = { new MythosEvent { Kind = MythosEventKind.CosmicOmen, Other = 0, Key = "no_such_omen", Night = 1 } } });
+            var ex = Assert.Throws<FormatException>(() => NightTicks.Build(state, lib));
+            Assert.Contains("newOmen", ex.Message);
+            Assert.Contains("no_such_omen", ex.Message);
+        }
+
+        private static string TickSignature(List<NightTickRecord> ticks)
+        {
+            return string.Join("|", ticks.Select(t => string.Join(",", t.Night, t.CultGrowth, t.RumorsChanged, t.RumorsAdded, t.MissingPersons, t.NewMissingPerson, t.NewOmen, t.RealityShift, t.Reality, t.SecretDiscovered)));
+        }
     }
 }

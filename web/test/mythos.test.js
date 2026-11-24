@@ -184,3 +184,47 @@ test('the chronicle lists only the mythos statements the player heard', () => {
   assert.equal(m[0].id, one.id);
   assert.ok(m[0].text.length > 0);
 });
+
+// Round 28: night tick records (spec 154a), golden key mythos.cities[].ticks.
+import { buildNightTicks, nightTickAt, EVENT_CULT_FOUNDED, EVENT_CULT_JOINED, EVENT_RUMOR_STARTED, EVENT_SECRET_EXPOSED } from '../src/mythos.js';
+
+test('night ticks match the C# golden records', () => {
+  for (const c of golden.cities) {
+    const ticks = buildNightTicks(run(worldOf(c.seed)), mythos);
+    assert.deepEqual(ticks.map((t) => [t.night, t.cultGrowth, t.rumorsChanged, t.rumorsAdded, t.missingPersons, t.newMissingPerson, t.newOmen, t.realityShift, t.reality, t.secretDiscovered ? 1 : 0]), c.ticks, `ticks ${c.seed}`);
+  }
+});
+
+test('a night tick equals the counts of its MythosNight and replay equals incremental', () => {
+  for (const seed of [1, 42, 1818]) {
+    const w = worldOf(seed), state = run(w), ticks = buildNightTicks(state, mythos);
+    state.nights.forEach((n, i) => {
+      const t = ticks[i];
+      assert.equal(t.cultGrowth, n.events.filter((e) => e.kind === EVENT_CULT_FOUNDED || e.kind === EVENT_CULT_JOINED).length);
+      assert.equal(t.rumorsAdded, n.events.filter((e) => e.kind === EVENT_RUMOR_STARTED).length);
+      assert.equal(t.secretDiscovered, n.events.some((e) => e.kind === EVENT_SECRET_EXPOSED));
+      assert.equal(t.newOmen, (n.events.find((e) => e.kind === EVENT_COSMIC_OMEN) || { key: '' }).key);
+    });
+    assert.deepEqual(buildNightTicks(run(w, 5), mythos), ticks.slice(0, 5));
+    assert.deepEqual(buildNightTicks(run(w), mythos), ticks);
+  }
+});
+
+test('night ticks differ between seeds, clamp the night and name an unknown omen', () => {
+  const sigs = new Set([1, 42, 1818].map((s) => JSON.stringify(buildNightTicks(run(worldOf(s)), mythos))));
+  assert.ok(sigs.size > 1);
+  const state = run(worldOf(42));
+  assert.equal(nightTickAt(state, mythos, -4).night, 1);
+  assert.equal(nightTickAt(state, mythos, 999).night, golden.nights);
+  assert.equal(nightTickAt({ nights: [] }, mythos, 3), null);
+  assert.deepEqual(buildNightTicks(null, mythos), []);
+  assert.ok(mythos.omens.some((o) => o.id === 'black_tide'));
+  assert.throws(() => buildNightTicks({ nights: [{ night: 1, events: [{ kind: EVENT_COSMIC_OMEN, key: 'nope' }], rumors: [] }] }, mythos), /newOmen.*nope/);
+});
+
+test('the chronicle model carries the night tick of the current night', () => {
+  const w = worldOf(42), feed = buildMythosFeed(mythos, run(w), golden.nights);
+  const ctx = { night: 12, nights: 12, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
+  assert.equal(chronicleModel(w.story, 'en', ctx).tick.night, 12);
+  assert.equal(chronicleModel(w.story, 'en', { ...ctx, mythos: null }).tick, null);
+});

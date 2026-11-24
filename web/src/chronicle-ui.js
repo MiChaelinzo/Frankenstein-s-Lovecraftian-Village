@@ -4,7 +4,7 @@ import { tierFor } from './core.js';
 import { stageOfNight, districtHistory, familyHistory } from './village-story.js';
 import { esc } from './util.js';
 import { DISTRICT_IDS } from './districts.js';
-import { mythosStatements, mythosText, isDistorted } from './mythos.js';
+import { mythosStatements, mythosText, isDistorted, nightTickAt } from './mythos.js';
 
 /**
  * Pure model of the panel. ctx: { night (1-based), nights, dread (0..1), books (lore library books), readIds (Set of book ids), heard (Map missing id -> highest stage heard), landmarkName(id), mythos? (feed), mythosHeard? (Map statement id -> speaker) }.
@@ -33,8 +33,10 @@ export function chronicleModel(story, lang, ctx) {
     const distorted = isDistorted(m.rumor, ctx.mythosHeard.get(m.id));
     return { id: m.id, kind: m.kind, night: m.night, distorted, text: mythosText(ctx.mythos, story, m, distorted, lang) };
   }) : [];
+  // Round 28: the night tick record of the current night, counts only (no secret or omen is named here).
+  const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
   return {
-    stage, tier, mythos,
+    stage, tier, mythos, tick,
     rumor: story.rumorText(ctx.night, stage, tier, lang),
     families, missing,
     histories: DISTRICT_IDS.map((id) => ({ id, text: districtHistory(lib, id, lang) })),
@@ -89,6 +91,7 @@ export function createChronicleController(deps) {
     parts.push(`<h3>${esc(tr('chronicle.mythos'))}</h3>${m.mythos.length ? `<ul class="chronicle-list" id="chronicleMythos">${m.mythos.map((e) =>
       `<li data-mythos="${esc(e.id)}"><strong>${esc(tr('chronicle.mythos.row', { night: e.night, kind: tr(`chronicle.mythos.kind.${e.kind}`), text: e.text }))}</strong>${e.distorted ? ` <em>${esc(tr('chronicle.mythos.distorted'))}</em>` : ''}</li>`).join('')}</ul>`
       : `<p class="stats" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
+    if (m.tick) parts.push(`<p class="stats" id="chronicleTick">${esc(tr('chronicle.tick', { night: m.tick.night, cult: m.tick.cultGrowth, rumors: m.tick.rumorsChanged + m.tick.rumorsAdded, shift: m.tick.realityShift }))}</p>`);
     parts.push(`<h3>${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);
     parts.push(`<h3>${esc(tr('chronicle.legends'))}</h3><ul class="chronicle-list">${m.legends.map((l) => `<li data-legend="${esc(l.id)}"><strong>${esc(tr('chronicle.legend.at', { title: l.title, place: l.place }))}</strong><p class="lore-text">${esc(l.text)}</p></li>`).join('')}</ul>`);
     body.innerHTML = parts.join('');

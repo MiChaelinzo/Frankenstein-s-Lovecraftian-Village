@@ -363,3 +363,46 @@ export function suspicionPressure(night, villagers) {
   for (const members of night.cultMembers) for (const v of members) if (v >= 0 && v < villagers) pressure[v] += CULT_TIE_SUSPICION;
   return pressure;
 }
+
+// Round 28 (spec 154a): the night tick record. JS port of Core/NightTicks.cs. Every field is counted from the simulated nights, so replay equals incremental.
+export const SECRET_SHIFT = 2, CULT_SHIFT = 1, OMEN_SHIFT = 3;
+
+/** The record of every simulated night, in order: { night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered }. Throws naming newOmen on an unknown omen id. */
+export function buildNightTicks(state, lib) {
+  const list = [];
+  if (!state || !lib) return list;
+  let reality = 0;
+  const seenMissing = new Set();
+  for (const night of state.nights) {
+    const rec = { night: night.night, cultGrowth: 0, rumorsChanged: 0, rumorsAdded: 0, missingPersons: 0, newMissingPerson: 0, newOmen: '', realityShift: 0, reality: 0, secretDiscovered: false };
+    let exposedTonight = 0;
+    for (const e of night.events) {
+      if (e.kind === EVENT_CULT_FOUNDED || e.kind === EVENT_CULT_JOINED) rec.cultGrowth++;
+      else if (e.kind === EVENT_RUMOR_STARTED) rec.rumorsAdded++;
+      else if (e.kind === EVENT_SECRET_EXPOSED) { rec.secretDiscovered = true; exposedTonight++; }
+      else if (e.kind === EVENT_COSMIC_OMEN) {
+        if (!lib.omens.some((o) => o.id === e.key)) throw new Error(`mythos: night ${night.night} newOmen names unknown omen ${e.key}`);
+        rec.newOmen = e.key;
+      }
+    }
+    const before = seenMissing.size;
+    for (const r of night.rumors) {
+      if (r.source === SOURCE_MISSING) seenMissing.add(r.subject);
+      if (r.night >= night.night) continue;
+      for (const h of r.holders) if (h.night === night.night) rec.rumorsChanged++;
+    }
+    rec.missingPersons = seenMissing.size;
+    rec.newMissingPerson = seenMissing.size - before;
+    rec.realityShift = exposedTonight * SECRET_SHIFT + rec.cultGrowth * CULT_SHIFT + (rec.newOmen ? OMEN_SHIFT : 0);
+    reality += rec.realityShift;
+    rec.reality = reality;
+    list.push(rec);
+  }
+  return list;
+}
+
+/** The record of one night; a night outside the simulated range clamps, null when nothing was simulated. */
+export function nightTickAt(state, lib, night) {
+  const all = buildNightTicks(state, lib);
+  return all.length === 0 ? null : all[Math.min(Math.max(night, 1), all.length) - 1];
+}

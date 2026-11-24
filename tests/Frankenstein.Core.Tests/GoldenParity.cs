@@ -1413,7 +1413,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
-        /// <summary>Top level key "mythos" (round 27): per city seed, the simulation over twelve nights of fixed dread and ritual inputs, the society pressure and a board with every statement heard.</summary>
+        /// <summary>Top level key "mythos" (round 27, ticks added round 28): per city seed, the night tick records (night, cultGrowth, rumorsChanged, rumorsAdded, missingPersons, newMissingPerson, newOmen, realityShift, reality, secretDiscovered), the simulation over twelve nights of fixed dread and ritual inputs, the society pressure and a board with every statement heard.</summary>
         private static void AppendMythos(StringBuilder sb, PrefabCatalog cat)
         {
             string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
@@ -1457,7 +1457,8 @@ namespace Frankenstein.Core.Tests
                       + Q(MythosRules.Text(feed, story, s, s.Rumor != null && MythosRules.IsDistorted(s.Rumor, heard.Heard.First(h => h.StatementId == s.Id).Villager), "fr")) + "]")))
                   .Append("], \"board\": { \"cards\": [").Append(string.Join(", ", board.Cards.Where(c => c.Key.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.Id) + ", " + (c.Invalidated ? 1 : 0) + "]")))
                   .Append("], \"contradictions\": [").Append(string.Join(", ", board.Contradictions.Where(c => c.PairId.StartsWith(MythosRules.IdPrefix)).Select(c => "[" + Q(c.PairId) + ", " + Q(c.CardA) + ", " + Q(c.CardB) + "]")))
-                  .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Where(e => e.StatementId.StartsWith(MythosRules.IdPrefix)).Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] } }");
+                  .Append("], \"timeline\": [").Append(string.Join(", ", board.Timeline.Where(e => e.StatementId.StartsWith(MythosRules.IdPrefix)).Select(e => "[" + Q(e.StatementId) + ", " + e.Villager + ", " + e.Night + ", " + e.Minute + "]"))).Append("] }, \"ticks\": [")
+                  .Append(string.Join(", ", NightTicks.Build(state, mythos).Select(t => "[" + t.Night + ", " + t.CultGrowth + ", " + t.RumorsChanged + ", " + t.RumorsAdded + ", " + t.MissingPersons + ", " + t.NewMissingPerson + ", " + Q(t.NewOmen) + ", " + t.RealityShift + ", " + t.Reality + ", " + (t.SecretDiscovered ? 1 : 0) + "]"))).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }
