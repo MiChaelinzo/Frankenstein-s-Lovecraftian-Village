@@ -189,7 +189,8 @@ namespace Frankenstein.Core.Tests
             var lore = MissingOutcomesTests.Lore();
             var statements = StatementLibrary.Parse(File.ReadAllText(DataPath("statements.json")));
             VillageSocietyTests.SocietyOf(42, out var story, out _);
-            foreach (var d in lib.Find("manor").Discoveries)
+            foreach (var place in lib.Places)
+            foreach (var d in place.Discoveries)
             {
                 var st = statements.Find(d.StatementId);
                 Assert.NotNull(st);
@@ -203,7 +204,7 @@ namespace Frankenstein.Core.Tests
                 var card = board.Cards.Single(c => c.Id == InvestigationRules.ClueCardId(d.ClueId));
                 Assert.True(card.Revealed);
                 Assert.Equal(d.Title.Get("en"), InvestigationRules.CardTitle(card, story, lore, statements, null, "en", null, lib));
-                Assert.Contains(board.Links, l => l.Kind == BoardLinkKind.ClueSubject && l.From == card.Id && l.To == InvestigationRules.LandmarkId("abbey"));
+                Assert.Contains(board.Links, l => l.Kind == BoardLinkKind.ClueSubject && l.From == card.Id && l.To == InvestigationRules.LandmarkId(place.Anchor));
                 Assert.Contains(board.Scores, s => s.StatementId == d.StatementId);
                 Assert.Contains(board.Cards, c => c.Id == InvestigationRules.EventId(d.StatementId) && c.Revealed);
             }
@@ -211,6 +212,151 @@ namespace Frankenstein.Core.Tests
             var withLib = InvestigationRules.Build(story, lore, statements, new InvestigationEvidence(), null, null, 0, lib);
             Assert.Equal(plain.Cards.Count, withLib.Cards.Count);
             Assert.Equal(plain.Links.Count, withLib.Links.Count);
+        }
+
+        private static PlaceData Forest() { return Library().Find(VillagePlaces.Forest); }
+
+        private static List<PlacePlacement> Standing(PlaceLibrary lib, int seed, int grid)
+        {
+            var placed = new List<PlacePlacement>();
+            foreach (var data in lib.Places) placed.Add(VillagePlaces.Place(data, seed, grid, grid, placed));
+            return placed;
+        }
+
+        [Fact]
+        public void Every_place_stands_in_bounds_clear_of_landmarks_the_city_and_each_other_for_every_seed()
+        {
+            var lib = Library();
+            foreach (int seed in Seeds())
+                foreach (int grid in Grids)
+                {
+                    var placed = new List<PlacePlacement>();
+                    foreach (var data in lib.Places)
+                    {
+                        var p = VillagePlaces.Place(data, seed, grid, grid, placed);
+                        Assert.Equal("", VillagePlaces.Check(data, p, seed, grid, grid, placed));
+                        Assert.Equal(p.Entrance, VillagePlaces.Leave(p, PlaceExit.Door));
+                        placed.Add(p);
+                        var again = VillagePlaces.Place(data, seed, grid, grid, placed.Take(placed.Count - 1).ToList());
+                        Assert.Equal(p.X, again.X); Assert.Equal(p.Z, again.Z);
+                    }
+                }
+        }
+
+        [Fact]
+        public void Forest_placement_varies_with_the_seed_and_props_stay_inside_the_footprint()
+        {
+            var data = Forest();
+            var seen = new HashSet<string>();
+            foreach (int seed in Seeds())
+            {
+                var p = VillagePlaces.Place(data, seed, VillageDistricts.CityGrid, VillageDistricts.CityGrid, null);
+                seen.Add(p.X.ToString("R") + "," + p.Z.ToString("R"));
+                foreach (var item in VillagePlaces.Dressing(data, p))
+                {
+                    double dx = item.X - p.X, dz = item.Z - p.Z;
+                    Assert.True(Math.Sqrt(dx * dx + dz * dz) <= p.Radius);
+                    Assert.True(VillagePlaces.PointInBounds(seed, VillageDistricts.CityGrid, VillageDistricts.CityGrid, item.X, item.Z));
+                }
+            }
+            Assert.True(seen.Count > 10);
+            for (int t = 0; t < VillagePlaces.Tiers; t++) Assert.True(VillagePlaces.WithinBudget(data, t));
+        }
+
+        [Fact]
+        public void Lantern_markers_lead_back_to_the_entrance_and_pass_every_discovery()
+        {
+            var data = Forest();
+            Assert.Empty(Manor().Lanterns);
+            Assert.True(data.Lanterns.Count >= 4);
+            foreach (int seed in Seeds())
+            {
+                int grid = VillageDistricts.CityGrid;
+                var p = VillagePlaces.Place(data, seed, grid, grid, null);
+                var lanterns = VillagePlaces.LanternPoints(data, p);
+                Assert.Equal(data.Lanterns.Count, lanterns.Count);
+                for (int i = 1; i < lanterns.Count; i++)
+                    Assert.True(Math.Sqrt(Math.Pow(lanterns[i][0] - lanterns[i - 1][0], 2) + Math.Pow(lanterns[i][1] - lanterns[i - 1][1], 2)) <= VillagePlaces.LanternGap + 1e-9);
+                var last = lanterns[lanterns.Count - 1];
+                Assert.True(Math.Sqrt(Math.Pow(last[0] - p.Entrance[0], 2) + Math.Pow(last[1] - p.Entrance[1], 2)) <= VillagePlaces.LanternGap + 1e-9);
+                foreach (var d in data.Discoveries)
+                {
+                    var at = VillagePlaces.DiscoveryPoint(p, d);
+                    Assert.Contains(lanterns, l => Math.Sqrt(Math.Pow(l[0] - at[0], 2) + Math.Pow(l[1] - at[1], 2)) <= VillagePlaces.LanternReach);
+                }
+                foreach (var l in lanterns) Assert.True(VillagePlaces.PointInBounds(seed, grid, grid, l[0], l[1]));
+                Assert.Equal(p.Entrance, VillagePlaces.Leave(p, PlaceExit.Door));
+            }
+            int glowing = data.Parts.Count(part => part.Glow > 0 && part.Id.StartsWith("lantern_glass_", StringComparison.Ordinal));
+            Assert.Equal(data.Lanterns.Count, glowing);
+        }
+
+        [Fact]
+        public void Hunting_trail_runs_from_the_lit_paths_to_the_entrance_inside_the_world()
+        {
+            var data = Forest();
+            Assert.Empty(VillagePlaces.HuntingTrail(Manor(), VillagePlaces.Place(Manor(), 1, 24, 24, null), 1, 24, 24));
+            foreach (int seed in Seeds())
+                foreach (int grid in Grids)
+                {
+                    var p = VillagePlaces.Place(data, seed, grid, grid, null);
+                    var pts = VillagePlaces.HuntingTrail(data, p, seed, grid, grid);
+                    Assert.True(pts.Count <= (int)(VillagePlaces.MaxTrailLength / VillagePlaces.TrailSpacing) + 1);
+                    foreach (var pt in pts) Assert.True(VillagePlaces.PointInBounds(seed, grid, grid, pt[0], pt[1]));
+                    if (pts.Count > 0)
+                    {
+                        var last = pts[pts.Count - 1];
+                        Assert.True(Math.Sqrt(Math.Pow(last[0] - p.Entrance[0], 2) + Math.Pow(last[1] - p.Entrance[1], 2)) <= VillagePlaces.TrailSpacing * 1.5 + 1e-9);
+                    }
+                    var again = VillagePlaces.HuntingTrail(data, p, seed, grid, grid);
+                    Assert.Equal(pts.Count, again.Count);
+                    Assert.Equal(pts.Count, VillagePlaces.TrailDressing(data, p, seed, grid, grid).Count);
+                }
+        }
+
+        [Fact]
+        public void Forest_trail_is_nonempty_for_some_seeds()
+        {
+            var data = Forest();
+            Assert.Contains(Seeds(), seed => VillagePlaces.HuntingTrail(data, VillagePlaces.Place(data, seed, VillageDistricts.CityGrid, VillageDistricts.CityGrid, null), seed, VillageDistricts.CityGrid, VillageDistricts.CityGrid).Count > 0);
+        }
+
+        [Fact]
+        public void Hidden_hollow_is_revealed_only_by_the_missing_person_trail_clue()
+        {
+            var data = Forest();
+            var hollow = data.Discoveries.Single(d => d.Id == "hidden_hollow");
+            Assert.Equal("place@forest_trail", hollow.Requires);
+            Assert.False(VillagePlaces.Revealed(hollow, null));
+            Assert.False(VillagePlaces.Revealed(hollow, new List<string> { "place@forest_ritual_circle" }));
+            Assert.True(VillagePlaces.Revealed(hollow, new List<string> { "place@forest_trail" }));
+            Assert.All(data.Discoveries.Where(d => d.Id != "hidden_hollow"), d => Assert.True(VillagePlaces.Revealed(d, null)));
+            var text = DataText();
+            Assert.Contains("requires", Assert.Throws<FormatException>(() => PlaceLibrary.Parse(text.Replace("\"requires\": \"place@forest_trail\"", "\"requires\": \"place@nowhere\""))).Message);
+            Assert.Contains("lantern", Assert.Throws<FormatException>(() => PlaceLibrary.Parse(text.Replace("\"z\": -3.0\n    },\n    {\n     \"x\": -0.5", "\"z\": -30.0\n    },\n    {\n     \"x\": -0.5"))).Message);
+        }
+
+        [Fact]
+        public void Forest_clues_earn_ritual_and_investigation_and_cult_discovery_and_one_lead()
+        {
+            var lib = Library();
+            var e = new InvestigationEvidence();
+            e.ClueIds.Add("place@forest_ritual_circle"); e.ClueIds.Add("place@forest_trail"); e.ClueIds.Add("place@forest_hollow");
+            Assert.Equal(new[] { "cult_discovery", "investigation", "ritual" }, InvestigationRules.KnowledgeSources(e, lib).OrderBy(x => x, StringComparer.Ordinal).ToArray());
+            var lore = MissingOutcomesTests.Lore();
+            foreach (int seed in new[] { 1, 42, 1818, -7 })
+            {
+                VillageSocietyTests.SocietyOf(seed, out var story, out _);
+                int target = VillagePlaces.TrailMissing(seed, VillagePlaces.Forest, story.Missing.Count);
+                Assert.InRange(target, 0, story.Missing.Count - 1);
+                var trail = new InvestigationEvidence(); trail.ClueIds.Add("place@forest_trail");
+                var circle = new InvestigationEvidence(); circle.ClueIds.Add("place@forest_ritual_circle"); circle.ClueIds.Add("place@forest_hollow");
+                for (int k = 0; k < story.Missing.Count; k++)
+                {
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, trail, k) + (k == target ? 1 : 0), MissingOutcomes.CountLeads(story, lore, trail, k, lib));
+                    Assert.Equal(MissingOutcomes.CountLeads(story, lore, circle, k), MissingOutcomes.CountLeads(story, lore, circle, k, lib));
+                }
+            }
         }
     }
 }

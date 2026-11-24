@@ -1,7 +1,7 @@
 // Round 31 (spec 164): the walkable places of the wider world (the Abandoned Manor). No DOM of its own: it turns the Core ruled placements (places.js) into the props, procedural
 // geometry and interaction points the 3D view draws, and applies what the explorer does there (step in, leave, find a discovery, open the hidden tunnel).
 // deps: { state (seed), gridW, gridD, tr, lang(), board (noteClue, knowledge, places), notify(text), moveTo(x, z), arm?() }
-import { parsePlaceLibrary, findPlace, placePlace, placeDressing, placeParts, discoveryPoint, enterPlace, leavePlace, EXIT_DOOR, EXIT_TUNNEL, tunnelOpen, MANOR } from './places.js';
+import { parsePlaceLibrary, findPlace, placePlace, placeDressing, trailDressing, lanternPoints, revealed, placeParts, discoveryPoint, enterPlace, leavePlace, EXIT_DOOR, EXIT_TUNNEL, tunnelOpen, MANOR } from './places.js';
 import { parseKnowledgeLibrary, benefitsAt } from './knowledge.js';
 
 const EYE = 1.1; // metres: the prompt spheres sit a little below eye height so they are picked from the door
@@ -31,7 +31,7 @@ export function createPlacesController(deps) {
   }
 
   /** All props of all places as dressing items (collision and meshes come from the existing kinds). */
-  const dressing = () => placed().flatMap(({ data, p }) => placeDressing(data, p));
+  const dressing = () => placed().flatMap(({ data, p }) => [...placeDressing(data, p), ...trailDressing(data, p, state.seed, gridW, gridD)]);
   /** Procedural boxes of all places for a graphics tier (0 low, 1 medium, 2 high). */
   const parts = (tier) => placed().flatMap(({ data, p }) => placeParts(data, p, tier));
   const key = () => `${state.seed}|${lib ? lib.places.length : 0}`;
@@ -44,7 +44,10 @@ export function createPlacesController(deps) {
       const at = (pt) => [pt[0], EYE, pt[1]];
       out.push({ key: `${data.id}:enter`, pos: at(p.entrance), label: say(data.prompts.enter) });
       out.push({ key: `${data.id}:leave`, pos: at(p.door), label: say(data.prompts.leave) });
-      for (const d of data.discoveries) out.push({ key: `${data.id}:find:${d.id}`, pos: ((w) => [w[0], 0.9, w[1]])(discoveryPoint(p, d)), label: say(d.title) });
+      const lanterns = lanternPoints(data, p);
+      if (lanterns.length) out.push({ key: `${data.id}:follow`, pos: at(lanterns[0]), label: say(data.prompts.leave) }); // the way back: follow the lanterns out
+      const found = deps.board.evidence().clueIds;
+      for (const d of data.discoveries) if (revealed(d, found)) out.push({ key: `${data.id}:find:${d.id}`, pos: ((w) => [w[0], 0.9, w[1]])(discoveryPoint(p, d)), label: say(d.title) });
       out.push({ key: `${data.id}:hatch`, pos: at(p.hatch), label: say(tunnelIsOpen(data) ? data.prompts.hatch : data.prompts.sealed) });
     }
     return out;
@@ -65,10 +68,10 @@ export function createPlacesController(deps) {
     if (!site) return false;
     const p = site.p;
     if (what === 'enter') { const to = enterPlace(p); deps.moveTo(to[0], to[1]); return true; }
-    if (what === 'leave') { const to = leavePlace(p, EXIT_DOOR); deps.moveTo(to[0], to[1]); return true; }
+    if (what === 'leave' || what === 'follow') { const to = leavePlace(p, EXIT_DOOR); deps.moveTo(to[0], to[1]); return true; }
     if (what === 'find') {
       const d = data.discoveries.find((x) => x.id === sub);
-      if (!d) return false;
+      if (!d || !revealed(d, deps.board.evidence().clueIds)) return false;
       deps.board.noteClue(d.clue);
       deps.notify(`${say(d.title)}: ${say(d.text)}`);
       return true;

@@ -211,6 +211,39 @@
    "minute": 1260,
    "en": "A cult ledger in the manor lists the missing in the order they vanished, with the torn page left open.",
    "fr": "Un registre du culte dans le manoir liste les disparus dans l'ordre de leur disparition, la page arrachee laissee ouverte."
+  },
+  {
+   "id": "k_forest_circle",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_ritual_circle",
+   "place": "grove",
+   "night": 1,
+   "minute": 1140,
+   "en": "The circle at the forest edge is swept clean and relit before every dusk. Whoever keeps it never leaves a footprint.",
+   "fr": "Le cercle a la lisiere est balaye et rallume avant chaque crepuscule. Celui qui l'entretient ne laisse aucune empreinte."
+  },
+  {
+   "id": "k_forest_trail",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_trail",
+   "place": "grove",
+   "night": 2,
+   "minute": 1200,
+   "en": "The missing walked into the trees on their own feet, one behind another, and every trail ends at a red mark on a trunk.",
+   "fr": "Les disparus sont entres sous les arbres de leurs pieds, l'un derriere l'autre, et chaque piste finit a une marque rouge sur un tronc."
+  },
+  {
+   "id": "k_forest_hollow",
+   "source": "clue",
+   "role": "",
+   "ref": "place@forest_hollow",
+   "place": "grove",
+   "night": 3,
+   "minute": 1320,
+   "en": "Beyond the red marks lies a hollow ringed by three stones, and the village's lost are counted there.",
+   "fr": "Au-dela des marques rouges se trouve un creux entoure de trois pierres, et c'est la qu'on compte les perdus du village."
   }
  ],
  "contradictions": [

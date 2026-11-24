@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 31 (FEAT-002): Forest Boundary (spec 164)
+- Core `VillagePlaces` and `Data/places.json` gain the Forest Boundary beside the Cursed Grove: a seeded ritual circle (knowledge source `ritual`), a missing-person trail (a lead on one missing person chosen by the seed), a hidden hollow revealed only once the trail clue is on the board (`requires`), an overgrown hunters' track gated by the Forbidden Texts benefit `secret_paths`, an abandoned hunting trail of markers from the nearest lit path to the entrance (`HuntingTrail`), and lantern markers that lead back out (`LanternPoints`, a "follow the lanterns" prompt at the deepest lantern). No new `KnowledgeSource` value. Three statements in `statements.json` give the theory evidence.
+- Web: `places.js`, `place-ui.js` mirror it (glowing lantern boxes, mist bank at the high tier, triangle budgets 120, 200, 260). Golden key `villagePlaces` extended (lanterns, trail, per place trail rows); all other golden keys unchanged. `sw.js` cache v69.
+- Tests: dotnet 401, node 741. Browser render and Unity runtime Unverified. Known gap: the place props are still not in the obstacle lists of lore, inventory, homestead and creature placement (only the 3D view collides with them).
+
 ### Round 31 (FEAT-001): place model and the Abandoned Manor
 - `Core/VillagePlaces.cs` and `Data/places.json` (en and fr): a shared place model. Each place is placed by the seed beside its anchor landmark (the manor beside the abbey), inside `WalkBounds`, clear of every landmark disc, the city and other places, with an entrance point, a door, a way back that returns to the entrance, and a triangle budget per graphics tier. `Place` throws when nothing fits; `Check` names the failure (out of bounds, overlaps, no way back, over budget).
 - The manor: family archives (knowledge source `ruins`), cult records (source `cult_discovery`, a lead on one seed-chosen missing person) and a hidden tunnel that opens at the Forbidden Texts tier (`secret_paths`) and comes up in the cemetery. Found clues are `place@...` clue ids: board Clue cards linked to the abbey, two new Clue statements (`k_manor_archives`, `k_manor_ledger`) usable as theory evidence.

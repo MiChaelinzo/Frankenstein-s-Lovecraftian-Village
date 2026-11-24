@@ -4,15 +4,16 @@
 // with a front door as the way in and a way back to the entrance point, and a tunnel that opens at the knowledge tier of Forbidden Texts.
 import { SeededRandom } from './core.js';
 import { INDEX_STEP } from './society.js';
-import { LANDMARK_IDS, landmarks } from './landmarks.js';
+import { LANDMARK_IDS, landmarks, landmarkPaths } from './landmarks.js';
 import { walkBounds, CELL_M } from './dressing.js';
 
 export const PLACE_LANGUAGES = ['en', 'fr'];
 export const PLACE_CLUE_PREFIX = 'place@';
 export const PLACE_PROMPT_IDS = ['enter', 'leave', 'hatch', 'sealed'];
 export const KNOWLEDGE_SOURCE_IDS = ['journal', 'ritual', 'investigation', 'ruins', 'catacombs', 'mythos_event', 'cult_discovery'];
-export const MANOR = 'manor';
+export const MANOR = 'manor', FOREST = 'forest';
 export const PLACE_STREAM = 0x504c43, TRAIL_STREAM = 0x545241;
+export const LANTERN_GAP = 4, LANTERN_REACH = 4, TRAIL_SPACING = 3, TRAIL_SIDE = 1.4, MAX_TRAIL_LENGTH = 36;
 export const GAP = 2, RING_STEP = 4, MAX_DOOR_WALK = 6, RING_COUNT = 4, DIRECTION_COUNT = 8, TIERS = 3;
 const DIAG = Math.sqrt(0.5);
 const DIRECTIONS = [[1, 0], [DIAG, DIAG], [0, 1], [-DIAG, DIAG], [-1, 0], [-DIAG, -DIAG], [0, -1], [DIAG, -DIAG]];
@@ -42,7 +43,7 @@ export function parsePlaceLibrary(input) {
   for (const o of objects(root, 'places')) {
     const id = str(o, 'id', 'place'), who = `place ${id}`;
     if (lib.places.some((p) => p.id === id)) throw new Error(`places: duplicate place id ${id}`);
-    const p = { id, anchor: str(o, 'anchor', who), radius: num(o, 'radius', who), name: text(o, who), budget: [], rooms: [], props: [], parts: [], discoveries: [], prompts: {} };
+    const p = { id, anchor: str(o, 'anchor', who), radius: num(o, 'radius', who), name: text(o, who), budget: [], rooms: [], props: [], parts: [], discoveries: [], prompts: {}, huntingTrail: false, lanterns: [] };
     if (!LANDMARK_IDS.includes(p.anchor)) throw new Error(`places: ${who} has unknown anchor landmark ${p.anchor}`);
     if (p.radius <= 0) throw new Error(`places: ${who} radius must be above 0`);
     const budget = sub(o, 'budget', who);
@@ -61,6 +62,13 @@ export function parsePlaceLibrary(input) {
     p.tunnelExitsTo = str(tunnel, 'exitsTo', `${who} tunnel`);
     if (!LANDMARK_IDS.includes(p.tunnelExitsTo)) throw new Error(`places: ${who} tunnel exits to unknown landmark ${p.tunnelExitsTo}`);
     p.tunnelFound = text(sub(tunnel, 'found', `${who} tunnel`), `${who} tunnel found`);
+    if (o.huntingTrail !== undefined) { if (typeof o.huntingTrail !== 'boolean') throw new Error(`places: ${who} huntingTrail must be true or false`); p.huntingTrail = o.huntingTrail; }
+    if (o.lanterns !== undefined) {
+      for (const r of objects(o, 'lanterns')) p.lanterns.push([num(r, 'x', `${who} lantern`), num(r, 'z', `${who} lantern`)]);
+      for (let i = 1; i < p.lanterns.length; i++) if (Math.hypot(p.lanterns[i][0] - p.lanterns[i - 1][0], p.lanterns[i][1] - p.lanterns[i - 1][1]) > LANTERN_GAP) throw new Error(`places: ${who} lanterns are more than ${LANTERN_GAP} m apart`);
+      const last = p.lanterns[p.lanterns.length - 1];
+      if (last && Math.hypot(last[0] - p.entrance.x, last[1] - p.entrance.z) > LANTERN_GAP) throw new Error(`places: ${who} lantern trail does not reach the entrance`);
+    }
     for (const r of objects(o, 'rooms')) {
       const room = { id: str(r, 'id', `${who} room`), x: num(r, 'x', `${who} room`), z: num(r, 'z', `${who} room`), halfX: num(r, 'halfX', `${who} room`), halfZ: num(r, 'halfZ', `${who} room`) };
       if (p.rooms.some((x) => x.id === room.id)) throw new Error(`places: ${who} lists room ${room.id} twice`);
@@ -83,6 +91,11 @@ export function parsePlaceLibrary(input) {
         source: str(r, 'source', `${who} discovery`), statement: str(r, 'statement', `${who} discovery`), title: text(r, `${who} discovery`), text: text(sub(r, 'text', `${who} discovery`), `${who} discovery text`) };
       if (typeof r.lead !== 'boolean') throw new Error(`places: ${who} discovery ${d.id} lacks lead`);
       d.lead = r.lead;
+      d.requires = '';
+      if (r.requires !== undefined) {
+        d.requires = typeof r.requires === 'string' ? r.requires : '';
+        if (!p.discoveries.some((e) => e.clue === d.requires)) throw new Error(`places: ${who} discovery ${d.id} requires unknown earlier clue ${d.requires}`);
+      }
       if (!d.clue.startsWith(PLACE_CLUE_PREFIX)) throw new Error(`places: ${who} discovery ${d.id} clue must start with ${PLACE_CLUE_PREFIX}`);
       if (lib.places.some((x) => x.discoveries.some((y) => y.clue === d.clue)) || p.discoveries.some((y) => y.clue === d.clue)) throw new Error(`places: duplicate clue id ${d.clue}`);
       if (!KNOWLEDGE_SOURCE_IDS.includes(d.source)) throw new Error(`places: ${who} discovery ${d.id} has unknown knowledge source ${d.source}`);
@@ -104,7 +117,7 @@ export const findByClue = (lib, clueId) => { for (const p of lib.places) for (co
 
 /** A point in the place's local frame (right, forward) as a world point [x, z]. */
 export const toWorld = (p, lx, lz) => [p.x + p.faceZ * lx + p.faceX * lz, p.z - p.faceX * lx + p.faceZ * lz];
-const placeIndex = (id) => (id === MANOR ? 1 : 2);
+const placeIndex = (id) => (id === MANOR ? 1 : id === FOREST ? 2 : 3);
 
 /** The placement at a given centre and facing with every point of the way in and back worked out. No validation: see checkPlacement. */
 export function buildPlacement(data, seed, gridW, gridD, x, z, faceX, faceZ) {
@@ -191,6 +204,46 @@ export function placeDressing(data, p) {
   const yaw = Math.atan2(p.faceX, p.faceZ);
   return data.props.map((prop) => { const w = toWorld(p, prop.x, prop.z); return { kind: prop.kind, x: w[0], y: 0, z: w[1], yaw: yaw + prop.yaw, scale: 1 }; });
 }
+/** The lantern markers in the world frame, deepest first: following them in order leads back to the entrance. */
+export const lanternPoints = (data, p) => data.lanterns.map((l) => toWorld(p, l[0], l[1]));
+
+/** The hunting trail marker points: from the nearest point of the lit paths to the entrance, one every TRAIL_SPACING m, at most MAX_TRAIL_LENGTH m, inside the walkable world. Mirrors VillagePlaces.HuntingTrail. */
+export function huntingTrail(data, p, seed, gridW, gridD) {
+  const pts = [];
+  if (!data.huntingTrail) return pts;
+  let best = Infinity, bx = 0, bz = 0;
+  const ex = p.entrance[0], ez = p.entrance[1];
+  for (const path of landmarkPaths(seed, gridW, gridD)) {
+    for (let i = 0; i + 1 < path.points.length; i++) {
+      const x0 = path.points[i][0], z0 = path.points[i][1], sx = path.points[i + 1][0] - x0, sz = path.points[i + 1][1] - z0, len2 = sx * sx + sz * sz;
+      const t = len2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((ex - x0) * sx + (ez - z0) * sz) / len2));
+      const qx = x0 + sx * t, qz = z0 + sz * t, d = (ex - qx) * (ex - qx) + (ez - qz) * (ez - qz);
+      if (d < best) { best = d; bx = qx; bz = qz; }
+    }
+  }
+  let dx = ex - bx, dz = ez - bz;
+  const length = Math.sqrt(dx * dx + dz * dz);
+  if (length < 1e-9) return pts;
+  dx /= length; dz /= length;
+  const start = Math.max(0, length - MAX_TRAIL_LENGTH);
+  for (let n = 0; start + n * TRAIL_SPACING < length - TRAIL_SPACING * 0.5; n++) {
+    const s = start + n * TRAIL_SPACING, x = bx + dx * s, z = bz + dz * s;
+    if (pointInBounds(seed, gridW, gridD, x, z)) pts.push([x, z]);
+  }
+  return pts;
+}
+/** The hunting trail as dressing items: a rock and a stump in turn, on alternate sides of the line. */
+export function trailDressing(data, p, seed, gridW, gridD) {
+  const items = [], pts = huntingTrail(data, p, seed, gridW, gridD);
+  for (let n = 0; n < pts.length; n++) {
+    const side = (n % 2 === 0 ? 1 : -1) * TRAIL_SIDE, dx = p.entrance[0] - pts[n][0], dz = p.entrance[1] - pts[n][1], len = Math.sqrt(dx * dx + dz * dz);
+    if (len < 1e-9) continue;
+    items.push({ kind: n % 2 === 0 ? 'rock' : 'stump', x: pts[n][0] - (dz / len) * side, y: 0, z: pts[n][1] + (dx / len) * side, yaw: n * 0.7, scale: 1 });
+  }
+  return items;
+}
+/** Whether a discovery can be found: no earlier clue needed, or that clue is in the Set clueIds. */
+export const revealed = (d, clueIds) => !d.requires || !!(clueIds && clueIds.has(d.requires));
 export const discoveryPoint = (p, d) => toWorld(p, d.x, d.z);
 
 /** The procedural boxes drawn at a graphics tier, as world rectangles { x0, x1, z0, z1, y0, y1, taper, color, glow } (the facing is a cardinal, so each stays axis aligned). */

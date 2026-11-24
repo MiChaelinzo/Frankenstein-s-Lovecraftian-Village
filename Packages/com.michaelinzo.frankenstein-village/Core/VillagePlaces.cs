@@ -38,6 +38,8 @@ namespace Frankenstein.Core
     public sealed class PlaceDiscovery
     {
         public string Id, Room, ClueId, Source, StatementId;
+        /// <summary>The clue id of an earlier discovery of the same place that must be on the board before this one can be found (a hidden landmark revealed by a lead), or "" when it is always findable.</summary>
+        public string Requires = "";
         public double X, Z;
         public bool Lead;
         public LocalizedName Title, Text;
@@ -53,6 +55,10 @@ namespace Frankenstein.Core
         public int[] Budget = new int[3];
         /// <summary>Local points: outside the front door, just inside it, and the hidden hatch.</summary>
         public double EntranceX, EntranceZ, DoorX, DoorZ, HatchX, HatchZ;
+        /// <summary>Whether an abandoned hunting trail leads from the nearest lit path to the entrance (<see cref="VillagePlaces.HuntingTrail"/>).</summary>
+        public bool HuntingTrail;
+        /// <summary>Lantern markers in the local frame, from the deepest point out to the entrance: the way back (<see cref="VillagePlaces.LanternGap"/> apart at most). Empty for a place without them.</summary>
+        public List<double[]> Lanterns = new List<double[]>();
         public Dictionary<string, LocalizedName> Prompts = new Dictionary<string, LocalizedName>();
         public List<PlaceRoom> Rooms = new List<PlaceRoom>();
         public List<PlaceProp> Props = new List<PlaceProp>();
@@ -112,6 +118,22 @@ namespace Frankenstein.Core
                 p.TunnelExitsTo = Str(tunnel, "exitsTo", who + " tunnel");
                 if (Array.IndexOf(VillageLandmarks.Ids, p.TunnelExitsTo) < 0) throw new FormatException("places: " + who + " tunnel exits to unknown landmark " + p.TunnelExitsTo);
                 p.TunnelFound = Text(Sub(tunnel, "found", who + " tunnel"), who + " tunnel found");
+                if (o.ContainsKey("huntingTrail"))
+                {
+                    if (!(o["huntingTrail"] is bool)) throw new FormatException("places: " + who + " huntingTrail must be true or false");
+                    p.HuntingTrail = (bool)o["huntingTrail"];
+                }
+                if (o.ContainsKey("lanterns"))
+                {
+                    foreach (var r in Objects(o, "lanterns")) p.Lanterns.Add(new[] { Num(r, "x", who + " lantern"), Num(r, "z", who + " lantern") });
+                    double[] prev = null;
+                    foreach (var l in p.Lanterns)
+                    {
+                        if (prev != null && Dist(prev[0], prev[1], l[0], l[1]) > VillagePlaces.LanternGap) throw new FormatException("places: " + who + " lanterns are more than " + VillagePlaces.LanternGap + " m apart");
+                        prev = l;
+                    }
+                    if (prev != null && Dist(prev[0], prev[1], p.EntranceX, p.EntranceZ) > VillagePlaces.LanternGap) throw new FormatException("places: " + who + " lantern trail does not reach the entrance");
+                }
                 foreach (var r in Objects(o, "rooms"))
                 {
                     var room = new PlaceRoom { Id = Str(r, "id", who + " room"), X = Num(r, "x", who + " room"), Z = Num(r, "z", who + " room"), HalfX = Num(r, "halfX", who + " room"), HalfZ = Num(r, "halfZ", who + " room") };
@@ -146,6 +168,13 @@ namespace Frankenstein.Core
                     };
                     if (!r.ContainsKey("lead") || !(r["lead"] is bool)) throw new FormatException("places: " + who + " discovery " + d.Id + " lacks lead");
                     d.Lead = (bool)r["lead"];
+                    if (r.ContainsKey("requires"))
+                    {
+                        d.Requires = r["requires"] as string ?? "";
+                        bool known = false;
+                        foreach (var earlier in p.Discoveries) if (earlier.ClueId == d.Requires) known = true;
+                        if (!known) throw new FormatException("places: " + who + " discovery " + d.Id + " requires unknown earlier clue " + d.Requires);
+                    }
                     if (!d.ClueId.StartsWith(CluePrefix, StringComparison.Ordinal)) throw new FormatException("places: " + who + " discovery " + d.Id + " clue must start with " + CluePrefix);
                     if (lib.FindByClue(d.ClueId) != null) throw new FormatException("places: duplicate clue id " + d.ClueId);
                     if (KnowledgeLibrary.SourceIndex(d.Source) < 0) throw new FormatException("places: " + who + " discovery " + d.Id + " has unknown knowledge source " + d.Source);
@@ -160,6 +189,8 @@ namespace Frankenstein.Core
             if (lib.Places.Count == 0) throw new FormatException("places: places must not be empty");
             return lib;
         }
+
+        private static double Dist(double x0, double z0, double x1, double z1) { return Math.Sqrt((x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0)); }
 
         private static List<Dictionary<string, object>> Objects(Dictionary<string, object> o, string key)
         {
@@ -227,10 +258,12 @@ namespace Frankenstein.Core
     /// </summary>
     public static class VillagePlaces
     {
-        public const string Manor = "manor";
+        public const string Manor = "manor", Forest = "forest";
         public const int PlaceStream = 0x504c43, TrailStream = 0x545241;
         /// <summary>Metres kept between the footprint and an anchor landmark's own disc, extra metres per further ring, rings tried, and the longest walk from the entrance point to the inside of the door.</summary>
         public const double Gap = 2.0, RingStep = 4.0, MaxDoorWalk = 6.0;
+        /// <summary>Longest gap between lantern markers (and from the last one to the entrance), metres; the longest reach from a lantern to a discovery; spacing, sideways offset and longest length of the hunting trail markers.</summary>
+        public const double LanternGap = 4.0, LanternReach = 4.0, TrailSpacing = 3.0, TrailSide = 1.4, MaxTrailLength = 36.0;
         public const int RingCount = 4, DirectionCount = 8, Tiers = 3;
         private static readonly double Diag = Math.Sqrt(0.5);
         private static readonly double[][] Directions =
@@ -275,7 +308,7 @@ namespace Frankenstein.Core
             throw new InvalidOperationException("places: " + data.Id + " fits nowhere around " + data.Anchor + " (last failure: " + last + ")");
         }
 
-        private static int PlaceIndex(string id) { return id == Manor ? 1 : 2; }
+        private static int PlaceIndex(string id) { return id == Manor ? 1 : id == Forest ? 2 : 3; }
 
         /// <summary>The placement of a place at a given centre and facing, with every point of the way in and back worked out. No validation: see <see cref="Check"/>.</summary>
         public static PlacePlacement Build(PlaceData data, int seed, int gridW, int gridD, double x, double z, double faceX, double faceZ)
@@ -397,6 +430,64 @@ namespace Frankenstein.Core
                 items.Add(new DressingItem { Kind = prop.Kind, X = w[0], Y = 0.0, Z = w[1], Yaw = yaw + prop.Yaw, Scale = 1.0 });
             }
             return items;
+        }
+
+        /// <summary>The lantern markers of a placed place in the world frame, from the deepest point out to the entrance. Following them in order leads back to <see cref="PlacePlacement.Entrance"/>.</summary>
+        public static List<double[]> LanternPoints(PlaceData data, PlacePlacement p)
+        {
+            var list = new List<double[]>();
+            foreach (var l in data.Lanterns) list.Add(ToWorld(p, l[0], l[1]));
+            return list;
+        }
+
+        /// <summary>
+        /// The marker points of an abandoned hunting trail: from the point of the lit paths (<see cref="VillageLandmarks.Paths"/>) nearest the entrance, a straight line to the entrance, a marker every
+        /// <see cref="TrailSpacing"/> m (at most <see cref="MaxTrailLength"/> m of it, the end nearest the place), only inside the walkable world. Empty for a place without a trail.
+        /// </summary>
+        public static List<double[]> HuntingTrail(PlaceData data, PlacePlacement p, int seed, int gridW, int gridD)
+        {
+            var pts = new List<double[]>();
+            if (!data.HuntingTrail) return pts;
+            double best = double.MaxValue, bx = 0.0, bz = 0.0, ex = p.Entrance[0], ez = p.Entrance[1];
+            foreach (var path in VillageLandmarks.Paths(seed, gridW, gridD))
+                for (int i = 0; i + 1 < path.Points.Count; i++)
+                {
+                    double x0 = path.Points[i][0], z0 = path.Points[i][1], sx = path.Points[i + 1][0] - x0, sz = path.Points[i + 1][1] - z0, len2 = sx * sx + sz * sz;
+                    double t = len2 < 1e-9 ? 0.0 : Math.Max(0.0, Math.Min(1.0, ((ex - x0) * sx + (ez - z0) * sz) / len2));
+                    double qx = x0 + sx * t, qz = z0 + sz * t, d = (ex - qx) * (ex - qx) + (ez - qz) * (ez - qz);
+                    if (d < best) { best = d; bx = qx; bz = qz; }
+                }
+            double dx = ex - bx, dz = ez - bz, length = Math.Sqrt(dx * dx + dz * dz);
+            if (length < 1e-9) return pts;
+            dx /= length; dz /= length;
+            double start = Math.Max(0.0, length - MaxTrailLength);
+            for (int n = 0; start + n * TrailSpacing < length - TrailSpacing * 0.5; n++)
+            {
+                double s = start + n * TrailSpacing, x = bx + dx * s, z = bz + dz * s;
+                if (PointInBounds(seed, gridW, gridD, x, z)) pts.Add(new[] { x, z });
+            }
+            return pts;
+        }
+
+        /// <summary>The hunting trail as dressing items: a rock and a stump in turn, a little to alternate sides of the line, so the trail reads as old blazes and cairns (existing kinds, with their collision).</summary>
+        public static List<DressingItem> TrailDressing(PlaceData data, PlacePlacement p, int seed, int gridW, int gridD)
+        {
+            var items = new List<DressingItem>();
+            var pts = HuntingTrail(data, p, seed, gridW, gridD);
+            for (int n = 0; n < pts.Count; n++)
+            {
+                double side = (n % 2 == 0 ? 1.0 : -1.0) * TrailSide;
+                double dx = p.Entrance[0] - pts[n][0], dz = p.Entrance[1] - pts[n][1], len = Math.Sqrt(dx * dx + dz * dz);
+                if (len < 1e-9) continue;
+                items.Add(new DressingItem { Kind = n % 2 == 0 ? "rock" : "stump", X = pts[n][0] - dz / len * side, Y = 0.0, Z = pts[n][1] + dx / len * side, Yaw = n * 0.7, Scale = 1.0 });
+            }
+            return items;
+        }
+
+        /// <summary>Whether a discovery can be found: it needs no earlier clue, or that clue is already on the board (<paramref name="clueIds"/>).</summary>
+        public static bool Revealed(PlaceDiscovery d, ICollection<string> clueIds)
+        {
+            return d.Requires.Length == 0 || (clueIds != null && clueIds.Contains(d.Requires));
         }
 
         /// <summary>The world point of a discovery.</summary>
