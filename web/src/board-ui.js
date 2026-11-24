@@ -7,7 +7,7 @@ import {
 } from './investigation.js';
 import { MINUTES_PER_DAY } from './clock.js';
 import { mythosStatements } from './mythos.js';
-import { parseKnowledgeLibrary, knowledgeFromSourceIds, realityDistortion } from './knowledge.js';
+import { parseKnowledgeLibrary, knowledgeFromSourceIds, realityDistortion, tierFor as knowledgeTierFor } from './knowledge.js';
 import { knowledgeSources } from './investigation.js';
 
 export const BOARD_KEY = ';'; // every letter is taken by the main key switch, so the board uses a punctuation key that is unshifted on QWERTY and AZERTY
@@ -84,7 +84,7 @@ export function parseBoardEvidence(text) {
 const linkKey = (l) => `${l.kind}|${l.from}|${l.to}`;
 
 /**
- * deps: { $, doc, tr, lang, state (seed), night?() -> 1-based night (reality distortion seed), journal?(text) (tier gains and resolved contradictions are written to the journal), story() -> village story or null, mythos?() -> mythos feed or null, mythosKey?() -> string that changes with the feed, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
+ * deps: { $, doc, tr, lang, state (seed), bars?(index) -> [{ key, value }] of a villager (society-ui barRows), knowledgeBonus?() -> extra knowledge points from concluded theories, outcomeLine?(missingIndex) -> revealed outcome text or '', afterRender?(open) (the theory builder redraws; true or false on open and close), focusables?() -> extra tab stops (theory builder), owns?(el) -> true for elements of the theory builder, night?() -> 1-based night (reality distortion seed), journal?(text) (tier gains and resolved contradictions are written to the journal), story() -> village story or null, mythos?() -> mythos feed or null, mythosKey?() -> string that changes with the feed, lore (controller: library(), readIds()), corruption?() -> stage per roster index or null, trust?(rosterIndex) -> tier (0 neutral, 1 suspicious, 2 trusting) or null,
  *   announce(text), exitPointerLock(), activeElement(), keyTarget, reduceMotion, onChange?() }
  */
 export function createBoardController(deps) {
@@ -103,10 +103,25 @@ export function createBoardController(deps) {
   /** { tier, points, name, effects } of what the evidence has taught the player (Core KnowledgeState from InvestigationRules.KnowledgeSources). Tier 0 and no effects without the data file. */
   function knowledgeNow() {
     if (!knowledgeLib) return { tier: 0, points: 0, name: '', effects: [] };
-    const k = knowledgeFromSourceIds(knowledgeLib, knowledgeSources(evidence)), tier = k.tier;
+    const k = knowledgeFromSourceIds(knowledgeLib, knowledgeSources(evidence)), bonus = Math.max(0, deps.knowledgeBonus ? deps.knowledgeBonus() | 0 : 0), points = k.points + bonus, tier = bonus ? knowledgeTierFor(knowledgeLib, points) : k.tier;
     const effects = realityDistortion(knowledgeLib, state.seed, Math.max(1, deps.night ? deps.night() : 1), tier).map((id) => { const e = knowledgeLib.effects.find((x) => x.id === id); return e.text[lang()] || e.text.en; });
-    return { tier, points: k.points, name: knowledgeLib.tiers[tier].name[lang()] || knowledgeLib.tiers[tier].name.en, effects };
+    return { tier, points, name: knowledgeLib.tiers[tier].name[lang()] || knowledgeLib.tiers[tier].name.en, effects };
   }
+
+  /** Belief of every revealed authored statement, as Map(statement library index -> belief 0..100) for the theory builder. Built without the knowledge tier, so theories can raise knowledge without a cycle. */
+  let beliefKey = '', beliefMap = new Map();
+  function beliefs() {
+    ensureSeed();
+    const story = deps.story ? deps.story() : null, lib = library();
+    if (!story || !lib || !statements) return new Map();
+    const corruption = deps.corruption ? deps.corruption() : null, key = `${state.seed}|${version}|${deps.lore ? deps.lore.readIds().size : 0}|${corruption ? corruption.join('') : ''}|${story.roster.length}`;
+    if (key !== beliefKey) {
+      beliefKey = key; beliefMap = new Map();
+      for (const sc of buildBoard(story, lib, statements, clone(), corruption, null, 0).scores) beliefMap.set(statements.statements.findIndex((x) => x.id === sc.statementId), sc.belief);
+    }
+    return beliefMap;
+  }
+  const statementTitle = (index) => { const st = statements && statements.statements[index]; if (!st) return ''; current(); return titles.get(`event:${st.id}`) || st.id; };
 
   function setStatements(json) { statements = json ? parseStatementLibrary(json) : null; modelKey = ''; seenLinks = null; sync(); }
 
@@ -163,7 +178,7 @@ export function createBoardController(deps) {
   function sync() {
     const m = current();
     if (m) announceNew(m);
-    if (open) render();
+    if (open) { render(); deps.afterRender?.(); }
     deps.onChange?.();
   }
 
@@ -206,6 +221,31 @@ export function createBoardController(deps) {
     if (!deps.trust || card.kind !== CARD_SUSPECT || !card.revealed || !card.id.startsWith(SUSPECT_PREFIX)) return null;
     const t = deps.trust(Number(card.id.slice(SUSPECT_PREFIX.length)));
     return Number.isInteger(t) ? t : null;
+  }
+
+  /** The six trust bars of a revealed suspect card (met villagers only, like the trust tier); null otherwise. */
+  function barsOf(card) {
+    if (!deps.bars || card.kind !== CARD_SUSPECT || !card.revealed || !card.id.startsWith(SUSPECT_PREFIX)) return null;
+    return deps.bars(Number(card.id.slice(SUSPECT_PREFIX.length)));
+  }
+  /** A row of six small bars on the card, decoration only: the same numbers are read out by the detail line and its labelled meters. */
+  function miniBars(rows) {
+    const strip = node('span', { class: 'board-card-bars', 'aria-hidden': 'true' });
+    for (const r of rows) { const bar = node('i', { class: `board-bar board-bar-${r.key}` }); bar.style.setProperty('height', `${Math.max(1, Math.round(r.value / 1000 * 10))}px`); strip.append(bar); }
+    return strip;
+  }
+  const barsText = (rows) => rows.map((r) => `${tr(`society.bar.${r.key}`)} ${r.value}`).join(', ');
+  /** Labelled meters for the detail area (not per frame). */
+  function renderBars(rows) {
+    const el = $('boardBars'); if (!el) return;
+    clear(el);
+    el.hidden = !rows;
+    if (!rows) return;
+    el.setAttribute('aria-label', tr('society.bar.aria', { text: barsText(rows) }));
+    for (const r of rows) {
+      const li = node('li', {}), m = node('meter', { min: '0', max: '1000', value: String(r.value), 'aria-label': `${tr(`society.bar.${r.key}`)}: ${r.value}` });
+      li.append(node('span', { class: 'axis-label' }, tr(`society.bar.${r.key}`)), m); el.append(li);
+    }
   }
 
   /** One or other form of a counted phrase: English counts 1 as singular, French counts 0 and 1. */
@@ -257,6 +297,8 @@ export function createBoardController(deps) {
       b.style.setProperty('left', `${slot.x}px`); b.style.setProperty('top', `${slot.y}px`); b.style.setProperty('width', `${CARD_W}px`); b.style.setProperty('height', `${CARD_H}px`);
       b.append(node('span', { class: 'board-card-kind' }, tr(`board.kind.${c.kind}`)), node('span', { class: 'board-card-title' }, title));
       if (trust !== null) b.append(node('span', { class: `board-card-trust board-trust-${trust}`, 'aria-hidden': 'true' }, tr(`society.trust.short.${trust}`)));
+      const bars = barsOf(c);
+      if (bars) b.append(miniBars(bars));
       b.addEventListener('click', () => inspect(c.id));
       cardsEl.append(b); cardNodes.set(c.id, b);
     }
@@ -280,6 +322,11 @@ export function createBoardController(deps) {
     const resolved = m.resolutions.filter((c) => c.cardA === id || c.cardB === id).map((c) => tr('board.detail.resolved', { reason: reasonOf(c.pairId) }));
     const score = (m.scores || []).find((x) => `event:${x.statementId}` === id);
     const parts = [`${tr(`board.kind.${card.kind}`)}: ${titleOf(id)}.`, score ? tr('board.detail.score', { confidence: score.confidence, belief: score.belief }) : '', linked.length ? tr('board.detail.linked', { list: linked.join(', ') }) : tr('board.detail.none'), ...reasons.map((r) => tr('board.detail.contradiction', { reason: r })), ...resolved].filter(Boolean);
+    const bars = barsOf(card);
+    if (bars) parts.push(tr('society.bar.aria', { text: barsText(bars) }));
+    const outcome = card.kind === CARD_VICTIM && deps.outcomeLine ? deps.outcomeLine(Number(card.key)) : '';
+    if (outcome) parts.push(outcome);
+    renderBars(bars);
     const text = parts.join(' ');
     const el = $('boardDetail'); if (el) el.textContent = text;
     deps.announce?.(text);
@@ -291,7 +338,7 @@ export function createBoardController(deps) {
 
   function openBoard() {
     const panel = $('boardPanel'); if (!panel) return false;
-    open = true; panel.hidden = false; render();
+    open = true; panel.hidden = false; render(); deps.afterRender?.(true);
     deps.exitPointerLock?.();
     returnFocus = deps.activeElement ? deps.activeElement() : null;
     const first = layout && layout.order.length ? (layout.order.includes(selected) ? selected : layout.order[0]) : null;
@@ -302,14 +349,14 @@ export function createBoardController(deps) {
   function close() {
     const panel = $('boardPanel');
     if (!open || !panel) return false;
-    open = false; panel.hidden = true;
+    open = false; panel.hidden = true; deps.afterRender?.(false);
     $('boardToggle')?.setAttribute?.('aria-expanded', 'false');
     returnFocus?.focus?.(); returnFocus = null;
     return true;
   }
   const toggle = () => (open ? close() : openBoard());
 
-  function focusables() { return [...cardNodes.values(), $('boardClose')].filter(Boolean); }
+  function focusables() { return [...cardNodes.values(), ...(deps.focusables ? deps.focusables() : []), $('boardClose')].filter(Boolean); }
 
   deps.keyTarget?.addEventListener?.('keydown', (e) => {
     if (!open || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -320,6 +367,7 @@ export function createBoardController(deps) {
       if (list.length) { list[(at + (e.shiftKey ? -1 : 1) + list.length) % list.length].focus?.(); }
       stop(); return;
     }
+    if (deps.owns && deps.owns(deps.activeElement ? deps.activeElement() : null)) return; // the theory builder uses the native keys of its buttons and checkboxes
     const dir = ARROW_DIRS[e.key];
     if (dir && layout) {
       const active = deps.activeElement ? deps.activeElement() : null, from = [...cardNodes].find(([, n]) => n === active);
@@ -336,7 +384,7 @@ export function createBoardController(deps) {
   $('boardToggle')?.addEventListener?.('click', toggle);
 
   return {
-    setStatements, setKnowledge, knowledge: knowledgeNow, noteMet, noteClue, noteChat, noteMythos, sync, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
+    setStatements, setKnowledge, knowledge: knowledgeNow, noteMet, noteClue, noteChat, noteMythos, sync, beliefs, statementTitle, open: openBoard, close, toggle, inspect, isOpen: () => open, model: () => current(),
     evidence: () => clone(), cardTitle: titleOf,
     snapshot: () => { ensureSeed(); return { board: serializeBoardEvidence(evidence) }; },
     restore(s) {

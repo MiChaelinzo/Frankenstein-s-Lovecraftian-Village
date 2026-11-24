@@ -30,6 +30,7 @@ import { createInventoryController } from './inventory-ui.js';
 import { createCreatureController } from './creature-ui.js';
 import { createHomesteadController } from './homestead-ui.js';
 import { createBoardController, BOARD_KEY } from './board-ui.js';
+import { createTheoryController, FINAL_NIGHTS_DEFAULT } from './theory-ui.js';
 import { createSocietyController } from './society-ui.js';
 import { parseStatementLibrary } from './investigation.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
@@ -143,7 +144,9 @@ const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash l
 let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
 // A new seed or campaign starts the director from calm, so the same seed gives the same run.
 function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks } = directorFreshRun()); }
-function directorFrame() {
+let directorLookNow = directorLook(0, { reduced: reduceMotion, tier: 'medium' });
+// Stepped from a timer (directorTimer below), never from the 3D getScene callback: rendering only reads directorLookNow.
+function directorUpdate() {
   const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
   if (tick !== directorTick) {
     directorTick = tick;
@@ -153,8 +156,10 @@ function directorFrame() {
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
   const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium' });
   if (ambient) ambient.setDirectorGain(look.ambienceGain);
-  return look;
+  directorLookNow = look;
 }
+const DIRECTOR_STEP_MS = 100;
+setInterval(() => { if (!document.hidden) directorUpdate(); }, DIRECTOR_STEP_MS);
 // Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
 let gpuRenderer = '', quality = null;
 const view3d = createView3d({
@@ -164,7 +169,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    director: directorFrame(), tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
@@ -239,6 +244,7 @@ async function loadCatalog() {
   try { creatures.setCatalog(await (await fetch('data/creatures.json')).json()); } catch (err) { console.warn(`[creatures] could not load data/creatures.json, no creatures this session: ${err.message}`); }
   try { const statements = await (await fetch('data/statements.json')).json(); board.setStatements(statements); society.setStatements(parseStatementLibrary(statements)); } catch (err) { console.warn(`[board] could not load data/statements.json, the investigation board stays closed and villagers say nothing authored this session: ${err.message}`); }
   try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
+  try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
@@ -444,7 +450,7 @@ const perf = createPerf();
 let mapOn = false, perfOn = false, perfShownAt = 0;
 function currentSession() {
   const beat = story.on ? story.idx - nightStartIndex(story.beats, state.night + 1) : 0;
-  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot(), ...board.snapshot(), ...society.snapshot() };
+  return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot(), ...board.snapshot(), ...society.snapshot(), ...theory.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
@@ -455,7 +461,7 @@ function applySession(s) {
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
   progress.restore(v); progress.update();
-  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); board.restore(v); society.restore(v); }
+  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); board.restore(v); society.restore(v); theory.restore(v); }
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -660,7 +666,7 @@ const vigil = createVigilController({
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
-  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id),
+  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id), epilogue: (id) => (theory ? theory.epilogue(id) : ''),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
   exit3d: () => { if (view3d.active) setView3d(false); },
   reroll: () => rerollVillage(),
@@ -682,13 +688,19 @@ const lore = createLoreController({
   applyEffect: (result, book) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, book.id); },
 });
 // Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
-const society = createSocietyController({ state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+let theory = null; // the theory builder (created after the board); society and board read it lazily
+const society = createSocietyController({ trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
+  afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
   night: () => state.night + 1, journal: (text) => log('lore', text),
   onChange: () => autosave(),
+});
+theory = createTheoryController({
+  $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
+  board, lore, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
@@ -723,6 +735,7 @@ const villagers = createVillagerController({
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
+  bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), theories: () => theory.summary(),
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
   mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), knowledge: () => board.knowledge(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
@@ -1103,7 +1116,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); board.restore(saved); society.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); board.restore(saved); society.restore(saved); theory.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

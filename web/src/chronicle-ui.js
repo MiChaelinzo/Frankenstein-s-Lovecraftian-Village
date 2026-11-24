@@ -26,6 +26,7 @@ export function chronicleModel(story, lang, ctx) {
       id: m.id, name: vars.missing, home: vars.home, parts: { page, journal, chat: heardStage >= 0 }, told: Number(page) + Number(journal) + Number(heardStage >= 0),
       line: heardStage >= 0 ? story.gossipText({ kind: 2, subject: story.missing.indexOf(m), stage: heardStage, variant: 0 }, story.roster[m.kinIndex >= 0 ? m.kinIndex : 0], ctx.night, tier, lang) : '',
       given: data.given[lang] || data.given.en,
+      outcome: ctx.outcomeLine ? ctx.outcomeLine(story.missing.indexOf(m)) : '', // Round 30: only as far as the leads found allow (outcomes.js revealOutcome)
     };
   });
   // Round 27: what the village's background simulation has shown the player. Only statements a villager told (ctx.mythosHeard: statement id -> speaker) up to the current night are listed.
@@ -36,8 +37,11 @@ export function chronicleModel(story, lang, ctx) {
   // Round 28: the night tick record of the current night, counts only (no secret or omen is named here).
   const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
   const knowledge = ctx.knowledge && ctx.knowledge.name ? ctx.knowledge : null; // Round 28: the tier the evidence has earned, with tonight's reality effects
+  // Round 30: the trust bars (trust, fear, faith, loyalty, obsession, corruption) of everyone met, and the theories concluded on the board.
+  const people = ctx.met && ctx.bars ? [...ctx.met].sort((a, b) => a - b).filter((i) => i >= 0 && i < story.roster.length).map((i) => ({ index: i, name: nameOf(i), rows: ctx.bars(i) })).filter((p) => p.rows) : [];
+  const theories = ctx.theories || [];
   return {
-    stage, tier, mythos, tick, knowledge,
+    stage, tier, mythos, tick, knowledge, people, theories,
     rumor: story.rumorText(ctx.night, stage, tier, lang),
     families, missing,
     histories: DISTRICT_IDS.map((id) => ({ id, text: districtHistory(lib, id, lang) })),
@@ -55,7 +59,7 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [] };
   }
 
   /** A villager told about a missing person at a stage: the chronicle keeps the furthest stage heard. */
@@ -66,7 +70,7 @@ export function createChronicleController(deps) {
   }
 
   let renderedKey = '';
-  const mythosStamp = (c) => `${deps.mythosKey ? deps.mythosKey() : ''}|${c.mythosHeard ? c.mythosHeard.size : 0}`;
+  const mythosStamp = (c) => `${deps.mythosKey ? deps.mythosKey() : ''}|${c.mythosHeard ? c.mythosHeard.size : 0}|${c.met ? [...c.met].map((i) => (c.bars ? (c.bars(i) || []).map((r) => r.value).join('.') : '')).join(',') : ''}|${c.theories.map((t) => `${t.instance}${t.grade}`).join('')}|${c.outcomeLine ? deps.story() && deps.story().missing.map((_, k) => c.outcomeLine(k).length).join('.') : ''}`;
   /** Re-renders an open panel only when something it shows changed (night, dread tier, books read, chat heard, village). */
   function refresh() {
     if (!on) return;
@@ -85,7 +89,7 @@ export function createChronicleController(deps) {
     parts.push(`<h3>${esc(tr('chronicle.missing'))}</h3><ul class="chronicle-list">${m.missing.map((p) => {
       const got = ['page', 'journal', 'chat'].filter((k) => p.parts[k]).map((k) => tr(`chronicle.told.${k}`)).join(', ');
       return `<li data-missing="${esc(p.id)}"><strong>${esc(tr('chronicle.missing.row', { missing: p.name, home: p.home, n: p.told }))}</strong>`
-        + (got ? ` <em>${esc(got)}</em>` : '') + (p.line ? `<p class="lore-text">${esc(p.line)}</p>` : p.told ? '' : `<p class="stats">${esc(tr('chronicle.missing.unknown'))}</p>`) + '</li>';
+        + (got ? ` <em>${esc(got)}</em>` : '') + (p.outcome ? `<p class="lore-text" data-outcome="${esc(p.id)}">${esc(tr('chronicle.outcome', { text: p.outcome }))}</p>` : '') + (p.line ? `<p class="lore-text">${esc(p.line)}</p>` : p.told ? '' : `<p class="stats">${esc(tr('chronicle.missing.unknown'))}</p>`) + '</li>';
     }).join('')}</ul>`);
     parts.push(`<h3>${esc(tr('chronicle.families'))}</h3><ul class="chronicle-list">${m.families.map((f) =>
       `<li data-family="${esc(f.surname)}">${esc(tr('chronicle.family', { surname: f.surname, members: f.members.length ? f.members.join(', ') : tr('chronicle.family.empty'), home: f.home }))}<p class="lore-text">${esc(f.history)}</p></li>`).join('')}</ul>`);
@@ -94,6 +98,11 @@ export function createChronicleController(deps) {
       : `<p class="stats" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
     if (m.knowledge) parts.push(`<p class="stats" id="chronicleKnowledge">${esc(tr('chronicle.knowledge', { tier: m.knowledge.tier, name: m.knowledge.name, points: m.knowledge.points }))}${m.knowledge.effects.length ? ` ${esc(m.knowledge.effects.join(' '))}` : ''}</p>`);
     if (m.tick) parts.push(`<p class="stats" id="chronicleTick">${esc(tr('chronicle.tick', { night: m.tick.night, cult: m.tick.cultGrowth, rumors: m.tick.rumorsChanged + m.tick.rumorsAdded, shift: m.tick.realityShift }))}</p>`);
+    parts.push(`<h3>${esc(tr('chronicle.people'))}</h3>${m.people.length ? `<ul class="chronicle-list" id="chroniclePeople">${m.people.map((p) => {
+      const text = p.rows.map((r) => `${tr(`society.bar.${r.key}`)} ${r.value}`).join(', ');
+      return `<li data-person="${p.index}"><strong>${esc(p.name)}</strong><ul class="axis-bars chronicle-bars" aria-label="${esc(tr('society.bar.aria', { text }))}">${p.rows.map((r) => `<li><span class="axis-label">${esc(tr(`society.bar.${r.key}`))}</span><meter min="0" max="1000" value="${r.value}" aria-label="${esc(`${tr(`society.bar.${r.key}`)}: ${r.value}`)}"></meter></li>`).join('')}</ul></li>`;
+    }).join('')}</ul>` : `<p class="stats" id="chroniclePeople">${esc(tr('chronicle.people.empty'))}</p>`}`);
+    parts.push(`<h3>${esc(tr('theory.summary.title'))}</h3>${m.theories.length ? `<ul class="chronicle-list" id="chronicleTheories">${m.theories.map((t) => `<li data-theory="${t.instance}" class="theory-${['true', 'partial', 'false'][t.grade]}"><strong>${esc(t.gradeName)}</strong>: ${esc(t.question)} ${esc(t.answer)} <em>${esc(t.verdict)}</em></li>`).join('')}</ul>` : `<p class="stats" id="chronicleTheories">${esc(tr('theory.summary.empty'))}</p>`}`);
     parts.push(`<h3>${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);
     parts.push(`<h3>${esc(tr('chronicle.legends'))}</h3><ul class="chronicle-list">${m.legends.map((l) => `<li data-legend="${esc(l.id)}"><strong>${esc(tr('chronicle.legend.at', { title: l.title, place: l.place }))}</strong><p class="lore-text">${esc(l.text)}</p></li>`).join('')}</ul>`);
     body.innerHTML = parts.join('');

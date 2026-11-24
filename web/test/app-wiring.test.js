@@ -41,3 +41,13 @@ test('the investigation board is wired to key, pad, touch, evidence sources and 
   assert.match(html, /id="boardToggle"/); assert.match(html, /id="boardPanel"[^>]*hidden/); assert.match(html, /id="boardLive"[^>]*aria-live="polite"/); assert.match(html, /id="touchBoard"/);
   assert.match(read('tour.js'), /id: 'board', target: 'boardToggle'/);
 });
+
+test('the Horror Director is stepped from a timer, not from the 3D render callback (round 30)', () => {
+  const app = read('app.js');
+  const scene = app.slice(app.indexOf('getScene: () => ({'), app.indexOf('labelFor:', app.indexOf('getScene: () => ({')));
+  assert.ok(scene.length > 100, 'getScene block not found');
+  assert.doesNotMatch(scene, /directorUpdate\(|directorStep\(|directorRamp\(|directorFrame\(/, 'getScene must only read the cached look');
+  assert.match(scene, /director: directorLookNow/);
+  assert.match(app, /setInterval\(\(\) => \{ if \(!document\.hidden\) directorUpdate\(\); \}, DIRECTOR_STEP_MS\)/);
+  assert.equal([...app.matchAll(/directorStep\(/g)].length, 1, 'a single call, inside directorUpdate');
+});
