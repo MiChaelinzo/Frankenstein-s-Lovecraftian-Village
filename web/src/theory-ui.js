@@ -91,7 +91,7 @@ export function createTheoryController(deps) {
     if (!ready() || !Number.isInteger(missingIndex) || missingIndex < 0 || missingIndex >= deps.story().missing.length) return '';
     const story = deps.story(), lib = deps.lore.library();
     if (!lib) return '';
-    const leads = countLeads(story, lib, deps.board.evidence(), missingIndex);
+    const leads = countLeads(story, lib, deps.board.evidence(), missingIndex, deps.board.places ? deps.board.places() : null);
     const outcome = resolveOutcome(deps.society(), story, deps.mythosFinal(), outcomes, missingIndex, 0);
     return revealOutcome(story, outcomes, outcome, missingIndex, leads, lang()).text;
   }

@@ -21,6 +21,7 @@ import {
 import { TALK_PICK_RADIUS, nearestVillager } from './villager-view.js';
 import { tellFor, applyTell3d } from './corruption-tell.js';
 const PICKUP_PICK_RADIUS = 0.5; // metres: items and chests lie on the ground like books
+const PLACE_PICK_RADIUS = 0.9; // metres: a doorway, ledger or hatch prompt
 const BOOK_PICK_RADIUS = 0.7; // metres: a book lies on the ground, so the pick sphere is generous
 import { omenTargets, stormFlash, thunderDelayMs, applyFlash } from './scene.js';
 import { birdCounts, flockPlan, createFlocks, advanceFlockTo, roofPerches, buildBirds } from './birds.js';
@@ -405,7 +406,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [] }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [], places = null }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -423,6 +424,10 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   batchProps(out, uv, dressing, meshes, cell);
   const landmarkItems = [...landmarkDressing(seed, gridW, gridD), ...landmarkPathDressing(seed, gridW, gridD)];
   batchProps(out, uv, landmarkItems, meshes, cell); // the wider world: sea stacks, wreck, marsh, abbey ruins, lit paths
+  if (places) { // the places of the wider world (round 31): props of existing kinds plus the place's own procedural boxes, already limited to the graphics tier
+    batchProps(out, uv, places.items, meshes, cell);
+    for (const b of places.parts) pushFrustum(out, b.x0, b.z0, b.x1, b.z1, b.y0, b.y1, b.taper, b.color, b.glow, 0);
+  }
   if (corruption > 0) batchProps(out, uv, growCorruption(seed, gridW, gridD, corruption), meshes, cell); // tentacle trees, fungi and spires at the Core ruled sites; they grow with dread and night
   if (homestead.length) batchProps(out, uv, homestead.map((h) => ({ y: 0, ...h })), meshes, cell); // the yard: beds, crops, structures, animals and pets, plus the plot edge corruption (all static between actions)
   for (const b of books) pushBook(out, b.pos[0], b.pos[2], b.id, !!b.read);
@@ -439,7 +444,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
   }
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
-  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes([...dressing, ...landmarkItems]) };
+  return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes([...dressing, ...landmarkItems, ...(places ? places.items : [])]) };
 }
 
 // ---------- shaders ----------
@@ -1097,10 +1102,10 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || ''].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || '', s.places ? s.places.key + '|' + tier.detail : ''].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])] });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])], places: s.places ? { items: s.places.items, parts: s.places.partsFor(tier.detail) } : null });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
@@ -1150,6 +1155,13 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
     if (bHit && (!hit || bHit.distance <= hit.distance + 0.6)) {
       const b = bs[bHit.index];
       return { piece: { id: 'book', bookId: b.id, read: !!b.read }, kind: 'book', distance: bHit.distance, inRange: InteractionRules.inRange(bHit.distance) };
+    }
+    // The places of the wider world: the way in, the way back, discoveries and the hatch are small spheres on the ground like books.
+    const ps = s.places ? s.places.points : [];
+    const pHit = ps.length ? pickLamp(origin, ray, ps, 60, PLACE_PICK_RADIUS) : null;
+    if (pHit && (!hit || pHit.distance <= hit.distance + 0.6)) {
+      const pt = ps[pHit.index];
+      return { piece: { id: 'place', placeKey: pt.key, label: pt.label }, kind: 'place', distance: pHit.distance, inRange: InteractionRules.inRange(pHit.distance) };
     }
     // Found items and chests share the view ray too.
     const qs = s.pickups || [];
@@ -1437,6 +1449,8 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
     setQuality(name) { tierName = name; tier = tierSettings(name); scale = 1; perf.reset(); rainKey = ''; lastFlies = null; flockKey = ''; wake(); },
     get quality() { return tierName; },
     get settings() { return settings; },
+    /** Moves the explorer to a ground point (a place's door, entrance or tunnel exit); the walk bounds still apply on the next step. */
+    moveTo(x, z) { if (cam) { cam.x = x; cam.z = z; wake(); } },
     get camera() { return cam; },
   };
 }

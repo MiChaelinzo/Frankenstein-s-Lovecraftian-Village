@@ -199,6 +199,12 @@ namespace Frankenstein.Core
         /// </summary>
         public static int CountLeads(VillageStory story, LoreLibrary lore, InvestigationEvidence evidence, int missingIndex)
         {
+            return CountLeads(story, lore, evidence, missingIndex, null);
+        }
+
+        /// <summary>As above plus the missing-person trails of the places: each found Lead discovery whose trail ends at this person is one more lead (<see cref="VillagePlaces.LeadsFor"/>).</summary>
+        public static int CountLeads(VillageStory story, LoreLibrary lore, InvestigationEvidence evidence, int missingIndex, PlaceLibrary places)
+        {
             if (evidence == null) return 0;
             var m = story.Missing[missingIndex];
             int leads = 0;
@@ -212,7 +218,7 @@ namespace Frankenstein.Core
             if (m.WitnessIndex >= 0 && evidence.Met.Contains(m.WitnessIndex)) leads++;
             int heard = 0;
             foreach (var h in evidence.Heard) if (h.Villager >= 0 && (h.Villager == m.KinIndex || h.Villager == m.WitnessIndex)) heard++;
-            return Math.Min(MaxLeads, leads + Math.Min(2, heard));
+            return Math.Min(MaxLeads, leads + Math.Min(2, heard) + VillagePlaces.LeadsFor(places, evidence.ClueIds, story.Seed, story.Missing.Count, missingIndex));
         }
 
         public static RevealLevel LevelFor(int leads)

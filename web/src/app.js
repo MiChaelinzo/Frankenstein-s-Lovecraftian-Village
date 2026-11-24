@@ -26,6 +26,7 @@ import { createVillagerController } from './villager-ui.js';
 import { ROLE_COUNT } from './villagers.js';
 import { streetWalkers } from './streets.js';
 import { createLoreController } from './lore-ui.js';
+import { createPlacesController } from './place-ui.js';
 import { createInventoryController } from './inventory-ui.js';
 import { createCreatureController } from './creature-ui.js';
 import { createHomesteadController } from './homestead-ui.js';
@@ -169,8 +170,8 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
-    labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
+    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), places: places.scene(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'place' ? p.label : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
     fly: backdropKind === '3d' ? flythroughCamera(performance.now() - backdropT0, BACKDROP_BEATS, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : cine.on && view3d.active && !cam3dParam ? flythroughCamera(performance.now() - cine.t0, cine.durations, { gridW: GRID_W, gridD: GRID_D, seed: state.seed }, reduceMotion) : null,
@@ -199,6 +200,7 @@ function interact3d(p, kind) {
   if (kind === 'door') { tryDoor(p); return; }
   if (kind === 'lamp') { vigil.lightLamp(p.lampId); return; }
   if (kind === 'book') { lore.readById(p.bookId); return; }
+  if (kind === 'place') { places.interact(p.placeKey); return; }
   if (kind === 'item' || kind === 'chest') { inventory.interactById(p.pickupId); return; }
   if (kind === 'villager') { villagers.talkTo(p.villagerIndex); return; }
   if (kind === 'villager-chat') { villagers.chatWith(p.villagerIndex); return; }
@@ -245,6 +247,7 @@ async function loadCatalog() {
   try { const statements = await (await fetch('data/statements.json')).json(); board.setStatements(statements); society.setStatements(parseStatementLibrary(statements)); } catch (err) { console.warn(`[board] could not load data/statements.json, the investigation board stays closed and villagers say nothing authored this session: ${err.message}`); }
   try { board.setKnowledge(await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[knowledge] could not load data/knowledge.json, the knowledge tier stays 0 and the board shows no knowledge indicator: ${err.message}`); }
   try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
+  try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
@@ -702,6 +705,8 @@ theory = createTheoryController({
   $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
   board, lore, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
+// Places: the Abandoned Manor and later places (places.js, Core VillagePlaces). Draws props and boxes through the 3D scene; discoveries become board clues.
+const places = createPlacesController({ state, gridW: GRID_W, gridD: GRID_D, lang, board, notify: (text) => { $('sessionNote').textContent = text; announce(text); }, moveTo: (x, z) => view3d.moveTo(x, z) });
 // Inventory: seeded items and chests by Core rules (inventory.js). Sanity items and sleeping follow the vigil sandbox lock; picking up and dropping never do.
 const inventory = createInventoryController({
   $, tr, lang, state, gridW: GRID_W, gridD: GRID_D, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,

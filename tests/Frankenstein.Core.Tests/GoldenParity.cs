@@ -392,8 +392,47 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendTheories(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendPlaces(sb);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "villagePlaces" (round 31, spec 164): per seed and grid, the placement of each place (centre, facing, entrance, door, hatch, tunnel exit), its dressing, the triangle counts per tier, the tunnel gate and the trail of the lead.</summary>
+        private static void AppendPlaces(StringBuilder sb)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string R(double v) { return (v + 0.0).ToString("R", inv); }
+            string Pt(double[] p) { return "[" + R(p[0]) + ", " + R(p[1]) + "]"; }
+            var lib = VillagePlacesTests.Library();
+            var know = KnowledgeLibrary.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data", "knowledge.json")));
+            sb.Append("  \"villagePlaces\": {\n    \"tiers\": [");
+            sb.Append(string.Join(", ", lib.Places.Select(d => "[" + Q(d.Id) + ", " + string.Join(", ", Enumerable.Range(0, VillagePlaces.Tiers).Select(t => VillagePlaces.Triangles(d, t) + ", " + d.Budget[t])) + "]")));
+            sb.Append("],\n    \"tunnel\": [");
+            sb.Append(string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.MaxTier + 1).Select(t => VillagePlaces.TunnelOpen(lib.Find(VillagePlaces.Manor), know, t) ? "1" : "0")));
+            sb.Append("],\n    \"trails\": [");
+            sb.Append(string.Join(", ", new[] { 1, 42, 1818 }.SelectMany(seed => new[] { 1, 3, 7 }.Select(n => "[" + seed + ", " + n + ", " + VillagePlaces.TrailMissing(seed, VillagePlaces.Manor, n) + "]"))));
+            sb.Append("],\n    \"worlds\": [");
+            bool first = true;
+            foreach (var seed in VigilSeeds)
+                foreach (var grid in new[] { 24, VillageDistricts.CityGrid })
+                {
+                    var placed = new List<PlacePlacement>();
+                    var entries = new List<string>();
+                    foreach (var data in lib.Places)
+                    {
+                        var p = VillagePlaces.Place(data, seed, grid, grid, placed);
+                        placed.Add(p);
+                        var dressing = string.Join(", ", VillagePlaces.Dressing(data, p).Select(i => "[" + Q(i.Kind) + ", " + R(i.X) + ", " + R(i.Z) + ", " + R(i.Yaw) + "]"));
+                        var found = string.Join(", ", data.Discoveries.Select(d => Pt(VillagePlaces.DiscoveryPoint(p, d))));
+                        entries.Add("{ \"id\": " + Q(p.Id) + ", \"at\": " + Pt(new[] { p.X, p.Z }) + ", \"face\": " + Pt(new[] { p.FaceX, p.FaceZ }) + ", \"entrance\": " + Pt(p.Entrance) + ", \"door\": " + Pt(p.Door)
+                            + ", \"hatch\": " + Pt(p.Hatch) + ", \"tunnelExit\": " + Pt(p.TunnelExit) + ", \"discoveries\": [" + found + "], \"dressing\": [" + dressing + "] }");
+                    }
+                    sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"grid\": ").Append(grid).Append(", \"places\": [").Append(string.Join(", ", entries)).Append("] }");
+                    first = false;
+                }
+            sb.Append("\n    ]\n  }\n");
         }
 
         /// <summary>First-person interaction rules (top level key "interaction"): range, cooldown, sanity deltas and category mapping.</summary>

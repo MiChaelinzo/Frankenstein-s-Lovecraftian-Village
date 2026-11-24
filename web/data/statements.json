@@ -189,6 +189,28 @@
    "minute": 1380,
    "en": "It was not me. I was never near the place.",
    "fr": "Ce n'etait pas moi. Je n'etais jamais pres de cet endroit."
+  },
+  {
+   "id": "k_manor_archives",
+   "source": "clue",
+   "role": "",
+   "ref": "place@manor_archives",
+   "place": "abbey",
+   "night": 2,
+   "minute": 1200,
+   "en": "The manor archives record every generation giving a child to the house, and none of them is buried in the churchyard.",
+   "fr": "Les archives du manoir notent chaque generation donnant un enfant a la maison, et aucun n'est enterre au cimetiere."
+  },
+  {
+   "id": "k_manor_ledger",
+   "source": "clue",
+   "role": "",
+   "ref": "place@manor_cult_records",
+   "place": "abbey",
+   "night": 3,
+   "minute": 1260,
+   "en": "A cult ledger in the manor lists the missing in the order they vanished, with the torn page left open.",
+   "fr": "Un registre du culte dans le manoir liste les disparus dans l'ordre de leur disparition, la page arrachee laissee ouverte."
   }
  ],
  "contradictions": [

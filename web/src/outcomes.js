@@ -6,6 +6,7 @@ import { SCALE, INDEX_STEP, CORRUPTION_CORRUPTED, CORRUPTION_CULTIST } from './s
 import { mythosSchedule, inputAt, EVENT_COSMIC_OMEN } from './mythos.js';
 import { render } from './village-story.js';
 import { CLUE_ID_PREFIX } from './lore.js';
+import { leadsFor } from './places.js';
 
 export const OUTCOME_LANGUAGES = ['en', 'fr'];
 export const OUTCOME_IDS = ['dead', 'escaped', 'recruited', 'transformed', 'hidden', 'displaced'];
@@ -104,8 +105,8 @@ export function resolveOutcome(society, story, state, library, missingIndex, lea
   return OUTCOME_HIDDEN;
 }
 
-/** Leads on one missing person: page read, page found as a clue, kin met, witness met, and up to 2 statements heard from kin or witness. */
-export function countLeads(story, lore, evidence, missingIndex) {
+/** Leads on one missing person: page read, page found as a clue, kin met, witness met, up to 2 statements heard from kin or witness, and each found place lead whose trail ends at this person (Core CountLeads with places). */
+export function countLeads(story, lore, evidence, missingIndex, places = null) {
   if (!evidence) return 0;
   const m = story.missing[missingIndex];
   let leads = 0;
@@ -117,7 +118,7 @@ export function countLeads(story, lore, evidence, missingIndex) {
   if (m.kinIndex >= 0 && evidence.met.has(m.kinIndex)) leads++;
   if (m.witnessIndex >= 0 && evidence.met.has(m.witnessIndex)) leads++;
   const heard = evidence.heard.filter((h) => h.villager >= 0 && (h.villager === m.kinIndex || h.villager === m.witnessIndex)).length;
-  return Math.min(MAX_LEADS, leads + Math.min(2, heard));
+  return Math.min(MAX_LEADS, leads + Math.min(2, heard) + leadsFor(places, evidence.clueIds, story.seed, story.missing.length, missingIndex));
 }
 
 export const revealLevel = (leads) => (leads >= OUTCOME_AT_LEADS ? REVEAL_OUTCOME : leads >= TAKEN_AT_LEADS ? REVEAL_TAKEN : REVEAL_NOTHING);

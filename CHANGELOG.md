@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 31 (FEAT-001): place model and the Abandoned Manor
+- `Core/VillagePlaces.cs` and `Data/places.json` (en and fr): a shared place model. Each place is placed by the seed beside its anchor landmark (the manor beside the abbey), inside `WalkBounds`, clear of every landmark disc, the city and other places, with an entrance point, a door, a way back that returns to the entrance, and a triangle budget per graphics tier. `Place` throws when nothing fits; `Check` names the failure (out of bounds, overlaps, no way back, over budget).
+- The manor: family archives (knowledge source `ruins`), cult records (source `cult_discovery`, a lead on one seed-chosen missing person) and a hidden tunnel that opens at the Forbidden Texts tier (`secret_paths`) and comes up in the cemetery. Found clues are `place@...` clue ids: board Clue cards linked to the abbey, two new Clue statements (`k_manor_archives`, `k_manor_ledger`) usable as theory evidence.
+- Extended, not duplicated: `InvestigationRules.KnowledgeSources/Build/CardTitle` and `MissingOutcomes.CountLeads` gain overloads taking a `PlaceLibrary` (null gives the old result). No `KnowledgeSource` value added.
+- Web: `web/src/places.js` (port), `web/src/place-ui.js` (props, procedural boxes, prompts), view3d draws places and picks their prompts, board and theory pass the library. Golden key `villagePlaces` (existing keys unchanged). Service worker cache `flv-shell-v68`.
+- Tests: 11 C# (`VillagePlacesTests`) and 9 JS (`places.test.js`). Rendering in a real browser and Unity are Unverified.
+
 ### Round 30 (FEAT-005): specs, screenshots and status
 - Specs 162 and 163 marked built in `.kiro/specs` (tasks, requirements, design); 164 to 166 stay unbuilt. README status row and section added. Stills `docs/media/theory-board.jpg`, `theory-chronicle.jpg`, `theory-journal.jpg` (each under 700 KB, no pack data), captured with `THEORY_SHOT_DIR` in `tools/browser_check.mjs`. Docs and tooling only.
 

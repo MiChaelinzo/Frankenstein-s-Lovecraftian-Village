@@ -1,0 +1,745 @@
+{
+ "version": 1,
+ "places": [
+  {
+   "id": "manor",
+   "anchor": "abbey",
+   "radius": 10.0,
+   "en": "The Abandoned Manor",
+   "fr": "Le manoir abandonne",
+   "budget": {
+    "low": 200,
+    "medium": 300,
+    "high": 400
+   },
+   "entrance": {
+    "x": 0.0,
+    "z": 8.4
+   },
+   "door": {
+    "x": 0.0,
+    "z": 4.4
+   },
+   "prompts": {
+    "enter": {
+     "en": "Step through the open door",
+     "fr": "Franchir la porte ouverte"
+    },
+    "leave": {
+     "en": "Leave the manor",
+     "fr": "Quitter le manoir"
+    },
+    "hatch": {
+     "en": "Descend into the hidden tunnel",
+     "fr": "Descendre dans le tunnel cache"
+    },
+    "sealed": {
+     "en": "A hatch, sealed with symbols you cannot read",
+     "fr": "Une trappe scellee de symboles que vous ne savez pas lire"
+    }
+   },
+   "tunnel": {
+    "hatch": {
+     "x": 0.0,
+     "z": -5.6
+    },
+    "requiresBenefit": "secret_paths",
+    "exitsTo": "cemetery",
+    "found": {
+     "en": "The tunnel runs under the hill and comes up among the graves.",
+     "fr": "Le tunnel court sous la colline et debouche parmi les tombes."
+    }
+   },
+   "rooms": [
+    {
+     "id": "hall",
+     "x": 0.0,
+     "z": 1.8,
+     "halfX": 4.8,
+     "halfZ": 3.4
+    },
+    {
+     "id": "archives",
+     "x": -3.6,
+     "z": -3.6,
+     "halfX": 2.0,
+     "halfZ": 2.4
+    },
+    {
+     "id": "cult_records",
+     "x": 3.4,
+     "z": -4.2,
+     "halfX": 2.0,
+     "halfZ": 2.2
+    },
+    {
+     "id": "cellar",
+     "x": 0.0,
+     "z": -5.6,
+     "halfX": 1.2,
+     "halfZ": 1.0
+    }
+   ],
+   "props": [
+    {
+     "kind": "abbey_wall",
+     "x": -3.0,
+     "z": -7.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 3.0,
+     "z": -7.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.8,
+     "z": -2.9,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.8,
+     "z": -2.9,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.8,
+     "z": 2.4,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.8,
+     "z": 2.4,
+     "yaw": 1.5707963267948966
+    },
+    {
+     "kind": "abbey_wall",
+     "x": -5.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_wall",
+     "x": 5.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_arch",
+     "x": 0.0,
+     "z": 5.7,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_pillar",
+     "x": -2.7,
+     "z": 4.3,
+     "yaw": 0.0
+    },
+    {
+     "kind": "abbey_pillar",
+     "x": 2.7,
+     "z": 4.3,
+     "yaw": 3.141592653589793
+    },
+    {
+     "kind": "barrel",
+     "x": -4.3,
+     "z": -6.0,
+     "yaw": 0.0
+    },
+    {
+     "kind": "crate_stack",
+     "x": 4.4,
+     "z": -6.1,
+     "yaw": 0.0
+    }
+   ],
+   "discoveries": [
+    {
+     "id": "archives",
+     "room": "archives",
+     "x": -3.1,
+     "z": -3.6,
+     "clue": "place@manor_archives",
+     "source": "ruins",
+     "lead": false,
+     "statement": "k_manor_archives",
+     "en": "Family archives",
+     "fr": "Archives de la famille",
+     "text": {
+      "en": "Generations of the family ledgers, each name followed by the same dry note: gave the house a child.",
+      "fr": "Des generations de registres de famille, chaque nom suivi de la meme note seche: a donne un enfant a la maison."
+     }
+    },
+    {
+     "id": "cult_records",
+     "room": "cult_records",
+     "x": 3.3,
+     "z": -4.0,
+     "clue": "place@manor_cult_records",
+     "source": "cult_discovery",
+     "lead": true,
+     "statement": "k_manor_ledger",
+     "en": "Cult records",
+     "fr": "Registres du culte",
+     "text": {
+      "en": "A cult ledger lists the taken, each struck through in the order of their vanishing. One page is torn out and left open.",
+      "fr": "Un registre du culte liste les disparus, chacun raye dans l'ordre de sa disparition. Une page est arrachee et laissee ouverte."
+     }
+    }
+   ],
+   "parts": [
+    {
+     "id": "floor",
+     "x0": -5.4,
+     "x1": 5.4,
+     "z0": -6.8,
+     "z1": 5.2,
+     "y0": 0.0,
+     "y1": 0.12,
+     "taper": 1,
+     "color": [
+      0.17,
+      0.15,
+      0.13
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "roof_back",
+     "x0": -6.2,
+     "x1": 6.2,
+     "z0": -7.9,
+     "z1": -1.2,
+     "y0": 3.6,
+     "y1": 3.7,
+     "taper": 1,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "roof_ridge_back",
+     "x0": -5.4,
+     "x1": 5.4,
+     "z0": -7.0,
+     "z1": -2.0,
+     "y0": 3.7,
+     "y1": 5.2,
+     "taper": 0.12,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "chimney",
+     "x0": 3.6,
+     "x1": 4.8,
+     "z0": -6.6,
+     "z1": -5.4,
+     "y0": 3.6,
+     "y1": 6.4,
+     "taper": 0.8,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "front_step_a",
+     "x0": -2.6,
+     "x1": 2.6,
+     "z0": 6.9,
+     "z1": 7.6,
+     "y0": 0.0,
+     "y1": 0.14,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "front_step_b",
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": 6.2,
+     "z1": 6.9,
+     "y0": 0.0,
+     "y1": 0.28,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_post_l",
+     "x0": -2.9,
+     "x1": -2.5,
+     "z0": 5.6,
+     "z1": 6.0,
+     "y0": 0.0,
+     "y1": 3.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_post_r",
+     "x0": 2.5,
+     "x1": 2.9,
+     "z0": 5.6,
+     "z1": 6.0,
+     "y0": 0.0,
+     "y1": 3.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "porch_roof",
+     "x0": -3.4,
+     "x1": 3.4,
+     "z0": 5.3,
+     "z1": 7.6,
+     "y0": 3.4,
+     "y1": 4.3,
+     "taper": 0.15,
+     "color": [
+      0.14,
+      0.15,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "lintel",
+     "x0": -3.0,
+     "x1": 3.0,
+     "z0": 5.5,
+     "z1": 6.0,
+     "y0": 3.2,
+     "y1": 3.5,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "shelf_a",
+     "x0": -5.2,
+     "x1": -5.0,
+     "z0": -5.4,
+     "z1": -1.8,
+     "y0": 0.0,
+     "y1": 2.6,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "shelf_b",
+     "x0": -4.9,
+     "x1": -3.2,
+     "z0": -5.4,
+     "z1": -5.2,
+     "y0": 0.0,
+     "y1": 2.4,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "shelf_c",
+     "x0": -4.9,
+     "x1": -3.2,
+     "z0": -1.9,
+     "z1": -1.7,
+     "y0": 0.0,
+     "y1": 2.2,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "archive_ledgers",
+     "x0": -5.0,
+     "x1": -4.6,
+     "z0": -4.8,
+     "z1": -2.4,
+     "y0": 1.0,
+     "y1": 1.9,
+     "taper": 1,
+     "color": [
+      0.34,
+      0.27,
+      0.18
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "archive_table",
+     "x0": -3.8,
+     "x1": -2.2,
+     "z0": -4.1,
+     "z1": -3.1,
+     "y0": 0.0,
+     "y1": 0.85,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "archive_book",
+     "x0": -3.5,
+     "x1": -2.6,
+     "z0": -3.8,
+     "z1": -3.4,
+     "y0": 0.85,
+     "y1": 0.95,
+     "taper": 1,
+     "color": [
+      0.9,
+      0.78,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "records_table",
+     "x0": 2.4,
+     "x1": 4.2,
+     "z0": -4.6,
+     "z1": -3.4,
+     "y0": 0.0,
+     "y1": 0.9,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "records_ledger",
+     "x0": 2.8,
+     "x1": 3.8,
+     "z0": -4.3,
+     "z1": -3.7,
+     "y0": 0.9,
+     "y1": 1.0,
+     "taper": 1,
+     "color": [
+      0.9,
+      0.78,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 0
+    },
+    {
+     "id": "records_candle",
+     "x0": 4.0,
+     "x1": 4.1,
+     "z0": -3.9,
+     "z1": -3.8,
+     "y0": 0.9,
+     "y1": 1.15,
+     "taper": 1,
+     "color": [
+      0.95,
+      0.8,
+      0.5
+     ],
+     "glow": 1,
+     "tier": 1
+    },
+    {
+     "id": "records_chest",
+     "x0": 4.0,
+     "x1": 5.1,
+     "z0": -1.8,
+     "z1": -0.8,
+     "y0": 0.0,
+     "y1": 0.7,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "records_sigil",
+     "x0": 2.2,
+     "x1": 4.6,
+     "z0": -5.9,
+     "z1": -5.7,
+     "y0": 0.1,
+     "y1": 2.6,
+     "taper": 1,
+     "color": [
+      0.22,
+      0.05,
+      0.07
+     ],
+     "glow": 0,
+     "tier": 1
+    },
+    {
+     "id": "hatch_frame",
+     "x0": -1.0,
+     "x1": 1.0,
+     "z0": -6.5,
+     "z1": -4.7,
+     "y0": 0.12,
+     "y1": 0.2,
+     "taper": 1,
+     "color": [
+      0.1,
+      0.09,
+      0.09
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "hatch_door",
+     "x0": -0.7,
+     "x1": 0.7,
+     "z0": -6.2,
+     "z1": -5.0,
+     "y0": 0.2,
+     "y1": 0.28,
+     "taper": 1,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 0
+    },
+    {
+     "id": "hatch_glow",
+     "x0": -0.12,
+     "x1": 0.12,
+     "z0": -5.75,
+     "z1": -5.45,
+     "y0": 0.28,
+     "y1": 0.31,
+     "taper": 1,
+     "color": [
+      0.35,
+      0.75,
+      0.7
+     ],
+     "glow": 1,
+     "tier": 1
+    },
+    {
+     "id": "rubble_a",
+     "x0": -5.9,
+     "x1": -4.4,
+     "z0": 3.0,
+     "z1": 4.2,
+     "y0": 0.0,
+     "y1": 0.5,
+     "taper": 0.6,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "rubble_b",
+     "x0": 4.6,
+     "x1": 6.0,
+     "z0": 1.0,
+     "z1": 2.2,
+     "y0": 0.0,
+     "y1": 0.4,
+     "taper": 0.6,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "cracked_hearth",
+     "x0": -1.4,
+     "x1": 1.4,
+     "z0": -1.6,
+     "z1": -0.8,
+     "y0": 0.0,
+     "y1": 0.9,
+     "taper": 0.9,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "hanging_lamp",
+     "x0": -0.15,
+     "x1": 0.15,
+     "z0": 2.6,
+     "z1": 2.9,
+     "y0": 2.7,
+     "y1": 3.3,
+     "taper": 0.5,
+     "color": [
+      0.9,
+      0.7,
+      0.4
+     ],
+     "glow": 1,
+     "tier": 2
+    },
+    {
+     "id": "broken_stair",
+     "x0": -1.2,
+     "x1": 1.2,
+     "z0": 0.5,
+     "z1": 1.7,
+     "y0": 0.0,
+     "y1": 0.6,
+     "taper": 0.9,
+     "color": [
+      0.2,
+      0.13,
+      0.08
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "cobweb_drape",
+     "x0": -5.3,
+     "x1": -3.0,
+     "z0": -6.6,
+     "z1": -6.5,
+     "y0": 1.6,
+     "y1": 3.4,
+     "taper": 0.2,
+     "color": [
+      0.5,
+      0.5,
+      0.52
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "window_sill_l",
+     "x0": -6.0,
+     "x1": -5.6,
+     "z0": 0.6,
+     "z1": 2.2,
+     "y0": 1.2,
+     "y1": 1.4,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    },
+    {
+     "id": "window_sill_r",
+     "x0": 5.6,
+     "x1": 6.0,
+     "z0": 0.6,
+     "z1": 2.2,
+     "y0": 1.2,
+     "y1": 1.4,
+     "taper": 1,
+     "color": [
+      0.26,
+      0.25,
+      0.25
+     ],
+     "glow": 0,
+     "tier": 2
+    }
+   ]
+  }
+ ]
+}
