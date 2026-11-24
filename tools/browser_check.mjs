@@ -500,6 +500,9 @@ async function main() {
 
   /** Theories and outcomes (round 30: the theory builder on the board, trust bars on the suspect card and in the chronicle, the missing person outcome as far as leads allow, the epilogue line; THEORY_ONLY=1 runs only this). Seed 1818 at night 3 with the society SESSION (journals j01 j02 read, four villagers met, the innkeeper heard on the bell). */
   const theoryRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.THEORY_SHOT_DIR || ''; // THEORY_SHOT_DIR=<dir> saves theory-board.jpg, theory-journal.jpg and theory-chronicle.jpg
+    const shot = async (name) => { if (shotDir) writeFileSync(join(shotDir, name), Buffer.from(await capture({ format: 'jpeg', quality: 80 }), 'base64')); };
     const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=3';
     const SESSION = { seed: 1818, sanity: 40, night: 2, lore: ['j01', 'j02', 'p01'], board: 'bd1;0,1,2,3;;2:c_innkeeper_bell:2' };
     const fresh = async (query, hash, session) => {
@@ -528,9 +531,12 @@ async function main() {
     await ev(`document.querySelector('#boardTheoryBody [data-k=conclude]').click()`); await sleep(300);
     const done = await ev(`({text:document.querySelector('#boardTheoryBody .theory-results')?.textContent||'', live:document.getElementById('boardLive').textContent, saved:JSON.parse(localStorage.getItem('flv.session.v1')||'{}').theories||''})`);
     rec('theory: concluding shows a TRUE, PARTIALLY TRUE or FALSE verdict, announces it and saves the choice log', /(TRUE|PARTIALLY TRUE|FALSE):/.test(done.text) && /Theory concluded/.test(done.live) && /^th1;\d/.test(done.saved), done);
+    await shot('theory-board.jpg');
     await special('Escape', 27); await sleep(300);
+    await shot('theory-journal.jpg');
     await fresh(Q, H, { ...SESSION, theories: done.saved }); await sleep(500);
     await ev(`document.getElementById('chronicleToggle').click()`); await sleep(500);
+    await shot('theory-chronicle.jpg');
     const chron = await ev(`({theories:document.querySelectorAll('#chronicleTheories li').length, people:document.querySelectorAll('#chroniclePeople meter').length, outcomes:document.querySelectorAll('[data-outcome]').length})`);
     rec('chronicle: the restored theory, the trust bars of people met and an outcome line for a missing person with leads are listed', chron.theories === 1 && chron.people >= 6 && chron.people % 6 === 0, chron);
     await fresh(Q + '&reduced=1', H, SESSION);

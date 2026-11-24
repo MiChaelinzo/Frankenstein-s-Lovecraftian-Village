@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 30 (FEAT-005): specs, screenshots and status
+- Specs 162 and 163 marked built in `.kiro/specs` (tasks, requirements, design); 164 to 166 stay unbuilt. README status row and section added. Stills `docs/media/theory-board.jpg`, `theory-chronicle.jpg`, `theory-journal.jpg` (each under 700 KB, no pack data), captured with `THEORY_SHOT_DIR` in `tools/browser_check.mjs`. Docs and tooling only.
+
 ### Round 30 (FEAT-004): theory and outcome UI, trust bars, director tick
 - `web/src/theory-ui.js`: the theory builder inside the investigation board (pick a question, pick an answer with radios, attach up to three revealed statements as checkboxes, Conclude). Verdicts read TRUE, PARTIALLY TRUE or FALSE with the Core wording; the choice log is saved as the session `theories` field. The board knowledge tier now includes theory knowledge points, wrong villager theories lower every villager's trust (Core trust cost times 10 on the 0..1000 scale, documented in `society-ui.js`), and the ending dialog shows the epilogue line (`#endingTheory`) without changing the ending.
 - Missing person outcomes show only as far as leads allow: on the victim card detail and in the chronicle (taken line from one lead, epitaph from four).

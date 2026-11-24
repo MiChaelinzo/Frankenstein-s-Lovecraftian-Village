@@ -135,7 +135,7 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Test cases.** C# and node tests above; golden key `knowledgeInvestigation` per seed and tier 0 to 5.
 
-**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 and 162 to 166.
+**Not built.** Per card confidence in per mille, Runtime (Unity) use of knowledge, and the later roadmap tasks 159 and 164 to 166.
 
 ## Round 29: Trust Network, Horror Director, polish
 **Trust axes (spec 160, built).** `VillageSociety.AxesAfter` derives Fear, Faith, Loyalty and Obsession per villager and night from the seed, links and corruption stage, integer 0..1000, beside the unchanged Trust, Suspicion and Corruption. `VillagerRules.Chat` withholds the hint through `FearWithholds` (Fear 800 or more and above Trust). JS mirror `society.js`; dialog bars in `society-ui.js`. Golden key `axes`. Verified in Core and JS; bars Partially Verified; Unity Unverified.
@@ -144,4 +144,11 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 
 **Web polish.** CSS only in `style.css`; no Core change.
 
-**Specs 162 to 166 (not built, Unverified).** Branching investigations extend `InvestigationModel` with a theory record and a choice log. Missing person outcomes extend `NightTicks.NewMissingPerson` and `MythosSimulation`. The four places extend the landmark layout (tasks 129 to 134). The Victorian reskin is CSS plus a presentation-only intensity setting. The creature path extends `Core/Creatures` and reads the director beat. Each keeps Core deterministic and puts only drawing in the web or Runtime. Goal, inputs, outputs, constraints, failure conditions and test cases are in requirements, Round 29.
+**Specs 164 to 166 (not built, Unverified).** The four places extend the landmark layout (tasks 129 to 134). The Victorian reskin is CSS plus a presentation-only intensity setting. The creature path extends `Core/Creatures` and reads the director beat. Each keeps Core deterministic and puts only drawing in the web or Runtime. Goal, inputs, outputs, constraints, failure conditions and test cases are in requirements, Round 29.
+
+## Round 30: theories and outcomes
+**Missing person outcomes (spec 163, built).** `Core/MissingOutcomes.cs` reads the finished `MythosSimulation` state and the player's leads and picks one outcome per missing person from a seed stream (weights in the class summary). `Data/outcomes.json` holds en and fr text and constraints against the story chat and lore pages. Web mirror `outcomes.js`. Golden key `outcomes`. Core and JS Verified; Unity Unverified.
+
+**Branching investigations (spec 162, built).** `Core/TheoryModel.cs` and `Data/theories.json` define three theory templates. State is `Replay(log)` over integer entries; illegal entries are counted and skipped. Grading is integer (group or adjacent rule). `theory.js` mirrors it, `theory-ui.js` draws the builder inside the board panel and writes the log to the session `theories` field. The epilogue is an additive line chosen by `VariantOf`; `VigilRules.EndingFor` is untouched. Golden key `theories`. Core and JS Verified; builder UI Verified in headless Chromium (THEORY_ONLY); Unity Unverified.
+
+**Director tick.** `app.js` steps the Horror Director from a 100 ms timer; `view3d.js` only reads the look target.

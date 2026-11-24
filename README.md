@@ -21,6 +21,10 @@ A cosmic-horror village that is built from a seed, watches you, and never tells 
 | ![Round 22 2D before](docs/media/r22-2d-before.png) | ![Round 22 2D after: mossy ground, plank quay and pier lantern, yard tufts, fog pool, cold top and warm low grade](docs/media/r22-2d-after.png) |
 | ![Round 22 High tier: a lane at dusk, villager, lamp post, fog and a red horizon](docs/media/r22-lane-villager.png) | ![Round 21 High tier: a rainy night, still the best reference for wet stone](docs/media/r21-high-rain-night.png) |
 
+| ![Round 30 theory builder in the board with a revealed verdict](docs/media/theory-board.jpg) | ![Round 30 village chronicle with the missing person outcome as far as leads allow](docs/media/theory-chronicle.jpg) |
+|---|---|
+| ![Round 30 journal logging the theory verdict](docs/media/theory-journal.jpg) | |
+
 | ![Round 29 title screen: lamplit gold rule, framed card](docs/media/r29-title-polish.png) | ![Round 29 2D village with vignette, film grain, framed panels](docs/media/r29-village-vignette.png) |
 |---|---|
 
@@ -79,8 +83,11 @@ The village now acts in the background. From the seed and the night, cults recru
 ### Knowledge and the board (round 28)
 What you have learned (journals read, clues found, mythos statements heard) sets a knowledge tier from 0 to 5. Each statement on the board has a confidence and a belief percent (shown when you inspect it). With knowledge 0 to 3 the innkeeper's silent bell and his tolling bell contradict each other; at knowledge 4 you see they are different nights and the contradiction falls away. The board shows the tier and tonight's reality effects; reduced motion switches the slow drift off. Status: Core and JS Verified, board UI Partially Verified, Unity runtime Unverified. Payments: never put PayPal, Stripe or other secrets in source or chat; a support link is safe, and any checkout must keep keys in server-side environment variables.
 
+### Theories and missing person outcomes (round 30)
+In the board (`;`) pick a village question, choose an answer, attach up to three statements you found and conclude. The verdict reads TRUE, PARTIALLY TRUE or FALSE; a wrong villager theory costs a little trust and still teaches you something, and it never blocks the Vigil. Each missing person ends as dead, escaped, recruited, transformed, hidden or displaced, decided by the seed and the Mythos run; the victim card and the chronicle show it only as far as your leads allow. Trust, fear, faith, loyalty, obsession and corruption are drawn as bars on met suspects and in the chronicle. Status: Core and JS Verified (dotnet 383, node 728), web UI Verified in headless Chromium sections THEORY_ONLY 9 of 9, SOCIETY_ONLY 11 of 11 and NARRATIVE_ONLY 2 of 2 (SwiftShader, no real GPU), Unity runtime Unverified. Stills: `docs/media/theory-board.jpg`, `theory-chronicle.jpg`, `theory-journal.jpg`.
+
 ### Trust, fear and the Horror Director (round 29)
-Villagers now carry fear, faith, loyalty and obsession beside trust. A terrified villager can trust you and still refuse to talk. A Horror Director paces the dread from your sanity, knowledge, clues, time near a lit lantern and the night: quiet stretches follow every omen, and fog, lamplight and ambience change slowly, never suddenly. Status: Core and JS Verified, the 3D ramps and the polished panels Partially Verified, Unity runtime Unverified. Specs 162 to 166 (branching investigations, missing person outcomes, four new places, Victorian UI, creature path) are written but not built.
+Villagers now carry fear, faith, loyalty and obsession beside trust. A terrified villager can trust you and still refuse to talk. A Horror Director paces the dread from your sanity, knowledge, clues, time near a lit lantern and the night: quiet stretches follow every omen, and fog, lamplight and ambience change slowly, never suddenly. Status: Core and JS Verified, the 3D ramps and the polished panels Partially Verified, Unity runtime Unverified. Specs 164 to 166 (four new places, Victorian UI, creature path) are written but not built.
 
 ### Round 26 controls
 | Input | What it does |
@@ -302,6 +309,7 @@ Labels: **Verified** = executed by an automated test or command here; **Partiall
 | Society model: trust, suspicion, fear, faith, loyalty, obsession and corruption spread along family and neighbour links (`VillageSociety.cs`, `society.js`) | Verified | dotnet and node tests with golden parity (dotnet 310, node 673 at the round 26 close) |
 | Horror Director: paced beats (Quiet, Unease, Pressure, Omen, Relief), no spikes, quiet after every omen, a narrative cause per beat (`HorrorDirector.cs`, `director.js`) | Verified | dotnet 362 and node 710 with golden parity. Fog, lamp and ambient ramps in the 3D view: Partially Verified (no browser run). Unity runtime: Unverified |
 | Investigation model: cards, links, authored contradictions, timeline (`InvestigationModel.cs`, `investigation.js`, `Data/statements.json`) | Verified | `InvestigationModelTests.cs`, `investigation.test.js`, golden key `investigation`, data copy drift checked by `validate_repo.py` |
+| Branching investigations and missing person outcomes (`TheoryModel.cs`, `MissingOutcomes.cs`, `theory.js`, `outcomes.js`, `theory-ui.js`) | Verified | dotnet 383 and node 728 tests with golden keys `theories` and `outcomes`; browser sections `THEORY_ONLY` 9 of 9, `SOCIETY_ONLY` 11 of 11, `NARRATIVE_ONLY` 2 of 2 on SwiftShader; trust penalty scaling Partially Verified; Unity runtime Unverified |
 | Board panel, trust lines and corruption tell in 2D and 3D (`board-ui.js`, `society-ui.js`, `corruption-tell.js`) | Partially Verified | `SOCIETY_ONLY` browser check (SwiftShader headless Chrome, 115 of 115 in the full run) and four stills in `docs/media`; no real GPU, the 2D tell is subtle at normal zoom |
 | Society actions `return_item`, `return_journal`, `seen_near_body`, `fight_creature_in_view` | Unverified | The Core rules exist and are tested, but no game event raises them yet (open spec tasks in `.kiro/specs/tasks.md`) |
 | Unity hooks for society and corruption (`VillageBuilder`, `VillagerAgent`) | Unverified | Compile check only (0 warnings, 0 errors); never run in Unity |
