@@ -41,7 +41,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
-import { startState as directorStart, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp } from './director.js';
+import { startState as directorStart, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -139,13 +139,14 @@ const weatherParam = optParam('weather');
 const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 // Horror Director (spec 161): steps once per game minute from what the app already knows; the smoothed level only ramps (director.js caps it).
-// Inputs not tracked here (safe-zone time, clue progress, knowledge) stay 0, so the director leans on sanity, creatures, night and the campaign's cult progress.
-let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null;
+// Inputs: sanity, creature telegraph, night and the campaign's cult progress, plus knowledge (board tier, 0..5 scaled to permille), clue progress (vigil clues found over the campaign goal) and safe-zone ticks (game minutes spent within reach of a lit lantern).
+let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
 function directorFrame() {
   const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
   if (tick !== directorTick) {
     directorTick = tick;
-    directorState = directorStep(state.seed, directorState, { tick, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
+    directorSafeTicks = nextSafeZoneTicks(directorSafeTicks, !!playerSpot && nearLitLamp(vigil.lampTargets(), playerSpot.x, playerSpot.z));
+    directorState = directorStep(state.seed, directorState, { tick, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
   }
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
   const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium' });
@@ -173,7 +174,7 @@ const view3d = createView3d({
   alienPack: () => pack.want,
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen() || board.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); board.close(); } },
   onInventory: () => inventory.toggle(), onBoard: () => board.toggle(),
-  onPlayer: (p) => { creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
+  onPlayer: (p) => { playerSpot = { x: p.x, z: p.z }; creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },

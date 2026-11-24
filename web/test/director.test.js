@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   BEAT, CAUSE_IDS, MAX_STEP, MAX_INTENSITY, OMEN_AT, QUIET_AFTER_OMEN, FOG_GAIN_MAX, LIGHT_DIM_MAX, AMBIENCE_GAIN_MAX, RAMP_PER_SECOND,
-  startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
+  nextSafeZoneTicks, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
 } from '../src/director.js';
 
 const golden = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).director;
@@ -65,4 +65,19 @@ test('ramp moves at most the capped rate per second, in both directions, whateve
   assert.equal(ramp(0, 1, 500), RAMP_PER_SECOND);
   assert.equal(ramp(0.5, 0.51, 1), 0.51);
   assert.equal(ramp(0.2, 0.9, NaN), 0.2);
+});
+
+test('safe-zone ticks rise near a lit lantern, fall away from it and stay within 0..cap', () => {
+  assert.equal(nextSafeZoneTicks(0, false), 0);
+  assert.equal(nextSafeZoneTicks(5, true), 6);
+  assert.equal(nextSafeZoneTicks(5, false), 4);
+  assert.equal(nextSafeZoneTicks(SAFE_ZONE_CAP, true), SAFE_ZONE_CAP);
+  assert.equal(nextSafeZoneTicks(NaN, true), 1);
+});
+
+test('nearLitLamp only counts lit lanterns inside the radius', () => {
+  const lamps = [{ lit: false, pos: [0, 2, 0] }, { lit: true, pos: [10, 2, 0] }];
+  assert.equal(nearLitLamp(lamps, 0, 0), false);
+  assert.equal(nearLitLamp(lamps, 5, 0), true);
+  assert.equal(nearLitLamp(lamps, 3, 0), false);
 });

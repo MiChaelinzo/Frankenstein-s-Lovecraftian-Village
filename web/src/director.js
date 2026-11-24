@@ -86,3 +86,11 @@ export function ramp(current, wanted, dtSec) {
   const c = Number.isFinite(current) ? current : 0, w = Number.isFinite(wanted) ? wanted : 0;
   return c + Math.max(-cap, Math.min(cap, w - c));
 }
+
+/** Web-only bookkeeping (no Core counterpart, the C# director just receives the number): one game minute near a lit lantern adds a safe-zone tick, one away takes it back, bounded by SAFE_ZONE_CAP. */
+export const SAFE_LAMP_RADIUS = 6; // metres, inside the lantern's lit pool
+export const nextSafeZoneTicks = (ticks, near) => Math.max(0, Math.min(SAFE_ZONE_CAP, num(ticks) + (near ? 1 : -1)));
+export function nearLitLamp(lamps, x, z, radius = SAFE_LAMP_RADIUS) {
+  for (const l of lamps) if (l.lit && (l.pos[0] - x) ** 2 + (l.pos[2] - z) ** 2 <= radius * radius) return true;
+  return false;
+}
