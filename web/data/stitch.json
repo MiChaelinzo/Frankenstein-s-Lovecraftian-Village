@@ -4,15 +4,15 @@
       "count": 1
     },
     "core": {
-      "count": 51
+      "count": 52
     },
     "golden": {
-      "count": 45,
+      "count": 46,
       "vectors": 588
     },
     "js": {
-      "count": 79,
-      "tests": 81
+      "count": 80,
+      "tests": 82
     },
     "kiro": {
       "count": 3,
@@ -21,7 +21,7 @@
       "tasksTotal": 171
     },
     "pwa": {
-      "count": 176
+      "count": 178
     },
     "unity": {
       "bridges": 4,
