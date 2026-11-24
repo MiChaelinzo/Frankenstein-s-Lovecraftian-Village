@@ -227,6 +227,9 @@ html.reduced .board-draw { animation: none; stroke-dasharray: none; stroke-dasho
 .board-trust-1 { color: #e0a96a; }
 .board-trust-2 { color: #9fcfa8; }
 .villager-trust { font-style: italic; color: #b9ad8f; }
+.axis-bars { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.85rem; color: #b9ad8f; }
+.axis-bars li { display: grid; grid-template-columns: 6rem 1fr; align-items: center; gap: 0.5rem; }
+.axis-bars meter { width: 100%; height: 0.6rem; }
 .board-unknown { opacity: .6; }
 .board-contradiction { border-color: #ff6b6b; border-width: 2px; }
 .board-invalid .board-card-title { text-decoration: line-through; }
@@ -243,6 +246,64 @@ html.hc .board-contradiction-badge { fill: #000; stroke: #fff; }
 html.hc .board-contradiction-mark { fill: #fff; }
 html.hc .board-contradiction { border-color: #ff9a9a; }
 html.hc .board-unknown { opacity: 1; border-style: dashed; }
+
+/* ---------- round 29 visual polish: fog-and-lamplight tones, hierarchy, framing, transitions ---------- */
+:root { --lamp: #e0b873; --fog: #0c1315; --edge: #26383a; --ink-strong: #e8efeb; --paper: #eadfc6; --paper-dim: #b9ad8f; }
+body { background: radial-gradient(ellipse 90% 60% at 50% -10%, #17262a, transparent 70%), radial-gradient(ellipse at top, #10181a, #05080a 70%) fixed; line-height: 1.55; }
+main { padding-top: 32px; }
+h1 { font-weight: 400; letter-spacing: .05em; color: var(--ink-strong); text-shadow: 0 0 22px rgba(95,143,120,.5), 0 2px 0 #000; }
+h1::after { content: ""; display: block; width: 96px; height: 1px; margin-top: 10px; background: linear-gradient(90deg, var(--lamp), transparent); }
+.tag { margin: 10px 0 22px; color: #94a39d; }
+h2 { letter-spacing: .08em; text-transform: none; padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid #1a2a2c; }
+.panel { background: linear-gradient(180deg, rgba(16,24,26,.9), rgba(10,15,17,.9)); border-color: var(--edge); border-radius: 3px; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(224,184,115,.05); }
+.stage { border-color: var(--edge); border-radius: 3px; overflow: hidden; }
+/* vignette and static film grain over the scene; no animation, so it costs nothing on any quality tier */
+.stage::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.45) 100%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
+html.hc .stage::after, html.cinema .stage::after { display: none; }
+.narration { text-shadow: 0 2px 10px #000, 0 0 3px #000; }
+/* buttons: lamplit hover, strong keyboard focus, contrast above 4.5:1 (ink #cfd8d3 on #101a1c is about 11:1) */
+button, a.btn { border-radius: 2px; transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, color .18s ease; }
+button:hover, a.btn:hover { background-color: #162426; color: var(--ink-strong); border-color: var(--lamp); box-shadow: 0 0 12px rgba(224,184,115,.25); }
+button:focus-visible, a.btn:focus-visible { border-color: var(--lamp); outline: 2px solid var(--lamp); outline-offset: 2px; color: var(--ink-strong); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.cta { letter-spacing: .06em; }
+.title-card { box-shadow: 0 0 0 1px rgba(224,184,115,.12), 0 20px 60px rgba(0,0,0,.7), inset 0 0 60px rgba(0,0,0,.35); }
+.title-card h2 { border-bottom: 0; padding-bottom: 0; text-shadow: 0 0 30px rgba(95,143,120,.45), 0 3px 0 #000; }
+.title-card h2::after { content: ""; display: block; width: 64px; height: 1px; margin: 14px auto 0; background: linear-gradient(90deg, transparent, var(--lamp), transparent); }
+.whispers li { padding: 7px 0; line-height: 1.45; }
+/* dialogs: parchment and ink framing, consistent heading rhythm */
+.board-dialog, .inv-dialog { background: linear-gradient(180deg, #211b15, #17130f); border: 1px solid #7a5d36; border-radius: 3px; box-shadow: 0 18px 50px rgba(0,0,0,.8), inset 0 0 0 1px rgba(224,184,115,.08); }
+.board-dialog h2, .inv-dialog h2 { font-size: 1.2rem; letter-spacing: .08em; color: #ead9ae; border-bottom: 1px solid #4a3a22; }
+.board-dialog h3 { margin: 14px 0 6px; font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: #c9b583; font-weight: 400; }
+.board-dialog button, .inv-dialog button { border-radius: 2px; }
+.villager-dialog { background: linear-gradient(180deg, rgba(14,21,23,.95), rgba(7,11,12,.96)); border-radius: 3px; box-shadow: 0 14px 40px rgba(0,0,0,.75); }
+.villager-dialog h2 { border-bottom: 1px solid #1f3a34; padding-bottom: 4px; margin-bottom: 6px; }
+/* trust and knowledge axis bars: labels aligned, track and fill readable against both parchment and fog */
+.axis-bars { gap: .35rem; margin: .6rem 0; font-size: .85rem; color: var(--paper); }
+.axis-bars li { grid-template-columns: 7rem 1fr; }
+.axis-bars meter { height: .7rem; border-radius: 1px; background: #0d0a07; border: 1px solid #5a4528; }
+.axis-bars meter::-webkit-meter-bar { background: #0d0a07; border: 0; height: .7rem; }
+.axis-bars meter::-webkit-meter-optimum-value, .axis-bars meter::-webkit-meter-suboptimum-value, .axis-bars meter::-webkit-meter-even-less-good-value { background: linear-gradient(90deg, #5f8f78, var(--lamp)); }
+.axis-bars meter::-moz-meter-bar { background: linear-gradient(90deg, #5f8f78, var(--lamp)); }
+.board-card { border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,.5); transition: transform .15s ease, box-shadow .15s ease; }
+.board-card:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(0,0,0,.6), 0 0 0 1px var(--lamp); }
+.board-card:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.board-timeline:empty::before, .board-detail:empty::before { content: "\2026"; color: #8a7d60; }
+.chronicle .stats, .villagers .stats { color: #9fb0a9; }
+.chronicle li, .villagers li { padding: 6px 0; border-bottom: 1px solid #1a2a2c; }
+.chronicle li:last-child, .villagers li:last-child { border-bottom: 0; }
+.chronicle h3, .villagers h3 { margin: 12px 0 4px; font-size: .75rem; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim); font-weight: 400; }
+/* panel transitions: each panel eases in when its hidden attribute is removed */
+@keyframes panelRise { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+.panel:not([hidden]), .villager-dialog:not([hidden]), .lore-dialog:not([hidden]), .board-dialog:not([hidden]), .inv-dialog:not([hidden]) { animation: panelRise .26s ease-out both; }
+html.reduced .panel, html.reduced .villager-dialog, html.reduced .lore-dialog, html.reduced .board-dialog, html.reduced .inv-dialog, html.reduced .board-card, html.reduced button { animation: none; transition: none; }
+@media (prefers-reduced-motion: reduce) { .board-card, button, a.btn { transition: none; } .board-card:hover { transform: none; } }
+@media (forced-colors: active) { .axis-bars meter { border-color: CanvasText; } .stage::after { display: none; } }
+html.hc .axis-bars { color: #fff; }
+html.hc h1::after, html.hc .title-card h2::after { background: #fff; }
 
 .touch-dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; touch-action: none; user-select: none; }
 .touch-dock[hidden], html.cinema .touch-dock { display: none; }

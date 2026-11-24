@@ -402,8 +402,15 @@ export function buildNightTicks(state, lib) {
 }
 
 /** The record of one night; a night outside the simulated range clamps, null when nothing was simulated. */
+const nightTickCache = new WeakMap();
 export function nightTickAt(state, lib, night) {
-  const all = buildNightTicks(state, lib);
+  if (!state || !lib) return null;
+  let hit = nightTickCache.get(state);
+  if (!hit || hit.lib !== lib || hit.count !== state.nights.length) {
+    hit = { lib, count: state.nights.length, all: buildNightTicks(state, lib) };
+    nightTickCache.set(state, hit);
+  }
+  const all = hit.all;
   return all.length === 0 ? null : all[Math.min(Math.max(night, 1), all.length) - 1];
 }
 

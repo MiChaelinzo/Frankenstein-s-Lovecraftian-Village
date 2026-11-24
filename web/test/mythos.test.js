@@ -228,3 +228,12 @@ test('the chronicle model carries the night tick of the current night', () => {
   assert.equal(chronicleModel(w.story, 'en', ctx).tick.night, 12);
   assert.equal(chronicleModel(w.story, 'en', { ...ctx, mythos: null }).tick, null);
 });
+
+test('nightTickAt equals the matching record of a full build, is cached and clamps', () => {
+  const state = run(worldOf(42)), all = buildNightTicks(state, mythos);
+  all.forEach((t, i) => assert.deepEqual(nightTickAt(state, mythos, i + 1), t));
+  assert.equal(nightTickAt(state, mythos, 3), nightTickAt(state, mythos, 3));
+  assert.equal(nightTickAt(state, mythos, -4).night, 1);
+  assert.equal(nightTickAt(state, mythos, all.length + 9).night, all.length);
+  assert.ok(all.every((t) => t.newMissingPerson === 0 || t.newMissingPerson === 1));
+});

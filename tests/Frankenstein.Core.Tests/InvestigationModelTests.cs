@@ -290,5 +290,15 @@ namespace Frankenstein.Core.Tests
             Assert.Contains("different nights", Assert.Throws<FormatException>(() => StatementLibrary.Parse(same)).Message);
             Assert.Contains("confidence", Assert.Throws<FormatException>(() => StatementLibrary.Parse(LucanJson.Replace("\"confidence\":78", "\"confidence\":180"))).Message);
         }
+
+        [Fact]
+        public void Journal_ids_count_as_knowledge_sources_only_with_ASCII_digits()
+        {
+            var e = new InvestigationEvidence();
+            e.BooksRead.Add("j07");
+            e.BooksRead.Add("j\u0663\u0664"); // Arabic-Indic digits: char.IsDigit accepts them, JS \d does not
+            e.BooksRead.Add("j0\uFF15");     // full-width digit five
+            Assert.Equal(new[] { "journal" }, InvestigationRules.KnowledgeSources(e).Where(x => x == "journal").ToArray());
+        }
     }
 }

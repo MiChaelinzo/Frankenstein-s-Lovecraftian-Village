@@ -125,5 +125,40 @@ A Unity 6 HDRP village that is assembled procedurally from a catalog of modular 
 - Presentation: a knowledge badge with tonight's reality effects on the board, a chronicle line, journal entries per tier gained and per resolved contradiction, en and fr. Reduced motion removes the slow drift; nothing flashes or jumps.
 - Test cases: `InvestigationModelTests.cs`, `web/test/investigation.test.js`, `web/test/board-ui.test.js`, golden key `knowledgeInvestigation`, existing golden keys unchanged.
 - Status: Core and JS Verified (dotnet 350, node 701); board UI Partially Verified (fake DOM tests, browser check filters `MYTHOS_ONLY` and `SOCIETY_ONLY` do not assert the badge); Unity runtime Unverified.
-- Later, unbuilt (see tasks 159 to 166): Trust Network Expansion, Dynamic Horror Director, Evidence Confidence expansion, Missing Person Outcomes, Branching Investigations, Abandoned Manor, Forest Boundary, Catacomb Interior, Forgotten Mine, creature upgrade path, Victorian UI reskin.
+- Later, unbuilt (see tasks 159 and 162 to 166, specified in Round 29 below): Evidence Confidence expansion, Branching Investigations, Missing Person Outcomes, four new places, creature upgrade path, Victorian UI reskin. Trust Network and the Dynamic Horror Director were built in round 29.
 - Security: no PayPal client id, secret, API key, webhook secret, database password or Stripe secret in source, commits, prompts, chat logs, issues or public repositories. Any monetization uses server-side environment variables behind a backend or API layer. A donation or support link is safe; secrets are not.
+
+## Round 29: Trust Network, Horror Director and web polish
+### Built: spec 160 Trust Network axes
+- Goal: villagers carry Trust, Fear, Faith, Loyalty, Obsession and Corruption, so one can trust you and still refuse to talk.
+- Inputs: seed, `VillageSociety`, night, optional `SocialStanding` Trust and Fear.
+- Outputs: `VillageSociety.AxesAfter` (integer 0..1000 per axis), `FearWithholds`; chat is withheld when Fear is 800 or more and above Trust, trust still shows.
+- Constraints: integer math, seeded, existing golden keys byte identical, default standing unchanged.
+- Failure conditions: an axis outside 0..1000, or any change to the golden `society` output.
+- Test cases: bounds, determinism, Trust 900 with Fear 950, golden key `axes`.
+- Status: Core and JS Verified (dotnet and node tests, golden); dialog axis bars Partially Verified (fake DOM and headless screenshots); Unity runtime Unverified.
+
+### Built: spec 161 Dynamic Horror Director
+- Goal: pace dread from state with quiet stretches, never a jump scare.
+- Inputs: sanity, knowledge, stress, safe-zone ticks, clue progress, cult exposure, creature encounters, night. The web feeds real knowledge, clue progress and safe-zone ticks (near a lit lantern).
+- Outputs: a beat (Quiet, Unease, Pressure, Omen, Relief), intensity 0..1000 moving at most 40 per step, a narrative cause id for every non-quiet beat; presentation ramps for fog, lamplight and ambience.
+- Constraints: deterministic and integer; an Omen forces 10 quiet steps; reduced motion keeps presentation still; Core never reads the presentation.
+- Failure conditions: a spike in volume or brightness, a beat with no cause.
+- Test cases: ordering and bounds, golden key `director`, `nearLitLamp` helper tests.
+- Status: Core and JS Verified; fog, lamp and ambient ramps Partially Verified (no browser run); Unity runtime Unverified.
+
+### Built: web visual polish (presentation only)
+- A CSS layer for board, chronicle, journal and dialogs (framing, vignette, grain, parchment dialogs, hover and focus). Off or reduced under high contrast, cinema, forced colors and reduced motion. Partially Verified (headless screenshots only); Unity Unverified.
+
+### Spec only, not built (Unverified)
+Each item below has no code yet.
+
+**162 Branching investigations.** Goal: Theory, Evidence, Conclusion; the player may conclude wrongly. Inputs: board cards, knowledge tier, a choice log. Outputs: a conclusion record per theory, reachable from any evidence set. Constraints: deterministic replay from the choice log; a wrong conclusion never blocks the Vigil. Failure conditions: a dead end, an unreachable conclusion, a conclusion that changes a golden output. Test cases: every conclusion reachable, replay equals the choice log, golden key.
+
+**163 Missing person outcomes.** Goal: each missing person resolves to exactly one of dead, escaped, recruited, transformed, hidden, dimensionally displaced. Inputs: seed, night, `NightTicks`, mythos cults. Outputs: one outcome per person and what the board learned. Constraints: seeded, one outcome each, no contradiction with an authored statement. Failure conditions: two outcomes for one person, a revealed outcome the player never learned. Test cases: one outcome each, determinism, board shows only learned facts.
+
+**164 Four places.** Goal: Abandoned Manor, Forest Boundary, Catacomb Interior and Forgotten Mine, built in that order, each with an entrance and a way back. Inputs: seed, landmark layout. Outputs: placements and entrance and exit points. Constraints: inside bounds, no landmark overlap, triangle budget. Failure conditions: out of bounds, no way back, overlap. Test cases: enter and leave round trip, bounds, overlap, budget.
+
+**165 Victorian UI reskin.** Goal: a period look for panels with a horror-intensity setting. Inputs: the setting, reduced motion, contrast mode. Outputs: styles only. Constraints: the setting scales presentation and never Core output. Failure conditions: low contrast, a lost keyboard path, a different output for the same seed. Test cases: contrast ratio, keyboard walk, same seed same output.
+
+**166 Creature upgrade path.** Goal: four stages (human-adjacent, corrupted villagers, reality-breakers, cosmic manifestations seen only briefly, never a chase). Inputs: seed, night, knowledge tier, director beat. Outputs: stage per encounter and an exposure time. Constraints: bounded exposure, a narrative cause, reduced motion respected. Failure conditions: a manifestation that stays on screen, a creature with no cause. Test cases: stage order, determinism, bounded exposure, reduced motion.

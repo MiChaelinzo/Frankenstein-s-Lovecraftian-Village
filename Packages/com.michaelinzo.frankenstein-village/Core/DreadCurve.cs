@@ -22,6 +22,12 @@ namespace Frankenstein.Core
             return AmbienceFloor + AmbienceRange * DreadThresholds.Sanitize(dread);
         }
 
+        /// <summary>Director intensity 0..1000 as a dread level 0..1 (see <see cref="HorrorDirector"/>).</summary>
+        public static float FromIntensity(int intensity)
+        {
+            return DreadThresholds.Sanitize(intensity / (float)HorrorDirector.MaxIntensity);
+        }
+
         /// <summary>Linear blend from calm to dread by <see cref="Weight"/>.</summary>
         public static float Blend(float calm, float dreadValue, float dread)
         {

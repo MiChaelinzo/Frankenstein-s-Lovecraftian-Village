@@ -367,6 +367,12 @@ namespace Frankenstein.Core.Tests
             AppendSociety(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendAxes(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendDirector(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendInvestigation(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1380,6 +1386,69 @@ namespace Frankenstein.Core.Tests
                                       + (r.StrongHint ? 1 : 0) + ", " + (r.Withheld ? 1 : 0) + ", " + Q(r.LieStatementId) + ", " + (r.ColdLine ? 1 : 0) + ", " + r.LineVariant + "]");
                         }
                 sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "axes" (round 29): per city seed the Fear, Faith, Loyalty and Obsession axes over a night, dread and ritual grid after the society log, and the fear gated chat.</summary>
+        private static void AppendAxes(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var log = new[]
+            {
+                new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 }, new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.SeenNearBody, Subject = VillageSociety.AllVillagers }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 3 },
+            };
+            sb.Append("  \"axes\": {\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var op = soc.OpinionsAfter(log);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                var grid2 = new List<string>();
+                var chats = new List<string>();
+                foreach (var night in new[] { 1, 5, 9 })
+                    foreach (var dread in new[] { 0f, 0.5f, 1f })
+                        foreach (var ritual in new[] { 0, 5 })
+                        {
+                            var ax = soc.AxesAfter(op, night, dread, ritual);
+                            grid2.Add("[" + night + ", " + dread.ToString("0.##", CultureInfo.InvariantCulture) + ", " + ritual + ", [" + string.Join(", ", ax.Fear) + "], [" + string.Join(", ", ax.Faith) + "], ["
+                                      + string.Join(", ", ax.Loyalty) + "], [" + string.Join(", ", ax.Obsession) + "]]");
+                            foreach (var v in roster)
+                            {
+                                var st = soc.StandingWithAxes(v.Index, op, ax, night, dread, ritual);
+                                var r = VillagerRules.Chat(seed, v, 600, dread, night, 0, 2, 1, 80, st);
+                                chats.Add("[" + v.Index + ", " + night + ", " + dread.ToString("0.##", CultureInfo.InvariantCulture) + ", " + ritual + ", " + (r.Available ? 1 : 0) + ", " + (r.Withheld ? 1 : 0) + ", "
+                                          + (r.FearWithheld ? 1 : 0) + ", " + (r.StrongHint ? 1 : 0) + ", " + Q(r.HintId) + ", " + Q(r.LieStatementId) + "]");
+                            }
+                        }
+                sb.Append(", \"grid\": [").Append(string.Join(", ", grid2)).Append(']');
+                sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "director" (round 29): per seed the scenario inputs and the director's intensity, beat, quiet counter and cause at every step.</summary>
+        private static void AppendDirector(StringBuilder sb)
+        {
+            sb.Append("  \"director\": {\n    \"runs\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var inputs = HorrorDirectorTests.Scenario(seed, 160);
+                var states = HorrorDirectorTests.Run(seed, inputs);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"inputs\": [").Append(string.Join(", ", inputs.Select(x => "[" + x.Tick + ", " + x.Sanity + ", " + x.Knowledge + ", " + x.Stress + ", " + x.SafeZoneTicks + ", " + x.ClueProgress + ", " + x.CultExposure + ", " + x.Encounters + "]"))).Append(']');
+                sb.Append(", \"steps\": [").Append(string.Join(", ", states.Select(s => "[" + s.Intensity + ", " + (int)s.Beat + ", " + s.QuietLeft + ", " + Q(s.Cause) + "]"))).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

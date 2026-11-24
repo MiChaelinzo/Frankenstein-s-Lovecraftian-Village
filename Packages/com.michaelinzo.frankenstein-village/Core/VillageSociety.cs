@@ -32,11 +32,25 @@ namespace Frankenstein.Core
         public int[] Suspicion;
     }
 
-    /// <summary>What chat needs to know about a villager's standing: the tier toward the player and how far the rot has reached them.</summary>
+    /// <summary>Round 29 trust network: four more feelings per villager, each in [0, <see cref="VillageSociety.Scale"/>], indexed by roster index. See <see cref="VillageSociety.AxesAfter"/>.</summary>
+    public sealed class SocietyAxes
+    {
+        public int[] Fear;
+        public int[] Faith;
+        public int[] Loyalty;
+        public int[] Obsession;
+    }
+
+    /// <summary>
+    /// What chat needs to know about a villager's standing: the tier toward the player and how far the rot has reached them. Trust and Fear (per mille) are the optional
+    /// round 29 axes; both default to 0, which never withholds, so a standing built without them chats exactly as before.
+    /// </summary>
     public struct SocialStanding
     {
         public TrustTier Tier;
         public CorruptionStage Corruption;
+        public int Trust;
+        public int Fear;
     }
 
     /// <summary>
@@ -83,6 +97,24 @@ namespace Frankenstein.Core
         public static readonly string[] LieStatementIds = { "lie_saw_nothing", "lie_was_asleep", "lie_blame_neighbour", "lie_not_me" };
         /// <summary>A suspicious, lucid villager lies with chance 1/LieOutOf and otherwise withholds.</summary>
         public const int LieOutOf = 2;
+
+        // Round 29 axes. Each axis = disposition base + seeded jitter + the documented pressure terms, then clamped to [0, Scale]. Integer arithmetic only.
+        public const int FearStream = 0x464541, FaithStream = 0x464149, LoyaltyStream = 0x4C4F59, ObsessionStream = 0x4F4253;
+        /// <summary>Axis jitter is in [-AxisJitter, +AxisJitter] (Obsession uses [0, ObsessionSpread]).</summary>
+        public const int AxisJitter = 50, ObsessionSpread = 150;
+        /// <summary>Opening Fear and Faith by disposition (Kind, Wary, Haunted, Closed).</summary>
+        public static readonly int[] FearBase = { 100, 250, 400, 200 };
+        public static readonly int[] FaithBase = { 200, 250, 450, 300 };
+        /// <summary>Fear gains dread / FearDreadDivisor, FearRitualStep per ritual stage and corruption / FearCorruptionDivisor.</summary>
+        public const int FearDreadDivisor = 3, FearRitualStep = 40, FearCorruptionDivisor = 5;
+        /// <summary>Faith gains FaithRitualStep per ritual stage and corruption / FaithCorruptionDivisor.</summary>
+        public const int FaithRitualStep = 60, FaithCorruptionDivisor = 2;
+        /// <summary>Loyalty is LoyaltyBase + LoyaltyFamilyStep per family link (at most LoyaltyFamilyCap) + trust / 4 - suspicion / 4.</summary>
+        public const int LoyaltyBase = 300, LoyaltyFamilyStep = 100, LoyaltyFamilyCap = 3, LoyaltyOpinionDivisor = 4;
+        /// <summary>Obsession is a seeded [0, ObsessionSpread] + ObsessionNightStep per night + ObsessionHauntedBonus for the Haunted + dread / ObsessionDreadDivisor.</summary>
+        public const int ObsessionNightStep = 40, ObsessionHauntedBonus = 150, ObsessionDreadDivisor = 4;
+        /// <summary>A villager whose Fear is at least this and above their Trust is too terrified to talk, though their trust still shows.</summary>
+        public const int TerrifiedAt = 800;
 
         public int Seed;
         public IList<Villager> Roster;
@@ -272,6 +304,40 @@ namespace Frankenstein.Core
         public SocialStanding StandingOf(int index, SocietyOpinions opinions, int night, float dread, int ritualStage)
         {
             return new SocialStanding { Tier = TierOf(opinions.Trust[index], opinions.Suspicion[index]), Corruption = CorruptionAt(index, night, dread, ritualStage) };
+        }
+
+        private int AxisJitter_(int stream, int i) { return new SeededRandom(Seed ^ stream ^ (i * IndexStep)).Next(2 * AxisJitter + 1) - AxisJitter; }
+
+        /// <summary>
+        /// Fear, Faith, Loyalty and Obsession of every villager (additive: nothing here changes <see cref="OpinionsAfter(IList{SocietyAction})"/> or corruption). Deterministic in
+        /// seed, opinions, night (1-based), dread and ritual stage; every value is clamped to [0, Scale]. Formulas are the constants documented above.
+        /// </summary>
+        public SocietyAxes AxesAfter(SocietyOpinions opinions, int night, float dread, int ritualStage)
+        {
+            int n = Roster.Count;
+            var a = new SocietyAxes { Fear = new int[n], Faith = new int[n], Loyalty = new int[n], Obsession = new int[n] };
+            int dp = DreadPermille(dread), nt = Math.Max(1, night), rs = Math.Max(0, Math.Min(MaxRitualStage, ritualStage));
+            for (int i = 0; i < n; i++)
+            {
+                int disp = (int)Roster[i].Disposition, corruption = CorruptionLevel(i, nt, dread, rs);
+                a.Fear[i] = Clamp(FearBase[disp] + AxisJitter_(FearStream, i) + dp / FearDreadDivisor + rs * FearRitualStep + corruption / FearCorruptionDivisor);
+                a.Faith[i] = Clamp(FaithBase[disp] + AxisJitter_(FaithStream, i) + rs * FaithRitualStep + corruption / FaithCorruptionDivisor);
+                a.Loyalty[i] = Clamp(LoyaltyBase + Math.Min(FamilyLinks[i].Count, LoyaltyFamilyCap) * LoyaltyFamilyStep + opinions.Trust[i] / LoyaltyOpinionDivisor - opinions.Suspicion[i] / LoyaltyOpinionDivisor + AxisJitter_(LoyaltyStream, i));
+                a.Obsession[i] = Clamp(new SeededRandom(Seed ^ ObsessionStream ^ (i * IndexStep)).Next(ObsessionSpread + 1) + nt * ObsessionNightStep + (Roster[i].Disposition == VillagerDisposition.Haunted ? ObsessionHauntedBonus : 0) + dp / ObsessionDreadDivisor);
+            }
+            return a;
+        }
+
+        /// <summary>True when fear outweighs trust and is high: the villager trusts you perhaps, but is too frightened to talk.</summary>
+        public static bool FearWithholds(int trust, int fear) { return fear >= TerrifiedAt && fear > trust; }
+
+        /// <summary><see cref="StandingOf"/> plus the Trust and Fear axes, so chat can withhold from a terrified villager.</summary>
+        public SocialStanding StandingWithAxes(int index, SocietyOpinions opinions, SocietyAxes axes, int night, float dread, int ritualStage)
+        {
+            var st = StandingOf(index, opinions, night, dread, ritualStage);
+            st.Trust = opinions.Trust[index];
+            st.Fear = axes.Fear[index];
+            return st;
         }
 
         /// <summary>Seeded pick of what a suspicious villager does on a chat: "" to withhold, or an authored lie id.</summary>

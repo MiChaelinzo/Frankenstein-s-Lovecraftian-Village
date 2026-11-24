@@ -408,6 +408,19 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void NightTicks_At_equals_the_matching_record_of_a_full_Build_and_clamps()
+        {
+            var lib = Library();
+            var state = Run(42, GridInputs(), Nights, out _, out _);
+            var all = NightTicks.Build(state, lib);
+            for (int n = 1; n <= Nights; n++) Assert.Equal(TickSignature(new List<NightTickRecord> { all[n - 1] }), TickSignature(new List<NightTickRecord> { NightTicks.At(state, lib, n) }));
+            Assert.Same(NightTicks.At(state, lib, 3), NightTicks.At(state, lib, 3));
+            Assert.Equal(1, NightTicks.At(state, lib, -4).Night);
+            Assert.Equal(Nights, NightTicks.At(state, lib, Nights + 9).Night);
+            Assert.All(all, t => Assert.InRange(t.NewMissingPerson, 0, 1));
+        }
+
+        [Fact]
         public void Night_ticks_of_a_shorter_run_equal_the_first_nights_of_a_longer_run()
         {
             var lib = Library();

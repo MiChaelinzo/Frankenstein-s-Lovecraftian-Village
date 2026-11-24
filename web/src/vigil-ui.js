@@ -230,6 +230,8 @@ export function createVigilController(deps) {
   $('endure')?.addEventListener('click', endure);
 
   // ---------- 2D lamp markers and 3D lamp targets ----------
+  /** How much of the whole campaign's clue goal is found, 0..1000 (0 without a vigil). Read by the horror director; changes nothing. */
+  const clueProgress = () => (vigil && vigil.cluesRequired > 0 ? Math.min(1000, Math.floor(1000 * vigil.clues / vigil.cluesRequired)) : 0);
   const lampTargets = () => lamps.map((l) => ({ id: l.id, pos: l.pos, lit: !!vigil && vigil.nightLampIds.has(l.id), idle: !started() }));
   /** Small markers on the 2D board: a flickering flame for a lit lantern, a pale ring for the ones this night can still use, a faint dark sconce for the rest. */
   function drawLamps(g, iso, timeMs = 0) {
@@ -251,7 +253,7 @@ export function createVigilController(deps) {
   }
 
   return {
-    reset, restore, serialize, watchClock, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, drawLamps, closeEnding,
+    reset, restore, serialize, watchClock, allows, isLocked: locked, clue, candle, lightLamp, endure, sync, render, lampTargets, clueProgress, drawLamps, closeEnding,
     endingOpen: () => endingIsOpen, canEndure: () => !!vigil && vigil.canEndureNight && !vigil.isFinished,
     isFinished: () => !!vigil && vigil.isFinished, isLive: live,
     /** What tonight still needs, for villager chat hints: clues and lanterns left, and the sanity in vigil points. */

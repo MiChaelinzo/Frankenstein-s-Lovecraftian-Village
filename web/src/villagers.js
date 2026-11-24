@@ -2,7 +2,7 @@
 import { SeededRandom, sanitizeDread, tierFor, villagerTalkCountsAsClue, InteractionRules, VIGIL_STEADY_SANITY } from './core.js';
 import { districtAt, CITY_GRID, DISTRICT_IDS } from './districts.js';
 import { phaseAt, isDaylight, lanternsLit, phaseStart, wrapTick } from './clock.js';
-import { combinedBehavior, coldLine, suspiciousStatement, TIER_TRUSTING, TIER_SUSPICIOUS } from './society.js';
+import { combinedBehavior, coldLine, suspiciousStatement, fearWithholds, TIER_TRUSTING, TIER_SUSPICIOUS } from './society.js';
 
 export const ROLE_IDS = ['fisher', 'priest', 'innkeeper', 'lamplighter', 'lighthouse_keeper', 'widow', 'child'];
 export const DISPOSITION_NAMES = ['kind', 'wary', 'haunted', 'closed'];
@@ -202,7 +202,7 @@ const CHAT_SEEKING = ['clues_seek', 'lamps_light', 'sanity_low'], CHAT_DONE = ['
  */
 export function chat(seed, v, tick, dread, night, topic, cluesLeft, lampsLeft, sanity, standing) {
   const t = ((topic % CHAT_TOPICS) + CHAT_TOPICS) % CHAT_TOPICS, base = talk(seed, v, tick, dread, null, night);
-  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0, strongHint: false, withheld: false, lieStatementId: '', coldLine: false };
+  const result = { available: base.available, behavior: base.behavior, topic: t, hintId: '', lineVariant: 0, strongHint: false, withheld: false, fearWithheld: false, lieStatementId: '', coldLine: false };
   if (!base.available) return withStanding(result, seed, v, night, standing);
   result.lineVariant = new SeededRandom(seed ^ (v.index * 7919) ^ (night * 31) ^ ((t + 1) * 104729)).next(LINE_VARIANTS);
   if (base.behavior === 0) {
@@ -222,7 +222,8 @@ function withStanding(result, seed, v, night, standing) {
     if (combined === 4) result.available = false;
   }
   if (!result.available || !result.hintId) return result;
-  if (standing.tier === TIER_TRUSTING) result.strongHint = true;
+  if (fearWithholds(standing.trust || 0, standing.fear || 0)) { result.withheld = true; result.fearWithheld = true; result.hintId = ''; } // Round 29: terrified beats every tier
+  else if (standing.tier === TIER_TRUSTING) result.strongHint = true;
   else if (standing.tier === TIER_SUSPICIOUS) {
     result.lieStatementId = suspiciousStatement(seed, v.index, night, result.topic);
     result.withheld = result.lieStatementId === '';

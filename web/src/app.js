@@ -41,6 +41,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
+import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -137,6 +138,23 @@ function skipClock(minutes, done) {
 const weatherParam = optParam('weather');
 const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weather: weatherParam } : n);
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
+// Horror Director (spec 161): steps once per game minute from what the app already knows; the smoothed level only ramps (director.js caps it).
+// Inputs: sanity, creature telegraph, night and the campaign's cult progress, plus knowledge (board tier, 0..5 scaled to permille), clue progress (vigil clues found over the campaign goal) and safe-zone ticks (game minutes spent within reach of a lit lantern).
+let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
+// A new seed or campaign starts the director from calm, so the same seed gives the same run.
+function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks } = directorFreshRun()); }
+function directorFrame() {
+  const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
+  if (tick !== directorTick) {
+    directorTick = tick;
+    directorSafeTicks = nextSafeZoneTicks(directorSafeTicks, !!playerSpot && nearLitLamp(vigil.lampTargets(), playerSpot.x, playerSpot.z));
+    directorState = directorStep(state.seed, directorState, { tick, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
+  }
+  directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
+  const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium' });
+  if (ambient) ambient.setDirectorGain(look.ambienceGain);
+  return look;
+}
 // Graphics quality state, declared before the 3D view because its onGpu callback can run as soon as the view opens.
 let gpuRenderer = '', quality = null;
 const view3d = createView3d({
@@ -146,7 +164,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    director: directorFrame(), tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), wards: creatures.wards(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
@@ -158,7 +176,7 @@ const view3d = createView3d({
   alienPack: () => pack.want,
   onInteract: (p, kind) => interact3d(p, kind), modal: { isOpen: () => villagers.isOpen() || lore.isOpen() || inventory.isOpen() || homestead.isOpen() || board.isOpen(), close: () => { villagers.close(); lore.close(); inventory.close(); homestead.close(); board.close(); } },
   onInventory: () => inventory.toggle(), onBoard: () => board.toggle(),
-  onPlayer: (p) => { creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
+  onPlayer: (p) => { playerSpot = { x: p.x, z: p.z }; creatures.update(p.dt, p.x, p.z); ambient?.setCreatureProximity(creatures.level, creatures.nearestKind); }, onWard: (kind) => creatures.ward(kind),
   onExit: () => setView3d(false),
   onGpu: (name) => { if (name && name !== gpuRenderer) { gpuRenderer = name; if (quality && quality.choice === 'auto') applyQuality(null, false); /* before the first applyQuality, that call picks the name up */ } },
   notice: (key) => { $('sessionNote').textContent = tr(key); },
@@ -249,6 +267,7 @@ function rebuild() {
   stopInvestigator();
   lore.renderList();
   state.campaign = generateCampaign(state.seed);
+  resetDirector();
   state.ritual = generateRitual(state.campaign);
   state.ritualStage = -1;
   vigil.reset();
@@ -698,7 +717,7 @@ const villagers = createVillagerController({
   tickNow: clockTick, tickExact: clockTickExact, chatNeeds: () => vigil.needs(), announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(),
   activeElement: () => document.activeElement, focusedVillager: () => { const v = document.activeElement?.getAttribute?.('data-villager'); return v == null ? -1 : Number(v); },
   onChange: () => { drawMinimap(); mark(); }, story: () => currentStory(), onGossip: (id, stage) => chronicle?.hear(id, stage), onMet: (i) => board.noteMet(i), onChat: (i, result, night) => { society.noteChat(i, result); board.noteChat(i, result, night); },
-  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
+  stageOf: (i) => society.stageOf(i), standing: (i) => society.standing(i), axes: (i) => society.axes(i), chatStatement: (i, night, result) => society.chatStatement(i, night, result), mythosChat: (i, night, result) => society.mythosChat(i, night, result, lang), onMythos: (i, ids, night) => board.noteMythos(i, ids, night), statementText: (id) => society.statementText(id, lang),
   applyEffect: (result, p) => { progress.arm(); if (result.yieldsClue) vigil.clue(result.clueId); if (result.sanityDelta !== 0) adjust(result.sanityDelta, p.name); },
 });
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk

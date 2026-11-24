@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 29 (FEAT-005): specs and status
+- Specs 162 to 166 recorded with goal, inputs, outputs, constraints, failure conditions and test cases (not built, Unverified). Specs 160 and 161 marked built. README, BUILD_LOG and `.kiro/specs` aligned. Docs only.
+
+### Round 29 (FEAT-004): web visual polish
+- `style.css` polish layer: lamplight accent, panel gradient framing, heading rules, stage vignette and static film grain (hidden in high contrast, cinema and forced colors), lamplit button hover/focus, parchment dialogs for board and satchel, readable axis bars, panel rise transition (off under `prefers-reduced-motion` and `html.reduced`). No new strings, no gameplay or Core change. `sw.js` cache `flv-shell-v65`. Partially Verified: headless screenshots only.
+
+### Round 29 (FEAT-003): Dynamic Horror Director (spec 161)
+- Horror director inputs wired in `app.js`: knowledge (board tier 0..5 scaled to permille), clue progress (`vigil.clueProgress()`, vigil clues over the campaign goal) and safe-zone ticks (`nextSafeZoneTicks`, `nearLitLamp` in `director.js`: +1 per game minute within 6 m of a lit lantern, -1 away, capped at 120). They were 0 before. Web-only bookkeeping: Core just receives the numbers, golden unchanged. Wiring is Partially Verified (unit tests of the helpers, no browser run); the Unity runtime is Unverified.
+- Web polish audit, no visual change: contrast helper tests, focus-visible rules, hidden-tab pause, DPR cap of 2 and per-tier pixel ceilings already exist, and no headless measurement (software GL) can justify tuning them, so lighting and layout are unchanged. `sw.js` cache `flv-shell-v64`.
+- Core `HorrorDirector` (extends `GameClock` night weighting and `DreadCurve.FromIntensity`): from sanity, knowledge, stress, safe-zone time, clue progress, cult exposure, creature encounters and the night it steps a deterministic beat (Quiet, Unease, Pressure, Omen, Relief). Intensity is 0..1000 and moves at most 40 per step (no spikes). An Omen (intensity 600+, 35% seeded roll) forces 10 quiet steps (Relief, then Quiet) with a target ceiling of 200. Every non-quiet beat carries a narrative cause id (`waning_sanity`, `mounting_stress`, `cult_exposure`, `creature_sighting`, `nightfall`, `forbidden_knowledge`, `omen_passed`).
+- Web mirror `director.js`; `app.js` steps it once per game minute (since the follow-up below, knowledge, clue progress and safe-zone ticks are real inputs). Presentation is capped and slow: fog up to +12%, lamplight down to -8%, ambient drone up to +12%, smoothed at 5% of range per second. Reduced motion keeps fog and light still and leaves a steady ambient lift of +4%; Low tier skips the fog. The vigil UI is not touched.
+- Golden key `director` added (3 seeds, 160 steps each); every existing golden key is byte identical. `sw.js` cache `flv-shell-v63`. Status: dotnet 362 and node 710 Verified; presentation Partially Verified (no browser run); Unity runtime Unverified.
+
+### Round 29 (FEAT-002): Trust Network axes
+- Core `VillageSociety.AxesAfter` adds Fear, Faith, Loyalty and Obsession (integer, 0..1000, seeded, documented constants) beside the unchanged Trust, Suspicion and Corruption. `SocialStanding` gains optional `Trust` and `Fear`; `VillagerRules.Chat` withholds the hint (`Withheld` and `FearWithheld`) when `Fear >= TerrifiedAt (800)` and Fear is above Trust, whatever the tier (Trust 900, Fear 950 still shows trust but says nothing). A default standing is unchanged.
+- Web mirror `society.js` (`axesAfter`, `standingWithAxes`, `fearWithholds`), `villagers.js` chat, `society-ui.js` `axes`, readable axis bars in the villager dialog, i18n en and fr, `sw.js` cache `flv-shell-v62`.
+- Golden key `axes` added; every existing golden key is byte identical (diff is additions only). Status: dotnet 355 and node 705 Verified; dialog bars Partially Verified (no browser run); Unity runtime Unverified.
+
 ### Round 28 (FEAT-003): Knowledge + Investigation synergy
 - `Core/InvestigationModel.cs`: statements carry an integer confidence percent, the board lists a belief score per revealed statement (confidence minus 30 for a corrupted speaker), and a contradiction with `resolvesAt` becomes a resolution once the knowledge tier reaches it (different nights). `InvestigationRules.KnowledgeSources` derives the tier from evidence. At knowledge 0 the board is unchanged.
 - `Data/statements.json`: `j_innkeeper_toll`, confidence on `c_innkeeper_bell`, pair `bell_two_nights` (contradiction at knowledge 0 to 3, explained at 4).

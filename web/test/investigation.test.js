@@ -166,3 +166,10 @@ test('knowledge 0 leaves the board as it was, belief drops for a corrupted speak
   base.statements[0].night = 1; base.statements[0].confidence = 180;
   assert.throws(() => parseStatementLibrary(base), /confidence/);
 });
+
+test('journal ids count as knowledge sources only with ASCII digits (Core parity)', () => {
+  const e = richEvidence();
+  e.booksRead.clear(); e.clueIds.clear(); e.heard.length = 0;
+  for (const id of ['j07', 'j\u0663\u0664', 'j0\uFF15']) e.booksRead.add(id);
+  assert.deepEqual(knowledgeSources(e), ['journal']);
+});
