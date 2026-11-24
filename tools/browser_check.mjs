@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -597,6 +597,62 @@ async function main() {
     rec('theory: nothing in the builder animates under reduced motion and its buttons are keyboard reachable', motion.anim === false && motion.tab === true, motion);
   };
 
+  /** Victorian reskin (round 33, spec 165: aged paper, brass and ink over the round 29 layer; VICTORIAN_ONLY=1 runs only this). VICTORIAN_SHOT_DIR=<dir> with VICTORIAN_SHOT_PREFIX (default r33-after) saves <prefix>-title.jpg, -board.jpg, -chronicle.jpg and -journal.jpg. Checks run in English and French: no horizontal overflow at 1280 px wide and at 150% zoom, a visible keyboard focus ring, chronicle ink reveal that stops under reduced motion. */
+  const victorianRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.VICTORIAN_SHOT_DIR || '', prefix = process.env.VICTORIAN_SHOT_PREFIX || 'r33-after';
+    const shot = async (name) => { if (shotDir) writeFileSync(join(shotDir, `${prefix}-${name}.jpg`), Buffer.from(await capture({ format: 'jpeg', quality: 70 }), 'base64')); };
+    const H = '#seed=1818&sanity=40&night=3';
+    const SESSION = { seed: 1818, sanity: 40, night: 2, lore: ['j01', 'j02', 'p01'], board: 'bd1;0,1,2,3;;2:c_innkeeper_bell:2' };
+    const fresh = async (query, hash, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + hash); await sleep(1200);
+    };
+    const overflow = (ids) => ev(`(${JSON.stringify(ids)}).map((id)=>{const e=document.getElementById(id);return e&&!e.hidden?[id,e.scrollWidth-e.clientWidth]:[id,null]}).filter(([,d])=>d!==null&&d>1)`);
+    // title screen (no deep link params, so the title shows)
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?capture=0'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+    await nav('?lang=en'); await until(() => ev(`document.getElementById('title')?.hidden===false`), 15000); await sleep(600);
+    await shot('title');
+    const titleEn = await ev(`document.getElementById('title')?.hidden===false`);
+    rec('victorian: the title screen shows in English', titleEn === true, { shown: titleEn });
+    await nav('?lang=fr'); await until(() => ev(`document.getElementById('title')?.hidden===false`), 15000); await sleep(400);
+    const titleFr = await ev(`(()=>{const c=document.querySelector('.title-card');const r=c.getBoundingClientRect();return {w:Math.round(r.width),fits:r.right<=innerWidth+1&&r.left>=-1,over:c.scrollWidth-c.clientWidth}})()`);
+    rec('victorian: the French title card fits the viewport without horizontal overflow', titleFr.fits && titleFr.over <= 1, titleFr);
+    const ring = await ev(`(()=>{const b=document.getElementById('titleEnter3d');b.focus();const s=getComputedStyle(b);return {style:s.outlineStyle,w:parseFloat(s.outlineWidth)}})()`);
+    rec('victorian: keyboard focus draws a visible outline on the title buttons', ring.style !== 'none' && ring.w >= 2, ring);
+    // board, chronicle, journal in both languages
+    for (const lang of ['en', 'fr']) {
+      await fresh(`?intro=0&capture=1&tick=900&lang=${lang}`, H, SESSION);
+      await key(';', 'Semicolon', 186, ';'); await sleep(700);
+      if (lang === 'en') await shot('board');
+      const over = await overflow(['boardPanel']);
+      rec(`victorian: the board dialog has no horizontal overflow (${lang})`, over.length === 0, { over });
+      await ev(`document.documentElement.style.zoom='1.5'`); await sleep(300);
+      const overZ = await overflow(['boardPanel']);
+      rec(`victorian: the board dialog survives 150% zoom (${lang})`, overZ.length === 0, { over: overZ });
+      await ev(`document.documentElement.style.zoom=''`);
+      await special('Escape', 27); await sleep(300);
+      await ev(`document.getElementById('chronicleToggle').click()`); await sleep(900);
+      if (lang === 'en') await shot('chronicle');
+      const ch = await ev(`(()=>{const p=document.getElementById('chroniclePanel');const b=document.getElementById('chronicleBody');return {shown:!p.hidden,over:b.scrollWidth-b.clientWidth,anim:getComputedStyle(b.querySelector('li')||b).animationName}})()`);
+      rec(`victorian: the chronicle shows with an ink reveal on its entries and no overflow (${lang})`, ch.shown && ch.over <= 1 && ch.anim !== 'none', ch);
+      await ev(`document.getElementById('chronicleToggle').click()`); await sleep(200);
+      await ev(`document.getElementById('codexToggle').click()`); await sleep(500);
+      await ev(`(()=>{const d=document.getElementById('loreDialog');const li=document.querySelector('#loreList li:not(.locked)');document.getElementById('loreTitle').textContent=li?li.querySelector('strong').textContent:'';document.getElementById('loreText').textContent=li?li.querySelector('.lore-text').textContent:'';document.getElementById('loreEffect').textContent='';d.hidden=false})()`); await sleep(500);
+      if (lang === 'en') await shot('journal');
+      const lore = await overflow(['loreDialog']);
+      rec(`victorian: the journal page has no overflow (${lang})`, lore.length === 0, { over: lore });
+    }
+    await fresh('?intro=0&capture=1&tick=900&reduced=1', H, SESSION);
+    await ev(`document.getElementById('chronicleToggle').click()`); await sleep(600);
+    const still = await ev(`[...document.querySelectorAll('#chroniclePanel, #chroniclePanel li, #chroniclePanel h3')].filter((n)=>getComputedStyle(n).animationName!=='none').length`);
+    rec('victorian: nothing in the chronicle animates under reduced motion', still === 0, { animated: still });
+  };
+
   /** Mythos (round 27: the background simulation feeding the board and the chronicle; MYTHOS_ONLY=1 runs only this). Seed 1818 at night 5 (found with web/src/mythos.js, see CHANGELOG): two cults (the Lamp Wardens and the Salt Congregation), the secrets of villagers 1 and 4 out on night 5 (villager 4 saw a body carried to the water), and a missing person rumor from villager 4. The saved board holds what four villagers told the player. */
   const mythosRun = async () => {
     const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=5';
@@ -657,6 +713,7 @@ async function main() {
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
+    if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
     if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
     // keyboard and panels on the 2D view
