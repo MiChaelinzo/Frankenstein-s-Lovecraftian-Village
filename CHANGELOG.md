@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-009): status and open specs
+- `.kiro/specs/tasks.md` gets a Round 34 status block (built 167 to 173) and unbuilt specs 174 to 180, all Unverified. Final checks: dotnet 474, node 833, UnityCompileCheck 0/0. Browser sections on SwiftShader (Partially Verified): `REALITY_ONLY` 3/3, `INTENSITY_ONLY` 4/4, `SEED_ONLY` 6/6, `SOCIETY_ONLY` 11/11, `THEORY_ONLY` 9/9, `NARRATIVE_ONLY` 2/2. No full browser run.
+
 ### Round 34 (FEAT-008): JSON content schemas and validator (spec 173 built, tooling only)
 - New `docs/CONTENT_SCHEMAS.md` with field tables for quest, rumor and event, plus samples `missing_fisher_01`, `black_water_harbour` and `black_tide_night_25` in `Data/content/`. `tools/content_schemas.py` is run by `tools/validate_repo.py` and reports file, item id and field; references to theories, statements and omens must resolve against the real data.
 - The game does not load these files yet, so no golden or seed changed. The only web change is the regenerated `data/stitch.json` (it embeds docs), so the cache is `flv-shell-v82`. Tests: `tools/test_content_schemas.py` (9). Playing the content is Unverified.
