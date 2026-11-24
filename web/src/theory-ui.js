@@ -5,6 +5,7 @@ import {
   parseTheoryLibrary, theoryInstances, replayTheories, legalChoices, choice, theoryQuestion, theoryOptionText, verdictText, theoryKnowledge, theoryTrustLost,
   epilogueVariant, epilogueText, serializeTheoryLog, parseTheoryLog, GRADE_IDS, CHOICE_THEORY, CHOICE_OPTION, CHOICE_EVIDENCE, CHOICE_CONCLUDE, MAX_EVIDENCE,
 } from './theory.js';
+import { theoryExportText, exportFileName } from './export-text.js';
 import { parseOutcomeLibrary, resolveOutcome, countLeads, revealOutcome, aftermathStatements, recruitedByNight } from './outcomes.js';
 
 export const MAX_LOG = 300;
@@ -213,9 +214,26 @@ export function createTheoryController(deps) {
         ul.append(li);
       }
       body.append(ul);
+      if (deps.download) {
+        const row = node('div', { class: 'row theory-export' });
+        for (const format of ['md', 'txt']) {
+          const b = node('button', { type: 'button', 'data-k': `export-${format}` }, tr(`export.theory.${format}`));
+          b.addEventListener('click', () => exportTheory(format));
+          row.append(b);
+        }
+        body.append(row);
+      }
     }
     if (lastVerdict) { const live = $('boardLive'); if (live) live.textContent = lastVerdict; }
     if (focusId) { const again = body.querySelector?.(`[data-k="${focusId}"]`); again?.focus?.(); }
+  }
+
+  /** Round 34 (spec 172): downloads the theory log and conclusions, with the seed code. Only concluded theories appear; nothing unconcluded is revealed. */
+  function exportTheory(format) {
+    if (!ready() || !deps.download) return;
+    const code = deps.seedCode ? deps.seedCode() : String(state.seed), name = exportFileName('theories', code, format);
+    deps.download(name, theoryExportText(summary(), { tr, format, seedCode: code, endings: deps.endings ? deps.endings() : null }), format === 'md' ? 'text/markdown' : 'text/plain');
+    deps.announce?.(tr('export.done', { name }));
   }
 
   /** The panel is part of the board: it redraws with it. */
@@ -225,7 +243,7 @@ export function createTheoryController(deps) {
   const owns = (el) => !!(el && $('boardTheory') && $('boardTheory').contains?.(el));
 
   return {
-    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, aftermath, recruited, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
+    setData, instances, state: theoryState, knowledgeBonus, trustLost, epilogue, summary, outcomeLine, outcomeState, aftermath, recruited, exportTheory, choose, render, refresh, setOpen, focusables, owns, isReady: ready,
     snapshot: () => { ensureSeed(); return { theories: log.length ? serializeTheoryLog(log) : '' }; },
     restore(saved) { ensureSeed(); log = parseTheoryLog(saved && saved.theories); version++; replayed = null; lastVerdict = ''; deps.onChange?.(); if (open) render(); },
     lastVerdict: () => lastVerdict,

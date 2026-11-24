@@ -486,3 +486,11 @@ html.hc button, html.hc a.btn { background: #000; color: #fff; border-color: #ff
 /* Round 34: reality instability badge. Static on purpose (no animation, no flicker), so it needs no reduced-motion override. */
 .reality-badge { border: 1px solid currentColor; padding: 0 .4em; font-style: italic; }
 .vfalse .vname { font-style: italic; opacity: .85; }
+
+/* round 34 (spec 172): seed share code on the title screen and the chronicle tools */
+.title-seed { margin: 0 0 4px; font-size: .95rem; color: #cfd8d3; }
+.title-seed strong { letter-spacing: .06em; }
+.title-seed-entry { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin: 6px 0 2px; }
+.title-seed-entry input { min-width: 14rem; padding: 6px 8px; background: #0c1214; color: #e8efe9; border: 1px solid #5a6b64; border-radius: 4px; font: inherit; text-transform: uppercase; }
+.title-seed-entry input:focus-visible { outline: 2px solid #d9b98a; outline-offset: 2px; }
+.chronicle-tools { gap: 8px; align-items: center; margin-bottom: 8px; }

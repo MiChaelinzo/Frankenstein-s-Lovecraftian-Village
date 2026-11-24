@@ -5,6 +5,7 @@ import { stageOfNight, districtHistory, familyHistory } from './village-story.js
 import { esc } from './util.js';
 import { DISTRICT_IDS } from './districts.js';
 import { parseChronicleLibrary, chronicleProse, summaryProse } from './chronicle-prose.js';
+import { chronicleExportText, exportFileName } from './export-text.js';
 import { mythosStatements, mythosText, isDistorted, nightTickAt } from './mythos.js';
 
 /**
@@ -97,8 +98,19 @@ export function createChronicleController(deps) {
     if (key !== renderedKey) render();
   }
 
+  /** Round 34 (spec 172): the seed share code line and the export buttons. Exports hold only what the chronicle already shows. */
+  const seedCode = () => (deps.seedCode ? deps.seedCode() : String(state.seed));
+  function exportChronicle(format) {
+    const story = deps.story(); if (!story || !deps.download) return;
+    const text = chronicleExportText(chronicleModel(story, lang(), ctx()), { tr, format, seedCode: seedCode(), endings: deps.endings ? deps.endings() : null });
+    const name = exportFileName('chronicle', seedCode(), format);
+    deps.download(name, text, format === 'md' ? 'text/markdown' : 'text/plain');
+    deps.announce?.(tr('export.done', { name }));
+  }
+
   function render() {
     const body = $('chronicleBody'); if (!body) return;
+    if ($('chronicleSeed')) $('chronicleSeed').textContent = tr('export.seed', { code: seedCode() });
     const story = deps.story();
     renderedKey = '';
     if (!story) { body.innerHTML = `<p class="stats">${esc(tr('chronicle.empty'))}</p>`; return; }
@@ -137,6 +149,12 @@ export function createChronicleController(deps) {
     return on;
   }
   $('chronicleToggle')?.addEventListener?.('click', () => setPanel(!on));
+  $('chronicleExportMd')?.addEventListener?.('click', () => exportChronicle('md'));
+  $('chronicleExportTxt')?.addEventListener?.('click', () => exportChronicle('txt'));
+  if ($('chronicleSeedCopy')) {
+    $('chronicleSeedCopy').hidden = !deps.copyText;
+    $('chronicleSeedCopy').addEventListener?.('click', async () => { const text = await deps.copyText(seedCode()); deps.announce?.(text); });
+  }
 
-  return { setPanel, render, refresh, hear, setProse, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
+  return { setPanel, render, refresh, hear, setProse, exportChronicle, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
 }

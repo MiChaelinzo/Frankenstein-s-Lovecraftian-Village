@@ -59,7 +59,7 @@ import { createProgressController } from './progress-ui.js';
 import { createVigilController } from './vigil-ui.js';
 import { loadEndingsFound } from './vigil-view.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
-import { dailyVillage, dailyWanted } from './daily.js';
+import { dailyVillage, dailyWanted, parseSeedShareLibrary, encodeSeedCode, decodeSeedCode, dailyChallengeCode } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
 import { contrastWanted, loadContrast, saveContrast, intensityWanted, loadIntensity, saveIntensity, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
 import { texturePlan } from './pack.js';
@@ -253,6 +253,7 @@ async function loadCatalog() {
   try { theory.setData(await (await fetch('data/theories.json')).json(), await (await fetch('data/outcomes.json')).json()); board.sync(); } catch (err) { console.warn(`[theory] could not load data/theories.json or data/outcomes.json, no theory builder this session: ${err.message}`); }
   try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
   try { realityLib = parseRealityLibrary(await (await fetch('data/reality.json')).json()); board.sync(); } catch (err) { console.warn(`[reality] could not load data/reality.json, reality stays reliable this session: ${err.message}`); }
+  try { seedShareLib = parseSeedShareLibrary(await (await fetch('data/seedshare.json')).json()); } catch (err) { console.warn(`[seedshare] could not load data/seedshare.json, the seed code shows the bare number this session: ${err.message}`); }
   try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
@@ -644,6 +645,27 @@ function listen(i) {
   vigil.clue(`${p.id}@${p.x}.${p.z}`);
   setFocus(i); adjust(-SanityModel.FOCUS_COST, pieceLabel(p));
 }
+// Village Seed Share (daily.js, Core SeedShare mirror, spec 172): the code names the village, the daily challenge names today's.
+let seedShareLib = null;
+const seedCode = () => (seedShareLib ? encodeSeedCode(seedShareLib, state.seed) : String(state.seed >>> 0));
+function dailyLine() {
+  const d = seedShareLib ? dailyChallengeCode(seedShareLib) : null;
+  return d ? tr('seed.daily', { key: d.key, code: d.code }) : '';
+}
+// Copy needs the async clipboard (secure contexts only). Without it the buttons stay hidden and the code stays selectable text.
+const copyText = navigator.clipboard && navigator.clipboard.writeText ? async (code) => {
+  try { await navigator.clipboard.writeText(code); return tr('seed.code.copied', { code }); } catch { return tr('seed.code.copyfail', { code }); }
+} : null;
+function applySeedCode(text) {
+  if (!seedShareLib && /-/.test(String(text))) return { ok: false, message: tr('seed.err.format') };
+  const r = decodeSeedCode(seedShareLib || { first: ['A'], second: ['A'] }, text);
+  if (!r.ok) return { ok: false, message: tr(`seed.err.${r.error}`, { number: r.expected.split('-')[0], expected: r.expected }) };
+  if (!vigil.allows('seed_entry')) return { ok: false, message: tr('seed.code.locked') };
+  state.seed = r.seed; $('seed').value = r.seed; rebuild(); selectNight(state.night, true); pushHash(); if (ambient?.running) startAudio();
+  const message = tr('seed.code.applied', { code: seedCode() }); announce(message); $('sessionNote').textContent = message; refreshDailyCode();
+  return { ok: true, message };
+}
+function refreshDailyCode() { const el = $('dailyCode'); if (el) el.textContent = dailyLine(); }
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -714,6 +736,7 @@ const board = createBoardController({
   onChange: () => autosave(),
 });
 theory = createTheoryController({
+  seedCode: () => seedCode(), download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
   $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
   board, lore, night: () => state.night + 1, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
@@ -763,6 +786,7 @@ const villagers = createVillagerController({
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
+  seedCode: () => seedCode(), copyText, download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }), announce: (text) => announce(text),
   bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), outcomeState: (k) => theory.outcomeState(k), memoryEvents: () => society.memoryEvents(), theories: () => theory.summary(),
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
@@ -818,6 +842,7 @@ const { open: openTitle, isOpen: titleOpen } = createTitleController({
   enter3d: () => setView3d(true), enter2d: () => mark(),
   openHelp: () => setHelp(true), setSound: (on) => setSound(on),
   endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
+  seedCode: () => seedCode(), dailyLine: () => dailyLine(), applySeedCode: (text) => applySeedCode(text), copyText,
 });
 const { openTour, closeTour, tourOpen, pauseTour, resumeTour } = createTourController({ $, tr, canvas, reduceMotion, announce });
 // About dialog: native <dialog> (focus trap and Esc come from the browser); falls back to the open attribute.
@@ -942,7 +967,7 @@ function setIntensity(level, persist) {
   if (persist) { saveIntensity(storage, level); $('sessionNote').textContent = tr('msg.intensity', { level: label }); announce($('sessionNote').textContent); villagers.refresh(); }
   mark();
 }
-function noteDaily(d) { const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
+function noteDaily(d) { refreshDailyCode(); const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
 function applyDaily() {
   if (!vigil.allows('daily')) return;
   const d = dailyVillage();
@@ -1173,5 +1198,6 @@ function foldGroupsOnNarrow() {
   registerOffline();
   if (tourOn) openTour();
   await meshesLoaded; hideVeil();
+  refreshDailyCode();
   if (titleWanted) openTitle(); setTimeout(() => { state.live = true; }, 800);
 })();

@@ -7,21 +7,21 @@
       "count": 56
     },
     "golden": {
-      "count": 52,
+      "count": 53,
       "vectors": 588
     },
     "js": {
-      "count": 86,
-      "tests": 91
+      "count": 87,
+      "tests": 93
     },
     "kiro": {
       "count": 3,
       "steering": 6,
-      "tasksDone": 126,
-      "tasksTotal": 176
+      "tasksDone": 127,
+      "tasksTotal": 177
     },
     "pwa": {
-      "count": 188
+      "count": 190
     },
     "unity": {
       "bridges": 4,

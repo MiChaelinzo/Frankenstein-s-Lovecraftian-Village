@@ -1236,6 +1236,29 @@
       ] }
     ]
   },
+  "seedShare": {
+    "codes": [[0, "0-FESTERING-CHURCH"], [1, "1-SILENT-ROOT"], [42, "42-BURIED-LEDGER"], [1818, "1818-CROOKED-TIDE"], [-1, "4294967295-HOLLOW-ORCHARD"], [-7, "4294967289-DROWNED-FOG"], [123456789, "123456789-SILENT-ECHO"], [2147483647, "2147483647-PALE-WHISPER"], [-2147483648, "2147483648-SILENT-SPIRE"]],
+    "decodes": [["1818", true, 1818, ""],
+      [" 1818 ", true, 1818, ""],
+      ["0001818", true, 1818, ""],
+      ["4294967295", true, -1, ""],
+      ["4294967296", false, "range", ""],
+      ["99999999999", false, "range", ""],
+      ["", false, "empty", ""],
+      ["   ", false, "empty", ""],
+      ["-5", false, "format", ""],
+      ["abc", false, "format", ""],
+      ["1818-BLACK", false, "format", ""],
+      ["1818-BLACK-TIDE-X", false, "format", ""],
+      ["1818-BL4CK-TIDE", false, "format", ""],
+      ["x-BLACK-TIDE", false, "format", ""],
+      ["1818--TIDE", false, "format", ""],
+      ["1818-black-tide", false, "mismatch", "1818-CROOKED-TIDE"],
+      ["18.5", false, "format", ""],
+      ["1818-STRAY-WORD", false, "mismatch", "1818-CROOKED-TIDE"],
+      ["\u00DF-A-B", false, "format", ""]],
+    "daily": [["2026-11-14", "1880875346-FESTERING-DOOR"], ["2026-11-15", "1897652965-WITHERED-DOOR"], ["2026-11-16", "1847320108-DISTANT-ASH"], ["0001-01-01", "1254110786-HOLLOW-ROOT"]]
+  },
   "aftermath": {
     "table": [50, 30, 50, 30, 35, 15, 50, 30, 35, 15, 25, 5, 25, 5, 10, 0, 25, 5, 10, 0, 75, 55, 75, 55, 60, 40, 75, 55, 60, 40, 50, 30, 50, 30, 35, 15, 50, 30, 35, 15, 60, 40, 60, 40, 45, 25, 60, 40, 45, 25, 35, 15, 35, 15, 20, 0, 35, 15, 20, 0, 90, 70, 90, 70, 75, 55, 90, 70, 75, 55, 65, 45, 65, 45, 50, 30, 65, 45, 50, 30],
     "cities": [

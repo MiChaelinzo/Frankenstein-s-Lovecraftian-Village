@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-007): Village Seed Share, exports and Daily Village Challenge (spec 172 built)
+- Core `DailySeed.cs` gains `SeedShareLibrary` (reads `Data/seedshare.json`, 24 omen words and 24 theme words), `SeedShare.Encode` and `Decode` and `DailySeed.ChallengeCode`. A code is the unsigned seed plus two words derived from it, like `1818-CROOKED-TIDE`, so every integer seed round trips. Decoding accepts any case, a bare number, and gives a stable error id (empty, format, range, mismatch) with a readable message; wrong words are an error, never a guess.
+- Web: `daily.js` mirrors it (golden key `seedShare`, existing keys unchanged). The title screen shows the village code, today's challenge code, a copy button (only where the async clipboard exists) and a labelled input for a shared code, with en and fr error text. The chronicle shows the code. New `export-text.js` builds the chronicle export (markdown or text, from the Chronicle 2.0 prose) and the theory export, both with the seed code and an outcome comparison block (endings found, theory conclusions by grade, missing outcomes learned). Downloads use a Blob and an anchor, so CSP is unchanged. Exports hold only what the player learned.
+- Cache `flv-shell-v81` with `data/seedshare.json` and `src/export-text.js`.
+- Tests: dotnet 5 new (474 total), node 15 new (833 total), all `tools/test_*.py` green. Browser `SEED_ONLY` 6 of 6 on SwiftShader (Partially Verified). A real file download was not exercised in the browser check (Unverified).
+
 ### Round 34 (FEAT-006): Horror Intensity setting (spec 171 built, web only)
 - New setting Gentle, Standard, Dread (500, 1000, 1500 per mille) in Tools and settings, stored as `flv.intensity.v1`, also `?intensity=`. It scales presentation only: director fog, lamp dimming and ambient lift (`presentation` scale, caps scale with it); Gentle drops the reality view one tier (the mildest alterations are skipped, not softened) and keeps creature glimpses still; Dread only strengthens the director. Core ports, saves, goldens and seeds never read it (a test checks that no port imports `access.js` and that layout and director output are identical per level). Chronicle wording is unchanged.
 - Keyboard: a normal button reached with Tab (every letter key is already taken), labelled in en and fr, contrast 13.4:1 measured. Cache `flv-shell-v80`.

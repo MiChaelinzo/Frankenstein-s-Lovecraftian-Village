@@ -403,6 +403,9 @@ namespace Frankenstein.Core.Tests
             AppendReality(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendSeedShare(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendAftermath(sb, cat);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1727,6 +1730,24 @@ namespace Frankenstein.Core.Tests
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "seedShare" (round 34, spec 172): share codes for fixed seeds, decode results for fixed inputs (seed or error id, plus the expected code on a mismatch) and the daily challenge codes.</summary>
+        private static void AppendSeedShare(StringBuilder sb)
+        {
+            var lib = SeedShareTests.Library();
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"seedShare\": {\n    \"codes\": [");
+            sb.Append(string.Join(", ", SeedShareTests.Seeds.Select(s => "[" + s.ToString(inv) + ", " + Q(SeedShare.Encode(lib, s)) + "]")));
+            sb.Append("],\n    \"decodes\": [");
+            sb.Append(string.Join(",\n      ", SeedShareTests.Inputs.Select(i =>
+            {
+                var r = SeedShare.Decode(lib, i);
+                return "[" + Q(i) + ", " + (r.Ok ? "true, " + r.Seed.ToString(inv) : "false, " + Q(r.Error)) + ", " + Q(r.Expected) + "]";
+            })));
+            sb.Append("],\n    \"daily\": [");
+            sb.Append(string.Join(", ", SeedShareTests.DailyKeys.Select(k => "[" + Q(k) + ", " + Q(DailySeed.ChallengeCode(lib, k)) + "]")));
+            sb.Append("]\n  }\n");
         }
 
         /// <summary>Top level key "reality" (round 34, spec 169): per city seed, night and knowledge tier, the alterations of RealityInstability (wrong house names, false villager, hidden contradictions, blurred identities, altered places) as one signature string, plus the notes in en and fr.</summary>
