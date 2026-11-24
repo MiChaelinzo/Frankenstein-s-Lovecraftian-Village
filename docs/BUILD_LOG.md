@@ -444,3 +444,6 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - FEAT-005 `feat: add missing person aftermath and source reliability` (spec 170): Core `MissingOutcomes.Aftermath`, `MythosInputs.RecruitedByNight` (optional, null changes nothing), `InvestigationBoard.Reliabilities`, `outcomes.json` aftermath texts, golden key `aftermath` (additions only), web mirrors, board reliability badge, cache v79.
 - Findings: reliability is a separate list because adding it to `Scores` would change the existing golden key and the theory belief map. Aftermath outcomes are resolved from the run without recruits to avoid a cycle.
 - Verified: Core and JS tests. Unverified: Unity runtime, real GPU, in-browser rendering of the reliability badge.
+- FEAT-006 `feat: add horror intensity setting` (spec 171): web only, `access.js`, `director.js`, `reality.js`, settings button, en and fr strings, cache v80, `INTENSITY_ONLY` browser section (4 of 4 on SwiftShader).
+- Findings: every letter key is taken, so the setting is a button plus `?intensity=`. `storage` is declared after the director block, so the level is resolved in startup. Live leads were not wired into outcome odds because it would change what happened mid-game (see CHANGELOG).
+- Verified: node tests. Partially Verified: browser section. Unverified: Unity runtime, real GPU.

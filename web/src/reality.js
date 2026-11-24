@@ -92,14 +92,16 @@ export function realityLocationLook(lib, seed, night, tier, placeId) {
 /**
  * The client side of the instability: one object the panels ask. deps: { lib() -> parsed library or null, seed(), night() (1-based), tier() (knowledge tier), lang(), reduced?() }.
  * truth is a session switch (never saved): while it is on every query answers "unaltered", so the player can always compare with the real data.
- * Horror intensity hook: intensity() returns 1000 per mille today; a future horror intensity setting scales it (below 1000 the alterations would be skipped, not softened).
+ * Horror intensity: optional deps.intensity() in per mille (500 gentle, 1000 standard, 1500 dread). Below 1000 the tier drops one step, so the mildest alterations are skipped, not softened; the badge still follows the real tier.
  */
 export function createRealityView(deps) {
   let truth = false;
+  // Horror Intensity below standard (per mille under 1000) drops the tier one step: the milder alterations are skipped, never softened. Standard and Dread are the same here.
+  const shifted = (tier) => (view.intensity() < 1000 ? Math.max(0, tier - 1) : tier);
   const noted = new Set();
-  const lib = () => deps.lib(), tier = () => (truth || !lib() ? 0 : deps.tier() | 0), night = () => Math.max(1, deps.night()), t = (o) => o[deps.lang()] || o.en;
+  const lib = () => deps.lib(), tier = () => (truth || !lib() ? 0 : shifted(deps.tier() | 0)), night = () => Math.max(1, deps.night()), t = (o) => o[deps.lang()] || o.en;
   const view = {
-    intensity: () => 1000,
+    intensity: () => (deps.intensity ? deps.intensity() : 1000),
     unreliable: () => !!lib() && realityUnreliable(deps.tier() | 0),
     active: () => realityUnreliable(tier()),
     truth: () => truth,

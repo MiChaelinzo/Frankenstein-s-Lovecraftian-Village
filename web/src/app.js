@@ -61,7 +61,7 @@ import { loadEndingsFound } from './vigil-view.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
 import { dailyVillage, dailyWanted } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
-import { contrastWanted, loadContrast, saveContrast } from './access.js';
+import { contrastWanted, loadContrast, saveContrast, intensityWanted, loadIntensity, saveIntensity, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
 import { texturePlan } from './pack.js';
 import { cinematicFrame, cinematicWanted, flythroughCamera } from './cinematic.js';
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
@@ -147,6 +147,8 @@ const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash l
 let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
 // A new seed or campaign starts the director from calm, so the same seed gives the same run.
 function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks } = directorFreshRun()); }
+// Horror Intensity (spec 165): presentation only, never read by Core ports, saves or goldens.
+let horrorIntensity = 'standard'; // resolved from ?intensity= or storage at startup (initial setIntensity call), once storage exists
 let directorLookNow = directorLook(0, { reduced: reduceMotion, tier: 'medium' });
 // Stepped from a timer (directorTimer below), never from the 3D getScene callback: rendering only reads directorLookNow.
 function directorUpdate() {
@@ -157,7 +159,7 @@ function directorUpdate() {
     directorState = directorStep(state.seed, directorState, { tick, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
   }
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
-  const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium' });
+  const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium', scale: INTENSITY_PER_MILLE[horrorIntensity] });
   if (ambient) ambient.setDirectorGain(look.ambienceGain);
   directorLookNow = look;
 }
@@ -701,7 +703,7 @@ let theory = null; // the theory builder (created after the board); society and 
 const society = createSocietyController({ recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
 let realityLib = null;
-const reality = createRealityView({ lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
+const reality = createRealityView({ intensity: () => INTENSITY_PER_MILLE[horrorIntensity], lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
   reality: () => reality, onReality: () => { villagers.refresh(); },
@@ -732,7 +734,7 @@ const creatures = createCreatureController({
   onWard: () => { const c = view3d.active ? view3d.camera : null; if (c) society.noteWard({ x: c.x, z: c.z }, villagerScene(state.villagers || [], CELL)); },
   onSanity: (delta) => { progress.arm(); if (delta < 0) requestFlash(0.05); syncUi(); }, tickNow: clockTickExact, weather: () => withWeather(currentNight() || {}).weather || 'clear', camera: () => (view3d.active ? view3d.camera : null),
   // Creature upgrade path (spec 166): what unlocks the tiers. The tier 2 villager comes from the society stages, tier 3 from the board's knowledge tier, tier 4 from the mythos omens.
-  reducedMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), noteClue: (id) => board.noteClue(id),
+  reducedMotion: () => reduceMotion || horrorIntensity === 'gentle' || document.documentElement.classList.contains('reduced'), noteClue: (id) => board.noteClue(id),
   tierState: () => {
     const stages = society.stages(), best = Math.max(0, ...stages), cam = view3d.active ? view3d.camera : null, site = cam ? places.placed().find((p) => Math.hypot(cam.x - p.p.x, cam.z - p.p.z) < p.p.radius) : null;
     const fin = society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT), omens = fin ? fin.nights.slice(0, state.night + 1).reduce((n, nt) => n + nt.events.filter((e) => e.kind === EVENT_COSMIC_OMEN).length, 0) : 0;
@@ -932,6 +934,14 @@ function setContrast(on, persist) {
   if (persist) { saveContrast(storage, on); $('sessionNote').textContent = tr(on ? 'msg.contrast.on' : 'msg.contrast.off'); announce($('sessionNote').textContent); }
   mark();
 }
+function setIntensity(level, persist) {
+  horrorIntensity = level;
+  const label = tr(`intensity.${level}`);
+  $('intensityToggle').textContent = tr('btn.intensity', { level: label });
+  $('intensityToggle').setAttribute?.('aria-label', tr('btn.intensity.label', { level: label }));
+  if (persist) { saveIntensity(storage, level); $('sessionNote').textContent = tr('msg.intensity', { level: label }); announce($('sessionNote').textContent); villagers.refresh(); }
+  mark();
+}
 function noteDaily(d) { const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
 function applyDaily() {
   if (!vigil.allows('daily')) return;
@@ -943,6 +953,7 @@ function applyDaily() {
 $('codexToggle').addEventListener('click', () => progress.setCodex(!progress.isCodexOn()));
 $('stitchToggle').addEventListener('click', () => progress.setStitch(!progress.isStitchOn()));
 $('contrastToggle').addEventListener('click', () => setContrast(!document.documentElement.classList.contains('hc'), true));
+$('intensityToggle').addEventListener('click', () => setIntensity(nextIntensity(horrorIntensity), true));
 $('dailyBtn').addEventListener('click', applyDaily);
 
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
@@ -1137,6 +1148,7 @@ function foldGroupsOnNarrow() {
   state.investigatorOn = optParam('investigator') === '1';
   $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
   setContrast(contrastWanted(location.search, location.hash, loadContrast(storage)), false);
+  setIntensity(intensityWanted(location.search, location.hash, loadIntensity(storage)), false);
   const daily = dailyWanted(location.search, location.hash) && !/seed=/.test(location.hash) ? dailyVillage() : null; // opt-in only
   if (daily) history.replaceState(null, '', `#seed=${daily.seed}`);
   const saved = pack.want ? null : loadSession(storage);

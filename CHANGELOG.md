@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 34 (FEAT-006): Horror Intensity setting (spec 171 built, web only)
+- New setting Gentle, Standard, Dread (500, 1000, 1500 per mille) in Tools and settings, stored as `flv.intensity.v1`, also `?intensity=`. It scales presentation only: director fog, lamp dimming and ambient lift (`presentation` scale, caps scale with it); Gentle drops the reality view one tier (the mildest alterations are skipped, not softened) and keeps creature glimpses still; Dread only strengthens the director. Core ports, saves, goldens and seeds never read it (a test checks that no port imports `access.js` and that layout and director output are identical per level). Chronicle wording is unchanged.
+- Keyboard: a normal button reached with Tab (every letter key is already taken), labelled in en and fr, contrast 13.4:1 measured. Cache `flv-shell-v80`.
+- Investigation leads NOT wired into live outcome odds. `resolveOutcome` is called with 0 leads on purpose in `theory-ui.js` and `theory.js`: passing the live count would make what happened to a missing person change while the player investigates, contradicting epitaphs already shown and the "aftermath never changes what happened" rule. Leads still decide how much is revealed (`revealLevel`). Changing this needs a design decision, so it is left as is.
+- Tests: node 7 new (818 total), dotnet unchanged (469). Browser `INTENSITY_ONLY` 4 of 4 on SwiftShader (Partially Verified).
+
 ### Round 34 (FEAT-005): Missing person aftermath and source reliability (spec 170 built)
 - Core `MissingOutcomes` gains `ResolveNight`, `SightingOn`, `RecruitedByNight` and `Aftermath`. Each outcome resolves on a seeded night (2 to 5) and leaves nothing before it. Recruited: each active recruit (at most 3) adds 15 to cult joining and 10 to exposure pressure through the new optional `MythosInputs.RecruitedByNight`, and plants a statement of reliability 25. Displaced: a statement of reliability 35 that contradicts the first revealed statement of the person's kin or witness, and a brief sighting on a seeded half of the 3 nights after it resolves (a board note, never a chase). Shown only from 4 leads, like the epitaph.
 - `RecruitedByNight` null (the default) changes nothing, so every existing mythos run stays byte identical. Outcomes are always resolved from the run without recruits, so aftermath never changes what happened.
