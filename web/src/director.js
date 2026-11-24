@@ -17,6 +17,9 @@ const NIGHT = 3, DUSK = 2;
 
 export const startState = () => ({ intensity: 0, beat: BEAT.QUIET, quietLeft: 0, cause: '' });
 
+/** Web-only bookkeeping for a new seed or campaign: calm director, no smoothed level, no safe-zone time. */
+export const freshRun = () => ({ state: startState(), tick: null, level: 0, at: null, safeTicks: 0 });
+
 function pressures(x) {
   const phase = phaseAt(num(x.tick));
   return [

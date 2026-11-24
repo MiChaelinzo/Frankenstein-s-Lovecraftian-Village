@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   BEAT, CAUSE_IDS, MAX_STEP, MAX_INTENSITY, OMEN_AT, QUIET_AFTER_OMEN, FOG_GAIN_MAX, LIGHT_DIM_MAX, AMBIENCE_GAIN_MAX, RAMP_PER_SECOND,
-  nextSafeZoneTicks, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
+  freshRun, nextSafeZoneTicks, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
 } from '../src/director.js';
 
 const golden = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).director;
@@ -80,4 +80,10 @@ test('nearLitLamp only counts lit lanterns inside the radius', () => {
   assert.equal(nearLitLamp(lamps, 0, 0), false);
   assert.equal(nearLitLamp(lamps, 5, 0), true);
   assert.equal(nearLitLamp(lamps, 3, 0), false);
+});
+
+test('freshRun resets every piece of web director bookkeeping', () => {
+  const f = freshRun();
+  assert.deepEqual(f, { state: startState(), tick: null, level: 0, at: null, safeTicks: 0 });
+  assert.notEqual(freshRun().state, f.state);
 });
