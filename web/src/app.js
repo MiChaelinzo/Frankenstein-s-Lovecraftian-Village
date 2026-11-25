@@ -257,6 +257,7 @@ async function loadCatalog() {
   try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
+  try { society.setRumorMutations(await (await fetch('data/rumor-mutations.json')).json()); } catch (err) { console.warn(`[rumor-mutations] could not load data/rumor-mutations.json, rumors are told unmutated this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -722,7 +723,7 @@ const lore = createLoreController({
 });
 // Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
 let theory = null; // the theory builder (created after the board); society and board read it lazily
-const society = createSocietyController({ recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+const society = createSocietyController({ knowledgeTier: () => board.knowledge().tier, recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
 let realityLib = null;
 const reality = createRealityView({ intensity: () => INTENSITY_PER_MILLE[horrorIntensity], lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });

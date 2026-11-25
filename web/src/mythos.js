@@ -4,6 +4,7 @@
 import { SeededRandom } from './core.js';
 import { TIER_SUSPICIOUS, TIER_TRUSTING, SCALE, MAX_RITUAL_STAGE, INDEX_STEP, FAMILY_DELAY, NEIGHBOUR_DELAY, CULT_AT, CORRUPTION_CULTIST, UNREACHABLE } from './society.js';
 import { TIERS, STAGES, render } from './village-story.js';
+import { rumorMutationText, rumorExposure } from './rumor-mutation.js';
 
 export const MYTHOS_LANGUAGES = ['en', 'fr'];
 export const SOURCE_IDS = ['secret', 'cosmic', 'missing'];
@@ -403,10 +404,12 @@ function cultDataIndexOf(feed, villager) {
   return 0;
 }
 
+/** The secret kind or omen id a rumor tells ('' for a missing person), as in a rumor line's ref. */
+export const mythosRumorRef = (feed, rumor) => (rumor.source === SOURCE_SECRET ? feed.library.secrets[feed.state.secretKind[rumor.subject]].id : rumor.source === SOURCE_COSMIC ? feed.library.omens[rumor.subject].id : '');
+
 /** The line of a rumor: an authored line of its source and subject kind with the requested truth, picked by seed and night; else story.rumorText. */
 export function mythosRumorText(feed, story, rumor, distorted, lang) {
-  const lib = feed.library;
-  const refId = rumor.source === SOURCE_SECRET ? lib.secrets[feed.state.secretKind[rumor.subject]].id : rumor.source === SOURCE_COSMIC ? lib.omens[rumor.subject].id : '';
+  const lib = feed.library, refId = mythosRumorRef(feed, rumor);
   const eligible = lib.rumors.filter((l) => l.source === rumor.source && l.ref === refId && l.truth === !distorted);
   if (!eligible.length) return story.rumorText(rumor.night, rumor.stage, rumor.tier, lang);
   const line = eligible[new SeededRandom(story.seed ^ RUMOR_PICK_STREAM ^ Math.imul(rumor.night, INDEX_STEP)).next(eligible.length)];
@@ -494,9 +497,10 @@ export function nightTickAt(state, lib, night) {
 
 /**
  * Round 28: what a lucid villager can tell the player in a village chat (Core MythosChat.Lines), as [{ id, text }]: the newest rumor they hold, the truth behind it when they
- * started it, and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat. `graph` is buildGraph(society), passed in so a caller can cache it.
+ * started it, and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat. Round 36 (spec 181): with a rumor mutation library the rumor is told as it has
+ * drifted by the night, and the true account joins it at the knowledge tier gate. `graph` is buildGraph(society), passed in so a caller can cache it.
  */
-export function mythosChatLines(society, feed, story, graph, index, tier, night1, result, lang) {
+export function mythosChatLines(society, feed, story, graph, index, tier, night1, result, lang, mutations = null, knowledgeTier = 0) {
   if (!society || !feed || !story || !result || !feed.current || index < 0 || index >= society.roster.length) return [];
   if (!result.available || result.behavior !== 0 || result.withheld || tier === TIER_SUSPICIOUS) return [];
   if (!(result.hintId === 'village' || (tier === TIER_TRUSTING && result.hintId))) return [];
@@ -510,7 +514,10 @@ export function mythosChatLines(society, feed, story, graph, index, tier, night1
   const lines = [];
   for (const id of ids) {
     const m = all.find((x) => x.id === id);
-    if (m) lines.push({ id, text: mythosText(feed, story, m, isDistorted(m.rumor, index), lang) });
+    if (!m) continue;
+    let text = '';
+    if (mutations && m.rumor && id === m.id) text = rumorMutationText(mutations, m.rumor, mythosRumorRef(feed, m.rumor), story.seed, Math.max(0, night1 - m.night), rumorExposure(feed.state.atNight(Math.min(night1, feed.night))), knowledgeTier, lang);
+    lines.push({ id, text: text || mythosText(feed, story, m, isDistorted(m.rumor, index), lang) });
   }
   return lines;
 }

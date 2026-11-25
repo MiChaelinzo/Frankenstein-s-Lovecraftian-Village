@@ -5,6 +5,7 @@ import { landmarkAt } from './landmarks.js';
 import { SOURCE_CHAT } from './investigation.js';
 import { ROLE_IDS } from './villagers.js';
 import { parseMemoryLibrary, replayMemory, baselineEvents, eventFor, trustAfter, KIND_RUMOR_HEARD, MEMORY_NONE } from './memory.js';
+import { parseRumorMutationLibrary } from './rumor-mutation.js';
 import { parseMythosLibrary, runMythos, buildMythosFeed, buildGraph, mythosChatLines, suspicionPressure, mythosSchedule } from './mythos.js';
 
 export const SOCIETY_SAVE_TAG = 'sc1', MAX_LOG = 150;
@@ -83,7 +84,7 @@ export function barRows(trust, axes, stage) {
 
 export function createSocietyController(deps) {
   const { state } = deps;
-  let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
+  let log = [], rumorMutations = null, mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
   let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0, opinionsVersion = 0; // opinionsVersion counts recomputations: the log length stays at its cap and lost trust is not in the key
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
   let seenSeed = null;
@@ -145,7 +146,7 @@ export function createSocietyController(deps) {
     const s = society(), feed = mythosFeed(), st = standing(index);
     if (!s || !feed || !st) return [];
     if (!graph) graph = buildGraph(s);
-    const lines = mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang);
+    const lines = mythosChatLines(s, feed, deps.story(), graph, index, st.tier, night1, result, lang, rumorMutations, deps.knowledgeTier ? deps.knowledgeTier() : 0);
     const noteKey = `${night1}:rumor:${index}`;
     if (lines.length && !noted.has(noteKey)) { noted.add(noteKey); remember({ night: night1, villager: index, kind: KIND_RUMOR_HEARD, subject: -1, weight: RUMOR_MEMORY_WEIGHT }); changed(); } // a rumor told to the player was heard by the villager first
     return lines;
@@ -238,6 +239,8 @@ export function createSocietyController(deps) {
     setStatements(lib) { statements = lib || null; },
     /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
     setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; finalKey = ''; opinions = null; },
+    /** Round 36 (spec 181): loads data/rumor-mutations.json (object); without it rumors are told unmutated. */
+    setRumorMutations(json) { rumorMutations = json ? parseRumorMutationLibrary(json) : null; },
     /** Loads data/memory.json (object); without it villagers still remember (effects apply) but say no memory line. */
     setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
     /** What a villager says because of what they remember in a language, '' when nothing or no data. */

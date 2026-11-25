@@ -1,0 +1,145 @@
+{
+ "version": 1,
+ "trueTier": 3,
+ "trueLabel": {
+  "en": "What was actually seen:",
+  "fr": "Ce qui a vraiment ete vu :"
+ },
+ "chains": [
+  {
+   "id": "lighthouse",
+   "source": "cosmic",
+   "ref": "tide_wrong",
+   "original": {
+    "en": "The lighthouse lamp was relit after the tide turned wrong, and the keeper only trimmed the wick.",
+    "fr": "La lampe du phare a ete rallumee apres que la maree a tourne de travers, et le gardien n'a fait que tailler la meche."
+   },
+   "stages": [
+    {
+     "en": "They say the lighthouse is haunted.",
+     "fr": "On dit que le phare est hante."
+    },
+    {
+     "en": "They say the lighthouse beam signals ships onto the rocks.",
+     "fr": "On dit que le faisceau du phare guide les navires vers les rochers."
+    },
+    {
+     "en": "They say the lighthouse beam signals the dead, and they answer.",
+     "fr": "On dit que le faisceau du phare appelle les morts, et qu'ils repondent."
+    },
+    {
+     "en": "They say the lighthouse calls things up from beneath the sea.",
+     "fr": "On dit que le phare appelle des choses depuis le fond de la mer."
+    }
+   ]
+  },
+  {
+   "id": "shipwreck",
+   "source": "cosmic",
+   "ref": "black_tide",
+   "original": {
+    "en": "The black tide left the wreck on the shore wet to the mast, though it was dry at noon.",
+    "fr": "La maree noire a laisse l'epave de la greve mouillee jusqu'au mat, alors qu'elle etait seche a midi."
+   },
+   "stages": [
+    {
+     "en": "They say the wreck on the shore is cursed.",
+     "fr": "On dit que l'epave de la greve est maudite."
+    },
+    {
+     "en": "They say lanterns burn aboard the wreck with no crew to light them.",
+     "fr": "On dit que des lanternes brulent a bord de l'epave sans equipage pour les allumer."
+    },
+    {
+     "en": "They say the drowned crew still keep watch on the wreck.",
+     "fr": "On dit que l'equipage noye monte encore la garde sur l'epave."
+    },
+    {
+     "en": "They say the wreck is a door, and the tide is what opens it.",
+     "fr": "On dit que l'epave est une porte, et que la maree est ce qui l'ouvre."
+    }
+   ]
+  },
+  {
+   "id": "abbey",
+   "source": "cosmic",
+   "ref": "bell_unrung",
+   "original": {
+    "en": "The abbey bell rang with no hand on the rope, and the ringer swore the rope was cut.",
+    "fr": "La cloche de l'abbaye a sonne sans main sur la corde, et le sonneur a jure que la corde etait coupee."
+   },
+   "stages": [
+    {
+     "en": "They say the abbey ruins are haunted.",
+     "fr": "On dit que les ruines de l'abbaye sont hantees."
+    },
+    {
+     "en": "They say hooded figures keep the hours in the abbey ruins.",
+     "fr": "On dit que des silhouettes encapuchonnees disent les heures dans les ruines de l'abbaye."
+    },
+    {
+     "en": "They say the abbey bell tolls for those not yet dead.",
+     "fr": "On dit que la cloche de l'abbaye sonne pour ceux qui ne sont pas encore morts."
+    },
+    {
+     "en": "They say the abbey bell is a summons, and something below has begun to answer it.",
+     "fr": "On dit que la cloche de l'abbaye est un appel, et que quelque chose en dessous a commence a repondre."
+    }
+   ]
+  },
+  {
+   "id": "standing_stones",
+   "source": "cosmic",
+   "ref": "stars_wrong",
+   "original": {
+    "en": "The stars stood in no recorded pattern, and the shepherds found the stones warm to the touch.",
+    "fr": "Les etoiles formaient une figure inconnue, et les bergers ont trouve les pierres tiedes au toucher."
+   },
+   "stages": [
+    {
+     "en": "They say the standing stones hum at night.",
+     "fr": "On dit que les pierres dressees bourdonnent la nuit."
+    },
+    {
+     "en": "They say the standing stones turn to face whoever walks the moor.",
+     "fr": "On dit que les pierres dressees se tournent vers quiconque marche sur la lande."
+    },
+    {
+     "en": "They say the standing stones count the villagers, one by one.",
+     "fr": "On dit que les pierres dressees comptent les villageois, un par un."
+    },
+    {
+     "en": "They say the standing stones are a mouth, and the stars are what it waits to swallow.",
+     "fr": "On dit que les pierres dressees sont une bouche, et que les etoiles sont ce qu'elle attend d'avaler."
+    }
+   ]
+  },
+  {
+   "id": "cemetery",
+   "source": "missing",
+   "ref": "",
+   "original": {
+    "en": "A villager was missed at dusk, and their gate was found latched from the outside.",
+    "fr": "Un villageois a manque a l'appel au crepuscule, et sa barriere a ete trouvee fermee de l'exterieur."
+   },
+   "stages": [
+    {
+     "en": "They say the missing one was last seen near the cemetery.",
+     "fr": "On dit que le disparu a ete vu pour la derniere fois pres du cimetiere."
+    },
+    {
+     "en": "They say the missing one walked into the cemetery of their own will.",
+     "fr": "On dit que le disparu est entre de son plein gre dans le cimetiere."
+    },
+    {
+     "en": "They say the cemetery gave the missing one a grave before the body was cold.",
+     "fr": "On dit que le cimetiere a donne une tombe au disparu avant que le corps ne soit froid."
+    },
+    {
+     "en": "They say the cemetery is taking the village a name at a time.",
+     "fr": "On dit que le cimetiere prend au village un nom a la fois."
+    }
+   ]
+  }
+ ]
+}

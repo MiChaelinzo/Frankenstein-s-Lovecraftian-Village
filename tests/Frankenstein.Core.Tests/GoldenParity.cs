@@ -419,8 +419,57 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendLeadership(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendRumorMutation(sb, cat);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "rumorMutation" (round 36, spec 181): per chain and seed, the stage for rumor nights 1 and 5, nights since 0 to 12 and exposure 0, 500, 1000; the stage texts and the gated true account in en and fr; and per city the mythos chat lines with mutation at knowledge tiers 0 and 4.</summary>
+        private static void AppendRumorMutation(StringBuilder sb, PrefabCatalog cat)
+        {
+            var lib = RumorMutationTests.Library();
+            var seeds = new[] { 1, 42, 1818 };
+            sb.Append("  \"rumorMutation\": {\n    \"trueTier\": ").Append(lib.TrueTier).Append(",\n    \"stages\": [");
+            for (int c = 0; c < lib.Chains.Count; c++)
+            {
+                var rows = new List<string>();
+                foreach (int seed in seeds)
+                    foreach (int rn in RumorMutationTests.RumorNights)
+                        foreach (int ex in RumorMutationTests.Exposures)
+                            rows.Add("[" + seed + ", " + rn + ", " + ex + ", [" + string.Join(", ", Enumerable.Range(0, RumorMutationTests.MaxNights + 1).Select(n => RumorMutation.Stage(lib, c, seed, rn, n, ex).ToString())) + "]]");
+                sb.Append(c == 0 ? "\n      " : ",\n      ").Append("[").Append(Q(lib.Chains[c].Id)).Append(", ").Append(string.Join(", ", rows)).Append("]");
+            }
+            sb.Append("\n    ],\n    \"texts\": [");
+            for (int c = 0; c < lib.Chains.Count; c++)
+            {
+                var ch = lib.Chains[c];
+                var rumor = new MythosRumor { Source = ch.Source, Night = 1 };
+                var tiers = Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => "[" + Q(RumorMutation.Text(lib, rumor, ch.Ref, 1, RumorMutationTests.MaxNights, RumorMutation.ExposureScale, t, "en")) + ", " + Q(RumorMutation.Text(lib, rumor, ch.Ref, 1, RumorMutationTests.MaxNights, RumorMutation.ExposureScale, t, "fr")) + "]");
+                sb.Append(c == 0 ? "\n      " : ",\n      ").Append("[").Append(Q(ch.Id)).Append(", [").Append(string.Join(", ", ch.Stages.Select(x => "[" + Q(x.Get("en")) + ", " + Q(x.Get("fr")) + "]"))).Append("], [").Append(string.Join(", ", tiers)).Append("]]");
+            }
+            sb.Append("\n    ],\n    \"chat\": [");
+            var data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var mythos = MythosSimulationTests.Library();
+            bool first = true;
+            foreach (var seed in seeds)
+            {
+                var state = MythosSimulationTests.Run(seed, MythosSimulationTests.GridInputs(), MythosSimulationTests.Nights, out var soc, out var story);
+                var feed = new MythosFeed { Library = mythos, State = state, Night = MythosSimulationTests.Nights };
+                var about = new VillagerChatResult { Available = true, Behavior = VillagerBehavior.Normal, HintId = "village" };
+                var rows = new List<string>();
+                for (int i = 0; i < soc.Roster.Count; i++)
+                {
+                    var low = MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, about, "en", lib, 0);
+                    var high = MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, about, "fr", lib, 4);
+                    if (low.Count == 0 && high.Count == 0) continue;
+                    rows.Add("[" + i + ", [" + string.Join(", ", low.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "], [" + string.Join(", ", high.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "]]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"villagers\": [").Append(string.Join(", ", rows)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
         }
 
         /// <summary>Top level key "creatureTiers" (round 32, spec 166): the manifestation data digest and, per seed and named scenario, the appearances of three days at every phase (id, position, exposure seconds, still flag, cause, subject, place).</summary>

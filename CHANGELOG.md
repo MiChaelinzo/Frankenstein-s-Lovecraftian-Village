@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-004): dynamic rumor mutation (spec 181)
+- Data: `Data/rumor-mutations.json` (byte copy in `web/data`, checked by `tools/validate_repo.py`): chains for the lighthouse (haunted, signals ships, signals the dead, calls things from beneath the sea), shipwreck, abbey, standing stones and cemetery rumors, each with an original true account and en and fr text for every stage.
+- Core: `RumorMutation.Stage` is a pure function of seed, nights since the rumor began and exposure (highest cult leader exposure, `RumorMutation.Exposure`): progress is `NightStep` 60 per night plus `ExposureWeight` 500 per mille of exposure plus a seed head start under 100, one stage per `StageSize` 300, capped at the chain length. At knowledge tier 3 the true account follows the mutated text (`RumorMutation.Text`). `MythosChat.Lines` takes an optional `RumorMutationLibrary` and knowledge tier; without them it is unchanged. No saved state change.
+- Web: `rumor-mutation.js` mirrors it; `society-ui.js` loads the data and passes the knowledge tier to `mythosChatLines`. Golden key `rumorMutation` is new. Service worker cache is now `flv-shell-v90`.
+- Tests: 10 C# and 7 JS tests. The board card and chronicle still show the unmutated statement text. Unity runtime Unverified.
+
 ### Round 36 (FEAT-003): cult leadership evolution (spec 176 part 2)
 - Core: `MythosSimulation` now evolves one `CultLeader` record per cult (Leader, Influence, Recruits, Exposure, Exposed, Vessel) every night through `CultLeadership.Evolve`, with named constants. Influence rises with recruits and the mythos tide (omen intensity) and decays otherwise; exposure rises with dread and with exposed secrets of the leader and the leader's links. Four events, each with a stated `CultLeaderCause` (`exposure_over_threshold`, `influence_collapse`, `mythos_tide`, `vacancy_filled`): Replaced, Disappeared, Exposed, BecameVessel. Values clamp to [0, 1000]. Own seed stream `0x4C4452`, so existing events, members and rumors are byte identical.
 - `MythosNight` gains `Leaders` and `LeaderEvents`; `NightTickRecord` gains `LeaderEvents` (an events list, no prose yet). Existing tick fields are unchanged.
