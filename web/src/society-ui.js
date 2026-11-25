@@ -241,6 +241,8 @@ export function createSocietyController(deps) {
     setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
     /** What a villager says because of what they remember in a language, '' when nothing or no data. */
     /** Round 34: the story baseline plus the live events, the log the generated chronicle replays; null without a story. */
+    /** Counts every change of the memory log, for panels that redraw on it (the log length stops growing at its cap). */
+    memoryVersion: () => { ensureSeed(); return memoryEdits; },
     memoryEvents() { ensureSeed(); const s = deps.story(); return s ? [...baselineEvents(s), ...memoryLog] : null; },
     memoryLine(index, night1, lang) { const m = memory(); return m && memoryLib ? m.lineFor(memoryLib, state.seed, index, night1, lang) : ''; },
     /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */

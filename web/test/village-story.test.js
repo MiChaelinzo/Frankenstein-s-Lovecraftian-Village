@@ -169,3 +169,17 @@ test('the chronicle panel renders sections and escapes text; without a story it 
   current = null; c.render();
   assert.match(els.get('chronicleBody').innerHTML, /still blank/);
 });
+
+test('an open chronicle redraws when a villager memory changes, even with the same number of events', () => {
+  const { story } = storyOf(1818);
+  let renders = 0, version = 0;
+  const el = { id: 'chronicleBody', textContent: '', hidden: true, focus() {}, addEventListener() {}, setAttribute() {}, set innerHTML(v) { renders++; } };
+  const $ = (id) => (id === 'chronicleBody' ? el : { id, textContent: '', hidden: true, innerHTML: '', focus() {}, addEventListener() {}, setAttribute() {} });
+  const c = createChronicleController({ $, tr: (k, v) => t(k, 'en', v), lang: 'en', state: { seed: 1818, layout: [] }, story: () => story, lore: { library: () => lore, readIds: () => new Set() }, night: () => 1, nights: () => 5, dread: () => 0.1, landmarkName: (id) => id, memoryVersion: () => version });
+  c.setPanel(true);
+  const first = renders;
+  c.refresh();
+  assert.equal(renders, first, 'nothing changed, nothing redrawn');
+  version += 1; c.refresh();
+  assert.equal(renders, first + 1, 'a new memory event redraws the open panel');
+});
