@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-010): docs, specs and final browser check
+- Docs only: README round 36 section and status rows, this changelog, `docs/BUILD_LOG.md` and `.kiro/specs/tasks.md` (specs 175 and 176 marked built with their gaps; specs 174, 177, 178, 179 and 180 stay unbuilt with refreshed notes: 174 could contradict an epitaph already shown if leads changed the odds; 180 still owns the ending chronicle, minimap reality, the phantom path draw hook and the director dimming hook; 178 Unity Runtime wiring is compile-only).
+- Final browser check result and test counts are in `docs/BUILD_LOG.md`.
+
 ### Round 36 (FEAT-009): performance audit
 - `tools/perf_audit.mjs` measures Memory Engine, chronicle with evolution, reality collapse, villager placements, rumor mutation, reputation propagation, director and cult leadership. All medians are under 0.35 ms in the sandbox (indicative only), so no hotspot was fixed and outputs are unchanged. New budget tests in `web/test/perf-budget.test.js` (10 ms per call, 5 ms villager frame). Service worker cache `flv-shell-v96`. Numbers in `docs/BUILD_LOG.md`.
 

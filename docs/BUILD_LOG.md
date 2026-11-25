@@ -473,3 +473,10 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 | Mythos with cult leadership (12 nights) | 0.142 | 0.304 |
 
 Finding: no hotspot. The slowest system (chronicle) is run once per night change, not per frame; the per frame path (villager placements) costs 0.1 ms against a 16.7 ms frame. No source was changed, so golden data stays byte identical. Regression budget: `web/test/perf-budget.test.js` asserts each median under 10 ms (villager frame 5 ms), at least 15 times the measured medians. Run 3 times, passing. Verified: node tests. Unverified: real hardware frame rates.
+
+## Round 36 (branch feat/round36): summary and final checks (FEAT-010)
+- Commits: FEAT-001 baseline and leftovers, FEAT-002 reputation propagation, FEAT-003 cult leadership, FEAT-004 rumor mutation (spec 181), FEAT-005 Director 2.0 (spec 175), FEAT-006 chronicle expansion (spec 182), FEAT-007 reality collapse (spec 183), FEAT-008 streamer challenge (spec 184), FEAT-011 web wiring, FEAT-009 performance audit, FEAT-010 docs.
+- Final suites: dotnet 527, node 882, UnityCompileCheck 0 errors 0 warnings, `tools/test_*.py` OK, `tools/check_live.py` 10 of 10 against the live site (HTTP level only). `validate_repo.py` fails only on 43 `docs/media` PNGs whose git objects are missing in this sandbox (environment, not a content problem).
+- Full browser check (`node tools/browser_check.mjs`, local headless Chromium on SwiftShader, one run, about 20 minutes): 126 of 127 passed. The one failure is the indicative villager frame time budget (median 450 ms, 2.4 fps in software GL), which says nothing about real GPUs. Raw log kept outside the repo. Partially Verified (one Chromium build, software GL).
+- Specs: 175 and 176 built; 174, 177, 178, 179, 180 stay unbuilt (174 risks contradicting a shown epitaph; 180 also owns the phantom path draw hook and director dimming hook; 178 is compile-only).
+- Unverified: Unity runtime, real GPU frame rates, audio by ear, the phantom path and dimming step (no hook), export button clicks.
