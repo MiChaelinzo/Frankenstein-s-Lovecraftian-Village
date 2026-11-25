@@ -9,10 +9,12 @@ import { generateCityLayout, CITY_GRID, CITY_PIECES } from '../src/districts.js'
 import { parseNameLibrary, assignNames } from '../src/names.js';
 import { generateRoster } from '../src/villagers.js';
 import { parseStoryLibrary, buildStory } from '../src/village-story.js';
-import { buildSociety } from '../src/society.js';
-import { parseMythosLibrary, runMythos, buildMythosFeed, mythosStatements } from '../src/mythos.js';
+import { buildSociety, SEEN_AT_RITUAL_SITE, RETURN_ITEM } from '../src/society.js';
+import { parseMythosLibrary, runMythos, buildMythosFeed, mythosStatements, mythosSchedule } from '../src/mythos.js';
 import { parseOutcomeLibrary, resolveOutcome } from '../src/outcomes.js';
 import { baselineEvents, KIND_ACCUSED, KIND_CONVERSATION, KIND_RITUAL_WITNESSED, KIND_CLUE_FOUND, KIND_MYTHOS_EXPOSURE, KIND_RUMOR_HEARD, KIND_ACCUSING } from '../src/memory.js';
+import { parseRumorMutationLibrary } from '../src/rumor-mutation.js';
+import { BEAT_IDS } from '../src/director.js';
 import { parseChronicleLibrary, CHRONICLE_LINE_IDS, CHRONICLE_MIN_VARIANTS, nightSentences, chronicleProse, summaryProse } from '../src/chronicle-prose.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
@@ -72,7 +74,7 @@ test('no open slots or em dashes, and every night has text', () => {
 });
 
 test('library variants use only known slots and the data file is complete', () => {
-  const known = new Set(['village', 'who', 'missing', 'home', 'cult', 'count']);
+  const known = new Set(['village', 'who', 'missing', 'home', 'cult', 'count', 'other']);
   assert.equal(prose.variants.length, CHRONICLE_LINE_IDS.length);
   for (const group of prose.variants) {
     assert.ok(group.length >= CHRONICLE_MIN_VARIANTS);
@@ -102,4 +104,81 @@ test('unsimulated nights are empty and parse errors name the field', () => {
   const thin = JSON.parse(text('chronicle.json'));
   thin.lines[2].variants = thin.lines[2].variants.slice(0, 1);
   assert.throws(() => parseChronicleLibrary(thin), /needs at least 4 variants/);
+});
+
+// Round 36 (spec 182): the newer event sources. Mirror of ChronicleProseTests.EvolutionContext.
+const LEADER_NIGHTS = full.chronicleEvolution.nights, mutations = parseRumorMutationLibrary(text('rumor-mutations.json'));
+function evolutionContext(seed, learned, evolution = true) {
+  const layout = generateCityLayout(catalog, CITY_GRID, CITY_GRID, CITY_PIECES, seed), roster = generateRoster(seed, layout);
+  const story = buildStory(lib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
+  const society = buildSociety(story, layout), state = runMythos(society, story, mythos, mythosSchedule(LEADER_NIGHTS), LEADER_NIGHTS);
+  const ctx = { prose, story, mythos, state, nights: LEADER_NIGHTS, outcomes: story.missing.map((_, k) => resolveOutcome(society, story, state, outcomeLib, k, 0)), leads: story.missing.map(() => 0), heard: new Set(), met: new Set(), memoryLog: null };
+  if (evolution) ctx.evolution = { reputation: [], mutations, beats: [] };
+  if (!learned) return ctx;
+  for (const s of mythosStatements(buildMythosFeed(mythos, state, LEADER_NIGHTS))) ctx.heard.add(s.id);
+  for (let v = 0; v < story.roster.length; v++) ctx.met.add(v);
+  if (!evolution) return ctx;
+  const log = [], nightOf = [];
+  for (let night = 1; night <= LEADER_NIGHTS; night++) {
+    log.push({ kind: night % 2 === 0 ? SEEN_AT_RITUAL_SITE : RETURN_ITEM, subject: (night * 7) % story.roster.length });
+    nightOf.push(night);
+    if (night % 3 === 0) ctx.evolution.beats.push({ night, id: BEAT_IDS[(night / 3 | 0) % BEAT_IDS.length] });
+  }
+  ctx.evolution.reputation = society.reputationEffectsAfter(log, nightOf);
+  return ctx;
+}
+const nightsOf = (ctx, lang) => Array.from({ length: LEADER_NIGHTS }, (_, i) => nightSentences(ctx, i + 1, lang).join(' '));
+
+test('evolved chronicle matches the C# golden on the nights it changes, in en and fr', () => {
+  for (const c of full.chronicleEvolution.cities) {
+    const ctx = evolutionContext(c.seed, true), plain = evolutionContext(c.seed, true, false), en = nightsOf(ctx, 'en'), fr = nightsOf(ctx, 'fr'), base = nightsOf(plain, 'en');
+    const changed = en.map((t, i) => (t !== base[i] ? [i + 1, t, fr[i]] : null)).filter(Boolean);
+    assert.ok(changed.length > 0);
+    assert.deepEqual(changed, c.changed, `seed ${c.seed}`);
+  }
+});
+
+test('without evolution the chronicle is the old one and leader events alone only add leader lines', () => {
+  for (const seed of [1, 42, 1818]) {
+    const plain = evolutionContext(seed, true, false), leaders = evolutionContext(seed, true, false);
+    leaders.evolution = { reputation: [], mutations: null, beats: [] };
+    assert.equal(plain.evolution, undefined);
+    for (let night = 1; night <= LEADER_NIGHTS; night++) {
+      const before = nightSentences(plain, night, 'en');
+      for (const t of nightSentences(leaders, night, 'en').filter((x) => !before.includes(x))) {
+        assert.ok(prose.variants.slice(CHRONICLE_LINE_IDS.indexOf('leader_replaced_exposure_over_threshold'), CHRONICLE_LINE_IDS.indexOf('reputation_accused')).some((g) => g.some((v) => matches(v.en, t))), t);
+      }
+    }
+  }
+});
+
+const matches = (template, sentence) => new RegExp(`^${template.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[a-z]+\}/g, '.+')}$`, 'i').test(sentence);
+const lineOf = (sentence, lang) => CHRONICLE_LINE_IDS.find((id, k) => prose.variants[k].some((v) => matches(v[lang], sentence))) || '';
+
+test('every new event kind is told, never repeats within a night and leaves no open slot', () => {
+  const kinds = new Set();
+  for (const seed of [1, 42, 1818]) for (const lang of ['en', 'fr']) {
+    const ctx = evolutionContext(seed, true), plain = evolutionContext(seed, true, false);
+    for (let night = 1; night <= LEADER_NIGHTS; night++) {
+      const list = nightSentences(ctx, night, lang), before = nightSentences(plain, night, lang);
+      assert.equal(new Set(list).size, list.length);
+      for (const t of list) assert.ok(!/[{}\u2014]/.test(t), t);
+      for (const t of list.filter((x) => !before.includes(x))) { const id = lineOf(t, lang); assert.notEqual(id, '', t); kinds.add(`${lang}:${id.split('_')[0]}`); if (id.startsWith('rumor_d')) kinds.add(`${lang}:drift`); }
+    }
+  }
+  for (const lang of ['en', 'fr']) for (const k of ['leader', 'reputation', 'beat', 'drift']) assert.ok(kinds.has(`${lang}:${k}`), `${lang}:${k}`);
+});
+
+test('only learned facts leak: nothing heard or met adds nothing, and unmet villagers are never named in reputation lines', () => {
+  for (const seed of [1, 42, 1818]) for (const lang of ['en', 'fr']) {
+    const nothing = evolutionContext(seed, false), baseline = evolutionContext(seed, false, false), all = nightsOf(nothing, lang).join('\n');
+    assert.deepEqual(nightsOf(nothing, lang), nightsOf(baseline, lang));
+    for (const v of nothing.story.roster) assert.ok(!all.includes(v.name));
+    const unmet = evolutionContext(seed, true), plain = evolutionContext(seed, true, false);
+    unmet.met.clear();
+    for (let night = 1; night <= LEADER_NIGHTS; night++) {
+      const before = nightSentences(plain, night, lang);
+      for (const t of nightSentences(unmet, night, lang).filter((x) => !before.includes(x))) assert.ok(!lineOf(t, lang).startsWith('reputation_'), t);
+    }
+  }
 });

@@ -122,6 +122,151 @@ namespace Frankenstein.Core.Tests
             Assert.Equal("waning_sanity", HorrorDirector.DominantCause(new DirectorInput { Tick = 300, Sanity = 1000 }));
         }
 
+        /// <summary>Director 2.0 scenario: the base scenario plus a tracked safe-zone abuse, a knowledge tier from knowledge and a remembered villager every few steps. Shared with the golden file.</summary>
+        public static List<(int Step, AmbientBeat Beat)> BeatRun(int seed, int scale, bool reduced, List<int> abuseOut = null, List<DirectorState> statesOut = null)
+        {
+            var result = new List<(int, AmbientBeat)>();
+            var s = HorrorDirector.Start();
+            int abuse = 0, last = HorrorDirector.NoBeatYet;
+            var inputs = Scenario(seed, ScenarioSteps);
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                var x = inputs[i];
+                abuse = HorrorDirector.NextSafeZoneAbuse(abuse, i % 10 < 6 ? HorrorDirector.CampingTicks : 0);
+                abuseOut?.Add(abuse);
+                x.SafeZoneAbuse = abuse;
+                x.KnowledgeTier = System.Math.Min(5, x.Knowledge / 200);
+                x.RememberedVillager = i % 7 == 0 ? i % 5 + 1 : 0;
+                s = HorrorDirector.Step(seed, s, x);
+                statesOut?.Add(s);
+                var b = HorrorDirector.PickAmbientBeat(seed, s, x, last, new AmbientSettings { IntensityScale = scale, ReducedMotion = reduced });
+                if (b.Emitted) { last = x.Tick; result.Add((i, b)); }
+            }
+            return result;
+        }
+
+        [Fact]
+        public void Safe_zone_abuse_grows_while_camping_decays_after_and_stays_bounded()
+        {
+            int a = 0;
+            for (int i = 0; i < 200; i++) { a = HorrorDirector.NextSafeZoneAbuse(a, HorrorDirector.CampingTicks); Assert.InRange(a, 0, HorrorDirector.SafeZoneAbuseCap); }
+            Assert.Equal(HorrorDirector.SafeZoneAbuseCap, a);
+            Assert.Equal(HorrorDirector.SafeZoneAbuseCap - HorrorDirector.AbuseDecayPerStep, HorrorDirector.NextSafeZoneAbuse(a, HorrorDirector.CampingTicks - 1));
+            for (int i = 0; i < 200; i++) a = HorrorDirector.NextSafeZoneAbuse(a, 0);
+            Assert.Equal(0, a);
+            Assert.Equal(0, HorrorDirector.NextSafeZoneAbuse(-50, 0));
+        }
+
+        [Fact]
+        public void Abuse_adds_pressure_and_a_new_cause_but_leaves_the_old_target_untouched()
+        {
+            var calm = new DirectorInput { Tick = 300, Sanity = 1000 };
+            var camped = calm; camped.SafeZoneAbuse = 1000;
+            Assert.Equal(0, HorrorDirector.Target(calm));
+            Assert.Equal(HorrorDirector.AbuseWeightPercent * 10, HorrorDirector.Target(camped));
+            Assert.Equal("safe_zone_abuse", HorrorDirector.DominantCause(camped));
+            Assert.True(HorrorDirector.CauseHolds("safe_zone_abuse", camped));
+            Assert.False(HorrorDirector.CauseHolds("safe_zone_abuse", calm));
+            Assert.False(HorrorDirector.CauseHolds("omen_passed", camped));
+        }
+
+        [Fact]
+        public void Every_ambient_beat_has_a_known_cause_that_holds_and_the_gates_are_met()
+        {
+            int emitted = 0;
+            var kinds = new HashSet<string>();
+            for (int seed = 1; seed < 80; seed++)
+            {
+                var inputs = Scenario(seed, ScenarioSteps);
+                foreach (var (step, b) in BeatRun(seed, 1000, false))
+                {
+                    emitted++; kinds.Add(b.Id);
+                    Assert.Contains(b.Id, HorrorDirector.BeatIds);
+                    Assert.Equal(HorrorDirector.BeatCause(b.Id), b.Cause);
+                    Assert.Contains(b.Cause, HorrorDirector.CauseIds);
+                    Assert.NotEqual("omen_passed", b.Cause);
+                    if (b.Id == "npc_sighting") Assert.InRange(b.Villager, 0, 4); else Assert.Equal(-1, b.Villager);
+                }
+            }
+            Assert.True(emitted > 50, "beats should appear often enough to test");
+            Assert.True(kinds.Count >= 6, "most beat kinds should be reachable: " + string.Join(",", kinds));
+        }
+
+        [Fact]
+        public void Ambient_beats_are_deterministic_and_the_seed_matters()
+        {
+            string Key(int seed) => string.Join("|", BeatRun(seed, 1000, false).Select(t => t.Step + t.Beat.Id));
+            Assert.Equal(Key(7), Key(7));
+            Assert.NotEqual(Key(7), Key(8));
+        }
+
+        [Fact]
+        public void Ambient_beat_volume_and_dimming_stay_in_bounds_at_every_intensity()
+        {
+            foreach (int scale in new[] { 600, 1000, 1500, 99999 })
+                for (int seed = 1; seed < 40; seed++)
+                    foreach (var (_, b) in BeatRun(seed, scale, false))
+                    {
+                        Assert.InRange(b.Volume, 0, HorrorDirector.MaxCueVolume);
+                        Assert.InRange(b.Brightness, -HorrorDirector.MaxBrightnessStep, 0);
+                    }
+        }
+
+        [Fact]
+        public void Reduced_motion_drops_props_and_dimming_but_gentle_skips_every_beat()
+        {
+            int propsStandard = 0, emittedReduced = 0;
+            for (int seed = 1; seed < 40; seed++)
+            {
+                propsStandard += BeatRun(seed, 1500, false).Count(t => t.Beat.Prop);
+                foreach (var (_, b) in BeatRun(seed, 1500, true)) { emittedReduced++; Assert.False(b.Prop); Assert.Equal(0, b.Brightness); }
+                Assert.Empty(BeatRun(seed, HorrorDirector.GentleScale, false));
+                Assert.Empty(BeatRun(seed, 0, false));
+            }
+            Assert.True(propsStandard > 0);
+            Assert.True(emittedReduced > 0);
+        }
+
+        [Fact]
+        public void Ambient_beats_respect_the_rate_limit_and_never_fall_in_the_quiet_after_an_omen()
+        {
+            for (int seed = 1; seed < 60; seed++)
+            {
+                var inputs = Scenario(seed, ScenarioSteps);
+                var states = new List<DirectorState>();
+                int prev = HorrorDirector.NoBeatYet;
+                var beats = BeatRun(seed, 1000, false, null, states);
+                foreach (var (step, b) in beats)
+                {
+                    if (prev != HorrorDirector.NoBeatYet) Assert.True(inputs[step].Tick - prev >= HorrorDirector.MinBeatGapTicks);
+                    prev = inputs[step].Tick;
+                    Assert.Equal(0, states[step].QuietLeft);
+                    Assert.True(states[step].Beat == DirectorBeat.Unease || states[step].Beat == DirectorBeat.Pressure);
+                }
+            }
+        }
+
+        [Fact]
+        public void An_ambient_beat_needs_a_cause_that_holds_a_tier_and_a_remembered_villager()
+        {
+            var x = new DirectorInput { Tick = GameClock.SessionStartTick + 200, Sanity = 1000 }; // night pressure only
+            var pressure = new DirectorState { Intensity = 400, Beat = DirectorBeat.Pressure };
+            var std = new AmbientSettings { IntensityScale = 1000 };
+            bool bell = false;
+            for (int seed = 0; seed < 200 && !bell; seed++) { var b = HorrorDirector.PickAmbientBeat(seed, pressure, x, HorrorDirector.NoBeatYet, std); if (b.Emitted) { Assert.Equal("distant_bell", b.Id); bell = true; } }
+            Assert.True(bell, "night alone allows only the bell");
+            var calm = new DirectorInput { Tick = 300, Sanity = 1000 };
+            for (int seed = 0; seed < 200; seed++) Assert.False(HorrorDirector.PickAmbientBeat(seed, pressure, calm, HorrorDirector.NoBeatYet, std).Emitted);
+            var omen = new DirectorState { Intensity = 700, Beat = DirectorBeat.Omen, QuietLeft = 10 };
+            for (int seed = 0; seed < 200; seed++) Assert.False(HorrorDirector.PickAmbientBeat(seed, omen, x, HorrorDirector.NoBeatYet, std).Emitted);
+            var sane = new DirectorInput { Tick = 300, Sanity = 0, KnowledgeTier = 0 };
+            for (int seed = 0; seed < 300; seed++) { var b = HorrorDirector.PickAmbientBeat(seed, pressure, sane, HorrorDirector.NoBeatYet, std); if (b.Emitted) Assert.NotEqual("npc_sighting", b.Id); }
+            sane.RememberedVillager = 3; sane.KnowledgeTier = 1;
+            bool npc = false;
+            for (int seed = 0; seed < 300; seed++) { var b = HorrorDirector.PickAmbientBeat(seed, pressure, sane, HorrorDirector.NoBeatYet, std); if (b.Id == "npc_sighting") { npc = true; Assert.Equal(2, b.Villager); } }
+            Assert.True(npc);
+        }
+
         [Fact]
         public void Dread_curve_maps_intensity_to_a_unit_level()
         {

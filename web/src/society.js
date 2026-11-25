@@ -31,6 +31,9 @@ export const LOYALTY_BASE = 300, LOYALTY_FAMILY_STEP = 100, LOYALTY_FAMILY_CAP =
 export const OBSESSION_NIGHT_STEP = 40, OBSESSION_HAUNTED_BONUS = 150, OBSESSION_DREAD_DIVISOR = 4, DISPOSITION_HAUNTED = 2;
 /** Fear at least this and above trust: too terrified to talk. */
 export const TERRIFIED_AT = 800;
+// Round 36 reputation propagation (Core VillageSociety.ReputationEffectsAfter, spec 176).
+export const EFFECT_TRUSTED = 0, EFFECT_ACCUSED = 1, EFFECT_NAMES = ['trusted', 'accused'];
+export const MAX_REPUTATION_HOPS = 2, HOP_DECAY_DIVISOR = 2, MAX_EFFECT_STRENGTH = 500, PROPAGATED_CAP_PER_VILLAGER = 300, PROPAGATED_CAP_PER_NIGHT = 600;
 export const AXIS_NAMES = ['fear', 'faith', 'loyalty', 'obsession'];
 
 const clamp = (v) => Math.max(0, Math.min(SCALE, v));
@@ -137,6 +140,52 @@ export function buildSociety(story, layout) {
       // Round 27: extra suspicion per villager on top (mythos.js suspicionPressure). Null or short adds nothing, so the result equals the plain call.
       if (extraSuspicion) for (let i = 0; i < n && i < extraSuspicion.length; i++) o.suspicion[i] = clamp(o.suspicion[i] + extraSuspicion[i]);
       return o;
+    },
+    /** Villagers one link away (family and nearest neighbour, both ways), ascending, no duplicates. */
+    linkedTo(index) {
+      const set = new Set(familyLinks[index]);
+      if (neighbour[index] >= 0) set.add(neighbour[index]);
+      for (let j = 0; j < n; j++) if (neighbour[j] === index) set.add(j);
+      set.delete(index);
+      return [...set].sort((x, y) => x - y);
+    },
+    /**
+     * Round 36: explicit effect records { source, target, kind, effect, hop, strength, night } of an ordered log; nights[i] is the night of log[i] (null or short means 0).
+     * Mirror of VillageSociety.ReputationEffectsAfter: origin record at hop 0, breadth first along linkedTo to MAX_REPUTATION_HOPS, halved per hop, each villager once per origin event,
+     * per villager and per night caps on propagated strength. Does not change opinionsAfter.
+     */
+    reputationEffectsAfter(log, nights = null) {
+      const result = [];
+      if (!log) return result;
+      const repeats = new Map(), received = new Array(n).fill(0), perNight = new Map();
+      for (let k = 0; k < log.length; k++) {
+        const a = log[k], kind = a.kind;
+        if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_TRUST.length) continue;
+        const key = `${kind}:${a.subject}`, seen = repeats.get(key) || 0;
+        repeats.set(key, seen + 1);
+        const night = nights && k < nights.length ? nights[k] : 0, net = ACTION_TRUST[kind] - ACTION_SUSPICION[kind];
+        const effect = net < 0 ? EFFECT_ACCUSED : EFFECT_TRUSTED, origin = Math.min(MAX_EFFECT_STRENGTH, div(Math.abs(net), 1 + seen * REPEAT_DECAY_STEP));
+        if (a.subject === ALL_VILLAGERS) { if (origin > 0) for (let i = 0; i < n; i++) result.push({ source: i, target: i, kind, effect, hop: 0, strength: origin, night }); continue; }
+        if (!Number.isInteger(a.subject) || a.subject < 0 || a.subject >= n) continue;
+        if (origin > 0) result.push({ source: a.subject, target: a.subject, kind, effect, hop: 0, strength: origin, night });
+        const visited = new Set([a.subject]);
+        let frontier = [a.subject];
+        for (let hop = 1; hop <= MAX_REPUTATION_HOPS && frontier.length > 0; hop++) {
+          let strength = origin;
+          for (let h = 0; h < hop; h++) strength = div(strength, HOP_DECAY_DIVISOR);
+          const next = [];
+          for (const from of frontier) for (const to of society.linkedTo(from)) {
+            if (visited.has(to)) continue;
+            visited.add(to); next.push(to);
+            const used = perNight.get(night) || 0, give = Math.min(strength, PROPAGATED_CAP_PER_VILLAGER - received[to], PROPAGATED_CAP_PER_NIGHT - used);
+            if (give <= 0) continue;
+            received[to] += give; perNight.set(night, used + give);
+            result.push({ source: a.subject, target: to, kind, effect, hop, strength: give, night });
+          }
+          frontier = next;
+        }
+      }
+      return result;
     },
     corruptionLevel(index, night, dread, ritualStage) {
       if (index < 0 || index >= n || spreadDelay[index] === UNREACHABLE) return 0;

@@ -51,3 +51,21 @@ test('the Horror Director is stepped from a timer, not from the 3D render callba
   assert.match(app, /setInterval\(\(\) => \{ if \(!document\.hidden\) directorUpdate\(\); \}, DIRECTOR_STEP_MS\)/);
   assert.equal([...app.matchAll(/directorStep\(/g)].length, 1, 'a single call, inside directorUpdate');
 });
+
+test('round 36 evolution wiring: the chronicle gets reputation, rumor library and experienced beats, saved state is unchanged (spec 175, 176, 182)', async () => {
+  const app = read('app.js'), ui = read('chronicle-ui.js'), soc = read('society-ui.js');
+  const body = suppliedKeys(app, 'createChronicleController');
+  assert.match(body, /evolution: \(\) => \(\{ reputation: society\.reputationEffects\(\), mutations: society\.rumorMutationLibrary\(\), beats: experiencedBeats \}\)/);
+  assert.match(body, /evolutionKey:/); assert.match(body, /reputationOf: \(i\) => society\.reputationOf\(i\)/);
+  assert.match(ui, /evolution: deps\.evolution \? deps\.evolution\(\) : undefined/); // absent dep keeps the chronicle as it was
+  assert.match(app, /experiencedBeats\.push\(\{ night: state\.night \+ 1, id: beat\.id \}\)/);
+  assert.match(app, /experiencedBeats\.length = 0/); // a new run forgets the beats
+  assert.match(soc, /reputationEffectsAfter\(log, logNights\)/);
+  // The saved shape is untouched: the snapshot holds the same two strings and never the nights or the beats.
+  assert.match(soc, /snapshot: \(\) => \{ ensureSeed\(\); return \{ society: serializeSocietyLog\(log\), memory: serializeMemoryLog\(memoryLog\) \}; \}/);
+  assert.doesNotMatch(app, /experiencedBeats[^;\n]*snapshot/);
+  const { serializeSocietyLog } = await import('../src/society-ui.js');
+  assert.equal(serializeSocietyLog([{ kind: 0, subject: 1, night: 3 }, { kind: 2, subject: -1 }]), 'sc1;0:1,2:-1');
+  const { STRINGS } = await import('../src/i18n.js');
+  for (const lang of ['en', 'fr']) for (const k of ['society.reputation.trusted', 'society.reputation.accused']) assert.ok(STRINGS[lang][k] && !STRINGS[lang][k].includes('{'), `${lang} ${k}`);
+});

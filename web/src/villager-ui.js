@@ -33,10 +33,13 @@ export function createVillagerController(deps) {
   const PRINCIPALS = 7;
   const rv = () => (deps.reality ? deps.reality() : null);
   const realityNote = (id) => { const v = rv(), text = v ? v.noteOnce(id) : ''; if (text) deps.journal?.(text); };
-  function shownName(index, trueName) {
+  function shownName(index, trueName, roleText = '') {
     const v = rv();
     if (!v || !v.active() || index >= PRINCIPALS) return trueName;
-    const names = ensureRoster().slice(0, PRINCIPALS).map((r) => r.name), shown = v.shownName(index, names);
+    const names = ensureRoster().slice(0, PRINCIPALS).map((r) => r.name);
+    let shown = v.shownName(index, names);
+    const step = v.identityStep(index); // collapse (spec 183): Name, Name?, Unknown plus the role
+    if (step === 1) shown = `${shown}?`; else if (step >= 2) shown = tr('reality.collapse.unknown', { role: roleText });
     if (shown !== trueName) realityNote('identity');
     return shown;
   }
@@ -70,11 +73,11 @@ export function createVillagerController(deps) {
     if (!clock || !list) return;
     const c = clockParts(tick), text = tr('villagerui.clock', { day: c.day, phase: tr(c.phaseKey) });
     if (clock.textContent !== text) clock.textContent = text;
-    const rows = whoIsWhereRows(state.villagers), v = rv(), fake = v && v.active() ? v.falseVillager() : null, key = `${rows.map((r) => `${r.index}${r.whereKey}${shownName(r.index, r.name)}`).join('|')}|${fake || ''}`;
+    const v = rv(), rows = whoIsWhereRows(state.villagers).filter((r) => !(v && v.active() && r.index < PRINCIPALS && v.erased(r.index, PRINCIPALS))), fake = v && v.active() ? v.falseVillager() : null, key = `${rows.map((r) => `${r.index}${r.whereKey}${shownName(r.index, r.name, tr(r.roleKey))}`).join('|')}|${fake || ''}`;
     if (key === listKey) return;
     listKey = key;
     const focused = deps.focusedVillager ? deps.focusedVillager() : -1;
-    list.innerHTML = rows.map((r) => `<li><span class="vname">${esc(shownName(r.index, r.name))}</span> <span class="vrole">${esc(tr(r.roleKey))}</span> <span class="vwhere">${esc(tr(r.whereKey))}</span> `
+    list.innerHTML = rows.map((r) => `<li><span class="vname">${esc(shownName(r.index, r.name, tr(r.roleKey)))}</span> <span class="vrole">${esc(tr(r.roleKey))}</span> <span class="vwhere">${esc(tr(r.whereKey))}</span> `
       + `<button type="button" data-villager="${r.index}"${r.gone ? ' disabled' : ''}>${esc(tr('villagerui.talk'))}</button></li>`).join('')
       + (fake ? `<li class="vfalse"><span class="vname">${esc(fake)}</span> <span class="vrole">${esc(tr('reality.false.role'))}</span></li>` : '');
     if (fake) realityNote('villager');
@@ -109,7 +112,7 @@ export function createVillagerController(deps) {
 
   function showDialog(p, result, line, effectText = null) {
     const dlg = $('villagerDialog');
-    $('villagerName').textContent = shownName(p.index, p.name);
+    $('villagerName').textContent = shownName(p.index, p.name, tr(`villager.role.${p.roleId}`));
     const story = deps.story ? deps.story() : null, v = story && story.roster[p.index], role = tr(`villager.role.${p.roleId}`);
     $('villagerRole').textContent = v ? tr('villagerui.roleAt', { role, home: shownHome(v.homeIndex, story.pieceName(v.homeIndex, deps.lang, v.name.split(' ').pop())) }) : role;
     $('villagerLine').textContent = line;

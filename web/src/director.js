@@ -8,8 +8,11 @@ export const BEAT_NAMES = Object.freeze(['quiet', 'unease', 'pressure', 'omen', 
 export const MAX_INTENSITY = 1000, MAX_STEP = 40, UNEASE_AT = 150, PRESSURE_AT = 350, OMEN_AT = 600, OMEN_CHANCE_PERCENT = 35;
 export const QUIET_AFTER_OMEN = 10, QUIET_CEILING = 200, SAFE_ZONE_CAP = 120, ENCOUNTER_CAP = 3, NIGHT_WEIGHT = 150, DUSK_WEIGHT = 60;
 export const SANITY_WEIGHT_PERCENT = 30, STRESS_WEIGHT_PERCENT = 20, CULT_WEIGHT_PERCENT = 20, KNOWLEDGE_WEIGHT_PERCENT = 10;
+export const ABUSE_WEIGHT_PERCENT = 20, CAMPING_TICKS = 60, SAFE_ZONE_ABUSE_CAP = 1000, ABUSE_GAIN_PER_STEP = 20, ABUSE_DECAY_PER_STEP = 10;
+export const MIN_BEAT_GAP_TICKS = 45, BEAT_CHANCE_PERCENT = 15, MAX_CUE_VOLUME = 150, MAX_BRIGHTNESS_STEP = 40, GENTLE_SCALE = 500, STANDARD_SCALE = 1000, BEAT_STREAM = 0x1750;
+export const NO_BEAT_YET = -2147483648; // C# int.MinValue
 export const ENCOUNTER_WEIGHT = 60, SAFE_ZONE_WEIGHT_PER_TICK = 2, CLUE_RELIEF_PERCENT = 10;
-export const CAUSE_IDS = Object.freeze(['waning_sanity', 'mounting_stress', 'cult_exposure', 'creature_sighting', 'nightfall', 'forbidden_knowledge', 'omen_passed']);
+export const CAUSE_IDS = Object.freeze(['waning_sanity', 'mounting_stress', 'cult_exposure', 'creature_sighting', 'nightfall', 'forbidden_knowledge', 'safe_zone_abuse', 'omen_passed']);
 
 const num = (v) => (Number.isFinite(v) ? Math.trunc(v) : 0);
 const permille = (v) => Math.max(0, Math.min(1000, num(v)));
@@ -17,8 +20,8 @@ const NIGHT = 3, DUSK = 2;
 
 export const startState = () => ({ intensity: 0, beat: BEAT.QUIET, quietLeft: 0, cause: '' });
 
-/** Web-only bookkeeping for a new seed or campaign: calm director, no smoothed level, no safe-zone time. */
-export const freshRun = () => ({ state: startState(), tick: null, level: 0, at: null, safeTicks: 0 });
+/** Web-only bookkeeping for a new seed or campaign: calm director, no smoothed level, no safe-zone time or abuse, no ambient beat yet. */
+export const freshRun = () => ({ state: startState(), tick: null, level: 0, at: null, safeTicks: 0, abuse: 0, beatTick: NO_BEAT_YET });
 
 function pressures(x) {
   const phase = phaseAt(num(x.tick));
@@ -29,6 +32,7 @@ function pressures(x) {
     Math.max(0, Math.min(ENCOUNTER_CAP, num(x.encounters))) * ENCOUNTER_WEIGHT,
     phase === NIGHT ? NIGHT_WEIGHT : phase === DUSK ? DUSK_WEIGHT : 0,
     Math.trunc(permille(x.knowledge) * KNOWLEDGE_WEIGHT_PERCENT / 100),
+    Math.trunc(permille(x.safeZoneAbuse) * ABUSE_WEIGHT_PERCENT / 100),
   ];
 }
 
@@ -88,6 +92,46 @@ export function presentation(level, { reduced = false, tier = 'medium', scale = 
     fogGain: reduced || tier === 'low' ? 1 : 1 + FOG_GAIN_MAX * l,
     lightGain: reduced ? 1 : 1 - LIGHT_DIM_MAX * l,
     ambienceGain: 1 + (reduced ? AMBIENCE_GAIN_MAX / 3 : AMBIENCE_GAIN_MAX) * l,
+  };
+}
+
+// Director 2.0 (spec 175). Mirrors Core HorrorDirector.NextSafeZoneAbuse, Beats and PickAmbientBeat. Presentation only: text, a bounded cue volume, a dimming step and a prop cue.
+/** Camping (CAMPING_TICKS or more safe-zone ticks) adds ABUSE_GAIN_PER_STEP, anything else decays by ABUSE_DECAY_PER_STEP; bounded 0..SAFE_ZONE_ABUSE_CAP. */
+export const nextSafeZoneAbuse = (abuse, safeZoneTicks) => Math.max(0, Math.min(SAFE_ZONE_ABUSE_CAP, num(abuse) + (num(safeZoneTicks) >= CAMPING_TICKS ? ABUSE_GAIN_PER_STEP : -ABUSE_DECAY_PER_STEP)));
+
+const BEATS = Object.freeze([
+  { id: 'distant_bell', cause: 'nightfall', minTier: 0, volume: 120, brightness: 0, prop: false, needsVillager: false },
+  { id: 'false_footprints', cause: 'safe_zone_abuse', minTier: 0, volume: 30, brightness: 0, prop: true, needsVillager: false },
+  { id: 'moved_lantern', cause: 'safe_zone_abuse', minTier: 0, volume: 30, brightness: -30, prop: true, needsVillager: false },
+  { id: 'empty_boat', cause: 'waning_sanity', minTier: 1, volume: 0, brightness: 0, prop: true, needsVillager: false },
+  { id: 'wrong_road_sign', cause: 'mounting_stress', minTier: 0, volume: 0, brightness: 0, prop: true, needsVillager: false },
+  { id: 'distant_singing', cause: 'cult_exposure', minTier: 1, volume: 80, brightness: 0, prop: false, needsVillager: false },
+  { id: 'impossible_stars', cause: 'forbidden_knowledge', minTier: 2, volume: 0, brightness: -20, prop: true, needsVillager: false },
+  { id: 'npc_sighting', cause: 'waning_sanity', minTier: 0, volume: 0, brightness: 0, prop: true, needsVillager: true },
+]);
+export const BEAT_IDS = Object.freeze(BEATS.map((b) => b.id));
+export const beatCause = (id) => BEATS.find((b) => b.id === id)?.cause ?? '';
+
+const NO_BEAT = Object.freeze({ emitted: false, id: '', cause: '', volume: 0, brightness: 0, prop: false, villager: -1 });
+
+/** One ambient beat decision. x adds safeZoneAbuse, knowledgeTier and rememberedVillager (0 none, else index + 1). settings: { scale, reduced }. Same rules as Core PickAmbientBeat. */
+export function pickAmbientBeat(seed, state, x, lastBeatTick, { scale = STANDARD_SCALE, reduced = false } = {}) {
+  if (num(scale) <= GENTLE_SCALE) return NO_BEAT;
+  if (state.quietLeft > 0 || (state.beat !== BEAT.UNEASE && state.beat !== BEAT.PRESSURE)) return NO_BEAT;
+  const tick = num(x.tick), gap = tick - lastBeatTick;
+  if (lastBeatTick !== NO_BEAT_YET && gap >= 0 && gap < MIN_BEAT_GAP_TICKS) return NO_BEAT;
+  const rng = new SeededRandom((seed | 0) ^ Math.imul(tick, 104729) ^ BEAT_STREAM);
+  if (rng.next(100) >= BEAT_CHANCE_PERCENT) return NO_BEAT;
+  const candidates = BEATS.filter((b) => causeHolds(b.cause, x) && num(x.knowledgeTier) >= b.minTier && (!b.needsVillager || num(x.rememberedVillager) > 0));
+  if (candidates.length === 0) return NO_BEAT;
+  const pick = candidates[rng.next(candidates.length)];
+  const k = Math.max(0, Math.min(1500, num(scale)));
+  return {
+    emitted: true, id: pick.id, cause: pick.cause,
+    volume: Math.min(MAX_CUE_VOLUME, Math.trunc(pick.volume * k / STANDARD_SCALE)),
+    brightness: reduced ? 0 : -Math.min(MAX_BRIGHTNESS_STEP, Math.trunc(-pick.brightness * k / STANDARD_SCALE)) || 0,
+    prop: pick.prop && !reduced,
+    villager: pick.needsVillager ? num(x.rememberedVillager) - 1 : -1,
   };
 }
 

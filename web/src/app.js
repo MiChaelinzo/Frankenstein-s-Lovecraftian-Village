@@ -45,7 +45,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
-import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp } from './director.js';
+import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp, nextSafeZoneAbuse, pickAmbientBeat } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -59,6 +59,7 @@ import { createProgressController } from './progress-ui.js';
 import { createVigilController } from './vigil-ui.js';
 import { loadEndingsFound } from './vigil-view.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
+import { weeklyChallenge, accuracyOfState, addResult, leaderboardJson, leaderboardText, parseLeaderboard } from './challenge.js';
 import { dailyVillage, dailyWanted, parseSeedShareLibrary, encodeSeedCode, decodeSeedCode, dailyChallengeCode } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
 import { contrastWanted, loadContrast, saveContrast, intensityWanted, loadIntensity, saveIntensity, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
@@ -144,19 +145,36 @@ const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weath
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 // Horror Director (spec 161): steps once per game minute from what the app already knows; the smoothed level only ramps (director.js caps it).
 // Inputs: sanity, creature telegraph, night and the campaign's cult progress, plus knowledge (board tier, 0..5 scaled to permille), clue progress (vigil clues found over the campaign goal) and safe-zone ticks (game minutes spent within reach of a lit lantern).
-let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
+let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, directorAbuse = 0, directorBeatTick = directorFreshRun().beatTick, playerSpot = null;
+const experiencedBeats = []; // round 36: ambient beats the player lived through this session, [{ night, id }] for the chronicle; presentation only, never saved
 // A new seed or campaign starts the director from calm, so the same seed gives the same run.
-function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks } = directorFreshRun()); }
+function resetDirector() { experiencedBeats.length = 0; ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks, abuse: directorAbuse, beatTick: directorBeatTick } = directorFreshRun()); }
 // Horror Intensity (spec 165): presentation only, never read by Core ports, saves or goldens.
 let horrorIntensity = 'standard'; // resolved from ?intensity= or storage at startup (initial setIntensity call), once storage exists
 let directorLookNow = directorLook(0, { reduced: reduceMotion, tier: 'medium' });
 // Stepped from a timer (directorTimer below), never from the 3D getScene callback: rendering only reads directorLookNow.
+/** Director 2.0 (spec 175): the first villager the village remembers (memory outcome other than none), or -1. Deterministic, lowest index first. */
+function rememberedVillagerIndex() { const n = (state.villagers || []).length; for (let i = 0; i < n; i++) if (society.memoryOutcome(i) !== 0) return i; return -1; }
+/** An ambient beat is a quiet line (narration plus screen reader) and, for the bell and the singing, a soft cue. Nothing flashes, shakes or jumps in volume. */
+function presentAmbientBeat(beat, tick) {
+  if (!beat.emitted) return;
+  directorBeatTick = tick;
+  if (!experiencedBeats.some((b) => b.night === state.night + 1 && b.id === beat.id)) experiencedBeats.push({ night: state.night + 1, id: beat.id });
+  const line = tr(`director.beat.${beat.id}`);
+  state.narrationLine = line; state.narrationAt = performance.now();
+  $('narration').textContent = line; $('narration').style.opacity = 1;
+  announce(line); log('narration', line);
+  if (beat.volume > 0) ambient?.cue(beat.id === 'distant_bell' ? 'distant-bell' : beat.id === 'distant_singing' ? 'distant-song' : 'lantern', beat.volume / 1000);
+}
 function directorUpdate() {
   const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
   if (tick !== directorTick) {
     directorTick = tick;
     directorSafeTicks = nextSafeZoneTicks(directorSafeTicks, !!playerSpot && nearLitLamp(vigil.lampTargets(), playerSpot.x, playerSpot.z));
-    directorState = directorStep(state.seed, directorState, { tick, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
+    directorAbuse = nextSafeZoneAbuse(directorAbuse, directorSafeTicks);
+    const dirInput = { tick, knowledgeTier: board.knowledge().tier, safeZoneAbuse: directorAbuse, rememberedVillager: rememberedVillagerIndex() + 1, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) };
+    directorState = directorStep(state.seed, directorState, dirInput);
+    presentAmbientBeat(pickAmbientBeat(state.seed, directorState, dirInput, directorBeatTick, { scale: INTENSITY_PER_MILLE[horrorIntensity], reduced: reduceMotion }), tick);
   }
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
   const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium', scale: INTENSITY_PER_MILLE[horrorIntensity] });
@@ -257,6 +275,7 @@ async function loadCatalog() {
   try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
+  try { society.setRumorMutations(await (await fetch('data/rumor-mutations.json')).json()); } catch (err) { console.warn(`[rumor-mutations] could not load data/rumor-mutations.json, rumors are told unmutated this session: ${err.message}`); }
   try { lore.setLibrary(await (await fetch('data/lore_books.json')).json()); } catch (err) { console.warn(`[lore] could not load data/lore_books.json, no books this session: ${err.message}`); }
 }
 function rebuild() {
@@ -665,7 +684,27 @@ function applySeedCode(text) {
   const message = tr('seed.code.applied', { code: seedCode() }); announce(message); $('sessionNote').textContent = message; refreshDailyCode();
   return { ok: true, message };
 }
-function refreshDailyCode() { const el = $('dailyCode'); if (el) el.textContent = dailyLine(); }
+function refreshDailyCode() {
+  const el = $('dailyCode'); if (el) el.textContent = dailyLine();
+  const wk = $('weeklyCode'), w = seedShareLib ? weeklyChallenge(seedShareLib) : null;
+  if (wk) wk.textContent = w ? tr('seed.weekly', { key: w.key, code: w.code }) : '';
+}
+// Challenge results (spec 184): a local list in this browser only. The export holds seeds and counts, never a name, and nothing is sent anywhere.
+const CHALLENGE_KEY = 'flv.challenge.v1';
+function loadChallengeResults() {
+  try { const raw = storage ? storage.getItem(CHALLENGE_KEY) : null; return raw && seedShareLib ? parseLeaderboard(seedShareLib, raw).results : []; } catch (e) { console.warn('[challenge] saved results not read, starting an empty list', e); return []; }
+}
+function exportChallenge(format) {
+  const w = seedShareLib ? weeklyChallenge(seedShareLib) : null;
+  if (!w || !theory) { announce(tr('seed.err.format')); return; }
+  const list = theory.state().list, score = accuracyOfState(theory.state());
+  const results = addResult(loadChallengeResults(), { seed: state.seed | 0, score, theories: list.length, endings: loadEndingsFound(storage).length });
+  const json = leaderboardJson(seedShareLib, w.key, results);
+  if (storage) { try { storage.setItem(CHALLENGE_KEY, json); } catch (e) { console.warn('[challenge] results not saved', e); } }
+  const name = `challenge-${w.key.toLowerCase()}.${format}`;
+  download(name, format === 'json' ? json : leaderboardText(seedShareLib, results, { tr, format: 'txt', weekKey: w.key }), format === 'json' ? 'application/json' : 'text/plain');
+  announce(`${tr('export.done', { name })} ${tr('export.challenge.accuracy', { score })}`);
+}
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -722,7 +761,7 @@ const lore = createLoreController({
 });
 // Society (Core VillageSociety mirror): the log of what villagers noticed, their trust and suspicion, and the corruption stage of each villager tonight.
 let theory = null; // the theory builder (created after the board); society and board read it lazily
-const society = createSocietyController({ recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
+const society = createSocietyController({ knowledgeTier: () => board.knowledge().tier, recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
 let realityLib = null;
 const reality = createRealityView({ intensity: () => INTENSITY_PER_MILLE[horrorIntensity], lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
@@ -736,7 +775,7 @@ const board = createBoardController({
   onChange: () => autosave(),
 });
 theory = createTheoryController({
-  seedCode: () => seedCode(), download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
+  exportChallenge: (format) => exportChallenge(format), seedCode: () => seedCode(), download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
   $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
   board, lore, night: () => state.night + 1, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });
@@ -787,7 +826,7 @@ storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and jour
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
   seedCode: () => seedCode(), copyText, download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }), announce: (text) => announce(text),
-  bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), outcomeState: (k) => theory.outcomeState(k), memoryEvents: () => society.memoryEvents(), memoryVersion: () => society.memoryVersion(), theories: () => theory.summary(),
+  bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), outcomeState: (k) => theory.outcomeState(k), evolution: () => ({ reputation: society.reputationEffects(), mutations: society.rumorMutationLibrary(), beats: experiencedBeats }), evolutionKey: () => `${society.log().length}|${experiencedBeats.length}`, reputationOf: (i) => society.reputationOf(i), memoryEvents: () => society.memoryEvents(), memoryVersion: () => society.memoryVersion(), theories: () => theory.summary(),
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,
   landmarkName: (id) => nameText(state.nameLib && landmarkTitle(state.nameLib, state.seed, id), lang) || tr(`landmark.${id}`), onChange: () => mark(),
   mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(), knowledge: () => board.knowledge(), mythosHeard: () => new Map(board.evidence().heard.filter((h) => h.statementId.startsWith('mythos:')).map((h) => [h.statementId, h.villager])),
@@ -1188,6 +1227,7 @@ function foldGroupsOnNarrow() {
   if (optParam('chronicle') === '1') chronicle.setPanel(true);
   if (optParam('lore') === '1') lore.readNext(); // QA: opens the first lore book page (stills)
   if (optParam('kit') === 'farm') { window.flvHomestead = () => { const p = homestead.plot; return { exists: p.exists, origin: [p.originX, p.originZ], side: p.side, dir: p.dir, pieces: homestead.pieces().map((q) => q.kind) }; }; homestead.claim(); for (const id of ['seed_kelp', 'seed_eyeroot', 'turnip', 'cabbage', 'glowcap', 'kelp', 'dried_fish']) inventory.grant(id, 2); } // QA: claims the yard and fills the satchel for the homestead checks and stills
+  if (optParam('kit') === 'evolution') { experiencedBeats.push({ night: state.night + 1, id: 'distant_bell' }); chronicle.refresh(); } // QA: the chronicle's evolution sentence for the browser check (the player lived through a distant bell tonight)
   if (optParam('kit') === 'ward') { inventory.grant('salt', 3); inventory.grant('sigil_chalk', 2); } // QA: salt and chalk in the satchel for the creature checks and stills
   if (optParam('codex') === '1') progress.setCodex(true);
   if (optParam('stitch') === '1') progress.setStitch(true);

@@ -27,6 +27,8 @@ namespace Frankenstein.Core
         /// <summary>The reality state after tonight: the sum of every RealityShift up to and including tonight.</summary>
         public int Reality;
         public bool SecretDiscovered;
+        /// <summary>Round 36 (spec 176): the cult leader events of tonight, each with a stated cause. Empty on a quiet night. Not part of the round 28 golden "ticks" rows.</summary>
+        public List<CultLeaderEvent> LeaderEvents = new List<CultLeaderEvent>();
     }
 
     public static class NightTicks
@@ -43,7 +45,7 @@ namespace Frankenstein.Core
             var seenMissing = new HashSet<int>();
             foreach (var night in state.Nights)
             {
-                var rec = new NightTickRecord { Night = night.Night };
+                var rec = new NightTickRecord { Night = night.Night, LeaderEvents = new List<CultLeaderEvent>(night.LeaderEvents) };
                 foreach (var e in night.Events)
                 {
                     switch (e.Kind)

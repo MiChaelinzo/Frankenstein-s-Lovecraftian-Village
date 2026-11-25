@@ -237,3 +237,43 @@ test('nightTickAt equals the matching record of a full build, is cached and clam
   assert.equal(nightTickAt(state, mythos, all.length + 9).night, all.length);
   assert.ok(all.every((t) => t.newMissingPerson === 0 || t.newMissingPerson === 1));
 });
+
+// Round 36 (spec 176 part 2): cult leadership evolution. Golden key "leadership".
+import { LEADER_CAUSES, LEADER_MAX, LEADER_REPLACED } from '../src/mythos.js';
+const leadership = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).leadership;
+
+test('leader events and per night leader rows match the C# golden', () => {
+  assert.deepEqual(leadership.causes, LEADER_CAUSES);
+  for (const c of leadership.cities) {
+    const state = run(worldOf(c.seed), leadership.nights, mythosSchedule(leadership.nights));
+    assert.deepEqual(state.nights.flatMap((n) => n.leaderEvents).map((e) => [e.night, e.kind, e.cult, e.leader, e.successor, e.cause]), c.events, `events ${c.seed}`);
+    assert.deepEqual(state.nights.map((n) => n.leaders.map((l) => [l.leader, l.influence, l.recruits, l.exposure, l.exposed ? 1 : 0, l.vessel ? 1 : 0])), c.leaders, `leaders ${c.seed}`);
+  }
+});
+
+test('every leader event has a stated cause, values stay bounded and seeds differ', () => {
+  const sigs = new Set(), kinds = new Set();
+  for (const seed of [1, 42, 1818, -7, 123456789, 7916, 15835, 23754]) {
+    const w = worldOf(seed), state = run(w, leadership.nights, mythosSchedule(leadership.nights));
+    for (const night of state.nights) {
+      for (const e of night.leaderEvents) {
+        assert.ok(LEADER_CAUSES.includes(e.cause), `cause ${e.cause}`);
+        if (e.kind === LEADER_REPLACED) assert.ok(e.successor >= 0 && e.successor !== e.leader);
+        kinds.add(e.kind);
+      }
+      for (const l of night.leaders) {
+        assert.ok(l.influence >= 0 && l.influence <= LEADER_MAX && l.exposure >= 0 && l.exposure <= LEADER_MAX && l.recruits >= 0);
+        if (l.leader >= 0) assert.ok(night.cultMembers[l.cult].includes(l.leader));
+      }
+    }
+    sigs.add(JSON.stringify(state.nights.map((n) => [n.leaders, n.leaderEvents])));
+  }
+  assert.ok(sigs.size > 4);
+  assert.ok(kinds.size >= 3);
+});
+
+test('night ticks carry the leader events of each night', () => {
+  const state = run(worldOf(1818), leadership.nights, mythosSchedule(leadership.nights)), ticks = buildNightTicks(state, mythos);
+  ticks.forEach((t, i) => assert.deepEqual(t.leaderEvents, state.nights[i].leaderEvents));
+  assert.ok(ticks.some((t) => t.leaderEvents.length > 0));
+});

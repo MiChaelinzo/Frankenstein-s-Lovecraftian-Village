@@ -458,5 +458,95 @@ namespace Frankenstein.Core.Tests
         {
             return string.Join("|", ticks.Select(t => string.Join(",", t.Night, t.CultGrowth, t.RumorsChanged, t.RumorsAdded, t.MissingPersons, t.NewMissingPerson, t.NewOmen, t.RealityShift, t.Reality, t.SecretDiscovered)));
         }
+    
+        // Round 36 (spec 176 part 2): cult leadership evolution.
+        public const int LeaderNights = 60;
+        public static readonly int[] LeaderSeeds = Enumerable.Range(1, 20).Select(i => i * 7919 - 3).ToArray();
+
+        private static string LeaderSignature(MythosState s)
+        {
+            return string.Join("|", s.Nights.Select(n => string.Join(";", n.Leaders.Select(l => l.Cult + "," + l.Leader + "," + l.Influence + "," + l.Recruits + "," + l.Exposure + "," + l.Exposed + "," + l.Vessel))
+                + "/" + string.Join(";", n.LeaderEvents.Select(e => (int)e.Kind + "," + e.Cult + "," + e.Leader + "," + e.Successor + "," + e.Cause))));
+        }
+
+        [Fact]
+        public void Leadership_is_deterministic_and_seed_driven()
+        {
+            var sigs = new HashSet<string>();
+            foreach (var seed in LeaderSeeds)
+            {
+                var a = Run(seed, MythosInputs.Schedule(LeaderNights), LeaderNights, out _, out _);
+                var b = Run(seed, MythosInputs.Schedule(LeaderNights), LeaderNights, out _, out _);
+                Assert.Equal(LeaderSignature(a), LeaderSignature(b));
+                sigs.Add(LeaderSignature(a));
+            }
+            Assert.True(sigs.Count > LeaderSeeds.Length / 2, "seeds should give different leaders");
+        }
+
+        [Fact]
+        public void Leader_events_all_have_a_stated_cause_and_every_kind_occurs()
+        {
+            var kinds = new HashSet<CultLeaderEventKind>();
+            foreach (var seed in LeaderSeeds)
+            {
+                var state = Run(seed, MythosInputs.Schedule(LeaderNights), LeaderNights, out _, out _);
+                foreach (var night in state.Nights)
+                    foreach (var e in night.LeaderEvents)
+                    {
+                        Assert.False(string.IsNullOrEmpty(e.Cause));
+                        Assert.Contains(e.Cause, CultLeaderCause.All);
+                        Assert.Equal(night.Night, e.Night);
+                        if (e.Kind == CultLeaderEventKind.Replaced) Assert.True(e.Successor >= 0 && e.Successor != e.Leader);
+                        kinds.Add(e.Kind);
+                    }
+            }
+            Assert.Equal(4, kinds.Count);
+        }
+
+        [Fact]
+        public void Leader_values_stay_in_bounds_and_leaders_are_cult_members()
+        {
+            foreach (var seed in LeaderSeeds)
+            {
+                var state = Run(seed, MythosInputs.Schedule(LeaderNights), LeaderNights, out var society, out _);
+                foreach (var night in state.Nights)
+                {
+                    Assert.Equal(state.Cults.Count, night.Leaders.Count);
+                    foreach (var l in night.Leaders)
+                    {
+                        Assert.InRange(l.Influence, 0, CultLeadership.MaxValue);
+                        Assert.InRange(l.Exposure, 0, CultLeadership.MaxValue);
+                        Assert.True(l.Recruits >= 0);
+                        Assert.InRange(l.Leader, -1, society.Roster.Count - 1);
+                        if (l.Leader >= 0) Assert.Contains(l.Leader, night.CultMembers[l.Cult]);
+                        if (l.Vessel) Assert.True(l.Leader >= 0);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void Leadership_does_not_change_the_existing_simulation_and_a_prefix_run_matches()
+        {
+            var full = Run(42, MythosInputs.Schedule(LeaderNights), LeaderNights, out _, out _);
+            var part = Run(42, MythosInputs.Schedule(LeaderNights), 25, out _, out _);
+            for (int i = 0; i < 25; i++)
+            {
+                Assert.Equal(full.Nights[i].Events.Count, part.Nights[i].Events.Count);
+                Assert.Equal(string.Join(",", full.Nights[i].Leaders.Select(l => l.Leader + "." + l.Influence + "." + l.Exposure)), string.Join(",", part.Nights[i].Leaders.Select(l => l.Leader + "." + l.Influence + "." + l.Exposure)));
+            }
+            var first = full.Nights[0];
+            for (int c = 0; c < full.Cults.Count; c++) Assert.Equal(full.Cults[c].Founder, first.Leaders[c].Leader);
+        }
+
+        [Fact]
+        public void NightTicks_carry_the_leader_events_of_each_night()
+        {
+            var lib = Library();
+            var state = Run(1818, MythosInputs.Schedule(LeaderNights), LeaderNights, out _, out _);
+            var ticks = NightTicks.Build(state, lib);
+            for (int i = 0; i < ticks.Count; i++) Assert.Equal(state.Nights[i].LeaderEvents.Select(e => e.Cause + e.Kind + e.Leader), ticks[i].LeaderEvents.Select(e => e.Cause + e.Kind + e.Leader));
+            Assert.Contains(ticks, t => t.LeaderEvents.Count > 0);
+        }
     }
 }

@@ -3,6 +3,7 @@
 import { tierFor } from './core.js';
 import { stageOfNight, districtHistory, familyHistory } from './village-story.js';
 import { esc } from './util.js';
+import { EFFECT_ACCUSED } from './society.js';
 import { DISTRICT_IDS } from './districts.js';
 import { parseChronicleLibrary, chronicleProse, summaryProse } from './chronicle-prose.js';
 import { chronicleExportText, exportFileName } from './export-text.js';
@@ -40,7 +41,7 @@ export function chronicleModel(story, lang, ctx) {
   const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
   const knowledge = ctx.knowledge && ctx.knowledge.name ? ctx.knowledge : null; // Round 28: the tier the evidence has earned, with tonight's reality effects
   // Round 30: the trust bars (trust, fear, faith, loyalty, obsession, corruption) of everyone met, and the theories concluded on the board.
-  const people = ctx.met && ctx.bars ? [...ctx.met].sort((a, b) => a - b).filter((i) => i >= 0 && i < story.roster.length).map((i) => ({ index: i, name: nameOf(i), rows: ctx.bars(i) })).filter((p) => p.rows) : [];
+  const people = ctx.met && ctx.bars ? [...ctx.met].sort((a, b) => a - b).filter((i) => i >= 0 && i < story.roster.length).map((i) => ({ index: i, name: nameOf(i), rows: ctx.bars(i), reputation: ctx.reputationOf ? (ctx.reputationOf(i)[0] || null) : null })).filter((p) => p.rows) : [];
   const theories = ctx.theories || [];
   // Round 34 (spec 168): the generated prose, night by night up to tonight and as a whole. Only what the player learned (ctx.prose is built from heard statements, leads and people met).
   const prose = ctx.prose ? { nights: chronicleProse(ctx.prose, ctx.night, lang), summary: summaryProse(ctx.prose, ctx.night, lang) } : null;
@@ -53,7 +54,7 @@ export function chronicleModel(story, lang, ctx) {
   };
 }
 
-/** deps: { $, tr, lang, state, story() -> story or null, lore: { library(), readIds() }, night() -> 1-based, nights(), dread(), landmarkName(id), mythos?() -> feed or null, mythosHeard?() -> Map statement id -> speaker, knowledge?() -> { tier, points, name, effects }, mythosKey?() -> string, onChange() } */
+/** deps: { evolution?() -> { reputation, mutations, beats } (round 36), reputationOf?(index) -> effect records, $, tr, lang, state, story() -> story or null, lore: { library(), readIds() }, night() -> 1-based, nights(), dread(), landmarkName(id), mythos?() -> feed or null, mythosHeard?() -> Map statement id -> speaker, knowledge?() -> { tier, points, name, effects }, mythosKey?() -> string, onChange() } */
 export function createChronicleController(deps) {
   const { $, tr, state } = deps;
   const heard = new Map();
@@ -63,7 +64,7 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], prose: proseContext() };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], reputationOf: deps.reputationOf, prose: proseContext() };
   }
 
   let proseLib = null;
@@ -78,7 +79,7 @@ export function createChronicleController(deps) {
     if (states.some((s) => !s)) return null;
     return {
       prose: proseLib, story, mythos: feed.library, state: feed.state, nights: deps.nights(), outcomes: states.map((s) => s.outcome), leads: states.map((s) => s.leads),
-      heard: new Set(deps.mythosHeard ? deps.mythosHeard().keys() : []), met: new Set(deps.met ? deps.met() : []), memoryLog: deps.memoryEvents ? deps.memoryEvents() : null,
+      heard: new Set(deps.mythosHeard ? deps.mythosHeard().keys() : []), met: new Set(deps.met ? deps.met() : []), memoryLog: deps.memoryEvents ? deps.memoryEvents() : null, evolution: deps.evolution ? deps.evolution() : undefined,
     };
   }
 
@@ -92,7 +93,7 @@ export function createChronicleController(deps) {
   let renderedKey = '';
   const mythosStamp = (c) => `${deps.mythosKey ? deps.mythosKey() : ''}|${c.mythosHeard ? c.mythosHeard.size : 0}|${c.met ? [...c.met].map((i) => (c.bars ? (c.bars(i) || []).map((r) => r.value).join('.') : '')).join(',') : ''}|${c.theories.map((t) => `${t.instance}${t.grade}`).join('')}|${c.outcomeLine ? deps.story() && deps.story().missing.map((_, k) => c.outcomeLine(k).length).join('.') : ''}`;
   /** Everything the panel shows that can change while it is open. render() stores it and refresh() compares against it, so both must use this one function. memoryVersion: the prose replays what villagers remember, and the event count stops growing at its cap. */
-  const redrawKey = (c) => `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}|${c.met ? c.met.size : 0}|${deps.memoryVersion ? deps.memoryVersion() : 0}`;
+  const redrawKey = (c) => `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}|${c.met ? c.met.size : 0}|${deps.memoryVersion ? deps.memoryVersion() : 0}|${deps.evolutionKey ? deps.evolutionKey() : ''}`;
   /** Re-renders an open panel only when something it shows changed (night, dread tier, books read, chat heard, village). */
   function refresh() {
     if (!on) return;
@@ -133,7 +134,7 @@ export function createChronicleController(deps) {
     if (m.tick) parts.push(`<p class="stats" id="chronicleTick">${esc(tr('chronicle.tick', { night: m.tick.night, cult: m.tick.cultGrowth, rumors: m.tick.rumorsChanged + m.tick.rumorsAdded, shift: m.tick.realityShift }))}</p>`);
     parts.push(`<h3>${esc(tr('chronicle.people'))}</h3>${m.people.length ? `<ul class="chronicle-list" id="chroniclePeople">${m.people.map((p) => {
       const text = p.rows.map((r) => `${tr(`society.bar.${r.key}`)} ${r.value}`).join(', ');
-      return `<li data-person="${p.index}"><strong>${esc(p.name)}</strong><ul class="axis-bars chronicle-bars" aria-label="${esc(tr('society.bar.aria', { text }))}">${p.rows.map((r) => `<li><span class="axis-label">${esc(tr(`society.bar.${r.key}`))}</span><meter min="0" max="1000" value="${r.value}" aria-label="${esc(`${tr(`society.bar.${r.key}`)}: ${r.value}`)}"></meter></li>`).join('')}</ul></li>`;
+      return `<li data-person="${p.index}"><strong>${esc(p.name)}</strong>${p.reputation ? `<p class="stats" data-reputation="${esc(p.reputation.effect === EFFECT_ACCUSED ? 'accused' : 'trusted')}">${esc(tr(p.reputation.effect === EFFECT_ACCUSED ? 'society.reputation.accused' : 'society.reputation.trusted'))}</p>` : ''}<ul class="axis-bars chronicle-bars" aria-label="${esc(tr('society.bar.aria', { text }))}">${p.rows.map((r) => `<li><span class="axis-label">${esc(tr(`society.bar.${r.key}`))}</span><meter min="0" max="1000" value="${r.value}" aria-label="${esc(`${tr(`society.bar.${r.key}`)}: ${r.value}`)}"></meter></li>`).join('')}</ul></li>`;
     }).join('')}</ul>` : `<p class="stats" id="chroniclePeople">${esc(tr('chronicle.people.empty'))}</p>`}`);
     parts.push(`<h3>${esc(tr('theory.summary.title'))}</h3>${m.theories.length ? `<ul class="chronicle-list" id="chronicleTheories">${m.theories.map((t) => `<li data-theory="${t.instance}" class="theory-${['true', 'partial', 'false'][t.grade]}"><strong>${esc(t.gradeName)}</strong>: ${esc(t.question)} ${esc(t.answer)} <em>${esc(t.verdict)}</em></li>`).join('')}</ul>` : `<p class="stats" id="chronicleTheories">${esc(tr('theory.summary.empty'))}</p>`}`);
     parts.push(`<h3>${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);

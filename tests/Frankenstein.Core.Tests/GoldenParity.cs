@@ -400,7 +400,13 @@ namespace Frankenstein.Core.Tests
             AppendChronicleProse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendChronicleEvolution(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendReality(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendRealityCollapse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
             AppendSeedShare(sb);
@@ -413,8 +419,109 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendCreatureTiers(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendReputation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendLeadership(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendRumorMutation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendDirectorBeats(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendStreamerChallenge(sb);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "streamerChallenge" (round 36, spec 184): weekly keys and share codes for fixed instants, accuracy scores for fixed counts and the leaderboard JSON of a fixed result list.</summary>
+        private static void AppendStreamerChallenge(StringBuilder sb)
+        {
+            var lib = SeedShareTests.Library();
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"streamerChallenge\": {\n    \"weekly\": [");
+            sb.Append(string.Join(", ", StreamerChallengeTests.Instants.Select(t =>
+            {
+                var key = WeeklySeed.KeyFor(StreamerChallengeTests.At(t));
+                return "[" + Q(t) + ", " + Q(key) + ", " + WeeklySeed.SeedFromKey(key).ToString(inv) + ", " + Q(WeeklySeed.ChallengeCode(lib, key)) + "]";
+            })));
+            sb.Append("],\n    \"accuracy\": [");
+            sb.Append(string.Join(", ", StreamerChallengeTests.AccuracyCases.Select(c => "[" + string.Join(", ", c) + ", " + InvestigationAccuracy.Score(c[0], c[1], c[2], c[3]).ToString(inv) + "]")));
+            sb.Append("],\n    \"leaderboard\": ").Append(Q(LeaderboardExport.ToJson(lib, "2026-W46", StreamerChallengeTests.SampleResults()))).Append("\n  }\n");
+        }
+
+        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager.</summary>
+        private static void AppendDirectorBeats(StringBuilder sb)
+        {
+            sb.Append("  \"directorBeats\": {\n    \"runs\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var abuse = new List<int>();
+                BeatVariant(seed, 1000, false, abuse);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"abuse\": [").Append(string.Join(", ", abuse)).Append("], \"variants\": [");
+                first = false;
+                var variants = new[] { (1000, false), (1500, true), (500, false) };
+                sb.Append(string.Join(", ", variants.Select(v => "{ \"scale\": " + v.Item1 + ", \"reduced\": " + (v.Item2 ? 1 : 0) + ", \"beats\": [" + BeatVariant(seed, v.Item1, v.Item2, null) + "] }")));
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static string BeatVariant(int seed, int scale, bool reduced, List<int> abuse)
+        {
+            return string.Join(", ", HorrorDirectorTests.BeatRun(seed, scale, reduced, abuse).Select(t =>
+                "[" + t.Step + ", " + Q(t.Beat.Id) + ", " + Q(t.Beat.Cause) + ", " + t.Beat.Volume + ", " + t.Beat.Brightness + ", " + (t.Beat.Prop ? 1 : 0) + ", " + t.Beat.Villager + "]"));
+        }
+
+        /// <summary>Top level key "rumorMutation" (round 36, spec 181): per chain and seed, the stage for rumor nights 1 and 5, nights since 0 to 12 and exposure 0, 500, 1000; the stage texts and the gated true account in en and fr; and per city the mythos chat lines with mutation at knowledge tiers 0 and 4.</summary>
+        private static void AppendRumorMutation(StringBuilder sb, PrefabCatalog cat)
+        {
+            var lib = RumorMutationTests.Library();
+            var seeds = new[] { 1, 42, 1818 };
+            sb.Append("  \"rumorMutation\": {\n    \"trueTier\": ").Append(lib.TrueTier).Append(",\n    \"stages\": [");
+            for (int c = 0; c < lib.Chains.Count; c++)
+            {
+                var rows = new List<string>();
+                foreach (int seed in seeds)
+                    foreach (int rn in RumorMutationTests.RumorNights)
+                        foreach (int ex in RumorMutationTests.Exposures)
+                            rows.Add("[" + seed + ", " + rn + ", " + ex + ", [" + string.Join(", ", Enumerable.Range(0, RumorMutationTests.MaxNights + 1).Select(n => RumorMutation.Stage(lib, c, seed, rn, n, ex).ToString())) + "]]");
+                sb.Append(c == 0 ? "\n      " : ",\n      ").Append("[").Append(Q(lib.Chains[c].Id)).Append(", ").Append(string.Join(", ", rows)).Append("]");
+            }
+            sb.Append("\n    ],\n    \"texts\": [");
+            for (int c = 0; c < lib.Chains.Count; c++)
+            {
+                var ch = lib.Chains[c];
+                var rumor = new MythosRumor { Source = ch.Source, Night = 1 };
+                var tiers = Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => "[" + Q(RumorMutation.Text(lib, rumor, ch.Ref, 1, RumorMutationTests.MaxNights, RumorMutation.ExposureScale, t, "en")) + ", " + Q(RumorMutation.Text(lib, rumor, ch.Ref, 1, RumorMutationTests.MaxNights, RumorMutation.ExposureScale, t, "fr")) + "]");
+                sb.Append(c == 0 ? "\n      " : ",\n      ").Append("[").Append(Q(ch.Id)).Append(", [").Append(string.Join(", ", ch.Stages.Select(x => "[" + Q(x.Get("en")) + ", " + Q(x.Get("fr")) + "]"))).Append("], [").Append(string.Join(", ", tiers)).Append("]]");
+            }
+            sb.Append("\n    ],\n    \"chat\": [");
+            var data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var mythos = MythosSimulationTests.Library();
+            bool first = true;
+            foreach (var seed in seeds)
+            {
+                var state = MythosSimulationTests.Run(seed, MythosSimulationTests.GridInputs(), MythosSimulationTests.Nights, out var soc, out var story);
+                var feed = new MythosFeed { Library = mythos, State = state, Night = MythosSimulationTests.Nights };
+                var about = new VillagerChatResult { Available = true, Behavior = VillagerBehavior.Normal, HintId = "village" };
+                var rows = new List<string>();
+                for (int i = 0; i < soc.Roster.Count; i++)
+                {
+                    var low = MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, about, "en", lib, 0);
+                    var high = MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, about, "fr", lib, 4);
+                    if (low.Count == 0 && high.Count == 0) continue;
+                    rows.Add("[" + i + ", [" + string.Join(", ", low.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "], [" + string.Join(", ", high.Select(l => "[" + Q(l.Id) + ", " + Q(l.Text) + "]")) + "]]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"villagers\": [").Append(string.Join(", ", rows)).Append("] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
         }
 
         /// <summary>Top level key "creatureTiers" (round 32, spec 166): the manifestation data digest and, per seed and named scenario, the appearances of three days at every phase (id, position, exposure seconds, still flag, cause, subject, place).</summary>
@@ -1491,6 +1598,69 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
+        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps.</summary>
+        private static void AppendReputation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var log = new[]
+            {
+                new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 }, new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.SeenNearBody, Subject = VillageSociety.AllVillagers }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 3 },
+                new SocietyAction { Kind = SocietyActionKind.NightIntrusion, Subject = 0 }, new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 },
+                new SocietyAction { Kind = SocietyActionKind.SeenAtRitualSite, Subject = 4 }, new SocietyAction { Kind = SocietyActionKind.WardCreatureInView, Subject = 5 },
+                new SocietyAction { Kind = SocietyActionKind.FightCreatureInView, Subject = 6 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 3 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 5 },
+            };
+            var nights = new[] { 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3 };
+            var crowded = new List<SocietyAction>();
+            for (int i = 0; i < 8; i++) crowded.Add(new SocietyAction { Kind = i % 2 == 0 ? SocietyActionKind.SeenAtRitualSite : SocietyActionKind.NightIntrusion, Subject = i % 4 });
+            string Rows(List<ReputationEffect> fx) { return "[" + string.Join(", ", fx.Select(e => "[" + e.Source + ", " + e.Target + ", " + (int)e.Kind + ", " + (int)e.Effect + ", " + e.Hop + ", " + e.Strength + ", " + e.Night + "]")) + "]"; }
+            sb.Append("  \"reputation\": {\n    \"log\": [").Append(string.Join(", ", log.Select(a => "[" + (int)a.Kind + ", " + a.Subject + "]"))).Append("],\n    \"nights\": [").Append(string.Join(", ", nights));
+            sb.Append("],\n    \"crowded\": [").Append(string.Join(", ", crowded.Select(a => "[" + (int)a.Kind + ", " + a.Subject + "]"))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"effects\": ").Append(Rows(soc.ReputationEffectsAfter(log, nights)));
+                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null))).Append(" }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "leadership" (round 36, spec 176 part 2): per city seed the cult leader events [night, kind, cult, leader, successor, cause] and the per night leader rows [leader, influence, recruits, exposure, exposed, vessel] per cult over the sixty night replay schedule.</summary>
+        private static void AppendLeadership(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var mythos = MythosSimulationTests.Library();
+            int nights = MythosSimulationTests.LeaderNights;
+            sb.Append("  \"leadership\": {\n    \"nights\": ").Append(nights).Append(",\n    \"causes\": [").Append(string.Join(", ", CultLeaderCause.All.Select(Q))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, MythosInputs.Schedule(nights), nights);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"events\": [").Append(string.Join(", ", state.Nights.SelectMany(n => n.LeaderEvents).Select(e => "[" + e.Night + ", " + (int)e.Kind + ", " + e.Cult + ", " + e.Leader + ", " + e.Successor + ", " + Q(e.Cause) + "]")));
+                sb.Append("], \"leaders\": [").Append(string.Join(", ", state.Nights.Select(n => "[" + string.Join(", ", n.Leaders.Select(l => "[" + l.Leader + ", " + l.Influence + ", " + l.Recruits + ", " + l.Exposure + ", " + (l.Exposed ? 1 : 0) + ", " + (l.Vessel ? 1 : 0) + "]")) + "]"))).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
         /// <summary>Top level key "axes" (round 29): per city seed the Fear, Faith, Loyalty and Obsession axes over a night, dread and ritual grid after the society log, and the fear gated chat.</summary>
         private static void AppendAxes(StringBuilder sb, PrefabCatalog cat)
         {
@@ -1765,6 +1935,43 @@ namespace Frankenstein.Core.Tests
                 for (int night = 1; night <= RealityInstabilityTests.Nights; night++)
                     nights.Add("[" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => Q(RealityInstabilityTests.Signature(lib, seed, night, t)))) + "]");
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "realityCollapse" (round 36, spec 183): per city seed and night, the Reality Collapse signature at tier 5 (drifted house names, erased villager, identity steps, phantom paths).</summary>
+        private static void AppendRealityCollapse(StringBuilder sb)
+        {
+            var lib = RealityInstabilityTests.Library();
+            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var nights = Enumerable.Range(1, RealityInstabilityTests.Nights).Select(n => Q(RealityInstabilityTests.CollapseSignature(lib, seed, n, KnowledgeLibrary.MaxTier)));
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "chronicleEvolution" (round 36, spec 182): per city seed, the nights of the sixty night leadership run (see ChronicleProseTests.EvolutionContext) whose paragraph changes when the newer event sources are told, as [night, en, fr].</summary>
+        private static void AppendChronicleEvolution(StringBuilder sb)
+        {
+            sb.Append("  \"chronicleEvolution\": {\n    \"nights\": ").Append(MythosSimulationTests.LeaderNights).Append(",\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var ctx = ChronicleProseTests.EvolutionContext(seed, true);
+                var plain = ChronicleProseTests.EvolutionContext(seed, true, false);
+                var rows = new List<string>();
+                for (int night = 1; night <= MythosSimulationTests.LeaderNights; night++)
+                {
+                    string en = ChronicleProse.NightProse(ctx, night, "en");
+                    if (en == ChronicleProse.NightProse(plain, night, "en")) continue;
+                    rows.Add("[" + night + ", " + Q(en) + ", " + Q(ChronicleProse.NightProse(ctx, night, "fr")) + "]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"changed\": [\n        ").Append(string.Join(",\n        ", rows)).Append("\n      ] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");

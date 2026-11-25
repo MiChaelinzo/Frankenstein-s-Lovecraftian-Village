@@ -276,6 +276,111 @@
       {"en": "You understand now. The understanding does not feel like victory, only like being seen.", "fr": "Vous comprenez maintenant. Comprendre ne ressemble pas a une victoire, seulement a etre vu."},
       {"en": "Nothing was hidden at the last, and the village waited to see what you would do with it.", "fr": "Rien ne resta cache a la fin, et le village attendit de voir ce que vous en feriez."},
       {"en": "The chronicle is complete, and the final line has your name in it.", "fr": "La chronique est complete, et la derniere ligne porte votre nom."}
+    ] },
+  { "id": "leader_replaced_exposure_over_threshold",
+    "variants": [
+      {"en": "The bells rang before dawn, and by morning {who} no longer led the {cult}. Too many people had watched the door.", "fr": "Les cloches sonnerent avant l'aube, et au matin {who} ne menait plus les {cult}. Trop de gens avaient regarde la porte."},
+      {"en": "{who} was set aside by the {cult} once the whispers grew too loud to ignore.", "fr": "Les {cult} ecarterent {who} quand les murmures devinrent trop forts pour etre ignores."},
+      {"en": "Another hand took up the {cult}. {who} had been seen once too often.", "fr": "Une autre main reprit les {cult}. On avait vu {who} une fois de trop."},
+      {"en": "By dusk it was said that {who} had been replaced, and nobody in {village} would say by whom.", "fr": "Au crepuscule on disait que {who} avait ete remplace, et personne a {village} ne disait par qui."}
+    ] },
+  { "id": "leader_replaced_influence_collapse",
+    "variants": [
+      {"en": "The {cult} stopped listening to {who}. By morning someone else was giving the orders.", "fr": "Les {cult} cesserent d'ecouter {who}. Au matin, quelqu'un d'autre donnait les ordres."},
+      {"en": "{who} lost the {cult} the way a tide loses a beach, a little at a time and then all at once.", "fr": "{who} perdit les {cult} comme la maree perd une plage, peu a peu puis d'un seul coup."},
+      {"en": "It was whispered that {who} no longer held the {cult}. The chair at the head of the table was not empty for long.", "fr": "On murmurait que {who} ne tenait plus les {cult}. La chaise du bout de la table ne resta pas vide longtemps."},
+      {"en": "Nobody followed {who} any more, and the {cult} found someone who could be followed.", "fr": "Plus personne ne suivait {who}, et les {cult} trouverent quelqu'un que l'on pouvait suivre."}
+    ] },
+  { "id": "leader_replaced_vacancy_filled",
+    "variants": [
+      {"en": "The {cult} had gone without a voice, and {who} took it up. No one remembered a vote.", "fr": "Les {cult} etaient restes sans voix, et {who} la prit. Nul ne se souvenait d'un vote."},
+      {"en": "{who} was found at the head of the {cult} as though the place had always been theirs.", "fr": "On trouva {who} a la tete des {cult}, comme si la place avait toujours ete la sienne."},
+      {"en": "A vacancy among the {cult} closed overnight. {who} now answered for them.", "fr": "Une place vide parmi les {cult} se referma dans la nuit. {who} parlait desormais pour eux."},
+      {"en": "Someone had to lead the {cult} again, and it was {who}, whatever the village believed.", "fr": "Il fallait de nouveau que quelqu'un mene les {cult}, et ce fut {who}, quoi qu'en crut le village."}
+    ] },
+  { "id": "leader_disappeared_exposure_over_threshold",
+    "variants": [
+      {"en": "{who} vanished near the old jetty. No body was recovered, and the {cult} asked no questions.", "fr": "{who} disparut pres du vieil appontement. On ne retrouva aucun corps, et les {cult} ne poserent pas de questions."},
+      {"en": "{who} was named too often, and then was not seen again. The {cult} went quiet.", "fr": "On nomma {who} trop souvent, puis on ne le revit plus. Les {cult} se turent."},
+      {"en": "The leader of the {cult} was gone by morning. Villagers said {who} had been seen walking toward the water.", "fr": "Le chef des {cult} avait disparu au matin. Les villageois disaient avoir vu {who} marcher vers l'eau."},
+      {"en": "{who} left no note and no footprints. The {cult} said only that nothing had been wrong.", "fr": "{who} ne laissa ni mot ni traces de pas. Les {cult} dirent seulement que tout allait bien."}
+    ] },
+  { "id": "leader_disappeared_influence_collapse",
+    "variants": [
+      {"en": "{who} slipped away from the {cult} with no one left to follow, and the village did not look for them.", "fr": "{who} s'eclipsa des {cult} sans personne a mener, et le village ne le chercha pas."},
+      {"en": "No one in {village} admitted to missing {who}. The {cult} had already moved on.", "fr": "Personne a {village} n'avoua regretter {who}. Les {cult} etaient deja passes a autre chose."},
+      {"en": "{who} was gone, and the {cult} had no one left who could say why.", "fr": "{who} etait parti, et les {cult} n'avaient plus personne pour dire pourquoi."},
+      {"en": "The {cult} lost {who} to the dark, and did not seem surprised.", "fr": "Les {cult} perdirent {who} au profit de l'ombre, et ne parurent pas surpris."}
+    ] },
+  { "id": "leader_exposed",
+    "variants": [
+      {"en": "When asked, {who} denied knowing anything about the {cult}. The denial came too quickly.", "fr": "Interroge, {who} nia savoir quoi que ce soit des {cult}. Le dementi vint trop vite."},
+      {"en": "It was said in the harbor that {who} led the {cult}. {who} only shook their head.", "fr": "On disait au port que {who} menait les {cult}. {who} se contenta de secouer la tete."},
+      {"en": "{who} was named as the voice of the {cult} and claimed to have heard nothing of it.", "fr": "On designa {who} comme la voix des {cult}, et {who} affirma n'en avoir rien entendu."},
+      {"en": "The name of the {cult}'s leader was spoken aloud in {village}. {who} had the look of someone who had already answered.", "fr": "Le nom du chef des {cult} fut prononce tout haut a {village}. {who} avait l'air de quelqu'un qui avait deja repondu."}
+    ] },
+  { "id": "leader_vessel",
+    "variants": [
+      {"en": "{who} was seen at the shore with the stillness of something borrowed. The {cult} knelt.", "fr": "On vit {who} sur la greve, avec l'immobilite d'une chose empruntee. Les {cult} s'agenouillerent."},
+      {"en": "Something spoke through {who} before dawn, and the {cult} did not argue with it.", "fr": "Quelque chose parla par la bouche de {who} avant l'aube, et les {cult} ne discuterent pas."},
+      {"en": "{who} no longer looked like a leader of the {cult}. They looked like what the {cult} had been leading toward.", "fr": "{who} ne ressemblait plus a un chef des {cult}. Il ressemblait a ce vers quoi les {cult} avaient mene."},
+      {"en": "The tide came in around {who} and did not wet their feet. The {cult} were calm for the first time.", "fr": "La maree monta autour de {who} sans lui mouiller les pieds. Les {cult} furent calmes pour la premiere fois."}
+    ] },
+  { "id": "reputation_accused",
+    "variants": [
+      {"en": "By dusk, word of {who} had spread through the harbor, and {other} was already repeating the worst of it.", "fr": "Au crepuscule, ce que l'on disait de {who} avait gagne le port, et {other} en repetait deja le pire."},
+      {"en": "Accusations followed you from {who} to {other}, each telling a little harder than the last.", "fr": "Les accusations vous suivirent de {who} a {other}, chaque recit un peu plus dur que le precedent."},
+      {"en": "{other} had heard about {who} before you reached the door, and the door stayed shut.", "fr": "{other} avait entendu parler de {who} avant que vous n'atteigniez la porte, et la porte resta close."},
+      {"en": "The suspicion that began with {who} reached {other}. Nobody could say who spoke first.", "fr": "Le soupcon ne avec {who} atteignit {other}. Personne ne put dire qui avait parle le premier."}
+    ] },
+  { "id": "reputation_trusted",
+    "variants": [
+      {"en": "A kind word about you passed from {who} to {other}, and {other} met you with an open hand.", "fr": "Un mot aimable sur vous passa de {who} a {other}, et {other} vous accueillit la main ouverte."},
+      {"en": "{who} spoke well of you. By the evening {other} was saying the same, as if it were their own opinion.", "fr": "{who} dit du bien de vous. Au soir, {other} disait la meme chose, comme si c'etait son avis."},
+      {"en": "The harbor heard what {who} thought of you, and {other} lowered their voice to repeat it kindly.", "fr": "Le port apprit ce que {who} pensait de vous, et {other} baissa la voix pour le redire avec bienveillance."},
+      {"en": "Trust travelled quietly from {who} to {other}, the way news does in {village}.", "fr": "La confiance voyagea sans bruit de {who} a {other}, comme le font les nouvelles a {village}."}
+    ] },
+  { "id": "rumor_drift",
+    "variants": [
+      {"en": "The story you had heard changed in the retelling. By dusk it was spreading through the harbor with details nobody had given.", "fr": "L'histoire que vous aviez entendue changea en passant de bouche en bouche. Au crepuscule elle gagnait le port, avec des details que personne n'avait donnes."},
+      {"en": "The rumor drifted. It was told again in {village}, and the telling was not quite the one you knew.", "fr": "La rumeur derivait. On la redit a {village}, et ce n'etait plus tout a fait le recit que vous connaissiez."},
+      {"en": "Someone had added to the rumor, and the addition had been believed.", "fr": "Quelqu'un avait ajoute a la rumeur, et l'ajout avait ete cru."},
+      {"en": "What the village said now was not what it had said yesterday, and everyone swore it was.", "fr": "Ce que le village disait maintenant n'etait plus ce qu'il disait hier, et chacun jurait que si."}
+    ] },
+  { "id": "rumor_distorted",
+    "variants": [
+      {"en": "The rumor had grown past recognition. Villagers claimed the sea had glowed silver, and no one could say who saw it first.", "fr": "La rumeur etait devenue meconnaissable. Des villageois affirmaient que la mer avait brille d'argent, sans pouvoir dire qui l'avait vu le premier."},
+      {"en": "By now the story in {village} had little to do with what happened. It had become something people were afraid of.", "fr": "A present l'histoire de {village} n'avait plus grand-chose a voir avec les faits. Elle etait devenue quelque chose dont on avait peur."},
+      {"en": "The telling had hardened into legend overnight, and the facts had been quietly left behind.", "fr": "Le recit s'etait fige en legende dans la nuit, et les faits avaient ete laisses derriere sans bruit."},
+      {"en": "Nothing in the rumor was true any more, and all of it was repeated as though it were.", "fr": "Plus rien dans la rumeur n'etait vrai, et on la repetait tout entiere comme si elle l'etait."}
+    ] },
+  { "id": "beat_sound",
+    "variants": [
+      {"en": "A bell rang somewhere before dawn, though the tower had no rope.", "fr": "Une cloche sonna quelque part avant l'aube, bien que le clocher n'eut plus de corde."},
+      {"en": "Singing carried over the roofs from nowhere you could find, and stopped when you stopped to listen.", "fr": "Un chant passa par-dessus les toits, d'ou, vous ne sauriez le dire, et s'arreta quand vous vous arretates pour ecouter."},
+      {"en": "You heard the bells before dawn. When you turned toward them, the sound had already moved.", "fr": "Vous entendites les cloches avant l'aube. Quand vous vous tournates vers elles, le son avait deja bouge."},
+      {"en": "Somewhere in {village}, someone was singing, softly, in a tongue you almost knew.", "fr": "Quelque part a {village}, quelqu'un chantait doucement, dans une langue que vous connaissiez presque."}
+    ] },
+  { "id": "beat_trace",
+    "variants": [
+      {"en": "Footprints in the mud led to your door and stopped. They were not yours.", "fr": "Des empreintes dans la boue menaient a votre porte et s'arretaient. Ce n'etaient pas les votres."},
+      {"en": "A lantern had been moved while you slept, and set down exactly where you would have reached for it.", "fr": "Une lanterne avait ete deplacee pendant votre sommeil, et posee la ou vous l'auriez cherchee."},
+      {"en": "The road sign at the crossing pointed the wrong way, and the village insisted it always had.", "fr": "Le panneau du carrefour montrait la mauvaise direction, et le village soutenait qu'il l'avait toujours fait."},
+      {"en": "Small things in {village} had been shifted by an inch or two, as if to see whether you would notice.", "fr": "De petites choses a {village} avaient ete deplacees d'un doigt ou deux, comme pour voir si vous le remarqueriez."}
+    ] },
+  { "id": "beat_sky_sea",
+    "variants": [
+      {"en": "A boat sat empty at the jetty, its rope still wet, and no one came to claim it.", "fr": "Une barque attendait vide a l'appontement, sa corde encore mouillee, et personne ne vint la reclamer."},
+      {"en": "The sea glowed silver for a moment near the old jetty. The villagers who saw it would not say so aloud.", "fr": "La mer brilla d'argent un instant pres du vieil appontement. Les villageois qui l'avaient vu ne voulurent pas le dire a voix haute."},
+      {"en": "The stars over {village} were in the wrong places, and not one person looked up.", "fr": "Les etoiles au-dessus de {village} etaient aux mauvais endroits, et pas une personne ne leva les yeux."},
+      {"en": "A sky you knew had been rearranged, quietly, and the water reflected the new one.", "fr": "Un ciel que vous connaissiez avait ete range autrement, sans bruit, et l'eau refletait le nouveau."}
+    ] },
+  { "id": "beat_sighting",
+    "variants": [
+      {"en": "Someone stood at the edge of the lamplight and was gone when you looked again.", "fr": "Quelqu'un se tenait au bord de la lumiere des lampes et avait disparu quand vous regardates de nouveau."},
+      {"en": "A figure watched you from across the square, perfectly still, and the square was empty when you crossed it.", "fr": "Une silhouette vous regardait de l'autre cote de la place, parfaitement immobile, et la place etait vide quand vous la traversates."},
+      {"en": "A familiar face turned a corner ahead of you. No one was there when you followed.", "fr": "Un visage familier tourna un coin devant vous. Il n'y avait personne quand vous le suivites."},
+      {"en": "You were sure someone had stood behind you for a long while. The street said otherwise.", "fr": "Vous etiez sur que quelqu'un s'etait tenu derriere vous un long moment. La rue disait autre chose."}
     ] }
  ]
 }

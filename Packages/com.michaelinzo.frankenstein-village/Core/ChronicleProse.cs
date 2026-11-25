@@ -22,6 +22,20 @@ namespace Frankenstein.Core
             "outcome_dead", "outcome_escaped", "outcome_recruited", "outcome_transformed", "outcome_hidden", "outcome_displaced",
             "taken",
             "summary_open", "summary_unknown", "summary_cults", "summary_omens", "summary_close_low", "summary_close_mid", "summary_close_high",
+            // Round 36 (spec 182): appended after the older ids so their positions, and so their picks, do not change.
+            "leader_replaced_exposure_over_threshold", "leader_replaced_influence_collapse", "leader_replaced_vacancy_filled",
+            "leader_disappeared_exposure_over_threshold", "leader_disappeared_influence_collapse", "leader_exposed", "leader_vessel",
+            "reputation_accused", "reputation_trusted", "rumor_drift", "rumor_distorted",
+            "beat_sound", "beat_trace", "beat_sky_sea", "beat_sighting",
+        };
+
+        /// <summary>The line id that tells each ambient beat of <see cref="HorrorDirector.BeatIds"/>. Several beats share a pool of variants.</summary>
+        public static readonly Dictionary<string, string> BeatLines = new Dictionary<string, string>
+        {
+            { "distant_bell", "beat_sound" }, { "distant_singing", "beat_sound" },
+            { "false_footprints", "beat_trace" }, { "moved_lantern", "beat_trace" }, { "wrong_road_sign", "beat_trace" },
+            { "empty_boat", "beat_sky_sea" }, { "impossible_stars", "beat_sky_sea" },
+            { "npc_sighting", "beat_sighting" },
         };
         public const int MinVariants = 4;
 
@@ -86,6 +100,24 @@ namespace Frankenstein.Core
         }
     }
 
+    /// <summary>One ambient beat the player experienced (round 36): the night it happened and its id from <see cref="HorrorDirector.BeatIds"/>. Beats are live play, not simulation output, so the caller records them.</summary>
+    public struct ChronicleBeat
+    {
+        public int Night;
+        public string Id;
+    }
+
+    /// <summary>
+    /// Round 36 (spec 182): the newer event sources the chronicle may tell. A context without it (null) reads exactly as before. Reputation holds <see cref="VillageSociety.ReputationEffectsAfter"/> records,
+    /// Mutations the rumor chains (null tells no drift) and Beats the ambient beats experienced. The leader events come from the mythos run itself.
+    /// </summary>
+    public sealed class ChronicleEvolution
+    {
+        public IList<ReputationEffect> Reputation = new List<ReputationEffect>();
+        public RumorMutationLibrary Mutations;
+        public IList<ChronicleBeat> Beats = new List<ChronicleBeat>();
+    }
+
     /// <summary>
     /// Everything the chronicle may draw on. Heard holds the mythos statement ids the player was told ("mythos:omen:N", "mythos:cult:V", "mythos:secret:V", "mythos:rumor:N"), Leads the
     /// leads found per missing person (<see cref="MissingOutcomes.LevelFor"/> decides how much is told) and Met the roster indices of the villagers the player has met. Outcomes holds what
@@ -104,6 +136,8 @@ namespace Frankenstein.Core
         public ISet<string> Heard = new HashSet<string>();
         public ISet<int> Met = new HashSet<int>();
         public IList<MemoryEvent> MemoryLog;
+        /// <summary>Round 36: null keeps the chronicle as it was; set to tell leader events, reputation, rumor drift and beats.</summary>
+        public ChronicleEvolution Evolution;
     }
 
     /// <summary>
@@ -221,8 +255,90 @@ namespace Frankenstein.Core
             string mood = MemorySentence(ctx, night, lang);
             if (mood.Length > 0) { list.Add(mood); told++; }
 
+            if (ctx.Evolution != null) told += EvolutionSentences(ctx, night, lang, list);
+
             if (told == 0) list.Add(Pick(ctx, "quiet_" + StageId(ctx, night), night, 0, lang, vars));
             return list;
+        }
+
+        /// <summary>
+        /// The sentences of the round 36 event sources for one night, appended to <paramref name="list"/>; returns how many were added. At most one each of: a cult leader event the player knows the cult of,
+        /// a reputation effect between two villagers the player met, a rumor the player heard that drifted a stage since last night, and an ambient beat the player experienced. A sentence already in the night is skipped.
+        /// </summary>
+        private static int EvolutionSentences(ChronicleContext ctx, int night, string lang, List<string> list)
+        {
+            int added = 0;
+            var evo = ctx.Evolution;
+            var tonight = ctx.State.AtNight(night);
+            var vars = Vars(ctx);
+
+            foreach (var e in tonight.LeaderEvents)
+            {
+                int who = e.Leader >= 0 ? e.Leader : e.Successor;
+                if (who < 0 || who >= ctx.Story.Roster.Count || !ctx.Heard.Contains(MythosRules.CultId(who)) || e.Cult < 0 || e.Cult >= ctx.State.Cults.Count) continue;
+                string id = LeaderLineId(e);
+                if (ChronicleLibrary.IndexOf(id) < 0) continue;
+                var lv = Vars(ctx);
+                lv["who"] = WhoOf(ctx, who, lang);
+                lv["cult"] = ctx.Mythos.Cults[ctx.State.Cults[e.Cult].DataIndex].Text.Get(lang);
+                if (AddNew(list, Pick(ctx, id, night, e.Cult, lang, lv))) added++;
+                break;
+            }
+
+            ReputationEffect? spread = null;
+            foreach (var fx in evo.Reputation)
+            {
+                if (fx.Night != night || fx.Hop < 1 || fx.Source == fx.Target || !ctx.Met.Contains(fx.Source) || !ctx.Met.Contains(fx.Target)) continue;
+                if (fx.Source >= ctx.Story.Roster.Count || fx.Target >= ctx.Story.Roster.Count) continue;
+                if (spread == null || (fx.Effect == ReputationEffectKind.Accused && spread.Value.Effect != ReputationEffectKind.Accused)) spread = fx;
+            }
+            if (spread != null)
+            {
+                var rv = Vars(ctx);
+                rv["who"] = WhoOf(ctx, spread.Value.Source, lang);
+                rv["other"] = WhoOf(ctx, spread.Value.Target, lang);
+                if (AddNew(list, Pick(ctx, spread.Value.Effect == ReputationEffectKind.Accused ? "reputation_accused" : "reputation_trusted", night, spread.Value.Source, lang, rv))) added++;
+            }
+
+            if (evo.Mutations != null && night > 1)
+            {
+                var feed = new MythosFeed { Library = ctx.Mythos, State = ctx.State, Night = night };
+                int exposureNow = RumorMutation.Exposure(tonight), exposureBefore = RumorMutation.Exposure(ctx.State.AtNight(night - 1));
+                foreach (var r in tonight.Rumors)
+                {
+                    if (r.Night >= night || !ctx.Heard.Contains(MythosRules.RumorId(r.Night))) continue;
+                    int chain = evo.Mutations.ChainIndex(r.Source, MythosRules.RumorRef(feed, r));
+                    if (chain < 0) continue;
+                    int stage = RumorMutation.Stage(evo.Mutations, chain, ctx.Story.Seed, r.Night, night - r.Night, exposureNow);
+                    int before = RumorMutation.Stage(evo.Mutations, chain, ctx.Story.Seed, r.Night, night - 1 - r.Night, exposureBefore);
+                    if (stage <= before) continue;
+                    if (AddNew(list, Pick(ctx, stage >= 2 ? "rumor_distorted" : "rumor_drift", night, r.Night, lang, vars))) added++;
+                    break;
+                }
+            }
+
+            foreach (var b in evo.Beats)
+            {
+                string id;
+                if (b.Night != night || b.Id == null || !ChronicleLibrary.BeatLines.TryGetValue(b.Id, out id)) continue;
+                if (AddNew(list, Pick(ctx, id, night, Array.IndexOf(HorrorDirector.BeatIds, b.Id), lang, vars))) added++;
+                break;
+            }
+            return added;
+        }
+
+        private static string LeaderLineId(CultLeaderEvent e)
+        {
+            if (e.Kind == CultLeaderEventKind.Exposed) return "leader_exposed";
+            if (e.Kind == CultLeaderEventKind.BecameVessel) return "leader_vessel";
+            return (e.Kind == CultLeaderEventKind.Replaced ? "leader_replaced_" : "leader_disappeared_") + e.Cause;
+        }
+
+        private static bool AddNew(List<string> list, string sentence)
+        {
+            if (sentence.Length == 0 || list.Contains(sentence)) return false;
+            list.Add(sentence);
+            return true;
         }
 
         /// <summary>One sentence about a villager the player has met whose memory has reached an outcome by this night, or "". The villager is picked by seed among those who qualify.</summary>

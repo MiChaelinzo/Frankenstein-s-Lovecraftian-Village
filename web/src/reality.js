@@ -8,6 +8,9 @@ export const REALITY_LANGUAGES = ['en', 'fr'];
 export const REALITY_NOTE_IDS = ['house', 'villager', 'board', 'identity', 'location'];
 export const REALITY_MIN_ENTRIES = 4, REALITY_INSTABILITY_STREAM = 0x52454c, MAX_TIER = 5;
 export const HOUSE_TIER = 3, VILLAGER_TIER = 4, BOARD_TIER = 5;
+export const COLLAPSE_TIER = 5, COLLAPSE_ONSET_FLOOR = 2, COLLAPSE_ONSET_SPAN = 4, COLLAPSE_IDENTITY_STEPS = 2;
+export const KIND_COLLAPSE_HOUSE = 6, KIND_COLLAPSE_VILLAGER = 7, KIND_COLLAPSE_IDENTITY = 8, KIND_COLLAPSE_PATH = 9;
+export const IDENTITY_TRUE = 0, IDENTITY_QUESTIONED = 1, IDENTITY_UNKNOWN = 2;
 export const KIND_HOUSE = 1, KIND_FALSE_VILLAGER = 2, KIND_CONTRADICTION = 3, KIND_IDENTITY = 4, KIND_LOCATION = 5;
 
 const localized = (d, owner) => {
@@ -49,6 +52,10 @@ export function realityChance(kind, tier) {
     case KIND_CONTRADICTION: return t >= BOARD_TIER ? 500 : 0;
     case KIND_IDENTITY: return t >= BOARD_TIER ? 350 : 0;
     case KIND_LOCATION: return t >= BOARD_TIER ? 400 : 0;
+    case KIND_COLLAPSE_HOUSE: return t >= COLLAPSE_TIER ? 500 : 0;
+    case KIND_COLLAPSE_VILLAGER: return t >= COLLAPSE_TIER ? 300 : 0;
+    case KIND_COLLAPSE_IDENTITY: return t >= COLLAPSE_TIER ? 350 : 0;
+    case KIND_COLLAPSE_PATH: return t >= COLLAPSE_TIER ? 400 : 0;
     default: return 0;
   }
 }
@@ -89,6 +96,36 @@ export function realityLocationLook(lib, seed, night, tier, placeId) {
   return hit(rng, KIND_LOCATION, tier) ? rng.next(lib.locationLooks.length) : -1;
 }
 
+// Reality Collapse (spec 183): decided once per seed (night 0 stream); the night only decides whether the onset has passed. The true value is never changed.
+const collapseOnset = (rng) => COLLAPSE_ONSET_FLOOR + rng.next(COLLAPSE_ONSET_SPAN);
+/** Index into lib.houseNames of the name house `house` has drifted to from its onset night on, or -1 for the true name. */
+export function realityCollapsedHouseName(lib, seed, night, tier, house) {
+  const rng = rngFor(seed, 0, KIND_COLLAPSE_HOUSE, house);
+  if (!hit(rng, KIND_COLLAPSE_HOUSE, tier)) return -1;
+  const onset = collapseOnset(rng), name = rng.next(lib.houseNames.length);
+  return night >= onset ? name : -1;
+}
+/** The villager index that never existed from its onset night on, or -1. At most one per seed. Needs at least two villagers. */
+export function realityErasedVillager(seed, night, tier, count) {
+  if (count < 2) return -1;
+  const rng = rngFor(seed, 0, KIND_COLLAPSE_VILLAGER, 0);
+  if (!hit(rng, KIND_COLLAPSE_VILLAGER, tier)) return -1;
+  const onset = collapseOnset(rng), villager = rng.next(count);
+  return night >= onset ? villager : -1;
+}
+/** 0 Name, 1 Name?, 2 Unknown plus the role: one step per night after the onset. */
+export function realityIdentityStep(seed, night, tier, villager) {
+  const rng = rngFor(seed, 0, KIND_COLLAPSE_IDENTITY, villager);
+  if (!hit(rng, KIND_COLLAPSE_IDENTITY, tier)) return IDENTITY_TRUE;
+  const onset = collapseOnset(rng);
+  return night < onset ? IDENTITY_TRUE : Math.min(COLLAPSE_IDENTITY_STEPS, night - onset + 1);
+}
+/** Whether the phantom path pathId is drawn tonight: it appears on exactly one night (its onset) and is gone the next. False below tier 5. */
+export function realityPhantomPathVisible(seed, night, tier, pathId) {
+  const rng = rngFor(seed, 0, KIND_COLLAPSE_PATH, realitySubjectOf(pathId));
+  return hit(rng, KIND_COLLAPSE_PATH, tier) && night === collapseOnset(rng);
+}
+
 /**
  * The client side of the instability: one object the panels ask. deps: { lib() -> parsed library or null, seed(), night() (1-based), tier() (knowledge tier), lang(), reduced?() }.
  * truth is a session switch (never saved): while it is on every query answers "unaltered", so the player can always compare with the real data.
@@ -106,7 +143,17 @@ export function createRealityView(deps) {
     active: () => realityUnreliable(tier()),
     truth: () => truth,
     setTruth(on) { truth = !!on; },
-    houseName(house, trueName) { const k = lib() ? realityHouseName(lib(), deps.seed(), night(), tier(), house) : -1; return k < 0 ? trueName : t(lib().houseNames[k]); },
+    houseName(house, trueName) {
+      if (!lib()) return trueName;
+      const k = realityHouseName(lib(), deps.seed(), night(), tier(), house), c = k < 0 ? realityCollapsedHouseName(lib(), deps.seed(), night(), tier(), house) : k;
+      return c < 0 ? trueName : t(lib().houseNames[c]);
+    },
+    /** Collapse (tier 5): true when roster villager `index` never existed tonight. The list leaves the row out; the truth switch brings it back. */
+    erased: (index, count) => realityErasedVillager(deps.seed(), night(), tier(), count) === index,
+    /** Collapse identity step of a roster villager: 0 Name, 1 Name?, 2 Unknown plus the role. */
+    identityStep: (index) => realityIdentityStep(deps.seed(), night(), tier(), index),
+    /** Collapse (tier 5): whether the phantom path is drawn tonight. */
+    phantomPath: (pathId) => realityPhantomPathVisible(deps.seed(), night(), tier(), pathId),
     falseVillager() { const k = lib() ? realityFalseVillager(lib(), deps.seed(), night(), tier()) : -1; return k < 0 ? null : t(lib().falseVillagers[k]); },
     contradictionHidden: (pairId) => realityContradictionHidden(deps.seed(), night(), tier(), pairId),
     /** The name shown for roster villager `index`: another villager's name when blurred, else its own. */

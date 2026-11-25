@@ -143,6 +143,8 @@ export function cueNotes(kind, seed = 0) {
   if (kind === 'lantern') return [{ atMs: 0, freq: root * 1.5, durMs: 600, gain: 0.5, type: 'sine' }, { atMs: 140, freq: root * 2, durMs: 900, gain: 0.4, type: 'sine' }];
   if (kind === 'ending-warm') return [0, 4, 7, 12].map((n, i) => ({ atMs: i * 220, freq: semitone(root, n), durMs: 2600, gain: 0.35, type: 'triangle' }));
   if (kind === 'ending-cold') return [0, 6, 1].map((n, i) => ({ atMs: i * 380, freq: semitone(root / 2, n), durMs: 3600, gain: 0.35, type: 'sawtooth' }));
+  if (kind === 'distant-bell') return [{ atMs: 0, freq: root, durMs: 3200, gain: 0.5, type: 'sine' }, { atMs: 0, freq: root * 2.4, durMs: 1800, gain: 0.2, type: 'sine' }];
+  if (kind === 'distant-song') return [0, 3, 7].map((n, i) => ({ atMs: i * 900, freq: semitone(root, n), durMs: 2800, gain: 0.3, type: 'sine' }));
   return [];
 }
 
@@ -269,12 +271,13 @@ export function createAmbient(AC, opts = {}) {
     setCoast(c) { coast = clamp(num(c, 0), 0, 1); apply(); },
     /** One footstep on a surface ('gravel', 'wood' or 'wet'). Silent when stopped, muted or never started. */
     footstep(surface) { if (!live()) return; foot ^= 1; burst({ ...footstepParams(SURFACES.includes(surface) ? surface : 'gravel', dread, foot), atMs: 0 }); },
-    /** A short UI cue ('lantern', 'ending-warm', 'ending-cold'). Silent when stopped, muted or never started. */
-    cue(kind) {
+    /** A short UI cue ('lantern', 'ending-warm', 'ending-cold', and the director's quiet 'distant-bell' and 'distant-song'); level 0..1 scales its gain. Silent when stopped, muted or never started. */
+    cue(kind, level = 1) {
       if (!live()) return;
+      const lv = clamp(num(level, 1), 0, 1);
       for (const n of cueNotes(kind, seed)) {
         const t = ctx.currentTime + n.atMs / 1000, dur = n.durMs / 1000, o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = n.type; o.frequency.value = n.freq; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(n.gain * 0.25, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
+        o.type = n.type; o.frequency.value = n.freq; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(n.gain * 0.25 * lv, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
         o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.1);
       }
     },

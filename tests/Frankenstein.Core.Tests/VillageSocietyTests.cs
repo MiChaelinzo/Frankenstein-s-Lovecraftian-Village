@@ -276,5 +276,105 @@ namespace Frankenstein.Core.Tests
             Assert.False(VillageSociety.FearWithholds(800, 800));
             Assert.False(VillageSociety.FearWithholds(0, 799));
         }
+
+        private static List<SocietyAction> Crowd(int roster)
+        {
+            var log = new List<SocietyAction>();
+            for (int i = 0; i < 40; i++) log.Add(A(i % 2 == 0 ? SocietyActionKind.SeenAtRitualSite : SocietyActionKind.NightIntrusion, i % roster));
+            return log;
+        }
+
+        [Fact]
+        public void Reputation_empty_log_has_no_effects_and_leaves_opinions_alone()
+        {
+            var soc = SocietyOf(42, out _, out _);
+            Assert.Empty(soc.ReputationEffectsAfter(null, null));
+            Assert.Empty(soc.ReputationEffectsAfter(new List<SocietyAction>(), null));
+            var log = new[] { A(SocietyActionKind.SeenNearBody, 1) };
+            soc.ReputationEffectsAfter(log, null);
+            Assert.Equal(soc.OpinionsAfter(log).Trust, soc.OpinionsAfter(log).Trust);
+        }
+
+        [Fact]
+        public void Reputation_decays_by_hop_and_records_origin_and_direction()
+        {
+            foreach (int seed in Seeds)
+            {
+                var soc = SocietyOf(seed, out _, out var roster);
+                var fx = soc.ReputationEffectsAfter(new[] { A(SocietyActionKind.SeenAtRitualSite, 0) }, null);
+                var origin = Assert.Single(fx, e => e.Hop == 0);
+                Assert.Equal(0, origin.Target);
+                Assert.Equal(ReputationEffectKind.Accused, origin.Effect);
+                Assert.Equal(400, origin.Strength);
+                foreach (var e in fx.Where(e => e.Hop > 0))
+                {
+                    Assert.Equal(0, e.Source);
+                    Assert.True(e.Hop <= VillageSociety.MaxReputationHops);
+                    Assert.True(e.Strength <= origin.Strength >> e.Hop);
+                    Assert.Contains(e.Target, Enumerable.Range(0, roster.Count));
+                }
+                Assert.Equal(ReputationEffectKind.Trusted, soc.ReputationEffectsAfter(new[] { A(SocietyActionKind.ReturnJournal, 0) }, null)[0].Effect);
+            }
+        }
+
+        [Fact]
+        public void Reputation_each_villager_is_visited_once_per_origin_event()
+        {
+            foreach (int seed in Seeds)
+            {
+                var soc = SocietyOf(seed, out _, out var roster);
+                for (int s = 0; s < roster.Count; s++)
+                {
+                    var fx = soc.ReputationEffectsAfter(new[] { A(SocietyActionKind.SeenNearBody, s) }, null);
+                    Assert.Equal(fx.Count, fx.Select(e => e.Target).Distinct().Count());
+                    Assert.All(fx, e => Assert.Equal(s, e.Source));
+                }
+            }
+        }
+
+        [Fact]
+        public void Reputation_caps_hold_on_cyclic_links_with_a_crowded_log()
+        {
+            foreach (int seed in Seeds)
+            {
+                var soc = SocietyOf(seed, out _, out var roster);
+                var fx = soc.ReputationEffectsAfter(Crowd(roster.Count), null);
+                Assert.All(fx, e => Assert.InRange(e.Strength, 1, VillageSociety.MaxEffectStrength));
+                foreach (var g in fx.Where(e => e.Hop > 0).GroupBy(e => e.Target)) Assert.True(g.Sum(e => e.Strength) <= VillageSociety.PropagatedCapPerVillager);
+                Assert.True(fx.Where(e => e.Hop > 0).Sum(e => e.Strength) <= VillageSociety.PropagatedCapPerNight);
+                var nights = Enumerable.Range(0, 40).Select(i => i / 10).ToList();
+                var split = soc.ReputationEffectsAfter(Crowd(roster.Count), nights).Where(e => e.Hop > 0);
+                foreach (var g in split.GroupBy(e => e.Night)) Assert.True(g.Sum(e => e.Strength) <= VillageSociety.PropagatedCapPerNight);
+            }
+        }
+
+        [Fact]
+        public void Reputation_all_villager_action_does_not_propagate_and_bad_entries_are_ignored()
+        {
+            var soc = SocietyOf(42, out _, out var roster);
+            var fx = soc.ReputationEffectsAfter(new[] { A(SocietyActionKind.SeenNearBody, VillageSociety.AllVillagers), A((SocietyActionKind)99, 0), A(SocietyActionKind.ChatPolite, 999) }, null);
+            Assert.Equal(roster.Count, fx.Count);
+            Assert.All(fx, e => Assert.Equal(0, e.Hop));
+        }
+
+        [Fact]
+        public void Reputation_is_deterministic_and_replay_equals_incremental()
+        {
+            var soc = SocietyOf(1818, out _, out var roster);
+            var log = Crowd(roster.Count);
+            var full = soc.ReputationEffectsAfter(log, null);
+            Assert.Equal(full, soc.ReputationEffectsAfter(log, null));
+            for (int cut = 1; cut <= log.Count; cut += 7)
+            {
+                var prefix = soc.ReputationEffectsAfter(log.Take(cut).ToList(), null);
+                Assert.Equal(prefix, full.Take(prefix.Count).ToList());
+            }
+        }
+
+        [Fact]
+        public void Reputation_golden_file_is_the_same_data_the_web_checks()
+        {
+            Assert.Contains("\"reputation\"", File.ReadAllText(Path.Combine(Root(), "web", "test", "golden.json")));
+        }
     }
 }

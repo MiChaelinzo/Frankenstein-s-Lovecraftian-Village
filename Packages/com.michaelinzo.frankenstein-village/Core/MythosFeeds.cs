@@ -109,12 +109,18 @@ namespace Frankenstein.Core
             return 0;
         }
 
+        /// <summary>The secret kind or omen id a rumor tells ("" for a missing person), as in <see cref="MythosRumorLine.Ref"/>.</summary>
+        public static string RumorRef(MythosFeed feed, MythosRumor rumor)
+        {
+            return rumor.Source == RumorSource.Secret ? feed.Library.Secrets[feed.State.SecretKind[rumor.Subject]].Id
+                 : rumor.Source == RumorSource.Cosmic ? feed.Library.Omens[rumor.Subject].Id : "";
+        }
+
         /// <summary>The line of a rumor: an authored line of its source and subject kind with the requested truth, picked by seed and night; else <see cref="VillageStory.RumorText"/>.</summary>
         public static string RumorText(MythosFeed feed, VillageStory story, MythosRumor rumor, bool distorted, string lang)
         {
             var eligible = new List<MythosRumorLine>();
-            string refId = rumor.Source == RumorSource.Secret ? feed.Library.Secrets[feed.State.SecretKind[rumor.Subject]].Id
-                         : rumor.Source == RumorSource.Cosmic ? feed.Library.Omens[rumor.Subject].Id : "";
+            string refId = RumorRef(feed, rumor);
             foreach (var l in feed.Library.Rumors) if (l.Source == rumor.Source && l.Ref == refId && l.Truth == !distorted) eligible.Add(l);
             if (eligible.Count == 0) return story.RumorText(rumor.Night, rumor.Stage, rumor.Tier, lang);
             var line = eligible[new SeededRandom(story.Seed ^ MythosSimulation.RumorPickStream ^ (rumor.Night * VillageSociety.IndexStep)).Next(eligible.Count)];
@@ -149,10 +155,11 @@ namespace Frankenstein.Core
     /// <summary>
     /// What a lucid villager can tell the player in a village chat (moved from the web client in round 28): the newest rumor they hold, the truth behind it when they started it,
     /// and a cult member among their links. Nothing for a suspicious, withheld or corrupted chat, so the player only learns what a villager could honestly say.
+    /// Round 36 (spec 181): with a <see cref="RumorMutationLibrary"/> the rumor is told as it has drifted by the night, and the true account joins it at the knowledge tier gate.
     /// </summary>
     public static class MythosChat
     {
-        public static List<MythosChatLine> Lines(VillageSociety society, MythosFeed feed, VillageStory story, int index, TrustTier tier, int night1, VillagerChatResult result, string lang)
+        public static List<MythosChatLine> Lines(VillageSociety society, MythosFeed feed, VillageStory story, int index, TrustTier tier, int night1, VillagerChatResult result, string lang, RumorMutationLibrary mutations = null, int knowledgeTier = 0)
         {
             var lines = new List<MythosChatLine>();
             if (society == null || feed == null || story == null || feed.Current == null) return lines;
@@ -185,7 +192,14 @@ namespace Frankenstein.Core
             {
                 var m = all.Find(x => x.Id == id);
                 if (m == null) continue;
-                lines.Add(new MythosChatLine { Id = id, Text = MythosRules.Text(feed, story, m, MythosRules.IsDistorted(m.Rumor, index), lang) });
+                string text = "";
+                if (mutations != null && m.Rumor != null && id == m.Id)
+                {
+                    var asOf = feed.State.AtNight(Math.Min(night1, feed.Night));
+                    text = RumorMutation.Text(mutations, m.Rumor, MythosRules.RumorRef(feed, m.Rumor), story.Seed, Math.Max(0, night1 - m.Night), RumorMutation.Exposure(asOf), knowledgeTier, lang);
+                }
+                if (text.Length == 0) text = MythosRules.Text(feed, story, m, MythosRules.IsDistorted(m.Rumor, index), lang);
+                lines.Add(new MythosChatLine { Id = id, Text = text });
             }
             return lines;
         }
