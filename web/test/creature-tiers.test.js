@@ -190,3 +190,16 @@ test('creature homes fall back to an open lattice point when every redraw is blo
   }
   assert.ok(checked > 0);
 });
+
+test('a fully blocked village still gives deterministic, finite homes (land homes inside the map)', () => {
+  const w = 24 * CELL_M, blocked = () => true;
+  for (let seed = 1; seed <= 20; seed++) {
+    const t = phaseStart(NIGHT) + 60;
+    const a = CreatureEncounter.spawn(seed, 24, 24, t, 1.0, 'fog', cat, blocked), b = CreatureEncounter.spawn(seed, 24, 24, t, 1.0, 'fog', cat, blocked);
+    assert.deepEqual(a.creatures.map((c) => [c.homeX, c.homeZ]), b.creatures.map((c) => [c.homeX, c.homeZ]));
+    for (const c of a.creatures) {
+      assert.ok(Number.isFinite(c.homeX) && Number.isFinite(c.homeZ), `seed ${seed}`);
+      if (cat.defs.find((d) => d.id === c.defId).habitat === 'fog') assert.ok(c.homeX >= 0 && c.homeX <= w && c.homeZ >= 0 && c.homeZ <= w, `seed ${seed}`);
+    }
+  }
+});

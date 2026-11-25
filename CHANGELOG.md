@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 35 bug sweep
+- Fix: the society action log and the villager memory log carried over when the seed changed in a session (new village, reroll, daily, share code), so a new village started with the old village's trust actions and memories and autosaved them under the new seed. `society-ui.js` now clears both logs when the seed changes (same pattern as the board and theories); test added in `society-ui.test.js`. Web only, Core unchanged, golden unchanged. 
+- Fix: the Fear/Faith/Loyalty/Obsession bars were cached on the action log length, so trust lost to wrong theories (and any action once the log was full at 150) did not reach the loyalty bar until the night changed. The cache now keys on a counter of opinion recomputations; test added in `society-ui.test.js`. Web only, golden unchanged.
+- Fix: the chronicle panel built its "already drawn" key differently in `render()` and `refresh()` (the refresh key had an extra met-count part), so an open panel redrew on every refresh, and neither key saw villager memory changes although the generated prose replays them. One `redrawKey` now serves both and includes a memory change counter (`society.memoryVersion`). Test added in `village-story.test.js`. Web only, golden unchanged. Service worker cache is now `flv-shell-v86`.
+- Test: `tools/browser_check.mjs` gains a memory and chronicle prose section (`MEMORY_ONLY=1`, also in the full run): the saved memory string changes the generated prose in en and fr, no raw placeholder, survives reload. The villager chat memory line itself is not driven in the browser (Unverified there; unit tested).
+- Test: creature homes in a fully blocked village are pinned (deterministic, finite, land homes inside the map) in C# and JS. No behavior change.
+
 ### Round 34 review fixes
 - Fix: the society memory cache key used the log length, which stays at 150 once full, so later events were not replayed until the night changed. It now uses a monotonic edit counter; test added with 151 events.
 - Docs: the Dread intensity level does not change the reality view (only Gentle drops one tier); it affects the director and creature glimpses. The `access.js` comment says so.

@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -739,6 +739,30 @@ async function main() {
     }
   };
 
+  /** Memory and chronicle prose (rounds 34 and 35; MEMORY_ONLY=1 runs only this). Seed 1818 at night 5 with villagers 0, 1, 2 and 4 met. Villager 1 was accused by the player on night 3 (saved memory string), which must change the generated chronicle prose in English and French, leave no raw placeholder, and survive a reload through the session save. */
+  const memoryRun = async () => {
+    const Q = '?intro=0&capture=1&tick=900&chronicle=1', H = '#seed=1818&sanity=40&night=5';
+    const BASE = { seed: 1818, sanity: 40, night: 4, lore: [], board: 'bd1;0,1,2,4;;4:mythos.secret.4:5,4:mythos.rumor.5:5,2:mythos.cult.1:5,0:mythos.omen.5:5' };
+    const fresh = async (query, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + H); await sleep(1500);
+    };
+    const prose = () => ev(`[...document.querySelectorAll('#chronicleProse p')].map((p)=>p.textContent).join('\\n')`);
+    for (const lang of ['en', 'fr']) {
+      await fresh(`${Q}&lang=${lang}`, BASE); const plain = await prose();
+      await fresh(`${Q}&lang=${lang}`, { ...BASE, memory: 'mm1;3:1:0:700:-1' }); const remembered = await prose();
+      rec(`memory: the chronicle prose is written and clean (${lang})`, plain.length > 80 && !/[{}]|undefined|NaN|\u2014/.test(plain), { plain: plain.slice(0, 200) });
+      rec(`memory: a saved memory of an accusation changes the chronicle prose (${lang})`, remembered.length > 80 && remembered !== plain && !/[{}]|undefined|NaN|\u2014/.test(remembered), { remembered: remembered.slice(0, 200) });
+      const dataOk = await ev(`fetch('data/memory.json').then((r)=>r.json()).then((j)=>Array.isArray(j.lines)&&j.lines.length>=5,()=>false)`);
+      rec(`memory: data/memory.json loads in the browser with its authored lines (${lang})`, dataOk === true, { dataOk });
+      const saved = await ev(`JSON.parse(localStorage.getItem('flv.session.v1')||'{}').memory||''`);
+      rec(`memory: the memory string survives the reload and autosave (${lang})`, /^mm1;3:1:0:700:-1/.test(saved), { saved });
+    }
+  };
+
   await send('Runtime.enable'); await send('Page.enable');
   try {
   suite: {
@@ -758,6 +782,7 @@ async function main() {
     if (process.env.LIGHTHOUSE_ONLY) { await lighthouseRun(); break suite; }
     if (process.env.NAMES_ONLY) { await namesRun(); break suite; }
     if (process.env.NARRATIVE_ONLY) { await narrativeRun(); break suite; }
+    if (process.env.MEMORY_ONLY) { await memoryRun(); break suite; }
     if (process.env.VILLAGER_ONLY) { await villagerRun(); break suite; }
     if (process.env.INVENTORY_ONLY) { await inventoryRun(); break suite; }
     if (process.env.CREATURES_ONLY) { await creaturesRun(); break suite; }
@@ -1244,6 +1269,7 @@ async function main() {
     await nav('?intro=0&view=3d&capture=1&grain=0&tick=700&weather=clear&cam3d=54.4,56,200,4#seed=1818&sanity=100'); await sleep(2500);
     rec('birds: the 3D view with birds in the draw list keeps rendering a non-blank frame', (await meanLum()).m > 5, { lum: await meanLum() });
     await societyRun();
+    await memoryRun();
   }
     rec('no uncaught exception or console.error across the run', errs.length === 0, { errors: errs.slice(0, 5) });
   } catch (e) { console.log('DRIVER ERROR ' + e.message); results.push(false); }

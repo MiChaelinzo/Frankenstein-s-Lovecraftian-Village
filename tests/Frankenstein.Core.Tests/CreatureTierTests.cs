@@ -295,5 +295,29 @@ namespace Frankenstein.Core.Tests
             }
             Assert.True(checkedHomes > 0);
         }
+
+        [Fact]
+        public void AFullyBlockedVillageStillGivesDeterministicHomes()
+        {
+            var cat = Catalog();
+            double w = 24 * VillageDressing.Cell;
+            Func<double, double, bool> blocked = (x, z) => true;
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                int t = GameClock.PhaseStart(DayPhase.Night) + 60;
+                var a = CreatureEncounter.Spawn(seed, 24, 24, t, 1.0, "fog", cat, blocked);
+                var b = CreatureEncounter.Spawn(seed, 24, 24, t, 1.0, "fog", cat, blocked);
+                Assert.Equal(a.Creatures.Count, b.Creatures.Count);
+                for (int k = 0; k < a.Creatures.Count; k++)
+                {
+                    Assert.Equal(a.Creatures[k].HomeX, b.Creatures[k].HomeX);
+                    Assert.Equal(a.Creatures[k].HomeZ, b.Creatures[k].HomeZ);
+                    Assert.False(double.IsNaN(a.Creatures[k].HomeX) || double.IsNaN(a.Creatures[k].HomeZ));
+                    if (cat.Defs.First(d => d.Id == a.Creatures[k].DefId).Habitat != "fog") continue;
+                    Assert.InRange(a.Creatures[k].HomeX, 0.0, w);
+                    Assert.InRange(a.Creatures[k].HomeZ, 0.0, w);
+                }
+            }
+        }
     }
 }

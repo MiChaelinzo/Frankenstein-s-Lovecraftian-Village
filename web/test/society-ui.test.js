@@ -284,3 +284,40 @@ test('memory still updates after the log is full (cache key uses a counter, not 
   assert.equal(society.record(3, 0), true); // the 151st event
   assert.equal(society.memoryOutcome(0), 2, 'the new event replays although the log length is unchanged');
 });
+
+test('a new village starts with a clean action log and no memories; a restore for the new seed still sticks', () => {
+  const { society, state } = make({ night: 2 });
+  society.record(3, 0); society.record(3, 0);
+  assert.ok(society.log().length > 0 && society.memoryEvents().length > baselineCount());
+  state.seed = SEED + 1;
+  assert.deepEqual(society.log(), [], 'the old village actions do not carry over');
+  assert.equal(society.memoryEvents().length, baselineCount(), 'only the story baseline remains');
+  assert.equal(society.snapshot().society, serializeSocietyLog([]));
+  const saved = { society: serializeSocietyLog([{ kind: 0, subject: 1 }]), memory: 'mm1;' };
+  society.restore(saved);
+  assert.equal(society.log().length, 1, 'a restore right after the seed change is kept');
+});
+test('an all-villagers action right after a seed change is not lost to the reset', () => {
+  const { society, state } = make({ night: 2 });
+  society.record(3, 0);
+  state.seed = SEED + 2;
+  assert.equal(society.record(1, -1), true);
+  assert.equal(society.log().length, 1, 'only the new village action remains');
+});
+function baselineCount() { return story.missing.filter((m) => m.kinIndex >= 0).length; }
+
+test('axes follow the opinions: lost trust from wrong theories and a full log both change the loyalty bar', () => {
+  const state = { seed: SEED, layout, sanity: new SanityModel(20), night: 2, ritualStage: 3 };
+  let lost = 0;
+  const society = createSocietyController({ state, story: () => story, gridW: CITY_GRID, gridD: CITY_GRID, cell: CELL, trustLost: () => lost });
+  society.setStatements(statements);
+  const before = society.axes(0).loyalty;
+  lost = 40; // 400 per mille of trust gone
+  assert.ok(society.axes(0).loyalty < before, 'loyalty drops with the trust that was lost');
+  lost = 0;
+  assert.equal(society.axes(0).loyalty, before, 'and returns when the loss is undone');
+  for (let i = 0; i < 150; i += 1) society.record(1, -1); // fills the log with a trust gain for everyone
+  const full = society.axes(0).loyalty;
+  society.record(5, -1); // the 151st action (a trust loss) replaces the oldest; the length stays at 150
+  assert.ok(society.axes(0).loyalty < full, 'the new action reaches the axes although the log length is unchanged');
+});

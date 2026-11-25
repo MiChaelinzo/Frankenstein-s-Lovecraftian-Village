@@ -91,11 +91,12 @@ export function createChronicleController(deps) {
 
   let renderedKey = '';
   const mythosStamp = (c) => `${deps.mythosKey ? deps.mythosKey() : ''}|${c.mythosHeard ? c.mythosHeard.size : 0}|${c.met ? [...c.met].map((i) => (c.bars ? (c.bars(i) || []).map((r) => r.value).join('.') : '')).join(',') : ''}|${c.theories.map((t) => `${t.instance}${t.grade}`).join('')}|${c.outcomeLine ? deps.story() && deps.story().missing.map((_, k) => c.outcomeLine(k).length).join('.') : ''}`;
+  /** Everything the panel shows that can change while it is open. render() stores it and refresh() compares against it, so both must use this one function. memoryVersion: the prose replays what villagers remember, and the event count stops growing at its cap. */
+  const redrawKey = (c) => `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}|${c.met ? c.met.size : 0}|${deps.memoryVersion ? deps.memoryVersion() : 0}`;
   /** Re-renders an open panel only when something it shows changed (night, dread tier, books read, chat heard, village). */
   function refresh() {
     if (!on) return;
-    const c = ctx(), key = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}|${c.met ? c.met.size : 0}`;
-    if (key !== renderedKey) render();
+    if (redrawKey(ctx()) !== renderedKey) render();
   }
 
   /** Round 34 (spec 172): the seed share code line and the export buttons. Exports hold only what the chronicle already shows. */
@@ -115,7 +116,7 @@ export function createChronicleController(deps) {
     renderedKey = '';
     if (!story) { body.innerHTML = `<p class="stats">${esc(tr('chronicle.empty'))}</p>`; return; }
     const c = ctx(), m = chronicleModel(story, lang(), c);
-    renderedKey = `${state.seed}|${state.layout.length}|${c.night}|${tierFor(c.dread)}|${c.readIds.size}|${heard.size}|${[...heard.values()].join('')}|${mythosStamp(c)}|${c.knowledge ? c.knowledge.tier : 0}`;
+    renderedKey = redrawKey(c);
     const parts = [`<h3>${esc(tr('chronicle.rumor'))}</h3><p class="chronicle-rumor">${esc(m.rumor)}</p>`];
     parts.push(`<h3>${esc(tr('chronicle.missing'))}</h3><ul class="chronicle-list">${m.missing.map((p) => {
       const got = ['page', 'journal', 'chat'].filter((k) => p.parts[k]).map((k) => tr(`chronicle.told.${k}`)).join(', ');

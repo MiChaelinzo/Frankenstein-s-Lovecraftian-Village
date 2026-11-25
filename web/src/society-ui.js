@@ -84,10 +84,17 @@ export function barRows(trust, axes, stage) {
 export function createSocietyController(deps) {
   const { state } = deps;
   let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
-  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0;
+  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0, opinionsVersion = 0; // opinionsVersion counts recomputations: the log length stays at its cap and lost trust is not in the key
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
+  let seenSeed = null;
+  /** A new village (another seed) starts with no action log and no memories, like the board and the theories. Called before any read or write of the logs. */
+  function ensureSeed() {
+    if (seenSeed === state.seed) return;
+    seenSeed = state.seed; log = []; memoryLog = []; memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; adjusted = null;
+  }
 
   function society() {
+    ensureSeed();
     const story = deps.story ? deps.story() : null;
     if (!story) return null;
     if (story !== builtStory || state.layout !== builtLayout) { built = buildSociety(story, state.layout); builtStory = story; builtLayout = state.layout; opinions = null; stageKey = ''; mythosKey = ''; graph = null; }
@@ -124,7 +131,7 @@ export function createSocietyController(deps) {
     const feed = mythosFeed(), key = feed ? mythosKey : '';
     const lost = Math.max(0, deps.trustLost ? deps.trustLost() | 0 : 0) * TRUST_UNIT;
     if (!opinions || opinionsLen !== log.length || opinionsKey !== key || lostApplied !== lost) {
-      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost;
+      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost; opinionsVersion += 1;
       if (lost > 0) opinions = { ...opinions, trust: opinions.trust.map((t) => Math.max(0, t - lost)) }; // wrong theories about villagers cost trust (Core TheoryRules.TrustLost, whole points of 0..100)
     }
     return opinions;
@@ -164,7 +171,7 @@ export function createSocietyController(deps) {
   function axesList() {
     const s = society(), o = adjustedOpinions();
     if (!s || !o) return null;
-    const key = `${opinionsLen}|${opinionsKey}|${memoryKeyOf}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
+    const key = `${opinionsVersion}|${opinionsKey}|${memoryKeyOf}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
     if (key !== axesKey) { axesKey = key; axesCache = s.axesAfter(o, night(), state.sanity.dread, state.ritualStage, memory().effectsOfAll()); }
     return axesCache;
   }
@@ -186,6 +193,7 @@ export function createSocietyController(deps) {
   function remember(ev) { memoryEdits += 1; memoryLog.push(ev); /* the counter, not the length, keys the cache: the length stays at the cap */ if (memoryLog.length > MAX_MEMORY_LOG) memoryLog.shift(); }
 
   function record(kind, subject) {
+    ensureSeed(); // an ALL_VILLAGERS action skips society() below, so reset a stale log here first
     if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_IDS.length || !Number.isInteger(subject)) return false;
     if (subject !== ALL_VILLAGERS && !(society() && subject >= 0 && subject < society().roster.length)) return false;
     log.push({ kind, subject });
@@ -234,7 +242,9 @@ export function createSocietyController(deps) {
     setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
     /** What a villager says because of what they remember in a language, '' when nothing or no data. */
     /** Round 34: the story baseline plus the live events, the log the generated chronicle replays; null without a story. */
-    memoryEvents() { const s = deps.story(); return s ? [...baselineEvents(s), ...memoryLog] : null; },
+    /** Counts every change of the memory log, for panels that redraw on it (the log length stops growing at its cap). */
+    memoryVersion: () => { ensureSeed(); return memoryEdits; },
+    memoryEvents() { ensureSeed(); const s = deps.story(); return s ? [...baselineEvents(s), ...memoryLog] : null; },
     memoryLine(index, night1, lang) { const m = memory(); return m && memoryLib ? m.lineFor(memoryLib, state.seed, index, night1, lang) : ''; },
     /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */
     memoryOutcome(index) { const m = memory(); return m ? m.outcomeOf(index) : MEMORY_NONE; },
@@ -259,8 +269,8 @@ export function createSocietyController(deps) {
       const s = society(), st = standing(index);
       return s && st ? authoredChatStatement(statements, ROLE_IDS[s.roster[index].role], night1, result, st.tier) : null;
     },
-    log: () => log.slice(),
-    snapshot: () => ({ society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }),
-    restore(saved) { log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
+    log: () => { ensureSeed(); return log.slice(); },
+    snapshot: () => { ensureSeed(); return { society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }; },
+    restore(saved) { ensureSeed(); log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
   };
 }
