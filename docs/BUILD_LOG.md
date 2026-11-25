@@ -456,3 +456,20 @@ Commits on this branch since the round 23 base, from `git log`: `128dc6a` feat: 
 - FEAT-009 `docs: round 34 status`: README, CHANGELOG, BUILD_LOG and `.kiro/specs/tasks.md` (Round 34 block and unbuilt specs 174 to 180). No code change; the regenerated `stitch.json` bumps the cache to v83.
 - Final checks: dotnet 474, node 833, tools tests, validate_repo, UnityCompileCheck 0/0. Browser sections, one run each on SwiftShader: `REALITY_ONLY` 3 of 3, `INTENSITY_ONLY` 4 of 4 (the first attempt printed "browser did not expose a page target", the retry passed), `SEED_ONLY` 6 of 6, `SOCIETY_ONLY` 11 of 11, `THEORY_ONLY` 9 of 9, `NARRATIVE_ONLY` 2 of 2. A full run was not done, there is no memory or chronicle prose section and no new still was captured.
 - Verified: Core and JS tests. Partially Verified: the browser sections above. Unverified: Unity runtime wiring, real GPU, in-browser rendering of memory lines and chronicle prose.
+
+## Round 36 (branch feat/round36): performance audit (FEAT-009)
+
+`node tools/perf_audit.mjs` builds one seed 1818 city (12 nights, tier 5) and reports ms per call as the median and p95 of 15 batches. Run on node v22 in the build sandbox (indicative of this sandbox only; 60 and 30 FPS on real hardware are Unverified):
+
+| System | median ms | p95 ms |
+|---|---|---|
+| Memory Engine (replay, effects, lines) | 0.017 | 0.068 |
+| Chronicle prose with evolution (12 nights) | 0.340 | 0.485 |
+| Reality layer at tier 5 with collapse (all subjects, 12 nights) | 0.037 | 0.102 |
+| Villager update (placements of the whole roster, one frame) | 0.104 | 0.277 |
+| Rumor mutation (every chain) | 0.001 | 0.002 |
+| Reputation propagation (12 logged actions) | 0.022 | 0.068 |
+| Director step and ambient beat (60 ticks) | 0.027 | 0.083 |
+| Mythos with cult leadership (12 nights) | 0.142 | 0.304 |
+
+Finding: no hotspot. The slowest system (chronicle) is run once per night change, not per frame; the per frame path (villager placements) costs 0.1 ms against a 16.7 ms frame. No source was changed, so golden data stays byte identical. Regression budget: `web/test/perf-budget.test.js` asserts each median under 10 ms (villager frame 5 ms), at least 15 times the measured medians. Run 3 times, passing. Verified: node tests. Unverified: real hardware frame rates.

@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-009): performance audit
+- `tools/perf_audit.mjs` measures Memory Engine, chronicle with evolution, reality collapse, villager placements, rumor mutation, reputation propagation, director and cult leadership. All medians are under 0.35 ms in the sandbox (indicative only), so no hotspot was fixed and outputs are unchanged. New budget tests in `web/test/perf-budget.test.js` (10 ms per call, 5 ms villager frame). Service worker cache `flv-shell-v96`. Numbers in `docs/BUILD_LOG.md`.
+
 ### Round 36 (FEAT-011): living evolution reaches the player (specs 175, 176, 182, 183)
 - Web only, presentation: `app.js` keeps the ambient beats the player lived through this session (`experiencedBeats`, not saved) and passes `evolution` ({ reputation effects, rumor mutation library, beats }) to the chronicle, so the generated prose tells leader events, reputation spread, rumor drift and beats. `society-ui.js` records the night of each action in a session-only array (`reputationEffects` now carries nights; restored saves count as night 0) and exposes `rumorMutationLibrary()`. People met in the chronicle show a one line reputation note (`society.reputation.trusted` and `.accused`, en and fr).
 - Saved state, golden keys and the save strings are unchanged (tested). Service worker cache `flv-shell-v95`. Browser section `EVOLUTION_ONLY=1` (seed 1818, night 3, `?kit=evolution` QA hook) checks the night 3 prose changes to tell the beat in en and fr.

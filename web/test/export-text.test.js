@@ -70,7 +70,7 @@ test('the title, the chronicle and the board carry the seed code, its entry and 
   const html = read('../index.html'), sw = read('../sw.js'), app = read('../src/app.js');
   for (const id of ['titleSeedCode', 'titleSeedInput', 'titleSeedApply', 'titleSeedMsg', 'titleDaily', 'chronicleSeed', 'chronicleExportMd', 'chronicleExportTxt', 'dailyCode']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /<label for="titleSeedInput"/);
-  assert.match(sw, /data\/seedshare\.json/); assert.match(sw, /src\/export-text\.js/); assert.match(sw, /flv-shell-v95/);
+  assert.match(sw, /data\/seedshare\.json/); assert.match(sw, /src\/export-text\.js/); assert.match(sw, /flv-shell-v96/);
   assert.match(app, /data\/seedshare\.json/);
   assert.ok(!/<script(?![^>]*src=)/.test(html) && !/\sstyle="/.test(html.slice(html.indexOf('id="title"'))), 'no inline script or style');
 });

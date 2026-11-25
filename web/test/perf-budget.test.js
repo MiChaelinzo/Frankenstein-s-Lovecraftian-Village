@@ -52,3 +52,21 @@ test('timing: a single village is generated under 500 ms', () => {
   generateLayout(catalog, 24, 24, 80, 1818);
   assert.ok(performance.now() - t0 < 500);
 });
+
+// Round 36 (FEAT-009): per call budgets for the living evolution systems, measured by tools/perf_audit.mjs.
+// Medians in the audit sandbox are 0.001 to 0.34 ms; the budgets are 15 to 30 times the slowest median so slow CI does not flake. Indicative only, real hardware is Unverified.
+import { auditCases, measure } from '../../tools/perf_audit.mjs';
+const BUDGET_MS = 10, VILLAGER_FRAME_BUDGET_MS = 5, BUDGET_SAMPLES = 5, BUDGET_ITERATIONS = 5;
+test('timing: every living evolution system stays inside its per call budget (median of batches)', () => {
+  const cases = auditCases();
+  assert.equal(cases.length, 8);
+  for (const c of cases) {
+    const { median } = measure(() => c.run(), BUDGET_ITERATIONS, BUDGET_SAMPLES);
+    const limit = c.name.startsWith('villager update') ? VILLAGER_FRAME_BUDGET_MS : BUDGET_MS;
+    assert.ok(median < limit, `${c.name}: ${median.toFixed(3)} ms median over ${limit} ms`);
+  }
+});
+test('audit cases are deterministic: two worlds built from the same seed run the same work', () => {
+  const a = auditCases(1818), b = auditCases(1818);
+  assert.deepEqual(a.map((c) => c.name), b.map((c) => c.name));
+});
