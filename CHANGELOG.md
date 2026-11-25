@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-011): living evolution reaches the player (specs 175, 176, 182, 183)
+- Web only, presentation: `app.js` keeps the ambient beats the player lived through this session (`experiencedBeats`, not saved) and passes `evolution` ({ reputation effects, rumor mutation library, beats }) to the chronicle, so the generated prose tells leader events, reputation spread, rumor drift and beats. `society-ui.js` records the night of each action in a session-only array (`reputationEffects` now carries nights; restored saves count as night 0) and exposes `rumorMutationLibrary()`. People met in the chronicle show a one line reputation note (`society.reputation.trusted` and `.accused`, en and fr).
+- Saved state, golden keys and the save strings are unchanged (tested). Service worker cache `flv-shell-v95`. Browser section `EVOLUTION_ONLY=1` (seed 1818, night 3, `?kit=evolution` QA hook) checks the night 3 prose changes to tell the beat in en and fr.
+- Gaps: the phantom path (spec 183) has no web drawing hook and the director dimming step (spec 175) has no bounded scene hook, so both stay computed only, not shown. Verified: node tests, browser section 3/3 (SwiftShader). Unverified: Unity runtime, the live reputation line in a long play session.
+
 ### Round 36 (FEAT-008): streamer challenge features (spec 184)
 - Core: new `StreamerChallenge.cs` with `WeeklySeed` (ISO 8601 week key "YYYY-Www" by the Thursday rule, no ISOWeek class needed in Unity; seed and share code through `DailySeed`/`SeedShare`), `InvestigationAccuracy` (0 to 100: 70 percent theory correctness with True 2, Partial 1, False 0 points, 30 percent mean evidence belief) and `LeaderboardExport` (JSON `flv-challenge-1`: rank, seed, share code, score, theory and ending counts; no names or free text; parses back and checks each share code; capped at 25).
 - Web: `challenge.js` mirrors them; the tools group shows the weekly code (`weeklyCode`), the theory panel gets "Export challenge" .json and .txt buttons (`export.challenge.*`, en and fr). The result list lives in this browser's storage only (`flv.challenge.v1`), nothing is sent. Golden key `streamerChallenge` is new, existing keys byte identical. Service worker cache `flv-shell-v94`.

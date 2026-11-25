@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -646,6 +646,19 @@ async function main() {
     rec('seed: the chronicle shows the seed code and both export buttons, the tools row shows today\'s code', /Village seed: 1818-[A-Z]+-[A-Z]+/.test(chron.seed) && chron.md && chron.txt && /Daily Village Challenge/.test(chron.daily), chron);
   };
 
+  /** Living evolution wiring (round 36, spec 175, 176, 182): with ?kit=evolution the player has heard a distant bell tonight, and the chronicle prose for that night (seed 1818, night 3) gains a sentence it lacks without the kit, in English and French, without a raw placeholder. Presentation only, SwiftShader, Partially Verified. EVOLUTION_ONLY=1 runs only this. */
+  const evolutionRun = async () => {
+    const proseOf = async (lang, kit) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&capture=1&tick=900&chronicle=1&lang=${lang}${kit ? '&kit=evolution' : ''}#seed=1818&sanity=40&night=3`);
+      return until(async () => { const v = await ev(`(()=>{const p=document.querySelector('[data-prose-night="3"]');return p?p.textContent:null})()`); return v || null; }, 40000).catch(() => null);
+    };
+    for (const lang of ['en', 'fr']) {
+      const plain = await proseOf(lang, false), kit = await proseOf(lang, true);
+      rec(`evolution: the night 3 chronicle prose changes to tell the ambient beat with the kit (${lang})`, !!plain && !!kit && kit !== plain && kit.startsWith(plain.slice(0, 20)) && !kit.includes('{'), { plain, kit });
+    }
+  };
+
   /** Victorian reskin (round 33, spec 165: aged paper, brass and ink over the round 29 layer; VICTORIAN_ONLY=1 runs only this). VICTORIAN_SHOT_DIR=<dir> with VICTORIAN_SHOT_PREFIX (default r33-after) saves <prefix>-title.jpg, -board.jpg, -chronicle.jpg and -journal.jpg. Checks run in English and French: no horizontal overflow at 1280 px wide and at 150% zoom, a visible keyboard focus ring, chronicle ink reveal that stops under reduced motion. */
   const victorianRun = async () => {
     const { writeFileSync } = await import('node:fs');
@@ -812,6 +825,7 @@ async function main() {
     if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
     if (process.env.REALITY_ONLY) { await realityRun(); break suite; }
     if (process.env.SEED_ONLY) { await seedRun(); break suite; }
+    if (process.env.EVOLUTION_ONLY) { await evolutionRun(); break suite; }
     if (process.env.INTENSITY_ONLY) { await intensityRun(); break suite; }
     // keyboard and panels on the 2D view
     await nav('?intro=0#seed=1818&sanity=100');

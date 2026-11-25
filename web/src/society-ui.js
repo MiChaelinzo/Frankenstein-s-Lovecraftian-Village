@@ -84,14 +84,14 @@ export function barRows(trust, axes, stage) {
 
 export function createSocietyController(deps) {
   const { state } = deps;
-  let log = [], rumorMutations = null, mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
+  let log = [], logNights = [], rumorMutations = null, mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
   let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0, opinionsVersion = 0; // opinionsVersion counts recomputations: the log length stays at its cap and lost trust is not in the key
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
   let seenSeed = null;
   /** A new village (another seed) starts with no action log and no memories, like the board and the theories. Called before any read or write of the logs. */
   function ensureSeed() {
     if (seenSeed === state.seed) return;
-    seenSeed = state.seed; log = []; memoryLog = []; memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; adjusted = null;
+    seenSeed = state.seed; log = []; logNights = []; memoryLog = []; memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; adjusted = null;
   }
 
   function society() {
@@ -197,8 +197,8 @@ export function createSocietyController(deps) {
     ensureSeed(); // an ALL_VILLAGERS action skips society() below, so reset a stale log here first
     if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_IDS.length || !Number.isInteger(subject)) return false;
     if (subject !== ALL_VILLAGERS && !(society() && subject >= 0 && subject < society().roster.length)) return false;
-    log.push({ kind, subject });
-    if (log.length > MAX_LOG) log.shift();
+    log.push({ kind, subject }); logNights.push(night()); // session only: the saved log keeps no nights
+    if (log.length > MAX_LOG) { log.shift(); logNights.shift(); }
     const ev = eventFor(kind, subject, night());
     if (ev) remember(ev);
     opinions = null; changed();
@@ -240,6 +240,8 @@ export function createSocietyController(deps) {
     /** Loads data/mythos.json (object); without it the village has no background simulation and every mythos method returns nothing. */
     setMythos(json) { mythosLib = json ? parseMythosLibrary(json) : null; mythosKey = ''; finalKey = ''; opinions = null; },
     /** Round 36 (spec 181): loads data/rumor-mutations.json (object); without it rumors are told unmutated. */
+    /** The parsed rumor mutation library or null, for the chronicle's drift sentences. */
+    rumorMutationLibrary: () => rumorMutations,
     setRumorMutations(json) { rumorMutations = json ? parseRumorMutationLibrary(json) : null; },
     /** Loads data/memory.json (object); without it villagers still remember (effects apply) but say no memory line. */
     setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
@@ -252,9 +254,9 @@ export function createSocietyController(deps) {
     /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */
     memoryOutcome(index) { const m = memory(); return m ? m.outcomeOf(index) : MEMORY_NONE; },
     /** Round 36 (spec 176): the effect records of everything the player did (society.js reputationEffectsAfter), for the chronicle and UI; empty without a society. */
-    reputationEffects() { const s = society(); return s ? s.reputationEffectsAfter(log) : []; },
+    reputationEffects() { const s = society(); return s ? s.reputationEffectsAfter(log, logNights) : []; },
     /** Round 36: the effects one villager holds against or for the player, strongest first; [] without a society. */
-    reputationOf(index) { const s = society(); return (s ? s.reputationEffectsAfter(log) : []).filter((e) => e.target === index).sort((a, b) => b.strength - a.strength || a.hop - b.hop); },
+    reputationOf(index) { const s = society(); return (s ? s.reputationEffectsAfter(log, logNights) : []).filter((e) => e.target === index).sort((a, b) => b.strength - a.strength || a.hop - b.hop); },
     mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
     stages, stageOf, standing, axes, record,
     /** The six bars (trust, fear, faith, loyalty, obsession, corruption) of a villager, or null. */
@@ -278,6 +280,6 @@ export function createSocietyController(deps) {
     },
     log: () => { ensureSeed(); return log.slice(); },
     snapshot: () => { ensureSeed(); return { society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }; },
-    restore(saved) { ensureSeed(); log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
+    restore(saved) { ensureSeed(); log = parseSocietyLog(saved && saved.society); logNights = log.map(() => 0); /* restored actions have no known night */ memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
   };
 }
