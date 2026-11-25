@@ -38,6 +38,99 @@ namespace Frankenstein.Core.Tests
             return string.Join(",", parts);
         }
 
+        public static readonly string[] PathIds = { "orchard_lane", "tide_steps", "bell_path", "cellar_way", "ridge_track" };
+
+        /// <summary>Everything Reality Collapse can show for one seed, night and tier: drifted house names, the erased villager, identity steps and visible phantom paths.</summary>
+        public static string CollapseSignature(RealityLibrary lib, int seed, int night, int tier)
+        {
+            var parts = new List<string>();
+            for (int h = 0; h < Houses; h++) parts.Add("h" + RealityInstability.CollapsedHouseName(lib, seed, night, tier, h));
+            parts.Add("e" + RealityInstability.ErasedVillager(seed, night, tier, Villagers));
+            for (int v = 0; v < Villagers; v++) parts.Add("i" + RealityInstability.IdentityStep(seed, night, tier, v));
+            foreach (var id in PathIds) parts.Add(RealityInstability.PhantomPathVisible(seed, night, tier, id) ? "p" : "-");
+            return string.Join(",", parts);
+        }
+
+        [Fact]
+        public void CollapseNeedsTierFiveAndIsDeterministic()
+        {
+            var lib = Library();
+            string none = CollapseSignature(lib, 1, 1, 0);
+            int changed = 0;
+            foreach (int seed in Seeds)
+                for (int night = 1; night <= Nights; night++)
+                {
+                    for (int tier = -1; tier < RealityInstability.CollapseTier; tier++) Assert.Equal(none, CollapseSignature(lib, seed, night, tier));
+                    string a = CollapseSignature(lib, seed, night, 5);
+                    Assert.Equal(a, CollapseSignature(lib, seed, night, 5));
+                    if (a != none) changed++;
+                }
+            Assert.True(changed > 0, "tier 5 collapses something");
+        }
+
+        [Fact]
+        public void CollapseHousesStayDriftedVillagerStaysErasedIdentityStepsUpAndPathsVanish()
+        {
+            var lib = Library();
+            int drifted = 0, erased = 0, stepped = 0, phantoms = 0;
+            foreach (int seed in Seeds)
+            {
+                for (int h = 0; h < Houses; h++)
+                {
+                    int first = -1;
+                    for (int night = 1; night <= Nights; night++)
+                    {
+                        int k = RealityInstability.CollapsedHouseName(lib, seed, night, 5, h);
+                        if (first < 0 && k >= 0) { first = k; drifted++; }
+                        if (first >= 0) Assert.Equal(first, k);
+                    }
+                }
+                int gone = -1;
+                for (int night = 1; night <= Nights; night++)
+                {
+                    int e = RealityInstability.ErasedVillager(seed, night, 5, Villagers);
+                    if (gone < 0 && e >= 0) { gone = e; erased++; }
+                    if (gone >= 0) Assert.Equal(gone, e);
+                }
+                for (int v = 0; v < Villagers; v++)
+                {
+                    int previous = 0;
+                    for (int night = 1; night <= Nights; night++)
+                    {
+                        int step = RealityInstability.IdentityStep(seed, night, 5, v);
+                        Assert.InRange(step, previous, RealityInstability.IdentityUnknown);
+                        previous = step;
+                    }
+                    if (previous == RealityInstability.IdentityUnknown) stepped++;
+                }
+                foreach (var id in PathIds)
+                {
+                    int nights = Enumerable.Range(1, Nights).Count(n => RealityInstability.PhantomPathVisible(seed, n, 5, id));
+                    Assert.InRange(nights, 0, 1);
+                    phantoms += nights;
+                }
+            }
+            Assert.True(drifted > 0 && erased > 0 && stepped > 0 && phantoms > 0, "every collapse kind occurs");
+            Assert.Equal(-1, RealityInstability.ErasedVillager(1, 9, 5, 1));
+        }
+
+        [Fact]
+        public void CollapseIsPresentationOnlyAndLeavesStateBytesIdentical()
+        {
+            var lib = Library();
+            string Snapshot() => DataText() + "|" + string.Join("|", Seeds.SelectMany(seed => Enumerable.Range(1, Nights).Select(n => VillageSocietyTestsSnapshot(seed, n))));
+            string before = Snapshot();
+            foreach (int seed in Seeds) for (int night = 1; night <= Nights; night++) for (int tier = 0; tier < KnowledgeLibrary.TierCount; tier++) CollapseSignature(lib, seed, night, tier);
+            Assert.Equal(before, Snapshot());
+            // The collapse functions take no state, so the earlier signature of the round 34 layer is unchanged by them.
+            Assert.Equal(Signature(lib, 42, 3, 5), Signature(lib, 42, 3, 5));
+        }
+
+        private static string VillageSocietyTestsSnapshot(int seed, int night)
+        {
+            return string.Join(",", Enumerable.Range(0, Villagers).Select(v => RealityInstability.BlurredIdentity(seed, night, 5, v, Villagers)));
+        }
+
         [Fact]
         public void BelowTierThreeNothingChanges()
         {

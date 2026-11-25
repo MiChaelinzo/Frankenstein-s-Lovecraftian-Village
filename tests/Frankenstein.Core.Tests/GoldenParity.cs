@@ -406,6 +406,9 @@ namespace Frankenstein.Core.Tests
             AppendReality(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendRealityCollapse(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendSeedShare(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1912,6 +1915,21 @@ namespace Frankenstein.Core.Tests
                 var nights = new List<string>();
                 for (int night = 1; night <= RealityInstabilityTests.Nights; night++)
                     nights.Add("[" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => Q(RealityInstabilityTests.Signature(lib, seed, night, t)))) + "]");
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "realityCollapse" (round 36, spec 183): per city seed and night, the Reality Collapse signature at tier 5 (drifted house names, erased villager, identity steps, phantom paths).</summary>
+        private static void AppendRealityCollapse(StringBuilder sb)
+        {
+            var lib = RealityInstabilityTests.Library();
+            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var nights = Enumerable.Range(1, RealityInstabilityTests.Nights).Select(n => Q(RealityInstabilityTests.CollapseSignature(lib, seed, n, KnowledgeLibrary.MaxTier)));
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
                 first = false;
             }

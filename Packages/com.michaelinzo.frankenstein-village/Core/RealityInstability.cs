@@ -73,6 +73,11 @@ namespace Frankenstein.Core
         public const int HouseTier = 3, VillagerTier = 4, BoardTier = 5;
         public const int KindHouse = 1, KindFalseVillager = 2, KindContradiction = 3, KindIdentity = 4, KindLocation = 5;
 
+        // Reality Collapse (round 36, spec 183): at knowledge tier 5 the village starts to forget itself. Each kind has a per seed onset night inside [CollapseOnsetFloor, CollapseOnsetFloor + CollapseOnsetSpan).
+        public const int CollapseTier = 5, CollapseOnsetFloor = 2, CollapseOnsetSpan = 4, CollapseIdentitySteps = 2;
+        public const int KindCollapseHouse = 6, KindCollapseVillager = 7, KindCollapseIdentity = 8, KindCollapsePath = 9;
+        public const int IdentityTrue = 0, IdentityQuestioned = 1, IdentityUnknown = 2;
+
         /// <summary>Whether the badge "reality unreliable" shows at this knowledge tier.</summary>
         public static bool Unreliable(int tier) { return tier >= HouseTier; }
 
@@ -87,6 +92,10 @@ namespace Frankenstein.Core
                 case KindContradiction: return tier >= BoardTier ? 500 : 0;
                 case KindIdentity: return tier >= BoardTier ? 350 : 0;
                 case KindLocation: return tier >= BoardTier ? 400 : 0;
+                case KindCollapseHouse: return tier >= CollapseTier ? 500 : 0;
+                case KindCollapseVillager: return tier >= CollapseTier ? 300 : 0;
+                case KindCollapseIdentity: return tier >= CollapseTier ? 350 : 0;
+                case KindCollapsePath: return tier >= CollapseTier ? 400 : 0;
                 default: return 0;
             }
         }
@@ -145,6 +154,46 @@ namespace Frankenstein.Core
         {
             var rng = Rng(seed, night, KindLocation, SubjectOf(placeId));
             return Hit(rng, KindLocation, tier) ? rng.Next(lib.LocationLooks.Count) : -1;
+        }
+
+        // Collapse subjects are decided once per seed (night 0 stream); the night only decides whether the onset has passed. The true value is never changed, a client shows the truth by ignoring these.
+        private static int Onset(SeededRandom rng) { return CollapseOnsetFloor + rng.Next(CollapseOnsetSpan); }
+
+        /// <summary>Index into <see cref="RealityLibrary.HouseNames"/> of the name house <paramref name="house"/> has drifted to from its onset night on (it stays drifted, a Thorn House becomes a Mourning House), or -1 for the true name.</summary>
+        public static int CollapsedHouseName(RealityLibrary lib, int seed, int night, int tier, int house)
+        {
+            var rng = Rng(seed, 0, KindCollapseHouse, house);
+            if (!Hit(rng, KindCollapseHouse, tier)) return -1;
+            int onset = Onset(rng);
+            int name = rng.Next(lib.HouseNames.Count);
+            return night >= onset ? name : -1;
+        }
+
+        /// <summary>The villager index that never existed from its onset night on (it was in the village before), or -1. At most one per seed. Needs at least two villagers.</summary>
+        public static int ErasedVillager(int seed, int night, int tier, int count)
+        {
+            if (count < 2) return -1;
+            var rng = Rng(seed, 0, KindCollapseVillager, 0);
+            if (!Hit(rng, KindCollapseVillager, tier)) return -1;
+            int onset = Onset(rng);
+            int villager = rng.Next(count);
+            return night >= onset ? villager : -1;
+        }
+
+        /// <summary>How far villager <paramref name="villager"/>'s identity has blurred: <see cref="IdentityTrue"/> (Name), <see cref="IdentityQuestioned"/> (Name?) or <see cref="IdentityUnknown"/> (Unknown plus the role). One step per night after the onset.</summary>
+        public static int IdentityStep(int seed, int night, int tier, int villager)
+        {
+            var rng = Rng(seed, 0, KindCollapseIdentity, villager);
+            if (!Hit(rng, KindCollapseIdentity, tier)) return IdentityTrue;
+            int onset = Onset(rng);
+            return night < onset ? IdentityTrue : Math.Min(CollapseIdentitySteps, night - onset + 1);
+        }
+
+        /// <summary>Whether the phantom path <paramref name="pathId"/> is drawn tonight. A phantom path is an extra path that does not exist: it appears on exactly one night (its onset) and is gone the next. False below tier 5 and for ids that never collapse.</summary>
+        public static bool PhantomPathVisible(int seed, int night, int tier, string pathId)
+        {
+            var rng = Rng(seed, 0, KindCollapsePath, SubjectOf(pathId));
+            return Hit(rng, KindCollapsePath, tier) && night == Onset(rng);
         }
     }
 }

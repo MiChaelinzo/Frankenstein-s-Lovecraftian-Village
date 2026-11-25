@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   parseRealityLibrary, realityHouseName, realityFalseVillager, realityContradictionHidden, realityBlurredIdentity, realityLocationLook, realityUnreliable, createRealityView,
+  realityCollapsedHouseName, realityErasedVillager, realityIdentityStep, realityPhantomPathVisible, COLLAPSE_TIER,
   REALITY_NOTE_IDS, HOUSE_TIER,
 } from '../src/reality.js';
 import { parseSession, serializeSession } from '../src/session.js';
@@ -98,3 +99,49 @@ test('parse names the broken field', () => {
 });
 
 test('golden data covers every tier', () => assert.equal(golden.cities[0].nights[0].length, TIERS));
+
+const collapse = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).realityCollapse;
+const collapseSig = (seed, night, tier) => [
+  ...Array.from({ length: golden.houses }, (_, h) => `h${realityCollapsedHouseName(lib, seed, night, tier, h)}`), `e${realityErasedVillager(seed, night, tier, golden.villagers)}`,
+  ...Array.from({ length: golden.villagers }, (_, v) => `i${realityIdentityStep(seed, night, tier, v)}`),
+  ...collapse.pathIds.map((id) => (realityPhantomPathVisible(seed, night, tier, id) ? 'p' : '-')),
+].join(',');
+
+test('reality collapse matches the Core golden data at tier 5', () => {
+  for (const city of collapse.cities) city.nights.forEach((sig, n) => assert.equal(collapseSig(city.seed, n + 1, 5), sig, `seed ${city.seed} night ${n + 1}`));
+});
+
+test('reality collapse needs tier 5, is deterministic and never touches the session save', () => {
+  const session = parseSession({ seed: 42, night: 3, board: 'bd1;0,1;c1;', lore: ['a'] }), before = serializeSession(session), none = collapseSig(1, 1, 0);
+  let changed = 0;
+  for (const seed of [0, 1, 42, 1818, -7]) for (let night = 1; night <= 9; night++) {
+    for (let tier = -1; tier < COLLAPSE_TIER; tier++) assert.equal(collapseSig(seed, night, tier), none);
+    assert.equal(collapseSig(seed, night, 5), collapseSig(seed, night, 5));
+    if (collapseSig(seed, night, 5) !== none) changed++;
+  }
+  assert.ok(changed > 0);
+  assert.equal(serializeSession(session), before);
+});
+
+test('collapse: drifted houses and erased villagers stay so, identity only steps up, phantom paths show one night', () => {
+  let seen = 0;
+  for (const seed of [0, 1, 42, 1818, -7]) {
+    const erasedBy = Array.from({ length: 9 }, (_, n) => realityErasedVillager(seed, n + 1, 5, 7)), firstErased = erasedBy.find((e) => e >= 0);
+    if (firstErased !== undefined) { seen++; assert.ok(erasedBy.slice(erasedBy.indexOf(firstErased)).every((e) => e === firstErased)); }
+    for (let v = 0; v < 7; v++) { let prev = 0; for (let n = 1; n <= 9; n++) { const s = realityIdentityStep(seed, n, 5, v); assert.ok(s >= prev && s <= 2); prev = s; } }
+    for (const id of collapse.pathIds) assert.ok(Array.from({ length: 9 }, (_, n) => realityPhantomPathVisible(seed, n + 1, 5, id)).filter(Boolean).length <= 1);
+  }
+  assert.ok(seen > 0);
+  assert.equal(realityErasedVillager(1, 9, 5, 1), -1);
+});
+
+test('collapse view: truth switch returns the originals and a tier 4 view shows no collapse', () => {
+  const live = createRealityView({ lib: () => lib, seed: () => 42, night: () => 9, tier: () => 5, lang: () => 'en' });
+  const low = createRealityView({ lib: () => lib, seed: () => 42, night: () => 9, tier: () => 4, lang: () => 'en' });
+  const probe = (v) => [...Array.from({ length: 7 }, (_, i) => `${v.erased(i, 7)}${v.identityStep(i)}`), ...collapse.pathIds.map((id) => v.phantomPath(id))].join();
+  const trueProbe = [...Array.from({ length: 7 }, () => 'false0'), ...collapse.pathIds.map(() => false)].join();
+  assert.equal(probe(low), trueProbe);
+  live.setTruth(true);
+  assert.equal(probe(live), trueProbe);
+  for (let h = 0; h < 6; h++) assert.equal(live.houseName(h, 'Thorn House'), 'Thorn House');
+});
