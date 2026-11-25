@@ -86,8 +86,15 @@ export function createSocietyController(deps) {
   let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
   let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0;
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
+  let seenSeed = null;
+  /** A new village (another seed) starts with no action log and no memories, like the board and the theories. Called before any read or write of the logs. */
+  function ensureSeed() {
+    if (seenSeed === state.seed) return;
+    seenSeed = state.seed; log = []; memoryLog = []; memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; adjusted = null;
+  }
 
   function society() {
+    ensureSeed();
     const story = deps.story ? deps.story() : null;
     if (!story) return null;
     if (story !== builtStory || state.layout !== builtLayout) { built = buildSociety(story, state.layout); builtStory = story; builtLayout = state.layout; opinions = null; stageKey = ''; mythosKey = ''; graph = null; }
@@ -234,7 +241,7 @@ export function createSocietyController(deps) {
     setMemory(json) { memoryLib = json ? parseMemoryLibrary(json) : null; },
     /** What a villager says because of what they remember in a language, '' when nothing or no data. */
     /** Round 34: the story baseline plus the live events, the log the generated chronicle replays; null without a story. */
-    memoryEvents() { const s = deps.story(); return s ? [...baselineEvents(s), ...memoryLog] : null; },
+    memoryEvents() { ensureSeed(); const s = deps.story(); return s ? [...baselineEvents(s), ...memoryLog] : null; },
     memoryLine(index, night1, lang) { const m = memory(); return m && memoryLib ? m.lineFor(memoryLib, state.seed, index, night1, lang) : ''; },
     /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */
     memoryOutcome(index) { const m = memory(); return m ? m.outcomeOf(index) : MEMORY_NONE; },
@@ -259,8 +266,8 @@ export function createSocietyController(deps) {
       const s = society(), st = standing(index);
       return s && st ? authoredChatStatement(statements, ROLE_IDS[s.roster[index].role], night1, result, st.tier) : null;
     },
-    log: () => log.slice(),
-    snapshot: () => ({ society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }),
-    restore(saved) { log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
+    log: () => { ensureSeed(); return log.slice(); },
+    snapshot: () => { ensureSeed(); return { society: serializeSocietyLog(log), memory: serializeMemoryLog(memoryLog) }; },
+    restore(saved) { ensureSeed(); log = parseSocietyLog(saved && saved.society); memoryLog = parseMemoryLog(saved && saved.memory); memoryEdits += 1; memoryKeyOf = ''; noted.clear(); opinions = null; changed(); },
   };
 }

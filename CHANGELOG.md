@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 35 bug sweep
+- Fix: the society action log and the villager memory log carried over when the seed changed in a session (new village, reroll, daily, share code), so a new village started with the old village's trust actions and memories and autosaved them under the new seed. `society-ui.js` now clears both logs when the seed changes (same pattern as the board and theories); test added in `society-ui.test.js`. Web only, Core unchanged, golden unchanged. Service worker cache is now `flv-shell-v85`.
+- Test: creature homes in a fully blocked village are pinned (deterministic, finite, land homes inside the map) in C# and JS. No behavior change.
+
 ### Round 34 review fixes
 - Fix: the society memory cache key used the log length, which stays at 150 once full, so later events were not replayed until the night changed. It now uses a monotonic edit counter; test added with 151 events.
 - Docs: the Dread intensity level does not change the reality view (only Gentle drops one tier); it affects the director and creature glimpses. The `access.js` comment says so.

@@ -284,3 +284,17 @@ test('memory still updates after the log is full (cache key uses a counter, not 
   assert.equal(society.record(3, 0), true); // the 151st event
   assert.equal(society.memoryOutcome(0), 2, 'the new event replays although the log length is unchanged');
 });
+
+test('a new village starts with a clean action log and no memories; a restore for the new seed still sticks', () => {
+  const { society, state } = make({ night: 2 });
+  society.record(3, 0); society.record(3, 0);
+  assert.ok(society.log().length > 0 && society.memoryEvents().length > baselineCount());
+  state.seed = SEED + 1;
+  assert.deepEqual(society.log(), [], 'the old village actions do not carry over');
+  assert.equal(society.memoryEvents().length, baselineCount(), 'only the story baseline remains');
+  assert.equal(society.snapshot().society, serializeSocietyLog([]));
+  const saved = { society: serializeSocietyLog([{ kind: 0, subject: 1 }]), memory: 'mm1;' };
+  society.restore(saved);
+  assert.equal(society.log().length, 1, 'a restore right after the seed change is kept');
+});
+function baselineCount() { return story.missing.filter((m) => m.kinIndex >= 0).length; }
