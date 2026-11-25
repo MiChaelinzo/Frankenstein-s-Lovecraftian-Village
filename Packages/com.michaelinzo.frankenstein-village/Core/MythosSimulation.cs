@@ -176,6 +176,48 @@ namespace Frankenstein.Core
         public List<List<int>> CultMembers = new List<List<int>>();
         public List<int> Exposed = new List<int>();
         public List<MythosRumor> Rumors = new List<MythosRumor>();
+        /// <summary>Round 36 (spec 176): one leader record per cult at the end of the night, parallel to <see cref="MythosState.Cults"/>.</summary>
+        public List<CultLeader> Leaders = new List<CultLeader>();
+        /// <summary>Round 36: the leader events of the night. Kept apart from <see cref="Events"/> so existing consumers and golden data are unchanged.</summary>
+        public List<CultLeaderEvent> LeaderEvents = new List<CultLeaderEvent>();
+    }
+
+    /// <summary>What happened to a cult's leader. Order is stable (golden data uses the integers).</summary>
+    public enum CultLeaderEventKind { Replaced = 0, Disappeared = 1, Exposed = 2, BecameVessel = 3 }
+
+    /// <summary>The stated causes of every leader event. Each event carries exactly one, so no leader change is causeless.</summary>
+    public static class CultLeaderCause
+    {
+        public const string ExposureOverThreshold = "exposure_over_threshold", InfluenceCollapse = "influence_collapse", MythosTide = "mythos_tide", VacancyFilled = "vacancy_filled";
+        public static readonly string[] All = { ExposureOverThreshold, InfluenceCollapse, MythosTide, VacancyFilled };
+    }
+
+    /// <summary>One leader event of a night. Cult is a cult index, Leader the villager it happened to, Successor the new leader of a replacement (else -1), Cause one of <see cref="CultLeaderCause.All"/>.</summary>
+    public struct CultLeaderEvent
+    {
+        public CultLeaderEventKind Kind;
+        public int Cult;
+        public int Leader;
+        public int Successor;
+        public string Cause;
+        public int Night;
+    }
+
+    /// <summary>The leader record of one cult at the end of a night. Leader is a roster index, -1 while the post is vacant. Influence and Exposure stay in [0, <see cref="CultLeadership.MaxValue"/>].</summary>
+    public sealed class CultLeader
+    {
+        public int Cult;
+        public int Leader;
+        public int Influence;
+        /// <summary>Villagers who joined the cult while this leader led it.</summary>
+        public int Recruits;
+        public int Exposure;
+        /// <summary>Whether the village knows who leads the cult (an Exposed event happened to this leader).</summary>
+        public bool Exposed;
+        /// <summary>A vessel leader is final: the leader no longer changes.</summary>
+        public bool Vessel;
+
+        public CultLeader Copy() { return (CultLeader)MemberwiseClone(); }
     }
 
     public sealed class MythosCult
@@ -281,6 +323,8 @@ namespace Frankenstein.Core
             for (int i = 0; i < n; i++) cultOf[i] = -1;
             FoundCults(society, lib, state, cultOf);
 
+            var leaders = CultLeadership.Found(state);
+            var gone = new bool[n];
             var rumors = new List<MythosRumor>();
             int previousIntensity = 0;
             for (int night = 1; night <= throughNight; night++)
@@ -331,6 +375,7 @@ namespace Frankenstein.Core
                     events.Add(new MythosEvent { Kind = MythosEventKind.CosmicOmen, Subject = -1, Other = omen, Key = lib.Omens[omen].Id, Night = night });
                 }
                 previousIntensity = intensity;
+                var leaderEvents = CultLeadership.Evolve(society, links, state, cultOf, leaders, gone, night, dread, ritual, intensity, events, exposedTonight);
 
                 var rumor = StartRumor(society, story, lib, state, links, night, dread, ritual, exposedTonight, omen);
                 if (rumor != null)
@@ -338,7 +383,10 @@ namespace Frankenstein.Core
                     rumors.Add(rumor);
                     events.Add(new MythosEvent { Kind = MythosEventKind.RumorStarted, Subject = rumor.Origin, Other = rumor.Subject, Key = rumor.Key, Night = night });
                 }
-                state.Nights.Add(Snapshot(state, cultOf, events, rumors, night, n));
+                var snap = Snapshot(state, cultOf, events, rumors, night, n);
+                foreach (var l in leaders) snap.Leaders.Add(l.Copy());
+                snap.LeaderEvents = leaderEvents;
+                state.Nights.Add(snap);
             }
             return state;
         }
@@ -435,6 +483,118 @@ namespace Frankenstein.Core
                 }
                 return g;
             }
+        }
+    }
+
+    /// <summary>
+    /// Round 36 (spec 176 part 2): the leader of each cult evolves night by night. Influence grows with recruits and the mythos tide (omen intensity) and decays otherwise; exposure grows with dread and
+    /// with exposed secrets of the leader and the leader's links. Every event carries a <see cref="CultLeaderCause"/>. Uses its own seed stream and never touches the streams of the rest of the simulation,
+    /// so existing events, members and rumors are unchanged. Integer arithmetic only; values are clamped to [0, MaxValue].
+    /// </summary>
+    public static class CultLeadership
+    {
+        public const int LeaderStream = 0x4C4452, CultSalt = 7919;
+        public const int MaxValue = 1000;
+        /// <summary>Influence of a founder, of a successor, the per night decay, the gain per recruit and the divisor of the omen intensity (the mythos tide).</summary>
+        public const int FounderInfluence = 500, SuccessorInfluence = 300, InfluenceDecay = 20, RecruitInfluence = 50, TideInfluenceDivisor = 10;
+        /// <summary>Exposure per night: a base, plus dread divided by the divisor, plus a jump when the leader's own secret comes out and one per exposed secret of a linked villager.</summary>
+        public const int ExposureBase = 15, ExposureDreadDivisor = 50, OwnSecretExposure = 300, LinkedSecretExposure = 100;
+        /// <summary>Exposure at which the village learns who leads, at which the leader is replaced when exposed, and at which the leader disappears.</summary>
+        public const int ExposedAt = 600, ReplacedAt = 750, DisappearAt = 900;
+        /// <summary>Influence at or under which the leadership collapses.</summary>
+        public const int CollapseAt = 100;
+        /// <summary>A leader becomes a vessel when the ritual stage and the omen intensity reach these and a roll in [0, Scale) is under the chance.</summary>
+        public const int VesselRitualStage = 4, VesselIntensity = 500, VesselChance = 250;
+
+        /// <summary>The cults before night 1: every founder leads.</summary>
+        public static List<CultLeader> Found(MythosState state)
+        {
+            var list = new List<CultLeader>();
+            for (int c = 0; c < state.Cults.Count; c++) list.Add(new CultLeader { Cult = c, Leader = state.Cults[c].Founder, Influence = FounderInfluence });
+            return list;
+        }
+
+        private static int Clamp(int v) { return Math.Max(0, Math.Min(MaxValue, v)); }
+
+        internal static List<CultLeaderEvent> Evolve(VillageSociety society, MythosSimulation.Graph links, MythosState state, int[] cultOf, List<CultLeader> leaders, bool[] gone, int night, int dread, int ritual, int intensity, List<MythosEvent> events, List<int> exposedTonight)
+        {
+            var result = new List<CultLeaderEvent>();
+            int n = cultOf.Length;
+            for (int c = 0; c < leaders.Count; c++)
+            {
+                var l = leaders[c];
+                var rng = new SeededRandom(society.Seed ^ LeaderStream ^ (night * VillageSociety.IndexStep) ^ (c * CultSalt));
+                int roll = rng.Next(VillageSociety.Scale);
+                if (l.Vessel) continue;
+                if (l.Leader < 0)
+                {
+                    int heir = Successor(rng, cultOf, gone, c, -1, n);
+                    if (heir >= 0) Replace(result, l, heir, CultLeaderCause.VacancyFilled, night);
+                    continue;
+                }
+                int joined = 0;
+                foreach (var e in events) if (e.Kind == MythosEventKind.CultJoined && e.Other == c) joined++;
+                l.Recruits += joined;
+                l.Influence = Clamp(l.Influence + joined * RecruitInfluence + intensity / TideInfluenceDivisor - InfluenceDecay);
+                int exposure = ExposureBase + dread / ExposureDreadDivisor;
+                if (exposedTonight.Contains(l.Leader)) exposure += OwnSecretExposure;
+                foreach (int j in links.Neighbours[l.Leader]) if (exposedTonight.Contains(j)) exposure += LinkedSecretExposure;
+                l.Exposure = Clamp(l.Exposure + exposure);
+
+                if (ritual >= VesselRitualStage && intensity >= VesselIntensity && roll < VesselChance)
+                {
+                    l.Vessel = true;
+                    l.Influence = MaxValue;
+                    result.Add(new CultLeaderEvent { Kind = CultLeaderEventKind.BecameVessel, Cult = c, Leader = l.Leader, Successor = -1, Cause = CultLeaderCause.MythosTide, Night = night });
+                }
+                else if (l.Influence <= CollapseAt)
+                {
+                    int heir = Successor(rng, cultOf, gone, c, l.Leader, n);
+                    if (heir >= 0) Replace(result, l, heir, CultLeaderCause.InfluenceCollapse, night);
+                    else Vanish(result, l, gone, CultLeaderCause.InfluenceCollapse, night);
+                }
+                else if (l.Exposure >= DisappearAt) Vanish(result, l, gone, CultLeaderCause.ExposureOverThreshold, night);
+                else if (l.Exposure >= ExposedAt && !l.Exposed)
+                {
+                    l.Exposed = true;
+                    result.Add(new CultLeaderEvent { Kind = CultLeaderEventKind.Exposed, Cult = c, Leader = l.Leader, Successor = -1, Cause = CultLeaderCause.ExposureOverThreshold, Night = night });
+                }
+                else if (l.Exposed && l.Exposure >= ReplacedAt)
+                {
+                    int heir = Successor(rng, cultOf, gone, c, l.Leader, n);
+                    if (heir >= 0) Replace(result, l, heir, CultLeaderCause.ExposureOverThreshold, night);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>A seeded member of the cult who has not disappeared and is not the current leader, or -1.</summary>
+        private static int Successor(SeededRandom rng, int[] cultOf, bool[] gone, int cult, int current, int n)
+        {
+            var candidates = new List<int>();
+            for (int i = 0; i < n; i++) if (cultOf[i] == cult && !gone[i] && i != current) candidates.Add(i);
+            return candidates.Count == 0 ? -1 : candidates[rng.Next(candidates.Count)];
+        }
+
+        private static void Replace(List<CultLeaderEvent> result, CultLeader l, int heir, string cause, int night)
+        {
+            result.Add(new CultLeaderEvent { Kind = CultLeaderEventKind.Replaced, Cult = l.Cult, Leader = l.Leader, Successor = heir, Cause = cause, Night = night });
+            l.Leader = heir;
+            l.Influence = SuccessorInfluence;
+            l.Recruits = 0;
+            l.Exposure = 0;
+            l.Exposed = false;
+        }
+
+        private static void Vanish(List<CultLeaderEvent> result, CultLeader l, bool[] gone, string cause, int night)
+        {
+            result.Add(new CultLeaderEvent { Kind = CultLeaderEventKind.Disappeared, Cult = l.Cult, Leader = l.Leader, Successor = -1, Cause = cause, Night = night });
+            gone[l.Leader] = true;
+            l.Leader = -1;
+            l.Influence = 0;
+            l.Recruits = 0;
+            l.Exposure = 0;
+            l.Exposed = false;
         }
     }
 

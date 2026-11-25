@@ -16,6 +16,16 @@ export const EVENT_BASE_CHANCE = 150, EVENT_INTENSITY_DIVISOR = 2, RITUAL_INTENS
 export const RECRUITED_JOIN_BOOST = 15, RECRUITED_EXPOSURE_BOOST = 10;
 const HOP_DISTORT_SALT = 7919;
 
+// Round 36 (spec 176 part 2): cult leadership evolution. JS port of Core CultLeadership. Own seed stream; never touches the streams above.
+export const LEADER_STREAM = 0x4c4452, LEADER_CULT_SALT = 7919, LEADER_MAX = 1000;
+export const FOUNDER_INFLUENCE = 500, SUCCESSOR_INFLUENCE = 300, INFLUENCE_DECAY = 20, RECRUIT_INFLUENCE = 50, TIDE_INFLUENCE_DIVISOR = 10;
+export const LEADER_EXPOSURE_BASE = 15, LEADER_EXPOSURE_DREAD_DIVISOR = 50, OWN_SECRET_EXPOSURE = 300, LINKED_SECRET_EXPOSURE = 100;
+export const EXPOSED_AT = 600, REPLACED_AT = 750, DISAPPEAR_AT = 900, COLLAPSE_AT = 100;
+export const VESSEL_RITUAL_STAGE = 4, VESSEL_INTENSITY = 500, VESSEL_CHANCE = 250;
+export const [LEADER_REPLACED, LEADER_DISAPPEARED, LEADER_EXPOSED, LEADER_VESSEL] = [0, 1, 2, 3];
+export const CAUSE_EXPOSURE_OVER_THRESHOLD = 'exposure_over_threshold', CAUSE_INFLUENCE_COLLAPSE = 'influence_collapse', CAUSE_MYTHOS_TIDE = 'mythos_tide', CAUSE_VACANCY_FILLED = 'vacancy_filled';
+export const LEADER_CAUSES = [CAUSE_EXPOSURE_OVER_THRESHOLD, CAUSE_INFLUENCE_COLLAPSE, CAUSE_MYTHOS_TIDE, CAUSE_VACANCY_FILLED];
+
 export const ID_PREFIX = 'mythos:', SECRET_PREFIX = 'mythos:secret:', RUMOR_PREFIX = 'mythos:rumor:', OMEN_PREFIX = 'mythos:omen:', CULT_PREFIX = 'mythos:cult:';
 export const SECRET_MINUTE = 1260, CULT_MINUTE = 1320, OMEN_MINUTE = 1380, RUMOR_MINUTE = 1200;
 export const EXPOSED_SECRET_SUSPICION = 150, CULT_TIE_SUSPICION = 100;
@@ -205,6 +215,67 @@ function startRumor(society, story, lib, state, graph, night, dread, ritual, exp
   return r;
 }
 
+function foundLeaders(state) {
+  return state.cults.map((c, cult) => ({ cult, leader: c.founder, influence: FOUNDER_INFLUENCE, recruits: 0, exposure: 0, exposed: false, vessel: false }));
+}
+
+function leaderSuccessor(rng, cultOf, gone, cult, current) {
+  const candidates = [];
+  for (let i = 0; i < cultOf.length; i++) if (cultOf[i] === cult && !gone[i] && i !== current) candidates.push(i);
+  return candidates.length === 0 ? -1 : candidates[rng.next(candidates.length)];
+}
+
+function leaderReplace(result, l, heir, cause, night) {
+  result.push({ kind: LEADER_REPLACED, cult: l.cult, leader: l.leader, successor: heir, cause, night });
+  Object.assign(l, { leader: heir, influence: SUCCESSOR_INFLUENCE, recruits: 0, exposure: 0, exposed: false });
+}
+
+function leaderVanish(result, l, gone, cause, night) {
+  result.push({ kind: LEADER_DISAPPEARED, cult: l.cult, leader: l.leader, successor: -1, cause, night });
+  gone[l.leader] = true;
+  Object.assign(l, { leader: -1, influence: 0, recruits: 0, exposure: 0, exposed: false });
+}
+
+/** Evolves every cult leader by one night and returns the leader events of the night, each with a stated cause. Clamped to [0, LEADER_MAX]. */
+function evolveLeaders(society, graph, cultOf, leaders, gone, night, dread, ritual, intensity, events, exposedTonight) {
+  const result = [], clampV = (v) => clamp(v, 0, LEADER_MAX);
+  for (let c = 0; c < leaders.length; c++) {
+    const l = leaders[c], rng = new SeededRandom(society.seed ^ LEADER_STREAM ^ Math.imul(night, INDEX_STEP) ^ Math.imul(c, LEADER_CULT_SALT));
+    const roll = rng.next(SCALE);
+    if (l.vessel) continue;
+    if (l.leader < 0) {
+      const heir = leaderSuccessor(rng, cultOf, gone, c, -1);
+      if (heir >= 0) leaderReplace(result, l, heir, CAUSE_VACANCY_FILLED, night);
+      continue;
+    }
+    const joined = events.filter((e) => e.kind === EVENT_CULT_JOINED && e.other === c).length;
+    l.recruits += joined;
+    l.influence = clampV(l.influence + joined * RECRUIT_INFLUENCE + Math.trunc(intensity / TIDE_INFLUENCE_DIVISOR) - INFLUENCE_DECAY);
+    let exposure = LEADER_EXPOSURE_BASE + Math.trunc(dread / LEADER_EXPOSURE_DREAD_DIVISOR);
+    if (exposedTonight.includes(l.leader)) exposure += OWN_SECRET_EXPOSURE;
+    for (const j of graph.neighbours[l.leader]) if (exposedTonight.includes(j)) exposure += LINKED_SECRET_EXPOSURE;
+    l.exposure = clampV(l.exposure + exposure);
+
+    if (ritual >= VESSEL_RITUAL_STAGE && intensity >= VESSEL_INTENSITY && roll < VESSEL_CHANCE) {
+      l.vessel = true;
+      l.influence = LEADER_MAX;
+      result.push({ kind: LEADER_VESSEL, cult: c, leader: l.leader, successor: -1, cause: CAUSE_MYTHOS_TIDE, night });
+    } else if (l.influence <= COLLAPSE_AT) {
+      const heir = leaderSuccessor(rng, cultOf, gone, c, l.leader);
+      if (heir >= 0) leaderReplace(result, l, heir, CAUSE_INFLUENCE_COLLAPSE, night);
+      else leaderVanish(result, l, gone, CAUSE_INFLUENCE_COLLAPSE, night);
+    } else if (l.exposure >= DISAPPEAR_AT) leaderVanish(result, l, gone, CAUSE_EXPOSURE_OVER_THRESHOLD, night);
+    else if (l.exposure >= EXPOSED_AT && !l.exposed) {
+      l.exposed = true;
+      result.push({ kind: LEADER_EXPOSED, cult: c, leader: l.leader, successor: -1, cause: CAUSE_EXPOSURE_OVER_THRESHOLD, night });
+    } else if (l.exposed && l.exposure >= REPLACED_AT) {
+      const heir = leaderSuccessor(rng, cultOf, gone, c, l.leader);
+      if (heir >= 0) leaderReplace(result, l, heir, CAUSE_EXPOSURE_OVER_THRESHOLD, night);
+    }
+  }
+  return result;
+}
+
 function snapshot(state, cultOf, events, rumors, night, n) {
   const snap = { night, events, cultMembers: state.cults.map(() => []), exposed: [], rumors: [] };
   for (let i = 0; i < n; i++) {
@@ -232,6 +303,7 @@ export function runMythos(society, story, lib, inputs, throughNight) {
   const cultOf = new Array(n).fill(-1);
   foundCults(society, lib, state, cultOf);
 
+  const leaders = foundLeaders(state), gone = new Array(n).fill(false);
   const rumors = [];
   let previousIntensity = 0;
   for (let night = 1; night <= throughNight; night++) {
@@ -271,13 +343,17 @@ export function runMythos(society, story, lib, inputs, throughNight) {
       events.push({ kind: EVENT_COSMIC_OMEN, subject: -1, other: omen, key: lib.omens[omen].id, night });
     }
     previousIntensity = intensity;
+    const leaderEvents = evolveLeaders(society, graph, cultOf, leaders, gone, night, dread, ritual, intensity, events, exposedTonight);
 
     const rumor = startRumor(society, story, lib, state, graph, night, dread, ritual, exposedTonight, omen);
     if (rumor) {
       rumors.push(rumor);
       events.push({ kind: EVENT_RUMOR_STARTED, subject: rumor.origin, other: rumor.subject, key: rumor.key, night });
     }
-    state.nights.push(snapshot(state, cultOf, events, rumors, night, n));
+    const snap = snapshot(state, cultOf, events, rumors, night, n);
+    snap.leaders = leaders.map((l) => ({ ...l }));
+    snap.leaderEvents = leaderEvents;
+    state.nights.push(snap);
   }
   return state;
 }
@@ -376,7 +452,7 @@ export function buildNightTicks(state, lib) {
   let reality = 0;
   const seenMissing = new Set();
   for (const night of state.nights) {
-    const rec = { night: night.night, cultGrowth: 0, rumorsChanged: 0, rumorsAdded: 0, missingPersons: 0, newMissingPerson: 0, newOmen: '', realityShift: 0, reality: 0, secretDiscovered: false };
+    const rec = { night: night.night, leaderEvents: (night.leaderEvents || []).map((e) => ({ ...e })), cultGrowth: 0, rumorsChanged: 0, rumorsAdded: 0, missingPersons: 0, newMissingPerson: 0, newOmen: '', realityShift: 0, reality: 0, secretDiscovered: false };
     let exposedTonight = 0;
     for (const e of night.events) {
       if (e.kind === EVENT_CULT_FOUNDED || e.kind === EVENT_CULT_JOINED) rec.cultGrowth++;

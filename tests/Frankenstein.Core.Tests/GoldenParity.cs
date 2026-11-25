@@ -416,6 +416,9 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendReputation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendLeadership(sb, cat);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -1527,6 +1530,32 @@ namespace Frankenstein.Core.Tests
                 first = false;
                 sb.Append(", \"effects\": ").Append(Rows(soc.ReputationEffectsAfter(log, nights)));
                 sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null))).Append(" }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "leadership" (round 36, spec 176 part 2): per city seed the cult leader events [night, kind, cult, leader, successor, cause] and the per night leader rows [leader, influence, recruits, exposure, exposed, vessel] per cult over the sixty night replay schedule.</summary>
+        private static void AppendLeadership(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var mythos = MythosSimulationTests.Library();
+            int nights = MythosSimulationTests.LeaderNights;
+            sb.Append("  \"leadership\": {\n    \"nights\": ").Append(nights).Append(",\n    \"causes\": [").Append(string.Join(", ", CultLeaderCause.All.Select(Q))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                var state = MythosSimulation.Run(soc, story, mythos, MythosInputs.Schedule(nights), nights);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"events\": [").Append(string.Join(", ", state.Nights.SelectMany(n => n.LeaderEvents).Select(e => "[" + e.Night + ", " + (int)e.Kind + ", " + e.Cult + ", " + e.Leader + ", " + e.Successor + ", " + Q(e.Cause) + "]")));
+                sb.Append("], \"leaders\": [").Append(string.Join(", ", state.Nights.Select(n => "[" + string.Join(", ", n.Leaders.Select(l => "[" + l.Leader + ", " + l.Influence + ", " + l.Recruits + ", " + l.Exposure + ", " + (l.Exposed ? 1 : 0) + ", " + (l.Vessel ? 1 : 0) + "]")) + "]"))).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }
