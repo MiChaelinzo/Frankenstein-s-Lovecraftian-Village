@@ -33,7 +33,7 @@ function make({ locked = false, cam = null, sanity = 60 } = {}) {
     allows: () => !locked, announce: () => {}, journal: (x) => calls.journal.push(x), camera: () => cam,
   });
   h.setCatalog(read('homestead.json'));
-  return { h, inventory, san, clock, calls, $ };
+  return { h, inventory, san, clock, calls, $, state };
 }
 
 test('claiming hands over the starter bundle and the yard pieces follow the actions and the village day', () => {
@@ -76,6 +76,32 @@ test('in 3D the yard only answers near the plot; the save string round trips thr
   const b = make(); b.h.restore(s);
   assert.equal(b.h.snapshot().hs, s.hs);
   assert.ok(NEAR_PLOT_M > 0);
+});
+
+test('a seed change or reroll starts an unclaimed yard; going back to the old seed does not bring the old yard back', () => {
+  const x = make();
+  assert.ok(x.h.claim().ok); assert.ok(x.h.plant(0, 'turnip').ok);
+  assert.ok(x.h.pieces().length > 0);
+  x.state.seed = 1819; x.state.layout = generateLayout(catalog, 24, 24, 40, 1819); // what rebuild() does on a reroll, seed entry, daily or share code
+  assert.equal(x.h.home.claimed, false, 'the new village yard is unclaimed');
+  assert.deepEqual(x.h.pieces(), [], 'no beds, crops or structures carried over');
+  assert.equal(x.h.snapshot().hs, '');
+  assert.equal(x.inventory.player.slots.length, 0, 'the starter bundle went with the old village');
+  x.state.seed = 1818; x.state.layout = generateLayout(catalog, 24, 24, 40, 1818);
+  assert.equal(x.h.home.claimed, false, 'the old yard is rebuilt fresh, not restored');
+  assert.deepEqual(x.h.pieces(), []);
+});
+
+test('loading a same-seed save made before the yard was claimed brings back the unclaimed yard', () => {
+  const x = make();
+  const before = parseSession({ seed: 1818, sanity: 60, ...x.inventory.snapshot(), ...x.h.snapshot() });
+  assert.equal(before.hs, '', 'an unclaimed yard saves as an empty string');
+  assert.ok(x.h.claim().ok); assert.ok(x.h.plant(0, 'turnip').ok);
+  x.inventory.restore(before); x.h.restore(before);
+  assert.equal(x.h.home.claimed, false, 'the claim made after the save is gone');
+  assert.deepEqual(x.h.pieces(), []);
+  assert.equal(x.h.snapshot().hs, '');
+  assert.ok(x.h.claim().ok, 'the yard can be claimed again');
 });
 
 test('every homestead mesh is in the shape data, loads and is under 200 KB; en and fr strings exist', () => {

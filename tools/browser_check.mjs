@@ -761,6 +761,22 @@ async function main() {
       const saved = await ev(`JSON.parse(localStorage.getItem('flv.session.v1')||'{}').memory||''`);
       rec(`memory: the memory string survives the reload and autosave (${lang})`, /^mm1;3:1:0:700:-1/.test(saved), { saved });
     }
+    // Round 36: the villager chat memory line. Every villager was accused on night 3 (weight 700), so whoever C chats with first speaks an authored line from data/memory.json
+    // (VillagerRules.Chat copies the memory outcome, villager-ui.js appends or substitutes society.memoryLine). Without the saved memory the same chat carries no player memory line.
+    const ALL_ACCUSED = `mm1;${Array.from({ length: 24 }, (_, v) => `3:${v}:0:700:-1`).join(',')}`;
+    const chatLine = async (lang, session) => {
+      await fresh(`?intro=0&capture=1&tick=900&lang=${lang}`, session);
+      await key('c'); await sleep(600);
+      return ev(`({shown:!document.getElementById('villagerDialog').hidden, name:document.getElementById('villagerName').textContent, line:document.getElementById('villagerLine').textContent})`);
+    };
+    const authoredLines = (lang) => ev(`fetch('data/memory.json').then((r)=>r.json()).then((j)=>j.lines.flatMap((l)=>l.variants.map((v)=>l.id+'|'+v.${lang})))`);
+    for (const lang of ['en', 'fr']) {
+      const lines = await authoredLines(lang), found = (line) => lines.filter((l) => line.includes(l.split('|').slice(1).join('|'))).map((l) => l.split('|')[0]);
+      const plain = await chatLine(lang, BASE), remembered = await chatLine(lang, { ...BASE, memory: ALL_ACCUSED });
+      rec(`memory chat: C opens the villager dialogue with a clean line, with and without a saved memory (${lang})`, plain.shown && remembered.shown && remembered.name === plain.name && !/[{}]|undefined|NaN|\u2014/.test(plain.line + remembered.line), { name: plain.name, plain: plain.line.slice(0, 160), remembered: remembered.line.slice(0, 160) });
+      const kinds = found(remembered.line);
+      rec(`memory chat: a villager the player accused speaks an authored memory line from data/memory.json (${lang})`, kinds.length > 0 && remembered.line !== plain.line, { kinds, plainKinds: found(plain.line), line: remembered.line.slice(0, 200) });
+    }
   };
 
   await send('Runtime.enable'); await send('Page.enable');

@@ -184,6 +184,13 @@ export function createHomesteadController(deps) {
     get home() { ensure(); return home; }, get plot() { ensure(); return home.plot; }, get bedCount() { return BED_COUNT; },
     daysSince: (d) => dayNumber(tick()) - d,
     snapshot: () => { ensure(); return { hs: home.available && home.claimed ? home.serialize() : '' }; },
-    restore(s) { ensure(); if (home.available && s && typeof s.hs === 'string' && s.hs) home.tryRestore(s.hs); version++; render(); },
+    restore(s) {
+      ensure();
+      if (home.available && s && typeof s.hs === 'string') {
+        if (s.hs) home.tryRestore(s.hs);
+        else { builtKey = ''; ensure(); } // an empty string is how an unclaimed yard saves, so loading it must drop a yard claimed since
+      }
+      version++; render();
+    },
   };
 }

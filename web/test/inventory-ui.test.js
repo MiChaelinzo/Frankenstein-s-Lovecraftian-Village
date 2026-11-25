@@ -103,14 +103,30 @@ test('snapshot and restore round trip; a candle burns fuel; gather cycles and th
   assert.ok(b.c.scene().every((q) => q.chest) || b.c.player.slots.length === 12);
 });
 
+test('a seed change or reroll starts a fresh satchel, ground and chests; going back to the old seed does not bring the old state back', () => {
+  const x = make();
+  const fresh = x.c.snapshot().inv;
+  x.c.gatherNext(); x.c.burnCandle();
+  openBed(x); x.c.takeItem('bread');
+  assert.notEqual(x.c.snapshot().inv, fresh);
+  x.state.seed = 1819; x.state.layout = generateLayout(catalog, 24, 24, 40, 1819); // what rebuild() does on a reroll, seed entry, daily or share code
+  const other = make(); other.state.seed = 1819; other.state.layout = x.state.layout;
+  assert.equal(x.c.player.slots.length, 0, 'no item carried over');
+  assert.equal(x.c.fuel, other.c.fuel, 'lantern fuel back to the start');
+  assert.equal(x.c.world.picked.size, 0, 'no picked ground items carried over');
+  assert.equal(x.c.snapshot().inv, other.c.snapshot().inv, 'the save is that of a fresh village at the new seed');
+  x.state.seed = 1818; x.state.layout = generateLayout(catalog, 24, 24, 40, 1818);
+  assert.equal(x.c.snapshot().inv, fresh, 'the old village is rebuilt fresh, not restored');
+});
+
+const openBed = (x) => x.c.openChestById(`c${x.c.world.chests.findIndex((q) => q.lodging)}`);
+
 test('inventory strings exist in en and fr', () => {
   const keys = ['inv.title', 'inv.use', 'inv.drop', 'inv.store', 'inv.take', 'inv.sleep', 'inv.fuel', 'inv.lodging', 'inv.chest', 'inv.note.pick', 'inv.note.slept', 'inv.refused.full', 'inv.refused.ward', 'inv.refused.none', 'inv.refused.missing',
     'view3d.prompt.item', 'view3d.prompt.chest', 'view3d.prompt.lodging', 'keys.inventory', 'touch.bag', 'btn.inventory', 'tour.satchel', 'tour.satchel.d'];
   for (const k of keys) assert.ok(STRINGS.en[k] && STRINGS.fr[k], k);
   assert.ok(ITEM_KINDS.length > 0);
 });
-
-const openBed = (x) => x.c.openChestById(`c${x.c.world.chests.findIndex((q) => q.lodging)}`);
 
 test('sleep is refused when only the sanity_keys action is locked', () => {
   const x = make({ lockedActions: ['sanity_keys'] });
