@@ -4,7 +4,10 @@
 import { SeededRandom } from './core.js';
 import { INDEX_STEP } from './society.js';
 import { render, stageOfNight } from './village-story.js';
-import { nightTickAt, omenId, cultId, secretId, rumorId, EVENT_CULT_FOUNDED, EVENT_CULT_JOINED, EVENT_SECRET_EXPOSED, EVENT_COSMIC_OMEN, SOURCE_MISSING } from './mythos.js';
+import { nightTickAt, omenId, cultId, secretId, rumorId, mythosRumorRef, EVENT_CULT_FOUNDED, EVENT_CULT_JOINED, EVENT_SECRET_EXPOSED, EVENT_COSMIC_OMEN, SOURCE_MISSING, LEADER_REPLACED, LEADER_EXPOSED, LEADER_VESSEL } from './mythos.js';
+import { rumorChainIndex, rumorStage, rumorExposure } from './rumor-mutation.js';
+import { EFFECT_ACCUSED } from './society.js';
+import { BEAT_IDS } from './director.js';
 import { revealLevel, OUTCOME_IDS, REVEAL_NOTHING, REVEAL_OUTCOME } from './outcomes.js';
 import { replayMemory, MEMORY_OUTCOME_IDS, MEMORY_NONE } from './memory.js';
 
@@ -20,7 +23,17 @@ export const CHRONICLE_LINE_IDS = [
   'outcome_dead', 'outcome_escaped', 'outcome_recruited', 'outcome_transformed', 'outcome_hidden', 'outcome_displaced',
   'taken',
   'summary_open', 'summary_unknown', 'summary_cults', 'summary_omens', 'summary_close_low', 'summary_close_mid', 'summary_close_high',
+  // Round 36 (spec 182): appended after the older ids so their positions, and so their picks, do not change.
+  'leader_replaced_exposure_over_threshold', 'leader_replaced_influence_collapse', 'leader_replaced_vacancy_filled',
+  'leader_disappeared_exposure_over_threshold', 'leader_disappeared_influence_collapse', 'leader_exposed', 'leader_vessel',
+  'reputation_accused', 'reputation_trusted', 'rumor_drift', 'rumor_distorted',
+  'beat_sound', 'beat_trace', 'beat_sky_sea', 'beat_sighting',
 ];
+/** The line id that tells each ambient beat of BEAT_IDS. Several beats share a pool of variants. */
+export const CHRONICLE_BEAT_LINES = Object.freeze({
+  distant_bell: 'beat_sound', distant_singing: 'beat_sound', false_footprints: 'beat_trace', moved_lantern: 'beat_trace', wrong_road_sign: 'beat_trace',
+  empty_boat: 'beat_sky_sea', impossible_stars: 'beat_sky_sea', npc_sighting: 'beat_sighting',
+});
 export const CHRONICLE_MIN_VARIANTS = 4, ROLE_COUNT = 7;
 export const CHRONICLE_STREAM = 0x43484e, SUMMARY_NIGHT = 0, LOW_LEARNED = 2, MID_LEARNED = 6, MEMORY_SALT = 0x4d4f4f;
 const STAGE_IDS = ['early', 'mid', 'late'];
@@ -59,7 +72,8 @@ const capitalize = (s) => (s.length === 0 ? s : s[0].toUpperCase() + s.slice(1))
 
 /**
  * ctx: { prose (parsed library), story, mythos (mythos library), state (run), nights, outcomes (outcome id per missing person), leads (per missing person),
- * heard (Set of mythos statement ids), met (Set of roster indices), memoryLog (array or null) }.
+ * heard (Set of mythos statement ids), met (Set of roster indices), memoryLog (array or null), evolution (optional, round 36: { reputation: effect records of reputationEffectsAfter,
+ * mutations: rumor chain library or null, beats: [{ night, id }] }; absent keeps the chronicle as it was) }.
  */
 function pick(ctx, id, night, salt, lang, vars) {
   const k = CHRONICLE_LINE_IDS.indexOf(id);
@@ -87,6 +101,61 @@ function memorySentence(ctx, night, lang) {
   if (who.length === 0) return '';
   const chosen = who[new SeededRandom(ctx.story.seed ^ CHRONICLE_STREAM ^ Math.imul(night, INDEX_STEP) ^ MEMORY_SALT).next(who.length)];
   return pick(ctx, `memory_${MEMORY_OUTCOME_IDS[model.outcomeOf(chosen)]}`, night, chosen, lang, { ...baseVars(ctx), who: whoOf(ctx, chosen, lang) });
+}
+
+const leaderLineId = (e) => (e.kind === LEADER_EXPOSED ? 'leader_exposed' : e.kind === LEADER_VESSEL ? 'leader_vessel' : `${e.kind === LEADER_REPLACED ? 'leader_replaced_' : 'leader_disappeared_'}${e.cause}`);
+
+function addNew(list, sentence) {
+  if (sentence.length === 0 || list.includes(sentence)) return false;
+  list.push(sentence);
+  return true;
+}
+
+/**
+ * Mirror of ChronicleProse.EvolutionSentences: at most one each of a cult leader event the player knows the cult of, a reputation effect between two villagers the player met, a rumor the player heard
+ * that drifted a stage since last night, and an ambient beat the player experienced. A sentence already in the night is skipped. Returns how many were added.
+ */
+function evolutionSentences(ctx, night, lang, list) {
+  let added = 0;
+  const evo = ctx.evolution, tonight = ctx.state.atNight(night), vars = baseVars(ctx), roster = ctx.story.roster.length;
+
+  for (const e of tonight.leaderEvents) {
+    const who = e.leader >= 0 ? e.leader : e.successor;
+    if (who < 0 || who >= roster || !ctx.heard.has(cultId(who)) || e.cult < 0 || e.cult >= ctx.state.cults.length) continue;
+    const id = leaderLineId(e);
+    if (!CHRONICLE_LINE_IDS.includes(id)) continue;
+    const cult = ctx.mythos.cults[ctx.state.cults[e.cult].dataIndex];
+    if (addNew(list, pick(ctx, id, night, e.cult, lang, { ...vars, who: whoOf(ctx, who, lang), cult: cult.text[lang] || cult.text.en }))) added++;
+    break;
+  }
+
+  let spread = null;
+  for (const fx of evo.reputation || []) {
+    if (fx.night !== night || fx.hop < 1 || fx.source === fx.target || !ctx.met.has(fx.source) || !ctx.met.has(fx.target) || fx.source >= roster || fx.target >= roster) continue;
+    if (!spread || (fx.effect === EFFECT_ACCUSED && spread.effect !== EFFECT_ACCUSED)) spread = fx;
+  }
+  if (spread && addNew(list, pick(ctx, spread.effect === EFFECT_ACCUSED ? 'reputation_accused' : 'reputation_trusted', night, spread.source, lang, { ...vars, who: whoOf(ctx, spread.source, lang), other: whoOf(ctx, spread.target, lang) }))) added++;
+
+  if (evo.mutations && night > 1) {
+    const feed = { library: ctx.mythos, state: ctx.state, night }, exposureNow = rumorExposure(tonight), exposureBefore = rumorExposure(ctx.state.atNight(night - 1));
+    for (const r of tonight.rumors) {
+      if (r.night >= night || !ctx.heard.has(rumorId(r.night))) continue;
+      const chain = rumorChainIndex(evo.mutations, r.source, mythosRumorRef(feed, r));
+      if (chain < 0) continue;
+      const stage = rumorStage(evo.mutations, chain, ctx.story.seed, r.night, night - r.night, exposureNow);
+      if (stage <= rumorStage(evo.mutations, chain, ctx.story.seed, r.night, night - 1 - r.night, exposureBefore)) continue;
+      if (addNew(list, pick(ctx, stage >= 2 ? 'rumor_distorted' : 'rumor_drift', night, r.night, lang, vars))) added++;
+      break;
+    }
+  }
+
+  for (const b of evo.beats || []) {
+    const id = b.night === night && b.id ? CHRONICLE_BEAT_LINES[b.id] : undefined;
+    if (!id) continue;
+    if (addNew(list, pick(ctx, id, night, BEAT_IDS.indexOf(b.id), lang, vars))) added++;
+    break;
+  }
+  return added;
 }
 
 /** The sentences of one night, in the order they are told. Empty for a night that was not simulated. Never more than the player learned. */
@@ -140,6 +209,7 @@ export function nightSentences(ctx, night, lang) {
 
   const mood = memorySentence(ctx, night, lang);
   if (mood.length > 0) { list.push(mood); told++; }
+  if (ctx.evolution) told += evolutionSentences(ctx, night, lang, list);
   if (told === 0) list.push(pick(ctx, `quiet_${stageId(ctx, night)}`, night, 0, lang, vars));
   return list;
 }

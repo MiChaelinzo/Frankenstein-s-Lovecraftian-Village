@@ -400,6 +400,9 @@ namespace Frankenstein.Core.Tests
             AppendChronicleProse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendChronicleEvolution(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendReality(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1910,6 +1913,28 @@ namespace Frankenstein.Core.Tests
                 for (int night = 1; night <= RealityInstabilityTests.Nights; night++)
                     nights.Add("[" + string.Join(", ", Enumerable.Range(0, KnowledgeLibrary.TierCount).Select(t => Q(RealityInstabilityTests.Signature(lib, seed, night, t)))) + "]");
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"nights\": [\n        ").Append(string.Join(",\n        ", nights)).Append("\n      ] }");
+                first = false;
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "chronicleEvolution" (round 36, spec 182): per city seed, the nights of the sixty night leadership run (see ChronicleProseTests.EvolutionContext) whose paragraph changes when the newer event sources are told, as [night, en, fr].</summary>
+        private static void AppendChronicleEvolution(StringBuilder sb)
+        {
+            sb.Append("  \"chronicleEvolution\": {\n    \"nights\": ").Append(MythosSimulationTests.LeaderNights).Append(",\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var ctx = ChronicleProseTests.EvolutionContext(seed, true);
+                var plain = ChronicleProseTests.EvolutionContext(seed, true, false);
+                var rows = new List<string>();
+                for (int night = 1; night <= MythosSimulationTests.LeaderNights; night++)
+                {
+                    string en = ChronicleProse.NightProse(ctx, night, "en");
+                    if (en == ChronicleProse.NightProse(plain, night, "en")) continue;
+                    rows.Add("[" + night + ", " + Q(en) + ", " + Q(ChronicleProse.NightProse(ctx, night, "fr")) + "]");
+                }
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"changed\": [\n        ").Append(string.Join(",\n        ", rows)).Append("\n      ] }");
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");
