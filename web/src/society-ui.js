@@ -193,6 +193,7 @@ export function createSocietyController(deps) {
   function remember(ev) { memoryEdits += 1; memoryLog.push(ev); /* the counter, not the length, keys the cache: the length stays at the cap */ if (memoryLog.length > MAX_MEMORY_LOG) memoryLog.shift(); }
 
   function record(kind, subject) {
+    ensureSeed(); // an ALL_VILLAGERS action skips society() below, so reset a stale log here first
     if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_IDS.length || !Number.isInteger(subject)) return false;
     if (subject !== ALL_VILLAGERS && !(society() && subject >= 0 && subject < society().roster.length)) return false;
     log.push({ kind, subject });

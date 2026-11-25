@@ -297,6 +297,13 @@ test('a new village starts with a clean action log and no memories; a restore fo
   society.restore(saved);
   assert.equal(society.log().length, 1, 'a restore right after the seed change is kept');
 });
+test('an all-villagers action right after a seed change is not lost to the reset', () => {
+  const { society, state } = make({ night: 2 });
+  society.record(3, 0);
+  state.seed = SEED + 2;
+  assert.equal(society.record(1, -1), true);
+  assert.equal(society.log().length, 1, 'only the new village action remains');
+});
 function baselineCount() { return story.missing.filter((m) => m.kinIndex >= 0).length; }
 
 test('axes follow the opinions: lost trust from wrong theories and a full log both change the loyalty bar', () => {
