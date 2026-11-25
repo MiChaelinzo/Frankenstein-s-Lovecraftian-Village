@@ -422,8 +422,35 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendRumorMutation(sb, cat);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendDirectorBeats(sb);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager.</summary>
+        private static void AppendDirectorBeats(StringBuilder sb)
+        {
+            sb.Append("  \"directorBeats\": {\n    \"runs\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                var abuse = new List<int>();
+                BeatVariant(seed, 1000, false, abuse);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed).Append(", \"abuse\": [").Append(string.Join(", ", abuse)).Append("], \"variants\": [");
+                first = false;
+                var variants = new[] { (1000, false), (1500, true), (500, false) };
+                sb.Append(string.Join(", ", variants.Select(v => "{ \"scale\": " + v.Item1 + ", \"reduced\": " + (v.Item2 ? 1 : 0) + ", \"beats\": [" + BeatVariant(seed, v.Item1, v.Item2, null) + "] }")));
+                sb.Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        private static string BeatVariant(int seed, int scale, bool reduced, List<int> abuse)
+        {
+            return string.Join(", ", HorrorDirectorTests.BeatRun(seed, scale, reduced, abuse).Select(t =>
+                "[" + t.Step + ", " + Q(t.Beat.Id) + ", " + Q(t.Beat.Cause) + ", " + t.Beat.Volume + ", " + t.Beat.Brightness + ", " + (t.Beat.Prop ? 1 : 0) + ", " + t.Beat.Villager + "]"));
         }
 
         /// <summary>Top level key "rumorMutation" (round 36, spec 181): per chain and seed, the stage for rumor nights 1 and 5, nights since 0 to 12 and exposure 0, 500, 1000; the stage texts and the gated true account in en and fr; and per city the mythos chat lines with mutation at knowledge tiers 0 and 4.</summary>

@@ -45,7 +45,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
-import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp } from './director.js';
+import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp, nextSafeZoneAbuse, pickAmbientBeat } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -144,19 +144,34 @@ const withWeather = (n) => (WEATHER_NAMES.includes(weatherParam) ? { ...n, weath
 const cam3dParam = optParam('cam3d'); // read once: pushHash rewrites the hash later. With ?cinematic=1 an explicit cam3d keeps the camera still (stills for screenshots)
 // Horror Director (spec 161): steps once per game minute from what the app already knows; the smoothed level only ramps (director.js caps it).
 // Inputs: sanity, creature telegraph, night and the campaign's cult progress, plus knowledge (board tier, 0..5 scaled to permille), clue progress (vigil clues found over the campaign goal) and safe-zone ticks (game minutes spent within reach of a lit lantern).
-let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, playerSpot = null;
+let directorState = directorStart(), directorTick = null, directorLevel = 0, directorAt = null, directorSafeTicks = 0, directorAbuse = 0, directorBeatTick = directorFreshRun().beatTick, playerSpot = null;
 // A new seed or campaign starts the director from calm, so the same seed gives the same run.
-function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks } = directorFreshRun()); }
+function resetDirector() { ({ state: directorState, tick: directorTick, level: directorLevel, at: directorAt, safeTicks: directorSafeTicks, abuse: directorAbuse, beatTick: directorBeatTick } = directorFreshRun()); }
 // Horror Intensity (spec 165): presentation only, never read by Core ports, saves or goldens.
 let horrorIntensity = 'standard'; // resolved from ?intensity= or storage at startup (initial setIntensity call), once storage exists
 let directorLookNow = directorLook(0, { reduced: reduceMotion, tier: 'medium' });
 // Stepped from a timer (directorTimer below), never from the 3D getScene callback: rendering only reads directorLookNow.
+/** Director 2.0 (spec 175): the first villager the village remembers (memory outcome other than none), or -1. Deterministic, lowest index first. */
+function rememberedVillagerIndex() { const n = (state.villagers || []).length; for (let i = 0; i < n; i++) if (society.memoryOutcome(i) !== 0) return i; return -1; }
+/** An ambient beat is a quiet line (narration plus screen reader) and, for the bell and the singing, a soft cue. Nothing flashes, shakes or jumps in volume. */
+function presentAmbientBeat(beat, tick) {
+  if (!beat.emitted) return;
+  directorBeatTick = tick;
+  const line = tr(`director.beat.${beat.id}`);
+  state.narrationLine = line; state.narrationAt = performance.now();
+  $('narration').textContent = line; $('narration').style.opacity = 1;
+  announce(line); log('narration', line);
+  if (beat.volume > 0) ambient?.cue(beat.id === 'distant_bell' ? 'distant-bell' : beat.id === 'distant_singing' ? 'distant-song' : 'lantern', beat.volume / 1000);
+}
 function directorUpdate() {
   const tick = Math.floor(clockTickExact()), now = performance.now(), nights = state.campaign ? state.campaign.nights.length : 5, near = creatures.level || 0;
   if (tick !== directorTick) {
     directorTick = tick;
     directorSafeTicks = nextSafeZoneTicks(directorSafeTicks, !!playerSpot && nearLitLamp(vigil.lampTargets(), playerSpot.x, playerSpot.z));
-    directorState = directorStep(state.seed, directorState, { tick, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) });
+    directorAbuse = nextSafeZoneAbuse(directorAbuse, directorSafeTicks);
+    const dirInput = { tick, knowledgeTier: board.knowledge().tier, safeZoneAbuse: directorAbuse, rememberedVillager: rememberedVillagerIndex() + 1, knowledge: Math.round(1000 * board.knowledge().tier / 5), clueProgress: vigil.clueProgress(), safeZoneTicks: directorSafeTicks, sanity: Math.round(state.sanity.value * 10), stress: Math.round(near * 1000), encounters: Math.ceil(near * 3), /* near feeds both on purpose: stress is the slow strain (max 200), encounters the sighting beat (max 180) */ cultExposure: Math.round(1000 * state.night / Math.max(1, nights - 1)) };
+    directorState = directorStep(state.seed, directorState, dirInput);
+    presentAmbientBeat(pickAmbientBeat(state.seed, directorState, dirInput, directorBeatTick, { scale: INTENSITY_PER_MILLE[horrorIntensity], reduced: reduceMotion }), tick);
   }
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
   const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium', scale: INTENSITY_PER_MILLE[horrorIntensity] });

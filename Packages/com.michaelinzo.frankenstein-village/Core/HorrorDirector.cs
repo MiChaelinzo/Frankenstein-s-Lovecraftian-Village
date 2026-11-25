@@ -16,6 +16,35 @@ namespace Frankenstein.Core
         public int ClueProgress;
         public int CultExposure;
         public int Encounters;
+        /// <summary>Director 2.0 (spec 175): time spent camping in safe zones, tracked by <see cref="HorrorDirector.NextSafeZoneAbuse"/>. 0..<see cref="HorrorDirector.SafeZoneAbuseCap"/>.</summary>
+        public int SafeZoneAbuse;
+        /// <summary>Director 2.0: the knowledge tier 0..5 (the investigation board). Only gates which ambient beats may appear.</summary>
+        public int KnowledgeTier;
+        /// <summary>Director 2.0: 0 when no villager is remembered, otherwise the villager index plus one (see <see cref="VillagerMemoryModel"/>).</summary>
+        public int RememberedVillager;
+    }
+
+    /// <summary>Director 2.0 presentation settings. IntensityScale is the Horror Intensity in per mille (500 gentle, 1000 standard, 1500 dread).</summary>
+    public struct AmbientSettings
+    {
+        public int IntensityScale;
+        public bool ReducedMotion;
+    }
+
+    /// <summary>One ambient beat (Director 2.0). Presentation only: a text line, a bounded sound level, a bounded dimming step and an optional prop cue. Never a scare.</summary>
+    public struct AmbientBeat
+    {
+        public bool Emitted;
+        public string Id;
+        public string Cause;
+        /// <summary>Cue volume per mille, 0..<see cref="HorrorDirector.MaxCueVolume"/>.</summary>
+        public int Volume;
+        /// <summary>Light change per mille, 0 down to -<see cref="HorrorDirector.MaxBrightnessStep"/> (dimming only, never a flash).</summary>
+        public int Brightness;
+        /// <summary>True when a small prop or visual cue goes with the line. Always false under reduced motion.</summary>
+        public bool Prop;
+        /// <summary>The remembered villager's index for a sighting, otherwise -1.</summary>
+        public int Villager;
     }
 
     /// <summary>Director state between steps. QuietLeft counts the steps still owed after an Omen.</summary>
@@ -58,9 +87,25 @@ namespace Frankenstein.Core
         public const int EncounterWeight = 60;
         public const int SafeZoneWeightPerTick = 2;
         public const int ClueReliefPercent = 10;
+        public const int AbuseWeightPercent = 20;
+        /// <summary>Director 2.0: safe-zone ticks at or above this count as camping for <see cref="NextSafeZoneAbuse"/>.</summary>
+        public const int CampingTicks = 60;
+        public const int SafeZoneAbuseCap = 1000;
+        public const int AbuseGainPerStep = 20;
+        public const int AbuseDecayPerStep = 10;
+        /// <summary>Ambient beats: smallest tick gap between two beats, chance per eligible step, loudest cue and deepest dimming (per mille).</summary>
+        public const int MinBeatGapTicks = 45;
+        public const int BeatChancePercent = 15;
+        public const int MaxCueVolume = 150;
+        public const int MaxBrightnessStep = 40;
+        /// <summary>At or below this Horror Intensity (gentle) ambient beats are skipped entirely.</summary>
+        public const int GentleScale = 500;
+        public const int StandardScale = 1000;
+        public const int NoBeatYet = int.MinValue;
+        private const int BeatStream = 0x1750;
 
-        public static readonly string[] CauseIds = { "waning_sanity", "mounting_stress", "cult_exposure", "creature_sighting", "nightfall", "forbidden_knowledge", "omen_passed" };
-        private const int CauseSanity = 0, CauseStress = 1, CauseCult = 2, CauseCreature = 3, CauseNight = 4, CauseKnowledge = 5, CauseOmenPassed = 6;
+        public static readonly string[] CauseIds = { "waning_sanity", "mounting_stress", "cult_exposure", "creature_sighting", "nightfall", "forbidden_knowledge", "safe_zone_abuse", "omen_passed" };
+        private const int CauseSanity = 0, CauseStress = 1, CauseCult = 2, CauseCreature = 3, CauseNight = 4, CauseKnowledge = 5, CauseAbuse = 6, CauseOmenPassed = 7;
 
         public static DirectorState Start() { return new DirectorState { Intensity = 0, Beat = DirectorBeat.Quiet, QuietLeft = 0, Cause = "" }; }
 
@@ -78,6 +123,7 @@ namespace Frankenstein.Core
                 Math.Max(0, Math.Min(EncounterCap, x.Encounters)) * EncounterWeight,
                 phase == DayPhase.Night ? NightWeight : phase == DayPhase.Dusk ? DuskWeight : 0,
                 Permille(x.Knowledge) * KnowledgeWeightPercent / 100,
+                Permille(x.SafeZoneAbuse) * AbuseWeightPercent / 100,
             };
         }
 
@@ -133,6 +179,73 @@ namespace Frankenstein.Core
                 return new DirectorState { Intensity = intensity, Beat = DirectorBeat.Omen, QuietLeft = QuietAfterOmen, Cause = DominantCause(x) };
             DirectorBeat beat = BeatFor(intensity);
             return new DirectorState { Intensity = intensity, Beat = beat, QuietLeft = 0, Cause = beat == DirectorBeat.Quiet ? "" : DominantCause(x) };
+        }
+
+        /// <summary>Safe-zone abuse (Director 2.0): camping (<see cref="CampingTicks"/> or more safe-zone ticks) adds <see cref="AbuseGainPerStep"/>, anything else decays by <see cref="AbuseDecayPerStep"/>. Bounded 0..<see cref="SafeZoneAbuseCap"/>.</summary>
+        public static int NextSafeZoneAbuse(int abuse, int safeZoneTicks)
+        {
+            int next = safeZoneTicks >= CampingTicks ? abuse + AbuseGainPerStep : abuse - AbuseDecayPerStep;
+            return Math.Max(0, Math.Min(SafeZoneAbuseCap, next));
+        }
+
+        private struct BeatDef
+        {
+            public string Id, Cause;
+            public int MinTier, Volume, Brightness;
+            public bool Prop, NeedsVillager;
+        }
+
+        /// <summary>The ambient beat kinds in stable order. Each names the cause that lets it appear; Brightness is a dimming step (0 or negative) and Volume a base cue level, both before scaling.</summary>
+        private static readonly BeatDef[] Beats =
+        {
+            new BeatDef { Id = "distant_bell", Cause = "nightfall", Volume = 120 },
+            new BeatDef { Id = "false_footprints", Cause = "safe_zone_abuse", Prop = true, Volume = 30 },
+            new BeatDef { Id = "moved_lantern", Cause = "safe_zone_abuse", Prop = true, Volume = 30, Brightness = -30 },
+            new BeatDef { Id = "empty_boat", Cause = "waning_sanity", MinTier = 1, Prop = true },
+            new BeatDef { Id = "wrong_road_sign", Cause = "mounting_stress", Prop = true },
+            new BeatDef { Id = "distant_singing", Cause = "cult_exposure", MinTier = 1, Volume = 80 },
+            new BeatDef { Id = "impossible_stars", Cause = "forbidden_knowledge", MinTier = 2, Prop = true, Brightness = -20 },
+            new BeatDef { Id = "npc_sighting", Cause = "waning_sanity", Prop = true, NeedsVillager = true },
+        };
+
+        public static readonly string[] BeatIds = Array.ConvertAll(Beats, b => b.Id);
+
+        /// <summary>The cause id an ambient beat names, or "" for an unknown id.</summary>
+        public static string BeatCause(string id)
+        {
+            foreach (var b in Beats) if (b.Id == id) return b.Cause;
+            return "";
+        }
+
+        /// <summary>
+        /// One ambient beat decision (Director 2.0, spec 175). Presentation only. Nothing is emitted at gentle intensity, outside an Unease or Pressure stretch (so never in the
+        /// quiet after an Omen), within <see cref="MinBeatGapTicks"/> of <paramref name="lastBeatTick"/>, or when the seeded roll fails. Only beats whose cause passes
+        /// <see cref="CauseHolds"/> and whose knowledge tier and remembered villager gates are met are candidates. Volume and dimming are scaled by the intensity and bounded.
+        /// </summary>
+        public static AmbientBeat PickAmbientBeat(int seed, DirectorState state, DirectorInput x, int lastBeatTick, AmbientSettings settings)
+        {
+            var none = new AmbientBeat { Emitted = false, Id = "", Cause = "", Villager = -1 };
+            if (settings.IntensityScale <= GentleScale) return none;
+            if (state.QuietLeft > 0 || (state.Beat != DirectorBeat.Unease && state.Beat != DirectorBeat.Pressure)) return none;
+            if (lastBeatTick != NoBeatYet && x.Tick - lastBeatTick >= 0 && x.Tick - lastBeatTick < MinBeatGapTicks) return none;
+            var rng = new SeededRandom(unchecked(seed ^ x.Tick * 104729 ^ BeatStream));
+            if (rng.Next(100) >= BeatChancePercent) return none;
+            var candidates = new System.Collections.Generic.List<BeatDef>();
+            foreach (var b in Beats)
+                if (CauseHolds(b.Cause, x) && x.KnowledgeTier >= b.MinTier && (!b.NeedsVillager || x.RememberedVillager > 0)) candidates.Add(b);
+            if (candidates.Count == 0) return none;
+            var pick = candidates[rng.Next(candidates.Count)];
+            int scale = Math.Max(0, Math.Min(1500, settings.IntensityScale));
+            return new AmbientBeat
+            {
+                Emitted = true,
+                Id = pick.Id,
+                Cause = pick.Cause,
+                Volume = Math.Min(MaxCueVolume, pick.Volume * scale / StandardScale),
+                Brightness = settings.ReducedMotion ? 0 : -Math.Min(MaxBrightnessStep, -pick.Brightness * scale / StandardScale),
+                Prop = pick.Prop && !settings.ReducedMotion,
+                Villager = pick.NeedsVillager ? x.RememberedVillager - 1 : -1,
+            };
         }
     }
 }

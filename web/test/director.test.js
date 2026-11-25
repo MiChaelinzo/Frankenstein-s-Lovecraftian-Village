@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   BEAT, CAUSE_IDS, MAX_STEP, MAX_INTENSITY, OMEN_AT, QUIET_AFTER_OMEN, FOG_GAIN_MAX, LIGHT_DIM_MAX, AMBIENCE_GAIN_MAX, RAMP_PER_SECOND,
-  freshRun, nextSafeZoneTicks, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
+  freshRun, nextSafeZoneTicks, nextSafeZoneAbuse, pickAmbientBeat, beatCause, BEAT_IDS, NO_BEAT_YET, CAMPING_TICKS, SAFE_ZONE_ABUSE_CAP, ABUSE_DECAY_PER_STEP, ABUSE_WEIGHT_PERCENT, MAX_CUE_VOLUME, MAX_BRIGHTNESS_STEP, MIN_BEAT_GAP_TICKS, GENTLE_SCALE, causeHolds, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
 } from '../src/director.js';
 
 const golden = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).director;
@@ -84,6 +84,91 @@ test('nearLitLamp only counts lit lanterns inside the radius', () => {
 
 test('freshRun resets every piece of web director bookkeeping', () => {
   const f = freshRun();
-  assert.deepEqual(f, { state: startState(), tick: null, level: 0, at: null, safeTicks: 0 });
+  assert.deepEqual(f, { state: startState(), tick: null, level: 0, at: null, safeTicks: 0, abuse: 0, beatTick: NO_BEAT_YET });
   assert.notEqual(freshRun().state, f.state);
+});
+
+// Director 2.0 (spec 175): ambient beats. The golden runs rebuild the Core BeatRun scenario (abuse tracker, tier from knowledge, remembered villager every 7th step).
+const beatRun = (run, scale, reduced) => {
+  let s = startState(), abuse = 0, last = NO_BEAT_YET;
+  const out = [], abuses = [];
+  run.inputs.forEach((raw, i) => {
+    abuse = nextSafeZoneAbuse(abuse, i % 10 < 6 ? CAMPING_TICKS : 0);
+    abuses.push(abuse);
+    const x = { ...asInput(raw), safeZoneAbuse: abuse, knowledgeTier: Math.min(5, Math.trunc(raw[2] / 200)), rememberedVillager: i % 7 === 0 ? (i % 5) + 1 : 0 };
+    s = step(run.seed, s, x);
+    const b = pickAmbientBeat(run.seed, s, x, last, { scale, reduced });
+    if (b.emitted) { last = x.tick; out.push([i, b.id, b.cause, b.volume, b.brightness, b.prop ? 1 : 0, b.villager]); }
+  });
+  return { out, abuses };
+};
+const goldenBeats = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).directorBeats;
+
+test('ambient beats and the safe-zone abuse tracker match the C# golden (additive key)', () => {
+  assert.equal(goldenBeats.runs.length, golden.runs.length);
+  goldenBeats.runs.forEach((r, k) => {
+    const run = golden.runs[k];
+    assert.equal(r.seed, run.seed);
+    for (const v of r.variants) {
+      const got = beatRun(run, v.scale, !!v.reduced);
+      assert.deepEqual(got.out, v.beats, `seed ${r.seed} scale ${v.scale} reduced ${v.reduced}`);
+      assert.deepEqual(got.abuses, r.abuse);
+    }
+  });
+  assert.ok(goldenBeats.runs.some((r) => r.variants[0].beats.length > 5));
+  assert.ok(goldenBeats.runs.every((r) => r.variants[2].beats.length === 0), 'gentle skips every beat');
+});
+
+test('every golden beat names a cause that holds, is bounded, and respects the rate limit', () => {
+  for (const r of goldenBeats.runs) for (const v of r.variants) {
+    let prevTick = null;
+    for (const [i, id, cause, volume, brightness, prop, villager] of v.beats) {
+      assert.ok(BEAT_IDS.includes(id));
+      assert.equal(cause, beatCause(id));
+      assert.ok(volume >= 0 && volume <= MAX_CUE_VOLUME);
+      assert.ok(brightness <= 0 && brightness >= -MAX_BRIGHTNESS_STEP);
+      if (v.reduced) assert.ok(!prop && brightness === 0);
+      assert.equal(villager >= 0, id === 'npc_sighting');
+      const tick = golden.runs[goldenBeats.runs.indexOf(r)].inputs[i][0];
+      if (prevTick !== null) assert.ok(tick - prevTick >= MIN_BEAT_GAP_TICKS);
+      prevTick = tick;
+    }
+  }
+});
+
+test('abuse tracker grows while camping, decays after and stays bounded; it adds a cause and pressure', () => {
+  let a = 0;
+  for (let i = 0; i < 200; i++) { a = nextSafeZoneAbuse(a, CAMPING_TICKS); assert.ok(a >= 0 && a <= SAFE_ZONE_ABUSE_CAP); }
+  assert.equal(a, SAFE_ZONE_ABUSE_CAP);
+  assert.equal(nextSafeZoneAbuse(a, CAMPING_TICKS - 1), SAFE_ZONE_ABUSE_CAP - ABUSE_DECAY_PER_STEP);
+  assert.equal(nextSafeZoneAbuse(-50, 0), 0);
+  const calm = { tick: 300, sanity: 1000 }, camped = { ...calm, safeZoneAbuse: 1000 };
+  assert.equal(target(calm), 0);
+  assert.equal(target(camped), ABUSE_WEIGHT_PERCENT * 10);
+  assert.equal(dominantCause(camped), 'safe_zone_abuse');
+  assert.ok(causeHolds('safe_zone_abuse', camped) && !causeHolds('safe_zone_abuse', calm) && !causeHolds('omen_passed', camped));
+});
+
+test('ambient beats need a held cause, tier and villager; gentle skips; quiet after an omen has none', () => {
+  const night = { tick: 1200 + 200, sanity: 1000 }, pressure = { intensity: 400, beat: BEAT.PRESSURE, quietLeft: 0, cause: 'nightfall' };
+  const emitted = (state, x, opts) => { const ids = new Set(); for (let seed = 0; seed < 300; seed++) { const b = pickAmbientBeat(seed, state, x, NO_BEAT_YET, opts); if (b.emitted) ids.add(b.id); } return ids; };
+  const std = { scale: 1000, reduced: false };
+  assert.ok(emitted(pressure, { tick: 1190, sanity: 0, knowledgeTier: 0 }, std).size > 0);
+  assert.equal(emitted(pressure, { tick: 300, sanity: 1000 }, std).size, 0);
+  assert.equal(emitted({ ...pressure, beat: BEAT.OMEN, quietLeft: 10 }, night, std).size, 0);
+  assert.equal(emitted(pressure, { tick: 1190, sanity: 0, knowledgeTier: 5, rememberedVillager: 3 }, { scale: GENTLE_SCALE, reduced: false }).size, 0);
+  assert.ok(!emitted(pressure, { tick: 300, sanity: 0, knowledgeTier: 0 }, std).has('npc_sighting'));
+  assert.ok(emitted(pressure, { tick: 300, sanity: 0, knowledgeTier: 1, rememberedVillager: 3 }, std).has('npc_sighting'));
+});
+
+test('reduced motion removes props and dimming; dread scale stays within the volume and dimming caps', () => {
+  const pressure = { intensity: 400, beat: BEAT.PRESSURE, quietLeft: 0, cause: '' };
+  const x = { tick: 1190, sanity: 0, stress: 1000, cultExposure: 1000, knowledge: 1000, knowledgeTier: 5, safeZoneAbuse: 1000, rememberedVillager: 2 };
+  let seen = 0;
+  for (let seed = 0; seed < 400; seed++) {
+    const loud = pickAmbientBeat(seed, pressure, x, NO_BEAT_YET, { scale: 99999 }), calm = pickAmbientBeat(seed, pressure, x, NO_BEAT_YET, { scale: 1500, reduced: true });
+    if (loud.emitted) { seen++; assert.ok(loud.volume <= MAX_CUE_VOLUME && loud.brightness >= -MAX_BRIGHTNESS_STEP && loud.brightness <= 0); }
+    if (calm.emitted) assert.ok(!calm.prop && calm.brightness === 0);
+  }
+  assert.ok(seen > 20);
 });
