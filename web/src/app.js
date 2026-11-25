@@ -59,6 +59,7 @@ import { createProgressController } from './progress-ui.js';
 import { createVigilController } from './vigil-ui.js';
 import { loadEndingsFound } from './vigil-view.js';
 import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from './journal.js';
+import { weeklyChallenge, accuracyOfState, addResult, leaderboardJson, leaderboardText, parseLeaderboard } from './challenge.js';
 import { dailyVillage, dailyWanted, parseSeedShareLibrary, encodeSeedCode, decodeSeedCode, dailyChallengeCode } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
 import { contrastWanted, loadContrast, saveContrast, intensityWanted, loadIntensity, saveIntensity, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
@@ -681,7 +682,27 @@ function applySeedCode(text) {
   const message = tr('seed.code.applied', { code: seedCode() }); announce(message); $('sessionNote').textContent = message; refreshDailyCode();
   return { ok: true, message };
 }
-function refreshDailyCode() { const el = $('dailyCode'); if (el) el.textContent = dailyLine(); }
+function refreshDailyCode() {
+  const el = $('dailyCode'); if (el) el.textContent = dailyLine();
+  const wk = $('weeklyCode'), w = seedShareLib ? weeklyChallenge(seedShareLib) : null;
+  if (wk) wk.textContent = w ? tr('seed.weekly', { key: w.key, code: w.code }) : '';
+}
+// Challenge results (spec 184): a local list in this browser only. The export holds seeds and counts, never a name, and nothing is sent anywhere.
+const CHALLENGE_KEY = 'flv.challenge.v1';
+function loadChallengeResults() {
+  try { const raw = storage ? storage.getItem(CHALLENGE_KEY) : null; return raw && seedShareLib ? parseLeaderboard(seedShareLib, raw).results : []; } catch (e) { console.warn('[challenge] saved results not read, starting an empty list', e); return []; }
+}
+function exportChallenge(format) {
+  const w = seedShareLib ? weeklyChallenge(seedShareLib) : null;
+  if (!w || !theory) { announce(tr('seed.err.format')); return; }
+  const list = theory.state().list, score = accuracyOfState(theory.state());
+  const results = addResult(loadChallengeResults(), { seed: state.seed | 0, score, theories: list.length, endings: loadEndingsFound(storage).length });
+  const json = leaderboardJson(seedShareLib, w.key, results);
+  if (storage) { try { storage.setItem(CHALLENGE_KEY, json); } catch (e) { console.warn('[challenge] results not saved', e); } }
+  const name = `challenge-${w.key.toLowerCase()}.${format}`;
+  download(name, format === 'json' ? json : leaderboardText(seedShareLib, results, { tr, format: 'txt', weekKey: w.key }), format === 'json' ? 'application/json' : 'text/plain');
+  announce(`${tr('export.done', { name })} ${tr('export.challenge.accuracy', { score })}`);
+}
 function download(name, text, mime) {
   const url = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -752,7 +773,7 @@ const board = createBoardController({
   onChange: () => autosave(),
 });
 theory = createTheoryController({
-  seedCode: () => seedCode(), download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
+  exportChallenge: (format) => exportChallenge(format), seedCode: () => seedCode(), download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
   $, doc: document, tr, lang, state, story: () => currentStory(), society: () => society.villageSociety(), mythosFinal: () => society.mythosFinal(state.campaign ? state.campaign.nights.length : FINAL_NIGHTS_DEFAULT),
   board, lore, night: () => state.night + 1, announce: (text) => announce(text), journal: (text) => log('lore', text), onChange: () => { board.sync(); chronicle.refresh(); autosave(); },
 });

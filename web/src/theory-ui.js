@@ -221,6 +221,11 @@ export function createTheoryController(deps) {
           b.addEventListener('click', () => exportTheory(format));
           row.append(b);
         }
+        if (deps.exportChallenge) for (const format of ['json', 'txt']) {
+          const b = node('button', { type: 'button', 'data-k': `challenge-${format}` }, tr(`export.challenge.${format}`));
+          b.addEventListener('click', () => deps.exportChallenge(format));
+          row.append(b);
+        }
         body.append(row);
       }
     }

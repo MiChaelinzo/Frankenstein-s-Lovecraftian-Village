@@ -431,8 +431,27 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendDirectorBeats(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendStreamerChallenge(sb);
             sb.Append("}\n");
             return sb.ToString();
+        }
+
+        /// <summary>Top level key "streamerChallenge" (round 36, spec 184): weekly keys and share codes for fixed instants, accuracy scores for fixed counts and the leaderboard JSON of a fixed result list.</summary>
+        private static void AppendStreamerChallenge(StringBuilder sb)
+        {
+            var lib = SeedShareTests.Library();
+            var inv = CultureInfo.InvariantCulture;
+            sb.Append("  \"streamerChallenge\": {\n    \"weekly\": [");
+            sb.Append(string.Join(", ", StreamerChallengeTests.Instants.Select(t =>
+            {
+                var key = WeeklySeed.KeyFor(StreamerChallengeTests.At(t));
+                return "[" + Q(t) + ", " + Q(key) + ", " + WeeklySeed.SeedFromKey(key).ToString(inv) + ", " + Q(WeeklySeed.ChallengeCode(lib, key)) + "]";
+            })));
+            sb.Append("],\n    \"accuracy\": [");
+            sb.Append(string.Join(", ", StreamerChallengeTests.AccuracyCases.Select(c => "[" + string.Join(", ", c) + ", " + InvestigationAccuracy.Score(c[0], c[1], c[2], c[3]).ToString(inv) + "]")));
+            sb.Append("],\n    \"leaderboard\": ").Append(Q(LeaderboardExport.ToJson(lib, "2026-W46", StreamerChallengeTests.SampleResults()))).Append("\n  }\n");
         }
 
         /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager.</summary>

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-008): streamer challenge features (spec 184)
+- Core: new `StreamerChallenge.cs` with `WeeklySeed` (ISO 8601 week key "YYYY-Www" by the Thursday rule, no ISOWeek class needed in Unity; seed and share code through `DailySeed`/`SeedShare`), `InvestigationAccuracy` (0 to 100: 70 percent theory correctness with True 2, Partial 1, False 0 points, 30 percent mean evidence belief) and `LeaderboardExport` (JSON `flv-challenge-1`: rank, seed, share code, score, theory and ending counts; no names or free text; parses back and checks each share code; capped at 25).
+- Web: `challenge.js` mirrors them; the tools group shows the weekly code (`weeklyCode`), the theory panel gets "Export challenge" .json and .txt buttons (`export.challenge.*`, en and fr). The result list lives in this browser's storage only (`flv.challenge.v1`), nothing is sent. Golden key `streamerChallenge` is new, existing keys byte identical. Service worker cache `flv-shell-v94`.
+- Verified: dotnet 527, node 879, python tools, UnityCompileCheck 0/0. Unverified: Unity runtime, browser click path of the new buttons.
+
 ### Round 36 (FEAT-007): Reality Collapse at knowledge tier 5 (spec 183)
 - Core: `RealityInstability` gains `CollapsedHouseName` (a house drifts to a wrong name from its onset night and stays), `ErasedVillager` (one villager never existed from its onset night), `IdentityStep` (Name, Name?, Unknown plus the role, one step per night) and `PhantomPathVisible` (an extra path drawn for exactly one night). Onset is 2 to 5 per seed, chances 500, 300, 350 and 400 per mille, all below tier 5 give nothing. Pure functions of seed, night, tier; no save or Vigil state is read or written.
 - Web: `reality.js` mirrors them and the view gains `erased`, `identityStep`, `phantomPath` and a drift fallback in `houseName`; `villager-ui.js` hides the erased villager and shows the identity steps (`reality.collapse.unknown`, en and fr). The truth switch restores everything. Golden key `realityCollapse` is new, existing keys byte identical. Service worker cache `flv-shell-v93`.
