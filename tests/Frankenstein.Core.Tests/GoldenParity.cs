@@ -413,6 +413,9 @@ namespace Frankenstein.Core.Tests
             sb.Length -= 1;
             sb.Append(",\n");
             AppendCreatureTiers(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
+            AppendReputation(sb, cat);
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -1487,6 +1490,43 @@ namespace Frankenstein.Core.Tests
                                       + (r.StrongHint ? 1 : 0) + ", " + (r.Withheld ? 1 : 0) + ", " + Q(r.LieStatementId) + ", " + (r.ColdLine ? 1 : 0) + ", " + r.LineVariant + "]");
                         }
                 sb.Append(", \"chat\": [").Append(string.Join(", ", chats)).Append("] }");
+            }
+            sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps.</summary>
+        private static void AppendReputation(StringBuilder sb, PrefabCatalog cat)
+        {
+            string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
+            var lib = StoryLibrary.Parse(File.ReadAllText(Path.Combine(data, "story.json")));
+            var nameLib = NameLibrary.Parse(File.ReadAllText(Path.Combine(data, "names.json")));
+            var log = new[]
+            {
+                new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 }, new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.SeenNearBody, Subject = VillageSociety.AllVillagers }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 3 },
+                new SocietyAction { Kind = SocietyActionKind.NightIntrusion, Subject = 0 }, new SocietyAction { Kind = SocietyActionKind.ChatPolite, Subject = 1 },
+                new SocietyAction { Kind = SocietyActionKind.SeenAtRitualSite, Subject = 4 }, new SocietyAction { Kind = SocietyActionKind.WardCreatureInView, Subject = 5 },
+                new SocietyAction { Kind = SocietyActionKind.FightCreatureInView, Subject = 6 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 2 },
+                new SocietyAction { Kind = SocietyActionKind.ReturnItem, Subject = 3 }, new SocietyAction { Kind = SocietyActionKind.ReturnJournal, Subject = 5 },
+            };
+            var nights = new[] { 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3 };
+            var crowded = new List<SocietyAction>();
+            for (int i = 0; i < 8; i++) crowded.Add(new SocietyAction { Kind = i % 2 == 0 ? SocietyActionKind.SeenAtRitualSite : SocietyActionKind.NightIntrusion, Subject = i % 4 });
+            string Rows(List<ReputationEffect> fx) { return "[" + string.Join(", ", fx.Select(e => "[" + e.Source + ", " + e.Target + ", " + (int)e.Kind + ", " + (int)e.Effect + ", " + e.Hop + ", " + e.Strength + ", " + e.Night + "]")) + "]"; }
+            sb.Append("  \"reputation\": {\n    \"log\": [").Append(string.Join(", ", log.Select(a => "[" + (int)a.Kind + ", " + a.Subject + "]"))).Append("],\n    \"nights\": [").Append(string.Join(", ", nights));
+            sb.Append("],\n    \"crowded\": [").Append(string.Join(", ", crowded.Select(a => "[" + (int)a.Kind + ", " + a.Subject + "]"))).Append("],\n    \"cities\": [");
+            bool first = true;
+            foreach (var seed in new[] { 1, 42, 1818 })
+            {
+                int grid = VillageDistricts.CityGrid;
+                var layout = VillageLayoutGenerator.GenerateCity(cat, grid, grid, VillageDistricts.CityPieces, seed);
+                var roster = VillagerRules.GenerateRoster(seed, layout);
+                var story = VillageStory.Build(lib, seed, layout, roster, VillageNames.Assign(nameLib, seed, grid, grid, layout), CampaignGenerator.Generate(seed, 5).VillageName);
+                var soc = VillageSociety.Build(story, layout);
+                sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
+                first = false;
+                sb.Append(", \"effects\": ").Append(Rows(soc.ReputationEffectsAfter(log, nights)));
+                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null))).Append(" }");
             }
             sb.Append("\n    ]\n  }\n");
         }

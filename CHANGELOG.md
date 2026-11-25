@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 36 (FEAT-002): reputation propagation (spec 176 part 1)
+- Core: `VillageSociety.ReputationEffectsAfter(log, nights)` returns explicit `ReputationEffect` records (Source, Target, Kind, Effect Trusted or Accused, Hop, Strength, Night). The action on one villager is the origin record (hop 0, strength `|ActionTrust - ActionSuspicion|` divided by the repeat divisor); it then spreads breadth first along family and nearest neighbour links (both ways, `LinkedTo`) to `MaxReputationHops` (2), halved per hop. A villager is visited once per origin event, propagated records never start new events, a villager receives at most `PropagatedCapPerVillager` (300) propagated strength, the village at most `PropagatedCapPerNight` (600) per night, no record exceeds `MaxEffectStrength` (500). An all-villagers action yields origin records only. Additive: `OpinionsAfter` and every existing golden key are unchanged.
+- Web: `society.js` `reputationEffectsAfter`/`linkedTo` mirror it; `society-ui.js` exposes `reputationEffects()` and `reputationOf(index)` for UI and chronicle. No visible UI line yet (Unverified in the browser). Golden key `reputation` is new. Service worker cache is now `flv-shell-v88`.
+- Tests: 7 C# and 3 JS tests (decay by hop, caps on cyclic links, once per origin, deterministic, replay equals incremental, empty log, golden parity). Verified: dotnet 482, node 845, UnityCompileCheck 0/0. Unity runtime Unverified.
+
 ### Round 36 (FEAT-001): baseline and round 35 leftovers
 - Baseline before changes: dotnet 475, node 839, UnityCompileCheck 0 errors and 0 warnings, all `tools/test_*.py` OK.
 - Audit: inventory and homestead already rebuild on a seed change (reroll, seed entry, daily, share code), because both controllers key their world on the seed; going back to an old seed rebuilds it fresh. New tests pin it in `inventory-ui.test.js` and `homestead-ui.test.js`.

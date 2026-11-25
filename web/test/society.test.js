@@ -13,6 +13,7 @@ import {
   buildSociety, tierOf, dreadPermille, combinedBehavior, coldLine, suspiciousStatement, UNREACHABLE, SCALE, ALL_VILLAGERS, LIE_STATEMENT_IDS,
   ACTION_TRUST, ACTION_SUSPICION, ACTION_IDS, START_TRUST, TIER_NEUTRAL, TIER_SUSPICIOUS, TIER_TRUSTING, CORRUPTION_MISSING, CORRUPTION_CORRUPTED,
   SEEN_AT_RITUAL_SITE, RETURN_ITEM, CHAT_POLITE, fearWithholds, TERRIFIED_AT,
+  EFFECT_TRUSTED, EFFECT_ACCUSED, MAX_REPUTATION_HOPS, MAX_EFFECT_STRENGTH, PROPAGATED_CAP_PER_VILLAGER, PROPAGATED_CAP_PER_NIGHT,
 } from '../src/society.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
@@ -122,4 +123,41 @@ test('axes are deterministic and leave opinions alone; fear above trust withhold
   assert.equal(chat(42, roster[0], 600, 0, 1, 0, 2, 1, 80, { tier: TIER_TRUSTING, corruption: 0, trust: 900, fear: 700 }).strongHint, true);
   assert.equal(fearWithholds(500, TERRIFIED_AT), true);
   assert.equal(fearWithholds(TERRIFIED_AT, TERRIFIED_AT), false);
+});
+
+// Round 36 (spec 176): reputation propagation. Golden key "reputation".
+const reputationGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).reputation;
+const rows = (fx) => fx.map((e) => [e.source, e.target, e.kind, e.effect, e.hop, e.strength, e.night]);
+
+test('reputation effect records match C# for every golden seed, with nights and with a crowded log', () => {
+  const log = reputationGolden.log.map(([kind, subject]) => ({ kind, subject })), crowded = reputationGolden.crowded.map(([kind, subject]) => ({ kind, subject }));
+  for (const c of reputationGolden.cities) {
+    const { society } = societyOf(c.seed);
+    assert.deepEqual(rows(society.reputationEffectsAfter(log, reputationGolden.nights)), c.effects, `effects ${c.seed}`);
+    assert.deepEqual(rows(society.reputationEffectsAfter(crowded, null)), c.crowdedEffects, `crowded ${c.seed}`);
+  }
+});
+
+test('reputation: decay by hop, caps hold on cyclic links, each villager once per origin, replay equals incremental', () => {
+  const { roster, society } = societyOf(42), n = roster.length;
+  const one = society.reputationEffectsAfter([{ kind: SEEN_AT_RITUAL_SITE, subject: 0 }]);
+  const origin = one.filter((e) => e.hop === 0);
+  assert.equal(origin.length, 1);
+  assert.deepEqual([origin[0].effect, origin[0].strength], [EFFECT_ACCUSED, 400]);
+  for (const e of one.filter((x) => x.hop > 0)) assert.ok(e.hop <= MAX_REPUTATION_HOPS && e.strength <= origin[0].strength >> e.hop);
+  assert.equal(new Set(one.map((e) => e.target)).size, one.length);
+  assert.equal(society.reputationEffectsAfter([{ kind: RETURN_ITEM, subject: 0 }])[0].effect, EFFECT_TRUSTED);
+  const crowd = Array.from({ length: 40 }, (_, i) => ({ kind: i % 2 === 0 ? SEEN_AT_RITUAL_SITE : 5, subject: i % n }));
+  const fx = society.reputationEffectsAfter(crowd);
+  const perTarget = new Map();
+  for (const e of fx) { assert.ok(e.strength >= 1 && e.strength <= MAX_EFFECT_STRENGTH); if (e.hop > 0) perTarget.set(e.target, (perTarget.get(e.target) || 0) + e.strength); }
+  for (const total of perTarget.values()) assert.ok(total <= PROPAGATED_CAP_PER_VILLAGER);
+  assert.ok(fx.filter((e) => e.hop > 0).reduce((s, e) => s + e.strength, 0) <= PROPAGATED_CAP_PER_NIGHT);
+  assert.deepEqual(fx, society.reputationEffectsAfter(crowd));
+  for (let cut = 1; cut <= crowd.length; cut += 7) assert.deepEqual(society.reputationEffectsAfter(crowd.slice(0, cut)), fx.slice(0, society.reputationEffectsAfter(crowd.slice(0, cut)).length));
+  assert.deepEqual(society.reputationEffectsAfter([]), []);
+  assert.deepEqual(society.reputationEffectsAfter(null), []);
+  const all = society.reputationEffectsAfter([{ kind: 3, subject: ALL_VILLAGERS }, { kind: 99, subject: 0 }, { kind: CHAT_POLITE, subject: 999 }]);
+  assert.equal(all.length, n);
+  assert.ok(all.every((e) => e.hop === 0));
 });

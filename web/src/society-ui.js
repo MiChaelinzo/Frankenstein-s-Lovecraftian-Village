@@ -248,6 +248,10 @@ export function createSocietyController(deps) {
     memoryLine(index, night1, lang) { const m = memory(); return m && memoryLib ? m.lineFor(memoryLib, state.seed, index, night1, lang) : ''; },
     /** Memory outcome id of a villager (memory.js MEMORY_OUTCOME_IDS index); MEMORY_NONE without a society. */
     memoryOutcome(index) { const m = memory(); return m ? m.outcomeOf(index) : MEMORY_NONE; },
+    /** Round 36 (spec 176): the effect records of everything the player did (society.js reputationEffectsAfter), for the chronicle and UI; empty without a society. */
+    reputationEffects() { const s = society(); return s ? s.reputationEffectsAfter(log) : []; },
+    /** Round 36: the effects one villager holds against or for the player, strongest first; [] without a society. */
+    reputationOf(index) { const s = society(); return (s ? s.reputationEffectsAfter(log) : []).filter((e) => e.target === index).sort((a, b) => b.strength - a.strength || a.hop - b.hop); },
     mythosFeed, mythosChat, mythosKey: () => { mythosFeed(); return mythosKey; },
     stages, stageOf, standing, axes, record,
     /** The six bars (trust, fear, faith, loyalty, obsession, corruption) of a villager, or null. */

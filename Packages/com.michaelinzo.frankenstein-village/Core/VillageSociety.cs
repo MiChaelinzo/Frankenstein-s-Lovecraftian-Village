@@ -18,6 +18,24 @@ namespace Frankenstein.Core
     /// </summary>
     public enum CorruptionStage { None = 0, Uneasy = 1, Corrupted = 2, Cultist = 3, Missing = 4 }
 
+    /// <summary>Round 36: what an effect record says about the player. Order is stable (golden data uses the integers).</summary>
+    public enum ReputationEffectKind { Trusted = 0, Accused = 1 }
+
+    /// <summary>
+    /// Round 36 (spec 176): one explicit reputation effect. Source is the roster index the player acted on (the origin event), Target the villager who now holds it for or against the player,
+    /// Hop 0 for the origin itself and 1 or 2 for villagers it was passed to. Strength is a positive per mille magnitude; Effect gives the direction. Night is the night the action happened.
+    /// </summary>
+    public struct ReputationEffect
+    {
+        public int Source;
+        public int Target;
+        public SocietyActionKind Kind;
+        public ReputationEffectKind Effect;
+        public int Hop;
+        public int Strength;
+        public int Night;
+    }
+
     /// <summary>One entry of the action log. Subject is the roster index the action concerns, or <see cref="VillageSociety.AllVillagers"/> when the whole village saw it.</summary>
     public struct SocietyAction
     {
@@ -117,6 +135,17 @@ namespace Frankenstein.Core
         public const int ObsessionNightStep = 40, ObsessionHauntedBonus = 150, ObsessionDreadDivisor = 4;
         /// <summary>A villager whose Fear is at least this and above their Trust is too terrified to talk, though their trust still shows.</summary>
         public const int TerrifiedAt = 800;
+
+        // Round 36 reputation propagation. Origin strength is |ActionTrust - ActionSuspicion| / repeat divisor; each hop divides it by HopDecayDivisor.
+        /// <summary>Propagation stops after this many hops from the villager acted on.</summary>
+        public const int MaxReputationHops = 2;
+        public const int HopDecayDivisor = 2;
+        /// <summary>No single effect record is stronger than this.</summary>
+        public const int MaxEffectStrength = 500;
+        /// <summary>Total propagated (hop 1 or more) strength one villager can receive over the whole log.</summary>
+        public const int PropagatedCapPerVillager = 300;
+        /// <summary>Total propagated strength the whole village can receive from the actions of one night.</summary>
+        public const int PropagatedCapPerNight = 600;
 
         public int Seed;
         public IList<Villager> Roster;
@@ -243,6 +272,82 @@ namespace Frankenstein.Core
             if (dt > 0 && o.Suspicion[who] >= SuspiciousAt) dt /= SuspectGainDivisor;
             o.Trust[who] = Clamp(o.Trust[who] + dt);
             o.Suspicion[who] = Clamp(o.Suspicion[who] + ds);
+        }
+
+        /// <summary>The villagers one link away from <paramref name="index"/>: family and the nearest neighbour, both ways, ascending and without duplicates.</summary>
+        public List<int> LinkedTo(int index)
+        {
+            var set = new SortedSet<int>(FamilyLinks[index]);
+            if (Neighbour[index] >= 0) set.Add(Neighbour[index]);
+            for (int j = 0; j < Neighbour.Length; j++) if (Neighbour[j] == index) set.Add(j);
+            set.Remove(index);
+            return new List<int>(set);
+        }
+
+        /// <summary>
+        /// Round 36 (spec 176): the explicit effect records of an ordered action log. Each action on one villager yields an origin record (hop 0) and then spreads breadth first along
+        /// <see cref="LinkedTo"/> to at most <see cref="MaxReputationHops"/> hops, halving per hop. A villager is visited once per origin event, propagated records never start new events,
+        /// a villager receives at most <see cref="PropagatedCapPerVillager"/> propagated strength in total and the village at most <see cref="PropagatedCapPerNight"/> per night.
+        /// An action on <see cref="AllVillagers"/> yields only origin records (everyone already saw it). Repeats decay as in <see cref="OpinionsAfter(IList{SocietyAction})"/>.
+        /// <paramref name="nights"/> gives the night of each log entry (null or short means night 0). Pure integer arithmetic and the log order only: replay equals incremental. This does not
+        /// change <see cref="OpinionsAfter(IList{SocietyAction})"/> or any existing value.
+        /// </summary>
+        public List<ReputationEffect> ReputationEffectsAfter(IList<SocietyAction> log, IList<int> nights)
+        {
+            int n = Roster.Count;
+            var result = new List<ReputationEffect>();
+            if (log == null) return result;
+            var repeats = new Dictionary<int, int>();
+            var received = new int[n];
+            var perNight = new Dictionary<int, int>();
+            for (int k = 0; k < log.Count; k++)
+            {
+                var a = log[k];
+                int kind = (int)a.Kind;
+                if (kind < 0 || kind >= ActionTrust.Length) continue;
+                int key = kind * 1000 + (a.Subject + 1), seen;
+                repeats.TryGetValue(key, out seen);
+                repeats[key] = seen + 1;
+                int night = nights != null && k < nights.Count ? nights[k] : 0;
+                int net = ActionTrust[kind] - ActionSuspicion[kind];
+                var effect = net < 0 ? ReputationEffectKind.Accused : ReputationEffectKind.Trusted;
+                int origin = Math.Min(MaxEffectStrength, Math.Abs(net) / (1 + seen * RepeatDecayStep));
+                if (a.Subject == AllVillagers)
+                {
+                    if (origin > 0) for (int i = 0; i < n; i++) result.Add(Effect(i, i, a.Kind, effect, 0, origin, night));
+                    continue;
+                }
+                if (a.Subject < 0 || a.Subject >= n) continue;
+                if (origin > 0) result.Add(Effect(a.Subject, a.Subject, a.Kind, effect, 0, origin, night));
+                var visited = new HashSet<int> { a.Subject };
+                var frontier = new List<int> { a.Subject };
+                for (int hop = 1; hop <= MaxReputationHops && frontier.Count > 0; hop++)
+                {
+                    int strength = origin;
+                    for (int h = 0; h < hop; h++) strength /= HopDecayDivisor;
+                    var next = new List<int>();
+                    foreach (int from in frontier)
+                        foreach (int to in LinkedTo(from))
+                        {
+                            if (!visited.Add(to)) continue;
+                            next.Add(to);
+                            int nightUsed;
+                            perNight.TryGetValue(night, out nightUsed);
+                            int give = Math.Min(strength, Math.Min(PropagatedCapPerVillager - received[to], PropagatedCapPerNight - nightUsed));
+                            if (give <= 0) continue;
+                            received[to] += give;
+                            perNight[night] = nightUsed + give;
+                            result.Add(Effect(a.Subject, to, a.Kind, effect, hop, give, night));
+                        }
+                    frontier = next;
+                }
+            }
+            return result;
+        }
+
+        private static ReputationEffect Effect(int source, int target, SocietyActionKind kind, ReputationEffectKind effect, int hop, int strength, int night)
+        {
+            return new ReputationEffect { Source = source, Target = target, Kind = kind, Effect = effect, Hop = hop, Strength = strength, Night = night };
         }
 
         public static TrustTier TierOf(int trust, int suspicion)

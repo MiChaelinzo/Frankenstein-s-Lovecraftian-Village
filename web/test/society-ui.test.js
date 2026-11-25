@@ -321,3 +321,15 @@ test('axes follow the opinions: lost trust from wrong theories and a full log bo
   society.record(5, -1); // the 151st action (a trust loss) replaces the oldest; the length stays at 150
   assert.ok(society.axes(0).loyalty < full, 'the new action reaches the axes although the log length is unchanged');
 });
+
+test('round 36: the controller exposes reputation effect records, strongest first per villager, and none for an empty log', () => {
+  const { society } = make({ night: 1 });
+  assert.deepEqual(society.reputationEffects(), []);
+  assert.equal(society.record(SEEN_AT_RITUAL_SITE, 1), true);
+  const fx = society.reputationEffects();
+  assert.ok(fx.length >= 1 && fx[0].target === 1 && fx[0].hop === 0 && fx[0].source === 1);
+  const mine = society.reputationOf(1);
+  assert.equal(mine[0].strength, 400);
+  for (const e of fx.filter((x) => x.hop > 0)) assert.deepEqual(society.reputationOf(e.target)[0], e);
+  assert.deepEqual(society.reputationOf(999), []);
+});
