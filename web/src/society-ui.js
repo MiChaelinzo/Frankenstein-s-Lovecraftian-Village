@@ -84,7 +84,7 @@ export function barRows(trust, axes, stage) {
 export function createSocietyController(deps) {
   const { state } = deps;
   let log = [], mythosLib = null, mythosCache = null, mythosKey = '', graph = null, opinionsKey = '', statements = null, built = null, builtStory = null, builtLayout = null, opinions = null, opinionsLen = -1, axesKey = '', axesCache = null, lostApplied = 0, finalKey = '', finalState = null, stageKey = '', stageList = [];
-  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0;
+  let memoryLib = null, memoryLog = [], adjusted = null, adjustedFor = null, adjustedKey = '', memoryKeyOf = '', memoryCache = null, memoryEdits = 0, opinionsVersion = 0; // opinionsVersion counts recomputations: the log length stays at its cap and lost trust is not in the key
   const noted = new Set(); // witnessed actions already logged this night: `${night}:${kind}:${subject}`
   let seenSeed = null;
   /** A new village (another seed) starts with no action log and no memories, like the board and the theories. Called before any read or write of the logs. */
@@ -131,7 +131,7 @@ export function createSocietyController(deps) {
     const feed = mythosFeed(), key = feed ? mythosKey : '';
     const lost = Math.max(0, deps.trustLost ? deps.trustLost() | 0 : 0) * TRUST_UNIT;
     if (!opinions || opinionsLen !== log.length || opinionsKey !== key || lostApplied !== lost) {
-      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost;
+      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost; opinionsVersion += 1;
       if (lost > 0) opinions = { ...opinions, trust: opinions.trust.map((t) => Math.max(0, t - lost)) }; // wrong theories about villagers cost trust (Core TheoryRules.TrustLost, whole points of 0..100)
     }
     return opinions;
@@ -171,7 +171,7 @@ export function createSocietyController(deps) {
   function axesList() {
     const s = society(), o = adjustedOpinions();
     if (!s || !o) return null;
-    const key = `${opinionsLen}|${opinionsKey}|${memoryKeyOf}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
+    const key = `${opinionsVersion}|${opinionsKey}|${memoryKeyOf}|${night()}|${dreadPermille(state.sanity.dread)}|${state.ritualStage}|${s.roster.length}`;
     if (key !== axesKey) { axesKey = key; axesCache = s.axesAfter(o, night(), state.sanity.dread, state.ritualStage, memory().effectsOfAll()); }
     return axesCache;
   }

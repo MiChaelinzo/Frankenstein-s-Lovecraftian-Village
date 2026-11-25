@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Round 35 bug sweep
 - Fix: the society action log and the villager memory log carried over when the seed changed in a session (new village, reroll, daily, share code), so a new village started with the old village's trust actions and memories and autosaved them under the new seed. `society-ui.js` now clears both logs when the seed changes (same pattern as the board and theories); test added in `society-ui.test.js`. Web only, Core unchanged, golden unchanged. Service worker cache is now `flv-shell-v85`.
+- Fix: the Fear/Faith/Loyalty/Obsession bars were cached on the action log length, so trust lost to wrong theories (and any action once the log was full at 150) did not reach the loyalty bar until the night changed. The cache now keys on a counter of opinion recomputations; test added in `society-ui.test.js`. Web only, golden unchanged.
 - Test: creature homes in a fully blocked village are pinned (deterministic, finite, land homes inside the map) in C# and JS. No behavior change.
 
 ### Round 34 review fixes
