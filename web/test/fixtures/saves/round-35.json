@@ -1,0 +1,12 @@
+{
+  "round": 35,
+  "commit": "816300b30d669cb85138659f0df322af966996a9",
+  "visit": "?intro=0&capture=1&tick=900#seed=1818&sanity=40&night=3",
+  "generator": "tools/gen_save_fixtures.mjs",
+  "pageErrors": [],
+  "storage": {
+    "flv.contrast.v1": "1",
+    "flv.intensity.v1": "dread",
+    "flv.session.v1": "{\"seed\":1818,\"sanity\":26,\"night\":2,\"beat\":0,\"theme\":\"auto\",\"cam\":\"third\",\"floor\":0,\"stage\":3,\"codex\":[\"s0\",\"s1\",\"s2\",\"s3\",\"o1\",\"o2\"],\"ach\":[\"codexhalf\"],\"lore\":[],\"inv\":\"inv1;60;;;bread:1,tea:1,lantern_oil:1/dried_fish:2,sigil_chalk:1,herbs:1/harbour_letter:1,bread:2,seed_kelp:1/sigil_chalk:1,seed_cabbage:2,seed_eyeroot:1\",\"hs\":\"\",\"board\":\"bd1;0;villager_0;\",\"society\":\"sc1;\",\"memory\":\"mm1;\",\"theories\":\"\",\"glimpse\":\"\",\"vigil\":\"vigil1;0;26;26;1;0;villager_0;\"}"
+  }
+}
