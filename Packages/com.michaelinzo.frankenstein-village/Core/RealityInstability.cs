@@ -75,7 +75,9 @@ namespace Frankenstein.Core
 
         // Reality Collapse (round 36, spec 183): at knowledge tier 5 the village starts to forget itself. Each kind has a per seed onset night inside [CollapseOnsetFloor, CollapseOnsetFloor + CollapseOnsetSpan).
         public const int CollapseTier = 5, CollapseOnsetFloor = 2, CollapseOnsetSpan = 4, CollapseIdentitySteps = 2;
-        public const int KindCollapseHouse = 6, KindCollapseVillager = 7, KindCollapseIdentity = 8, KindCollapsePath = 9;
+        public const int KindCollapseHouse = 6, KindCollapseVillager = 7, KindCollapseIdentity = 8, KindCollapsePath = 9, KindPhantomShape = 10;
+        /// <summary>The ids of the phantom paths a client can draw at tier 5, in a stable order.</summary>
+        public static readonly string[] PhantomPathIds = { "orchard_lane", "tide_steps", "bell_path", "cellar_way", "ridge_track" };
         public const int IdentityTrue = 0, IdentityQuestioned = 1, IdentityUnknown = 2;
 
         /// <summary>Whether the badge "reality unreliable" shows at this knowledge tier.</summary>
@@ -194,6 +196,14 @@ namespace Frankenstein.Core
         {
             var rng = Rng(seed, 0, KindCollapsePath, SubjectOf(pathId));
             return Hit(rng, KindCollapsePath, tier) && night == Onset(rng);
+        }
+
+        /// <summary>The cells of phantom path <paramref name="pathId"/> on a <paramref name="gridW"/> by <paramref name="gridD"/> grid as {x, z} pairs: two seed-chosen cells joined by one bend. Pure geometry of the path that does not exist; whether it is drawn tonight is <see cref="PhantomPathVisible"/>. PRESENTATION ONLY, never saved.</summary>
+        public static int[][] PhantomPathCells(int seed, string pathId, int gridW, int gridD)
+        {
+            var rng = Rng(seed, 0, KindPhantomShape, SubjectOf(pathId));
+            int ax = rng.Next(Math.Max(1, gridW)), az = rng.Next(Math.Max(1, gridD)), bx = rng.Next(Math.Max(1, gridW)), bz = rng.Next(Math.Max(1, gridD));
+            return new[] { new[] { ax, az }, new[] { bx, az }, new[] { bx, bz } };
         }
     }
 }

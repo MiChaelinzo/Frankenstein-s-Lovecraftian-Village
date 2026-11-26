@@ -196,7 +196,7 @@ const view3d = createView3d({
     layout: state.layout, seed: state.seed, gridW: GRID_W, gridD: GRID_D, dread: state.sanity.dread,
     night: withWeather(currentNight() || { number: 1, sky: 'night', weather: 'clear' }),
     categoryOf: (id) => (state.catalog && state.catalog.get(id) ? state.catalog.get(id).category : ''),
-    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), manifestations: creatures.manifest(), wards: creatures.wards(), places: places.scene(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
+    director: directorLookNow, tick: clockTickExact(), lamps: vigil.lampTargets(), villagers: villagerScene(state.placementsAt ? state.placementsAt(clockTickExact()) : state.villagers || [], CELL), books: lore.scene(), pickups: inventory.scene(), creatures: creatures.scene(), manifestations: creatures.manifest(), wards: creatures.wards(), places: places.scene(), homestead: homestead.pieces(), homesteadEdge: homestead.edge(), homesteadKey: homestead.key(), phantom: reality.phantomPaths(GRID_W, GRID_D).map((p) => p.cells), creatureNear: creatures.level, folk: streetWalkers(state.seed, GRID_W, GRID_D, clockTickExact(), state.sanity.dread),
     labelFor: (p, kind) => (kind === 'item' ? tr('view3d.prompt.item', { name: p.label }) : kind === 'chest' ? tr(p.lodging ? 'view3d.prompt.lodging' : 'view3d.prompt.chest') : kind === 'book' ? tr(p.read ? 'view3d.prompt.bookread' : 'view3d.prompt.book') : kind === 'place' ? p.label : kind === 'villager' ? tr('view3d.prompt.villager', { name: p.name }) : kind === 'lamp' ? tr(p.lit ? 'view3d.prompt.lamplit' : 'view3d.prompt.lamp') : tr(`view3d.prompt.${kind}`, { name: pieceLabel(p) })),
     tintFor: (id) => (id === 'house_a' || id === 'house_b' ? packTint('wall_plaster', 'wall_wood') : id === 'dead_tree' ? packTint('trunk') : packTint('wall_stone')),
     groundTint: packTint('ground'),
@@ -525,6 +525,11 @@ function drawMinimap() {
   for (const m of villagerMarkers(state.villagers || [], GRID_W, GRID_D, c.width)) {
     g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(m.x, m.y, Math.max(2, sc * 0.35), 0, 6.283); g.fill();
     g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
+  }
+  for (const p of reality.phantomPaths(GRID_W, GRID_D)) { // tier 5: the path that does not exist, drawn for one night; never saved
+    g.strokeStyle = 'rgba(150,175,210,0.85)'; g.lineWidth = 2; g.setLineDash([3, 3]); g.beginPath();
+    p.cells.forEach(([x, z], i) => { const px = (x + 0.5) * sc, py = (z + 0.5) * sc; if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+    g.stroke(); g.setLineDash([]);
   }
   for (const m of lore.markers(c.width)) {
     g.fillStyle = m.read ? '#8a7a55' : '#ffd68c'; g.strokeStyle = '#000000'; g.lineWidth = 1;

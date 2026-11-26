@@ -1955,7 +1955,7 @@ namespace Frankenstein.Core.Tests
         private static void AppendRealityCollapse(StringBuilder sb)
         {
             var lib = RealityInstabilityTests.Library();
-            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"cities\": [");
+            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"shapes\": [").Append(string.Join(", ", new[] { 1, 42, 1818 }.Select(sd => Q(RealityInstabilityTests.ShapeSignature(sd))))).Append("],\n    \"cities\": [");
             bool first = true;
             foreach (var seed in new[] { 1, 42, 1818 })
             {

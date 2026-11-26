@@ -9,7 +9,9 @@ export const REALITY_NOTE_IDS = ['house', 'villager', 'board', 'identity', 'loca
 export const REALITY_MIN_ENTRIES = 4, REALITY_INSTABILITY_STREAM = 0x52454c, MAX_TIER = 5;
 export const HOUSE_TIER = 3, VILLAGER_TIER = 4, BOARD_TIER = 5;
 export const COLLAPSE_TIER = 5, COLLAPSE_ONSET_FLOOR = 2, COLLAPSE_ONSET_SPAN = 4, COLLAPSE_IDENTITY_STEPS = 2;
-export const KIND_COLLAPSE_HOUSE = 6, KIND_COLLAPSE_VILLAGER = 7, KIND_COLLAPSE_IDENTITY = 8, KIND_COLLAPSE_PATH = 9;
+export const KIND_COLLAPSE_HOUSE = 6, KIND_COLLAPSE_VILLAGER = 7, KIND_COLLAPSE_IDENTITY = 8, KIND_COLLAPSE_PATH = 9, KIND_PHANTOM_SHAPE = 10;
+/** The ids of the phantom paths a client can draw at tier 5, in a stable order. Mirrors RealityInstability.PhantomPathIds. */
+export const PHANTOM_PATH_IDS = ['orchard_lane', 'tide_steps', 'bell_path', 'cellar_way', 'ridge_track'];
 export const IDENTITY_TRUE = 0, IDENTITY_QUESTIONED = 1, IDENTITY_UNKNOWN = 2;
 export const KIND_HOUSE = 1, KIND_FALSE_VILLAGER = 2, KIND_CONTRADICTION = 3, KIND_IDENTITY = 4, KIND_LOCATION = 5;
 
@@ -125,6 +127,12 @@ export function realityPhantomPathVisible(seed, night, tier, pathId) {
   const rng = rngFor(seed, 0, KIND_COLLAPSE_PATH, realitySubjectOf(pathId));
   return hit(rng, KIND_COLLAPSE_PATH, tier) && night === collapseOnset(rng);
 }
+/** Cells [[x, z], ...] of phantom path pathId on a gridW by gridD grid: two seed-chosen cells joined by one bend. Presentation only, never saved. Mirrors RealityInstability.PhantomPathCells. */
+export function realityPhantomPathCells(seed, pathId, gridW, gridD) {
+  const rng = rngFor(seed, 0, KIND_PHANTOM_SHAPE, realitySubjectOf(pathId));
+  const ax = rng.next(Math.max(1, gridW)), az = rng.next(Math.max(1, gridD)), bx = rng.next(Math.max(1, gridW)), bz = rng.next(Math.max(1, gridD));
+  return [[ax, az], [bx, az], [bx, bz]];
+}
 
 /**
  * The client side of the instability: one object the panels ask. deps: { lib() -> parsed library or null, seed(), night() (1-based), tier() (knowledge tier), lang(), reduced?() }.
@@ -154,6 +162,8 @@ export function createRealityView(deps) {
     identityStep: (index) => realityIdentityStep(deps.seed(), night(), tier(), index),
     /** Collapse (tier 5): whether the phantom path is drawn tonight. */
     phantomPath: (pathId) => realityPhantomPathVisible(deps.seed(), night(), tier(), pathId),
+    /** Every phantom path drawn tonight as { id, cells }; empty below tier 5 and while the truth switch is on. Presentation only: never part of a save. */
+    phantomPaths: (gridW, gridD) => PHANTOM_PATH_IDS.filter((id) => view.phantomPath(id)).map((id) => ({ id, cells: realityPhantomPathCells(deps.seed(), id, gridW, gridD) })),
     falseVillager() { const k = lib() ? realityFalseVillager(lib(), deps.seed(), night(), tier()) : -1; return k < 0 ? null : t(lib().falseVillagers[k]); },
     contradictionHidden: (pairId) => realityContradictionHidden(deps.seed(), night(), tier(), pairId),
     /** The name shown for roster villager `index`: another villager's name when blurred, else its own. */

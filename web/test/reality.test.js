@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   parseRealityLibrary, realityHouseName, realityFalseVillager, realityContradictionHidden, realityBlurredIdentity, realityLocationLook, realityUnreliable, createRealityView,
-  realityCollapsedHouseName, realityErasedVillager, realityIdentityStep, realityPhantomPathVisible, COLLAPSE_TIER,
+  realityCollapsedHouseName, realityErasedVillager, realityIdentityStep, realityPhantomPathVisible, realityPhantomPathCells, PHANTOM_PATH_IDS, COLLAPSE_TIER,
   REALITY_NOTE_IDS, HOUSE_TIER,
 } from '../src/reality.js';
 import { parseSession, serializeSession } from '../src/session.js';
@@ -144,4 +144,28 @@ test('collapse view: truth switch returns the originals and a tier 4 view shows 
   live.setTruth(true);
   assert.equal(probe(live), trueProbe);
   for (let h = 0; h < 6; h++) assert.equal(live.houseName(h, 'Thorn House'), 'Thorn House');
+});
+
+test('phantom path cells match the Core golden data and stay inside the grid', () => {
+  const sig = (seed) => PHANTOM_PATH_IDS.map((id) => realityPhantomPathCells(seed, id, 24, 24).map((c) => c.join(',')).join(';')).join('|');
+  assert.deepEqual(PHANTOM_PATH_IDS, collapse.pathIds);
+  [1, 42, 1818].forEach((seed, i) => assert.equal(sig(seed), collapse.shapes[i]));
+  for (const id of PHANTOM_PATH_IDS) for (const [x, z] of realityPhantomPathCells(7, id, 24, 24)) assert.ok(x >= 0 && x < 24 && z >= 0 && z < 24);
+});
+
+test('phantom paths are drawn only at tier 5 for one night and never reach the session JSON', () => {
+  let night = 1;
+  const view = createRealityView({ lib: () => lib, seed: () => 42, night: () => night, tier: () => 5, lang: () => 'en' });
+  const low = createRealityView({ lib: () => lib, seed: () => 42, night: () => night, tier: () => 4, lang: () => 'en' });
+  const session = parseSession({ seed: 42, night: 3, board: 'bd1;0,1;c1;', lore: ['a'] }), before = serializeSession(session);
+  let drawn = 0;
+  for (night = 1; night <= 9; night++) {
+    drawn += view.phantomPaths(24, 24).length;
+    assert.deepEqual(low.phantomPaths(24, 24), []);
+  }
+  assert.ok(drawn > 0 && drawn <= PHANTOM_PATH_IDS.length);
+  view.setTruth(true);
+  night = 1; for (; night <= 9; night++) assert.deepEqual(view.phantomPaths(24, 24), []);
+  assert.equal(serializeSession(session), before);
+  assert.ok(!/phantom|orchard_lane|ridge_track/.test(before), 'no phantom path in the save JSON');
 });

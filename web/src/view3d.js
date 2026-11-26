@@ -108,6 +108,16 @@ export const HANG_PHASE = 2000;
 const HANG_KINDS = new Set(['sign', 'laundry_line', 'net', 'wall_lantern']);
 /** Dressing kinds whose emissive parts are windows (glass, frame, curtains in the shader); lamp and lantern glass stays plain glow. */
 export const WINDOW_KINDS = new Set(['cottage_thatch', 'cottage_tall', 'inn', 'chapel']);
+const PHANTOM_Y = 0.08, PHANTOM_COLOR = [0.42, 0.5, 0.6];
+/** Ground rectangles [x0, z0, x1, z1] in metres for phantom paths (each a list of cells [[x, z], ...] joined by straight runs), one cell wide. */
+export function phantomRects(paths, cell) {
+  const out = [];
+  for (const cells of paths) for (let i = 1; i < cells.length; i++) {
+    const [ax, az] = cells[i - 1], [bx, bz] = cells[i];
+    out.push([Math.min(ax, bx) * cell, Math.min(az, bz) * cell, (Math.max(ax, bx) + 1) * cell, (Math.max(az, bz) + 1) * cell]);
+  }
+  return out;
+}
 const STREET_Y = 0.06, STREET_COLOR = [0.3, 0.29, 0.28], STREET_PHASE = -5; // phase below -3 marks cobbled street quads for the ground shader
 const WOOD = [0.2, 0.15, 0.11], WOOD_DARK = [0.11, 0.08, 0.06], ROCK = [0.17, 0.17, 0.19], FOAM = [0.46, 0.52, 0.54], SILHOUETTE = [0.05, 0.05, 0.08], EARTH = [0.07, 0.085, 0.07];
 
@@ -463,7 +473,7 @@ export function batchProps(out, uv, items, meshes, cell = CELL) {
  * Static world: houses, landmarks and props as placed GLB meshes (boxes when a mesh is missing), lamp posts at lit houses.
  * Returns { building: Float32Array, ground, sea, heights, lights }. Deterministic: same layout, details and meshes give the same bytes.
  */
-export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [], places = null }) {
+export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () => null, groundTint = null, cell = CELL, books = [], pickups = [], corruption = 0, homestead = [], places = null, phantom = [] }) {
   const out = [], heights = [], uv = [];
   for (const p of layout) {
     const model = meshes && meshes.get(MESH_FOR[p.id]);
@@ -499,6 +509,7 @@ export function buildWorld({ layout, meshes, seed, gridW, gridD, tintFor = () =>
     const a = coastToWorldAt(seed, gridW, 0, -2.0), b = coastToWorldAt(seed, gridW, hiOf(seed, gridW, gridD), -0.3);
     pushQuad(ground, Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z), STREET_Y, STREET_COLOR, STREET_PHASE);
   }
+  for (const r of phantomRects(phantom, cell)) pushQuad(ground, r[0], r[1], r[2], r[3], PHANTOM_Y, PHANTOM_COLOR, -1); // tier 5: the path that does not exist, a pale strip for one night (presentation only, never saved)
   pushQuad(sea, t.sea.minX, t.sea.minZ, t.sea.maxX, t.sea.maxZ, t.sea.y, [0.02, 0.05, 0.08], -2);
   const coast = new Float32Array([...buildCoast({ gridW, gridD, seed, cell, meshes }), ...buildChurchHill({ gridW, gridD, seed, cell })]);
   return { building: new Float32Array(out), buildingUv: new Float32Array(uv), ground: new Float32Array(ground), sea: new Float32Array(sea), coast, halos: haloSprites(lights), heights, lights, coastSide: t.side, dressingBoxes: dressingBoxes([...dressing, ...landmarkItems, ...(places ? places.items : [])]) };
@@ -1159,10 +1170,10 @@ export function createView3d({ onBoard = null, canvas, prompt, getScene, onInter
   const isTyping = (e) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target && e.target.tagName);
 
   function ensureWorld(s) {
-    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || '', s.places ? s.places.key + '|' + tier.detail : ''].join('|');
+    const key = [s.seed, meshes ? meshes.size : 0, upgraded, s.layout.map((p) => p.detail).join(''), (s.books || []).map((b) => b.id + (b.read ? 'r' : '')).join(','), (s.pickups || []).map((q) => q.id).join(','), corruptionLevel(s.dread, s.night.number), s.homesteadKey || '', s.places ? s.places.key + '|' + tier.detail : '', (s.phantom || []).map((c) => c.flat().join('.')).join('/')].join('|');
     if (key === worldKey) return;
     worldKey = key;
-    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])], places: s.places ? { items: s.places.items, parts: s.places.partsFor(tier.detail) } : null });
+    lighthouse = lighthouseSite(s.seed, s.gridW, s.gridD); lastHalos = null; lastFlies = null; world = buildWorld({ layout: s.layout, meshes, seed: s.seed, gridW: s.gridW, gridD: s.gridD, tintFor: s.tintFor, groundTint: s.groundTint, books: s.books || [], pickups: s.pickups || [], corruption: corruptionLevel(s.dread, s.night.number), homestead: [...(s.homestead || []), ...(s.homesteadEdge || [])], places: s.places ? { items: s.places.items, parts: s.places.partsFor(tier.detail) } : null, phantom: s.phantom || [] });
     boxes = [...worldBoxes(s.layout, world.heights), ...world.dressingBoxes, ...postLampBoxes(world.lights)]; layoutCount = s.layout.length; bounds = walkBounds(s.seed, s.gridW, s.gridD);
     lights = world.lights; renderer.setWorld(world); lastTent = ''; flockKey = '';
     perches = roofPerches(s.layout, world.heights, s.seed, 6);
