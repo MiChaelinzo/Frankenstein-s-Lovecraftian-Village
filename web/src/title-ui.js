@@ -19,7 +19,7 @@ function webglAvailable() {
  * Callbacks: startBackdrop(kind) -> kind actually running ('3d' | '2d'), stopBackdrop(), enter3d(), enter2d(), openHelp(),
  * setSound(on), endings() -> { found, total }. Nothing starts on a timer and audio only starts from the sound checkbox.
  */
-export function createTitleController({ $, tr, lang, state, canvas, reduceMotion, startBackdrop, stopBackdrop, enter3d, enter2d, openHelp, setSound, endings, seedCode, dailyLine, applySeedCode, copyText }) {
+export function createTitleController({ $, tr, lang, state, canvas, reduceMotion, startBackdrop, stopBackdrop, enter3d, enter2d, openHelp, setSound, saveLang, endings, seedCode, dailyLine, applySeedCode, copyText }) {
   const ctl = { prevFocus: null, model: null };
   const isOpen = () => $('title').hidden === false;
   const buttons = () => ['titleEnter3d', 'titleMap2d', 'titleSeedCopy', 'titleSeedInput', 'titleSeedApply', 'titleHelp', 'titleSound', 'titleLangEn', 'titleLangFr'].map($).filter((b) => b && !b.disabled);
@@ -69,7 +69,7 @@ export function createTitleController({ $, tr, lang, state, canvas, reduceMotion
   }
   function begin3d() { if (!ctl.model || !ctl.model.can3d) return; close(); enter3d(); }
   function begin2d() { close(); enter2d(); (ctl.prevFocus && ctl.prevFocus.focus ? ctl.prevFocus : canvas).focus?.(); }
-  function switchLang(l) { const q = new URLSearchParams(location.search); q.set('lang', l); location.search = `?${q.toString()}`; }
+  function switchLang(l) { saveLang?.(l); const q = new URLSearchParams(location.search); q.set('lang', l); location.search = `?${q.toString()}`; }
 
   $('titleEnter3d').addEventListener('click', begin3d);
   $('titleMap2d').addEventListener('click', begin2d);

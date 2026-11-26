@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { INTENSITY_LEVELS, INTENSITY_PER_MILLE, intensityOf, intensityWanted, nextIntensity, loadIntensity, saveIntensity, INTENSITY_KEY } from '../src/access.js';
+import { INTENSITY_LEVELS, INTENSITY_PER_MILLE, intensityOf, intensityWanted, nextIntensity, loadSettings, updateSettings, SETTINGS_KEY } from '../src/access.js';
 import { startState, step, presentation, FOG_GAIN_MAX, LIGHT_DIM_MAX, AMBIENCE_GAIN_MAX } from '../src/director.js';
 import { createRealityView, parseRealityLibrary, HOUSE_TIER } from '../src/reality.js';
 import { generateLayout, PrefabCatalog } from '../src/core.js';
@@ -25,15 +25,14 @@ test('intensity parsing: unknown means standard, query beats hash beats stored',
   assert.equal(nextIntensity('dread'), 'gentle');
 });
 
-test('intensity storage round trips and survives a missing or broken storage', () => {
+test('intensity storage round trips through the settings store and survives a missing or broken storage', () => {
   const s = memory();
-  assert.equal(loadIntensity(s), null);
-  assert.equal(saveIntensity(s, 'dread'), true);
-  assert.equal(s.getItem(INTENSITY_KEY), 'dread');
-  assert.equal(loadIntensity(s), 'dread');
-  assert.equal(saveIntensity(null, 'dread'), false);
-  assert.equal(saveIntensity({ setItem() { throw new Error('full'); } }, 'dread'), false);
-  assert.equal(loadIntensity({ getItem() { throw new Error('denied'); } }), null);
+  assert.equal(loadSettings(s).intensity, 'standard');
+  assert.equal(updateSettings(s, { intensity: 'dread' }).intensity, 'dread');
+  assert.equal(JSON.parse(s.getItem(SETTINGS_KEY)).intensity, 'dread');
+  assert.equal(loadSettings(s).intensity, 'dread');
+  assert.equal(updateSettings(null, { intensity: 'dread' }).intensity, 'dread');
+  assert.equal(loadSettings({ getItem() { throw new Error('denied'); } }).intensity, 'standard');
 });
 
 test('same seed, same Core output at every intensity (layout and director run never take an intensity)', () => {

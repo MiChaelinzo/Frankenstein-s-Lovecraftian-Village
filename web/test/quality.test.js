@@ -82,7 +82,7 @@ test('wiring: settings select, saved key, URL override and HUD tier are present'
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
   assert.match(html, /<select id="qualitySelect">/);
   for (const c of QUALITY_CHOICES) assert.match(html, new RegExp(`<option value="${c}"`));
-  assert.match(app, /optParam\('quality'\)/); assert.match(app, /QUALITY_KEY/); assert.match(app, /view3d\.setQuality/); assert.match(app, /c\.tier/);
+  assert.match(app, /optParam\('quality'\)/); assert.match(app, /loadSettings\(storage\)\.quality/); assert.match(app, /view3d\.setQuality/); assert.match(app, /c\.tier/);
 });
 
 test('2D renderer: the tier switches the layered sky, cast shadows and window spill, and both paths draw without throwing', async () => {

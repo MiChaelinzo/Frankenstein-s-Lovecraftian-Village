@@ -398,12 +398,25 @@
           <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
         </ul>
       </section>
+      <section class="help-group" id="settingsPanel" aria-labelledby="settingsTitle">
+        <h3 class="v-subheading" id="settingsTitle" data-i18n="settings.title">Settings</h3>
+        <p class="settings-note" data-i18n="settings.where">These five settings are saved together in this browser. A web address option (for example ?lang=fr) overrides them for one visit only. None of them changes the village, a seed or a save.</p>
+        <label class="view-setting" for="settingsLang"><span data-i18n="settings.lang">Language</span> <select id="settingsLang"><option value="en" lang="en">English</option><option value="fr" lang="fr">Francais</option></select></label>
+        <p class="settings-note" data-i18n="settings.lang.note">English or French. Changing it reloads the page and keeps your village.</p>
+        <label class="view-setting" for="settingsIntensity"><span data-i18n="settings.intensity">Horror intensity</span> <select id="settingsIntensity"><option value="gentle" data-i18n="intensity.gentle">Gentle</option><option value="standard" data-i18n="intensity.standard">Standard</option><option value="dread" data-i18n="intensity.dread">Dread</option></select></label>
+        <p class="settings-note" data-i18n="settings.intensity.note">How hard the village leans on you with glimpses, fog and light. Gentle eases it, Dread presses harder. Presentation only.</p>
+        <label class="view-setting" for="settingsMotion"><span data-i18n="settings.motion">Motion</span> <select id="settingsMotion"><option value="auto" data-i18n="settings.motion.auto">Follow my system</option><option value="on" data-i18n="settings.motion.on">Always reduce</option></select></label>
+        <p class="settings-note" data-i18n="settings.motion.note">Reduce stops flashes, shake and drifting effects. Follow my system obeys the reduced motion setting of your device. Changing it reloads the page.</p>
+        <label class="view-setting" for="qualitySelect"><span data-i18n="quality.label">Graphics quality</span> <select id="qualitySelect"><option value="auto" data-i18n="quality.auto">Auto</option><option value="low" data-i18n="quality.low">Low</option><option value="medium" data-i18n="quality.medium">Medium</option><option value="high" data-i18n="quality.high">High</option></select></label>
+        <p class="settings-note" data-i18n="settings.quality.note">Auto picks a tier from your graphics hardware. Lower tiers draw less so slow machines stay smooth.</p>
+        <p id="qualityOut" class="quality-out" aria-live="polite"></p>
+        <label class="view-setting check" for="settingsContrast"><input id="settingsContrast" type="checkbox"> <span data-i18n="settings.contrast">High contrast</span></label>
+        <p class="settings-note" data-i18n="settings.contrast.note">A brighter, stronger-edged theme. Also on the H key.</p>
+      </section>
       <section class="help-group">
         <h3 class="v-subheading" data-i18n="help.g.firstperson">First-person view</h3>
         <label class="view-setting" for="eyeRange"><span data-i18n="view.eye">Eye height</span> <input id="eyeRange" type="range" min="1.5" max="1.8" step="0.05" value="1.6"> <output id="eyeOut">1.60 m</output></label>
         <label class="view-setting" for="fovRange"><span data-i18n="view.fov">Field of view</span> <input id="fovRange" type="range" min="55" max="75" step="1" value="64"> <output id="fovOut">64&deg;</output></label>
-        <label class="view-setting" for="qualitySelect"><span data-i18n="quality.label">Graphics quality</span> <select id="qualitySelect"><option value="auto" data-i18n="quality.auto">Auto</option><option value="low" data-i18n="quality.low">Low</option><option value="medium" data-i18n="quality.medium">Medium</option><option value="high" data-i18n="quality.high">High</option></select></label>
-        <p id="qualityOut" class="quality-out" aria-live="polite"></p>
         <button id="viewReset" type="button" data-i18n="view.reset">Reset view</button>
       </section>
       <section class="help-group">

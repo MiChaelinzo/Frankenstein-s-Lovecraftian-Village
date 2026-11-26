@@ -44,10 +44,10 @@ import { parseContentLibrary } from './content.js';
 import { createRealityView, parseRealityLibrary } from './reality.js';
 import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } from './names.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
-import { t, parseLang } from './i18n.js';
+import { t } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
 import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp, nextSafeZoneAbuse, pickAmbientBeat, dimStep } from './director.js';
-import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
+import { resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
 import { createStoryController } from './story-ui.js';
@@ -63,7 +63,7 @@ import { newJournal, addJournalEntry, selectJournalTab, tabForKey, TABS } from '
 import { weeklyChallenge, accuracyOfState, addResult, leaderboardJson, leaderboardText, parseLeaderboard } from './challenge.js';
 import { dailyVillage, dailyWanted, parseSeedShareLibrary, encodeSeedCode, decodeSeedCode, dailyChallengeCode } from './daily.js';
 import { normalizeScene, pickScene, sceneFromUrl } from './dlnk-layout.js';
-import { contrastWanted, loadContrast, saveContrast, intensityWanted, loadIntensity, saveIntensity, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
+import { loadSettings, updateSettings, resolveSettings, nextIntensity, INTENSITY_PER_MILLE } from './access.js';
 import { texturePlan } from './pack.js';
 import { cinematicFrame, cinematicWanted, flythroughCamera } from './cinematic.js';
 import { cinemaExitKey, gateAction, mapGamepad, mapSwipe, normalizeDevice, showCinemaExit, snapshotPad } from './input.js';
@@ -78,14 +78,16 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const ctx = canvas.getContext('2d');
 const params = new URLSearchParams(location.search);
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('reduced') === '1' || params.get('capture') === '1';
+// One settings store (access.js): intensity, motion, quality, language and contrast resolve together, URL parameter first, then the stored choice.
+const settings = resolveSettings(location.search, location.hash, loadSettings(safeStorage()), matchMedia('(prefers-reduced-motion: reduce)').matches);
+const reduceMotion = settings.reduced;
 if (reduceMotion) document.documentElement?.classList?.add('reduced');
 
 const V = computeView(canvas.width, canvas.height, GRID_W, GRID_D);
 // Camera projection state: k squashes the board vertically, hs scales building heights. Eases between modes.
 const cam = { mode: 1, k: 1, hs: 1, settled: true };
 const optParam = (name) => new URLSearchParams(String(location.hash || '').replace(/^#/, '')).get(name) ?? params.get(name);
-const lang = parseLang(optParam('lang'));
+const lang = settings.lang;
 const tr = (k, v) => t(k, lang, v);
 let dirty = true;
 const mark = () => { dirty = true; start(); };
@@ -479,13 +481,12 @@ $('viewReset').addEventListener('click', () => applyViewSettings(null, true));
 const hints = () => { const nav = globalThis.navigator || {}; return { renderer: gpuRenderer, dpr: globalThis.devicePixelRatio || 1, cores: nav.hardwareConcurrency, saveData: !!(nav.connection && nav.connection.saveData) }; };
 // Graphics quality (web-only presentation): ?quality= wins for this visit only, else the saved choice, else Auto from the GPU hints.
 const applyQuality = (choice, save) => {
-  let stored = null;
-  try { stored = storage ? storage.getItem(QUALITY_KEY) : null; } catch (e) { console.warn('[quality] choice not read', e); }
+  const stored = loadSettings(storage).quality;
   quality = resolveQuality({ query: save ? null : optParam('quality'), stored: save ? choice : stored, hints: hints() });
   view3d.setQuality(quality.tier); renderer.setQuality(tierSettings(quality.tier));
   $('qualitySelect').value = quality.choice;
   $('qualityOut').textContent = `${tr(`quality.${quality.tier}`)}: ${[tr('quality.f.lines', { n: tierLines(quality.tier) }), ...tierFeatures(quality.tier).map((f) => tr(`quality.f.${f}`))].join(', ')}`;
-  if (save && storage) { try { storage.setItem(QUALITY_KEY, parseQuality(choice) || 'auto'); } catch (e) { console.warn('[quality] choice not saved', e); } }
+  if (save) updateSettings(storage, { quality: parseQuality(choice) || 'auto' });
   mark();
 };
 applyQuality(null, false);
@@ -899,7 +900,7 @@ function stopBackdrop() {
 const { open: openTitle, isOpen: titleOpen } = createTitleController({
   $, tr, lang, state, canvas, reduceMotion, startBackdrop, stopBackdrop,
   enter3d: () => setView3d(true), enter2d: () => mark(),
-  openHelp: () => setHelp(true), setSound: (on) => setSound(on),
+  openHelp: () => setHelp(true), setSound: (on) => setSound(on), saveLang: (l) => updateSettings(storage, { lang: l }),
   endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }),
   seedCode: () => seedCode(), dailyLine: () => dailyLine(), applySeedCode: (text) => applySeedCode(text), copyText,
 });
@@ -1015,7 +1016,8 @@ $('cinemaToggle').addEventListener('click', () => setCinematic(!cine.on));
 function setContrast(on, persist) {
   document.documentElement?.classList?.toggle?.('hc', on);
   $('contrastToggle').setAttribute?.('aria-pressed', String(on));
-  if (persist) { saveContrast(storage, on); $('sessionNote').textContent = tr(on ? 'msg.contrast.on' : 'msg.contrast.off'); announce($('sessionNote').textContent); }
+  $('settingsContrast').checked = on;
+  if (persist) { updateSettings(storage, { contrast: on }); $('sessionNote').textContent = tr(on ? 'msg.contrast.on' : 'msg.contrast.off'); announce($('sessionNote').textContent); }
   mark();
 }
 function setIntensity(level, persist) {
@@ -1023,7 +1025,8 @@ function setIntensity(level, persist) {
   const label = tr(`intensity.${level}`);
   $('intensityToggle').textContent = tr('btn.intensity', { level: label });
   $('intensityToggle').setAttribute?.('aria-label', tr('btn.intensity.label', { level: label }));
-  if (persist) { saveIntensity(storage, level); $('sessionNote').textContent = tr('msg.intensity', { level: label }); announce($('sessionNote').textContent); villagers.refresh(); }
+  $('settingsIntensity').value = level;
+  if (persist) { updateSettings(storage, { intensity: level }); $('sessionNote').textContent = tr('msg.intensity', { level: label }); announce($('sessionNote').textContent); villagers.refresh(); }
   mark();
 }
 function noteDaily(d) { refreshDailyCode(); const text = tr('msg.daily', { key: d.key }); $('sessionNote').textContent = text; announce(text); }
@@ -1038,6 +1041,14 @@ $('codexToggle').addEventListener('click', () => progress.setCodex(!progress.isC
 $('stitchToggle').addEventListener('click', () => progress.setStitch(!progress.isStitchOn()));
 $('contrastToggle').addEventListener('click', () => setContrast(!document.documentElement.classList.contains('hc'), true));
 $('intensityToggle').addEventListener('click', () => setIntensity(nextIntensity(horrorIntensity), true));
+$('settingsContrast').addEventListener('change', () => setContrast($('settingsContrast').checked, true));
+$('settingsIntensity').addEventListener('change', () => setIntensity($('settingsIntensity').value, true));
+// Language and motion take effect on a reload (the language is read once at startup, motion is baked into the views), so the panel saves first and then reloads.
+$('settingsMotion').value = settings.motion;
+$('settingsMotion').addEventListener('change', () => { updateSettings(storage, { motion: $('settingsMotion').value }); location.reload(); });
+$('settingsLang').value = lang;
+function changeLanguage(l) { updateSettings(storage, { lang: l }); const q = new URLSearchParams(location.search); q.set('lang', l); location.search = `?${q.toString()}`; }
+$('settingsLang').addEventListener('change', () => changeLanguage($('settingsLang').value));
 $('dailyBtn').addEventListener('click', applyDaily);
 
 // ---------- cinematic capture mode (pure timeline in cinematic.js; this only drives it) ----------
@@ -1231,8 +1242,8 @@ function foldGroupsOnNarrow() {
   if (pack.want) setupDlnk();
   state.investigatorOn = optParam('investigator') === '1';
   $('invToggle').setAttribute?.('aria-pressed', String(state.investigatorOn));
-  setContrast(contrastWanted(location.search, location.hash, loadContrast(storage)), false);
-  setIntensity(intensityWanted(location.search, location.hash, loadIntensity(storage)), false);
+  setContrast(settings.contrast, false);
+  setIntensity(settings.intensity, false);
   const daily = dailyWanted(location.search, location.hash) && !/seed=/.test(location.hash) ? dailyVillage() : null; // opt-in only
   if (daily) history.replaceState(null, '', `#seed=${daily.seed}`);
   const saved = pack.want ? null : loadSession(storage);

@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, FRLAYOUT_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, SETTINGS_ONLY, FRLAYOUT_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -614,17 +614,40 @@ async function main() {
   /** Horror intensity (round 34, spec 165): the settings button is focusable and labelled, each activation cycles Standard, Dread, Gentle and stores the choice, a reload keeps it, ?intensity= wins over storage, the seed in the address never changes, and the label has readable contrast against its background. Presentation only, SwiftShader, Partially Verified. INTENSITY_ONLY=1 runs only this. */
   const intensityRun = async () => {
     await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
-    await ev(`localStorage.removeItem('flv.intensity.v1')`);
+    await ev(`localStorage.removeItem('flv.settings.v1')`);
     await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('intensityToggle')&&/Standard/.test(document.getElementById('intensityToggle').textContent)`), 20000);
     const first = await ev(`(()=>{const b=document.getElementById('intensityToggle');b.focus();const lum=(c)=>{const m=c.match(/\\d+(\\.\\d+)?/g).slice(0,3).map(Number).map((v)=>{v/=255;return v<=0.03928?v/12.92:((v+0.055)/1.055)**2.4});return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]};const cs=getComputedStyle(b);const a=lum(cs.color),bg=lum(cs.backgroundColor.startsWith('rgba(0, 0, 0, 0')?getComputedStyle(document.body).backgroundColor:cs.backgroundColor);const ratio=(Math.max(a,bg)+0.05)/(Math.min(a,bg)+0.05);return {tab:b.tabIndex>=0&&!b.disabled,label:!!b.getAttribute('aria-label'),text:b.textContent,ratio:Math.round(ratio*10)/10}})()`);
     rec('intensity: the settings button is keyboard focusable, labelled, starts at Standard and has readable contrast', first.tab && first.label && /Standard/.test(first.text) && first.ratio >= 4.5, first);
-    await ev(`document.getElementById('intensityToggle').click()`); const dread = await ev(`document.getElementById('intensityToggle').textContent+'|'+localStorage.getItem('flv.intensity.v1')`);
-    await ev(`document.getElementById('intensityToggle').click()`); const gentle = await ev(`document.getElementById('intensityToggle').textContent+'|'+localStorage.getItem('flv.intensity.v1')`);
+    await ev(`document.getElementById('intensityToggle').click()`); const dread = await ev(`document.getElementById('intensityToggle').textContent+'|'+(JSON.parse(localStorage.getItem('flv.settings.v1')||'{}').intensity)`);
+    await ev(`document.getElementById('intensityToggle').click()`); const gentle = await ev(`document.getElementById('intensityToggle').textContent+'|'+(JSON.parse(localStorage.getItem('flv.settings.v1')||'{}').intensity)`);
     rec('intensity: activating cycles Standard to Dread to Gentle and stores each choice', /Dread\|dread/.test(dread) && /Gentle\|gentle/.test(gentle), { dread, gentle });
     await nav('?intro=0#seed=1818&sanity=80'); await until(() => ev(`/Gentle/.test(document.getElementById('intensityToggle')?.textContent||'')`), 20000);
     const kept = await ev(`location.hash`); await nav('?intro=0&intensity=dread#seed=1818&sanity=80'); await until(() => ev(`/Dread/.test(document.getElementById('intensityToggle')?.textContent||'')`), 20000);
     rec('intensity: a reload keeps the stored level, ?intensity= wins, and the seed in the address is untouched', /seed=1818/.test(kept) && /seed=1818/.test(await ev(`location.hash`)), { kept });
-    await ev(`localStorage.removeItem('flv.intensity.v1')`);
+    await ev(`localStorage.removeItem('flv.settings.v1')`);
+  };
+
+  /** Settings coherence (round 37, FEAT-003 item 5; SETTINGS_ONLY=1 runs only this): the one Settings section of the Help dialog edits intensity, motion, quality, language and contrast, they persist together in flv.settings.v1, a reload applies them with no URL parameters, and the old per-setting keys are not written. Partially Verified (SwiftShader). */
+  const settingsRun = async () => {
+    await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    await ev(`localStorage.clear()`);
+    await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('settingsPanel')`), 20000);
+    await ev(`document.getElementById('helpBtn').click()`); await sleep(400);
+    const set = (id, v) => ev(`(()=>{const e=document.getElementById('${id}');if(e.type==='checkbox')e.checked=${v === true};else e.value=${JSON.stringify(v)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+    await set('settingsIntensity', 'dread'); await set('qualitySelect', 'low'); await set('settingsContrast', true);
+    const stored = await ev(`JSON.parse(localStorage.getItem('flv.settings.v1')||'{}')`);
+    const legacy = await ev(`['flv.intensity.v1','flv.contrast.v1','flv-quality'].filter((k)=>localStorage.getItem(k)!==null)`);
+    rec('settings: intensity, quality and contrast saved together in the one store, no older keys written', stored.intensity === 'dread' && stored.quality === 'low' && stored.contrast === true && legacy.length === 0, { stored, legacy });
+    await ev(`(()=>{const s=JSON.parse(localStorage.getItem('flv.settings.v1'));s.lang='fr';s.motion='on';localStorage.setItem('flv.settings.v1',JSON.stringify(s))})()`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('intensityToggle')?.getAttribute('aria-label')&&document.documentElement.lang==='fr'`), 60000);
+    const applied = await ev(`({lang:document.documentElement.lang,hc:document.documentElement.classList.contains('hc'),reduced:document.documentElement.classList.contains('reduced'),intensity:document.getElementById('settingsIntensity').value,quality:document.getElementById('qualitySelect').value,motion:document.getElementById('settingsMotion').value,langSel:document.getElementById('settingsLang').value,title:document.getElementById('settingsTitle').textContent,stored:localStorage.getItem('flv.settings.v1'),toggle:document.getElementById('intensityToggle').textContent,check:document.getElementById('settingsContrast').checked})`);
+    rec('settings: a reload with no URL parameters applies language, motion, contrast, intensity and quality together', applied.lang === 'fr' && applied.hc && applied.reduced && applied.intensity === 'dread' && applied.quality === 'low' && applied.motion === 'on' && applied.langSel === 'fr' && applied.title === 'Reglages', applied);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=0&lang=en&intensity=gentle#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('intensityToggle')?.getAttribute('aria-label')&&document.documentElement.lang==='en'`), 20000);
+    const over = await ev(`({lang:document.documentElement.lang,intensity:document.getElementById('settingsIntensity').value,stored:JSON.parse(localStorage.getItem('flv.settings.v1')).lang})`);
+    rec('settings: a URL parameter wins for one visit and does not rewrite the stored choice', over.lang === 'en' && over.intensity === 'gentle' && over.stored === 'fr', over);
+    await ev(`localStorage.removeItem('flv.settings.v1')`);
   };
 
   /** Seed sharing (round 34, spec 172): the title shows the village seed code and today's challenge code, a wrong code gives a readable error and keeps the seed, a right code (any case) opens that village, the chronicle shows the same code and its export buttons exist. Presentation only, SwiftShader, Partially Verified. SEED_ONLY=1 runs only this. */
@@ -880,6 +903,7 @@ async function main() {
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
+    if (process.env.SETTINGS_ONLY) { await settingsRun(); break suite; }
     if (process.env.FRLAYOUT_ONLY) { await frLayoutRun(); break suite; }
     if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }

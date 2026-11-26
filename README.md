@@ -58,7 +58,7 @@ Round 22 stills (seed 1818, `?view=3d&intro=0&caption=0&quality=high`, SwiftShad
 
 Round 21 stills (seed 1818, rain, `tick=1250`, SwiftShader, `?capture=1&caption=0&grain=0&quality=...`): the same camera before the round and on the High tier, the Low tier for a weak laptop, and the 2D map before and after (Medium tier).
 
-**Graphics quality (round 21):** Help (`?`) > First-person view > Graphics quality offers Auto, Low, Medium and High, saved in `localStorage` (`flv-quality`); `?quality=low|medium|high|auto` overrides it for one visit. Auto picks Low for software GL, Data Saver or two cores, High for a discrete GPU (or Apple silicon) with eight or more cores, and Medium otherwise, which covers most laptops with integrated Intel or AMD graphics at 1080p. Each tier lists what it turns on under the menu:
+**Graphics quality (round 21):** Help (`?`) > Settings > Graphics quality offers Auto, Low, Medium and High, saved with the other settings in `localStorage` (`flv.settings.v1`, round 37); `?quality=low|medium|high|auto` overrides it for one visit. Auto picks Low for software GL, Data Saver or two cores, High for a discrete GPU (or Apple silicon) with eight or more cores, and Medium otherwise, which covers most laptops with integrated Intel or AMD graphics at 1080p. Each tier lists what it turns on under the menu:
 
 | Tier | Pixel ceiling | Post pass (filmic tone map, grade, bloom, grain) | FXAA | Shader detail | Particles | 2D extras |
 |---|---|---|---|---|---|---|
