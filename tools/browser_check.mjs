@@ -583,6 +583,14 @@ async function main() {
     await ev(`document.querySelector('#boardTheoryBody [data-k=conclude]').click()`); await sleep(300);
     const done = await ev(`({text:document.querySelector('#boardTheoryBody .theory-results')?.textContent||'', live:document.getElementById('boardLive').textContent, saved:JSON.parse(localStorage.getItem('flv.session.v1')||'{}').theories||''})`);
     rec('theory: concluding shows a TRUE, PARTIALLY TRUE or FALSE verdict, announces it and saves the choice log', /(TRUE|PARTIALLY TRUE|FALSE):/.test(done.text) && /Theory concluded/.test(done.live) && /^th1;\d/.test(done.saved), done);
+    await ev(`(()=>{window.__challengeDownloads=[];HTMLAnchorElement.prototype.click=function(){window.__challengeDownloads.push({name:this.download,href:this.href})}})()`);
+    const exportButtons = await ev(`({json:!!document.querySelector('#boardTheoryBody [data-k="challenge-json"]'),txt:!!document.querySelector('#boardTheoryBody [data-k="challenge-txt"]')})`);
+    await ev(`document.querySelector('#boardTheoryBody [data-k="challenge-json"]').click()`); await sleep(200);
+    const jsonDownload = await ev(`(async()=>{const d=window.__challengeDownloads.at(-1);if(!d)return null;const o=JSON.parse(await (await fetch(d.href)).text());return {name:d.name,format:o.format,week:o.week,entries:o.entries.length}})()`);
+    await ev(`document.querySelector('#boardTheoryBody [data-k="challenge-txt"]').click()`); await sleep(200);
+    const textDownload = await ev(`(async()=>{const d=window.__challengeDownloads.at(-1);if(!d)return null;return {name:d.name,text:await (await fetch(d.href)).text(),count:window.__challengeDownloads.length}})()`);
+    rec('challenge export: clicking JSON downloads a valid local leaderboard', exportButtons.json && !!jsonDownload && /^challenge-\d{4}-w\d{2}\.json$/.test(jsonDownload.name) && jsonDownload.format === 'flv-challenge-1' && /^\d{4}-W\d{2}$/.test(jsonDownload.week) && jsonDownload.entries === 1, { buttons: exportButtons, download: jsonDownload });
+    rec('challenge export: clicking text downloads the same weekly local leaderboard', exportButtons.txt && !!textDownload && /^challenge-\d{4}-w\d{2}\.txt$/.test(textDownload.name) && /\d{4}-W\d{2}/.test(textDownload.text) && textDownload.count === 2, textDownload && { name: textDownload.name, count: textDownload.count, text: textDownload.text.slice(0, 120) });
     await shot('theory-board.jpg');
     await special('Escape', 27); await sleep(300);
     await shot('theory-journal.jpg');
@@ -680,6 +688,15 @@ async function main() {
       const plain = await proseOf(lang, false), kit = await proseOf(lang, true);
       rec(`evolution: the night 3 chronicle prose changes to tell the ambient beat with the kit (${lang})`, !!plain && !!kit && kit !== plain && kit.startsWith(plain.slice(0, 20)) && !kit.includes('{'), { plain, kit });
     }
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=1&tick=900#seed=1818&sanity=40&night=3');
+    await key('c'); await until(() => ev(`document.getElementById('villagerDialog')?.hidden===false`), 20000); await sleep(300);
+    await special('Escape', 27); await sleep(200);
+    await ev(`document.getElementById('chronicleToggle').click()`); await until(() => ev(`!!document.querySelector('#chroniclePeople [data-reputation]')`), 20000);
+    const reputation = await ev(`(()=>{const p=document.querySelector('#chroniclePeople [data-reputation]');return p?{effect:p.getAttribute('data-reputation'),text:p.textContent.trim(),person:p.closest('[data-person]')?.querySelector('strong')?.textContent||''}:null})()`);
+    rec('evolution: a live villager conversation adds a visible reputation line to the chronicle', !!reputation && ['trusted', 'accused'].includes(reputation.effect) && reputation.text.length > 0 && reputation.person.length > 0, reputation || {});
   };
 
   /** Victorian reskin (round 33, spec 165: aged paper, brass and ink over the round 29 layer; VICTORIAN_ONLY=1 runs only this). VICTORIAN_SHOT_DIR=<dir> with VICTORIAN_SHOT_PREFIX (default r33-after) saves <prefix>-title.jpg, -board.jpg, -chronicle.jpg and -journal.jpg. Checks run in English and French: no horizontal overflow at 1280 px wide and at 150% zoom, a visible keyboard focus ring, chronicle ink reveal that stops under reduced motion. */

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+Historical note: test totals and service worker cache names in older entries are snapshots from the round that recorded them. They do not describe the current build. The latest Round 37 verification entry is the current status.
+
+### Round 37 (FEAT-004): small debts
+- `parseLeaderboard` now rejects a week unless it matches `YYYY-Www`; the otherwise-valid bad-week test failed before the parser fix and now passes.
+- `THEORY_ONLY` clicks both challenge export buttons and verifies the downloaded JSON and text. `EVOLUTION_ONLY` has a live villager conversation and verifies the resulting reputation line in the chronicle.
+- Verified: focused node test 12 of 12, `THEORY_ONLY` 11 of 11 and `EVOLUTION_ONLY` 4 of 4 on SwiftShader. The browser result is Partially Verified because no real GPU was available.
+
 ### Round 37 (FEAT-003 items 1 to 3): one consistent app
 - Item 1 terminology: `docs/TERMINOLOGY.md`, `web/test/terminology-table.js` and `web/test/terminology.test.js` fix one term per concept (trust, suspicion, fear, faith, loyalty, obsession, corruption, knowledge tier, outcome, creature tier) in en and fr and fail on a synonym in the UI strings, the data files or the English docs. Drift found and fixed: theory option "tainted" now reads "corruption is near" (en and fr, Core `Data/theories.json` copy, golden regenerated), the French chronicle line "soupcon" became "mefiance", and "Knowledge {tier}" became "Knowledge tier {tier}" / "Savoir, niveau {tier}".
 - Item 2 panels: shared classes `v-heading`, `v-subheading`, `v-badge`, `v-empty`, `v-error`, `v-paper` and one `:focus-visible` ring in `web/style.css`, applied to the title, HUD, board, chronicle, journal, inventory, villager and homestead panels (`web/test/panel-consistency.test.js`). The CSP is now self-only for styles: the minimap legend swatches and the two dev pages no longer use inline styles, and `'unsafe-inline'` is removed from `_headers`, `netlify.toml` and `vercel.json`. Service worker cache is now `flv-shell-v99`.
