@@ -159,5 +159,5 @@ export function createChronicleController(deps) {
     $('chronicleSeedCopy').addEventListener?.('click', async () => { const text = await deps.copyText(seedCode()); deps.announce?.(text); });
   }
 
-  return { setPanel, render, refresh, hear, setProse, exportChronicle, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
+  return { setPanel, render, refresh, hear, setProse, exportChronicle, summary: () => { const p = proseContext(); return p ? summaryProse(p, deps.night(), lang()) : ''; }, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
 }

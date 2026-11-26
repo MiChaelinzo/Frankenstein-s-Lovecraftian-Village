@@ -152,6 +152,16 @@ export function villagerMarkers(placements, gridW, gridD, size) {
   return placements.filter((p) => !p.gone && !p.indoors).map((p) => ({ index: p.index, name: p.name, x: (p.x / Math.max(1, gridW)) * size, y: (p.z / Math.max(1, gridD)) * size }));
 }
 
+/**
+ * Round 37 (spec 180): the minimap markers as the reality view shows them. A villager who never existed tonight (collapse, tier 5) has no marker and one whose identity has blurred
+ * gets questioned: true, drawn hollow. view is the reality view (active(), erased(), identityStep()); principals is how many roster villagers it can alter. Presentation only: the markers
+ * passed in are not changed, and an inactive view (below tier 3, truth switch on) returns them as they are.
+ */
+export function alteredMarkers(markers, view, principals) {
+  if (!view || !view.active()) return markers;
+  return markers.filter((m) => !(m.index < principals && view.erased(m.index, principals))).map((m) => (m.index < principals && view.identityStep(m.index) > 0 ? { ...m, questioned: true } : m));
+}
+
 /** 3D scene entries (metres) for the renderer and the view ray picker. */
 export function villagerScene(placements, cell) {
   return placements.filter((p) => !p.gone && !p.indoors).map((p) => ({

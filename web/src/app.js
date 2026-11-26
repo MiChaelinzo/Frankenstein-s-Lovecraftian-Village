@@ -37,7 +37,7 @@ import { createSocietyController } from './society-ui.js';
 import { parseStatementLibrary } from './investigation.js';
 import { parseStoryLibrary, buildStory } from './village-story.js';
 import { createChronicleController } from './chronicle-ui.js';
-import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers } from './villager-view.js';
+import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers, alteredMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
 import { createRealityView, parseRealityLibrary } from './reality.js';
@@ -522,8 +522,8 @@ function drawMinimap() {
     g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
   }
   const sc = c.width / GRID_W;
-  for (const m of villagerMarkers(state.villagers || [], GRID_W, GRID_D, c.width)) {
-    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(m.x, m.y, Math.max(2, sc * 0.35), 0, 6.283); g.fill();
+  for (const m of alteredMarkers(villagerMarkers(state.villagers || [], GRID_W, GRID_D, c.width), reality, 7)) { // reality alterations (spec 180): erased villagers have no dot, blurred ones are hollow; the truth switch restores both
+    g.fillStyle = '#f2e6c8'; g.beginPath(); g.arc(m.x, m.y, Math.max(2, sc * 0.35), 0, 6.283); if (!m.questioned) g.fill();
     g.strokeStyle = '#000000'; g.lineWidth = 1; g.stroke();
   }
   for (const p of reality.phantomPaths(GRID_W, GRID_D)) { // tier 5: the path that does not exist, drawn for one night; never saved
@@ -754,7 +754,7 @@ const vigil = createVigilController({
   notice: (text) => { $('narration').textContent = text; $('narration').style.opacity = 1; announce(text); },
   adjust: (delta, where) => adjust(delta, where), cue: (kind) => ambient?.cue(kind),
   setSanity: (v, quiet) => setSanity(v, quiet), selectNight: (i, quiet) => selectNight(i, quiet),
-  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id), epilogue: (id) => (theory ? theory.epilogue(id) : ''),
+  syncUi: () => syncUi(), pushHash: () => pushHash(), onClue: (id) => board.noteClue(id), epilogue: (id) => (theory ? theory.epilogue(id) : ''), summary: () => (chronicle ? chronicle.summary() : ''),
   canPlay: () => !cine.on && !tourOpen() && !titleOpen() && !helpIsOpen && !story.on && !vigil.endingOpen(),
   exit3d: () => { if (view3d.active) setView3d(false); },
   reroll: () => rerollVillage(),
@@ -784,7 +784,7 @@ let realityLib = null;
 const reality = createRealityView({ intensity: () => INTENSITY_PER_MILLE[horrorIntensity], lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
-  reality: () => reality, onReality: () => { villagers.refresh(); },
+  reality: () => reality, onReality: () => { villagers.refresh(); drawMinimap(); },
   afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), aftermath: () => (theory ? theory.aftermath() : null), memory: () => { const s = currentStory(); return s ? s.roster.map((v) => society.memoryOutcome(v.index)) : null; }, focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),

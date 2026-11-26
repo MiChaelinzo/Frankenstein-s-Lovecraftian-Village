@@ -169,3 +169,20 @@ test('phantom paths are drawn only at tier 5 for one night and never reach the s
   assert.equal(serializeSession(session), before);
   assert.ok(!/phantom|orchard_lane|ridge_track/.test(before), 'no phantom path in the save JSON');
 });
+
+test('minimap markers follow the reality view and the truth switch restores them', async () => {
+  const { alteredMarkers } = await import('../src/villager-view.js');
+  const markers = Array.from({ length: 9 }, (_, index) => ({ index, name: `v${index}`, x: index, y: index }));
+  let hits = 0;
+  for (const seed of [0, 1, 42, 1818, -7]) {
+    const view = createRealityView({ lib: () => lib, seed: () => seed, night: () => 9, tier: () => 5, lang: () => 'en' });
+    const shown = alteredMarkers(markers, view, 7);
+    if (shown.length < markers.length || shown.some((m) => m.questioned)) hits++;
+    assert.ok(shown.filter((m) => m.index >= 7).length === 2, 'extras are never altered');
+    view.setTruth(true);
+    assert.deepEqual(alteredMarkers(markers, view, 7), markers);
+  }
+  assert.ok(hits > 0);
+  const low = createRealityView({ lib: () => lib, seed: () => 42, night: () => 9, tier: () => 2, lang: () => 'en' });
+  assert.deepEqual(alteredMarkers(markers, low, 7), markers);
+});

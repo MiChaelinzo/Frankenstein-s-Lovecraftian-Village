@@ -285,3 +285,10 @@ test('dawn without the clue target is a missed dawn: sanity drops, the night rep
   assert.equal(c.watchClock(1500), false, 'the next judgement is the following dawn');
   assert.equal(c.watchClock(2880), true);
 });
+
+test('ending story text is the trimmed chronicle summary and empty without one', async () => {
+  const { endingStoryText } = await import('../src/vigil-view.js');
+  assert.equal(endingStoryText('  The village kept its dead.  '), 'The village kept its dead.');
+  assert.equal(endingStoryText(''), '');
+  assert.equal(endingStoryText(undefined), '');
+});
