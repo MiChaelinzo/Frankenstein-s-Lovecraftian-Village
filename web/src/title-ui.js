@@ -34,6 +34,7 @@ export function createTitleController({ $, tr, lang, state, canvas, reduceMotion
   function applyCode() {
     const r = applySeedCode($('titleSeedInput').value);
     $('titleSeedMsg').textContent = r.message;
+    $('titleSeedMsg').className = r.ok ? 'title-reason' : 'title-reason v-error';
     $('titleSeedInput').setAttribute('aria-invalid', String(!r.ok));
     if (r.ok) { $('titleSeedInput').value = ''; showSeed(); const sub = titleSubtitle(state.campaign); $('titleVillage').textContent = sub.name; $('titleRumor').textContent = sub.rumor; }
   }
@@ -49,7 +50,7 @@ export function createTitleController({ $, tr, lang, state, canvas, reduceMotion
     $('titleReason').textContent = m.reasonKey ? tr(m.reasonKey) : '';
     $('titleEnter3d').classList.toggle('recommended', m.recommend === '3d');
     $('titleMap2d').classList.toggle('recommended', m.recommend === '2d');
-    showSeed(); $('titleSeedMsg').textContent = '';
+    showSeed(); $('titleSeedMsg').textContent = ''; $('titleSeedMsg').className = 'title-reason';
     const e = endings(); $('titleEndings').textContent = tr('title.endings', { n: e.found, total: e.total });
     for (const l of ['en', 'fr']) $(l === 'en' ? 'titleLangEn' : 'titleLangFr').setAttribute('aria-pressed', String(l === lang2(lang)));
     $('titleSound').checked = !!($('sound') && $('sound').checked);
@@ -74,7 +75,7 @@ export function createTitleController({ $, tr, lang, state, canvas, reduceMotion
   $('titleMap2d').addEventListener('click', begin2d);
   $('titleSeedApply').addEventListener('click', applyCode);
   $('titleSeedInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { applyCode(); e.preventDefault(); e.stopPropagation(); } });
-  $('titleSeedCopy').addEventListener('click', async () => { $('titleSeedMsg').textContent = await copyText(seedCode()); });
+  $('titleSeedCopy').addEventListener('click', async () => { $('titleSeedMsg').textContent = await copyText(seedCode()); $('titleSeedMsg').className = 'title-reason'; });
   $('titleHelp').addEventListener('click', () => openHelp());
   $('titleSound').addEventListener('change', () => setSound($('titleSound').checked)); // the click is the user gesture that may start audio
   $('titleLangEn').addEventListener('click', () => switchLang('en'));

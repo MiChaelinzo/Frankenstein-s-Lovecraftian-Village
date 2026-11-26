@@ -494,3 +494,40 @@ html.hc button, html.hc a.btn { background: #000; color: #fff; border-color: #ff
 .title-seed-entry input { min-width: 14rem; padding: 6px 8px; background: #0c1214; color: #e8efe9; border: 1px solid #5a6b64; border-radius: 4px; font: inherit; text-transform: uppercase; }
 .title-seed-entry input:focus-visible { outline: 2px solid #d9b98a; outline-offset: 2px; }
 .chronicle-tools { gap: 8px; align-items: center; margin-bottom: 8px; }
+
+/* ---------- round 37 (FEAT-003 item 2): CSP is self-only (no inline style attribute, no style element), so what used to be inline lives here ---------- */
+.swatch { display: inline-block; width: .8em; height: .8em; margin-right: .4em; vertical-align: baseline; border: 1px solid #000; }
+.swatch-d9c27a { background: #d9c27a; } .swatch-b04a6a { background: #b04a6a; } .swatch-4a8fb0 { background: #4a8fb0; } .swatch-8a7a68 { background: #8a7a68; }
+.swatch-6f8a68 { background: #6f8a68; } .swatch-4e5a3c { background: #4e5a3c; } .swatch-667075 { background: #667075; }
+.page-meshes .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.page-meshes figure { margin: 0; background: #0f1719; border: 1px solid #1f2b2d; padding: 8px; }
+.page-meshes figcaption { font-size: .85rem; color: var(--moss); }
+.page-meshes canvas { width: 100%; height: auto; display: block; }
+.page-selftest table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.page-selftest th, .page-selftest td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #1f2b2d; }
+.page-selftest tr.ok td:last-child, .page-selftest p.ok { color: var(--moss); }
+.page-selftest tr.bad td, .page-selftest p.bad { color: var(--blood); }
+
+/* ---------- round 37 (FEAT-003 item 2): one panel vocabulary. Board, theory builder, chronicle, journal, inventory, villager dialog, title and HUD share these classes.
+   Surfaces set four custom properties (wood is the default, .v-paper overrides it); the classes read them, so a heading, badge, empty state, error and focus ring look alike everywhere.
+   web/test/panel-consistency.test.js checks that every panel heading uses them and that no inline style survives. ---------- */
+:root { --v-fg: var(--v-on-wood); --v-head: #f1e6c8; --v-rule: var(--v-brass-dim); --v-focus: var(--v-brass); --v-mute: var(--v-on-wood-dim); --v-bad: #e69a9e; --v-space: 10px; }
+.v-paper { --v-fg: var(--v-ink); --v-head: var(--v-ink); --v-rule: #8a6d3a; --v-focus: var(--v-ink-blue); --v-mute: var(--v-ink-soft); --v-bad: var(--v-ink-red); }
+h2.v-heading { margin: 0 0 var(--v-space); padding-bottom: 6px; font-size: 1.2rem; font-weight: 400; letter-spacing: .08em; color: var(--v-head); border-bottom: 1px solid var(--v-rule); }
+.title-card h2.v-heading { border-bottom: 0; padding-bottom: 0; }
+.lore-dialog h2.v-heading, .chronicle h2.v-heading { color: var(--v-head); }
+h3.v-subheading { margin: calc(var(--v-space) + 4px) 0 6px; font-size: .78rem; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--v-accent-h, var(--v-mute)); }
+.v-paper h3.v-subheading { --v-accent-h: var(--v-ink-red); }
+/* badges: small outlined pills with a text label, never colour alone */
+.v-badge { display: inline-block; padding: 0 .5em; border: 1px solid currentColor; border-radius: 9px; font-size: .72rem; line-height: 1.5; letter-spacing: .04em; }
+.jbadge.v-badge { border-color: #000; }
+/* empty and error states: same indent, same voice (italic, muted); errors add the bad colour and a leading mark */
+.v-empty { margin: 6px 0; font-style: italic; color: var(--v-mute); }
+li.v-empty { list-style: none; }
+.v-error { margin: 6px 0; color: var(--v-bad); }
+.v-error::before { content: "! "; font-weight: bold; }
+/* one keyboard focus ring for every interactive element in every panel */
+:is(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible { outline: 3px solid var(--v-focus); outline-offset: 2px; }
+.title-seed-entry input:focus-visible { outline: 3px solid var(--v-focus); }
+html.hc :is(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible { outline-color: #fff; }
+@media (forced-colors: active) { :is(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible { outline-color: Highlight; } .v-badge { forced-color-adjust: auto; } }

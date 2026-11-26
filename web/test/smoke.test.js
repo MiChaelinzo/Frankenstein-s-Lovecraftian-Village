@@ -139,7 +139,7 @@ test('app renders frames at several sanity levels without throwing', async () =>
   els.volume.value = '20'; els.volume.listeners.input();
   // map, perf HUD, case file and session buttons (no localStorage here, so save reports unavailable)
   press('g'); assert.equal(els.mapPanel.hidden, false);
-  assert.match(els.legend.innerHTML, /<li><i style="background:#[0-9a-f]{6}"><\/i>\w[^<]* x\d+/);
+  assert.match(els.legend.innerHTML, /<li><i class="swatch swatch-[0-9a-f]{6}"><\/i>\w[^<]* x\d+/);
   els.listen.value = '0'; els.listen.listeners.change(); raf(11000);
   press('g'); assert.equal(els.mapPanel.hidden, true);
   press('x'); assert.equal(els.perfHud.hidden, false);

@@ -334,7 +334,7 @@ export function createBoardController(deps) {
     }
     const first = layout.order.includes(selected) ? selected : layout.order[0];
     for (const [id, b] of cardNodes) b.setAttribute('tabindex', id === first ? '0' : '-1');
-    if (!m.timeline.length) timelineEl.append(node('li', { class: 'board-timeline-empty' }, tr('board.timeline.empty')));
+    if (!m.timeline.length) timelineEl.append(node('li', { class: 'board-timeline-empty v-empty' }, tr('board.timeline.empty')));
     for (const ev of m.timeline) {
       const who = ev.villager >= 0 && deps.story().roster[ev.villager] ? deps.story().roster[ev.villager].name : '';
       timelineEl.append(node('li', {}, tr('board.timeline.row', { night: ev.night, time: clockText(ev.minute % MINUTES_PER_DAY), text: titleOf(`event:${ev.statementId}`), who })));

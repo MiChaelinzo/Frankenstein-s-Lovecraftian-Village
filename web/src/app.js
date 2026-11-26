@@ -539,7 +539,7 @@ function drawMinimap() {
   }
   g.font = '9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#efe4c8';
   for (const l of districtMinimapLabels(state.seed, GRID_W, GRID_D, c.width)) { const name = tr(`district.${l.id}`); g.strokeText(name, l.x, l.y); g.fillText(name, l.x, l.y); }
-  $('legend').innerHTML = m.legend.map((l) => `<li><i style="background:${l.color}"></i>${esc(l.label)} x${l.count}</li>`).join('');
+  $('legend').innerHTML = m.legend.map((l) => `<li><i class="swatch swatch-${esc(String(l.color).replace(/^#/, ''))}"></i>${esc(l.label)} x${l.count}</li>`).join('');
 }
 // ---------- investigator (Core Investigator, off by default) ----------
 const INV_STEP_MS = 700;

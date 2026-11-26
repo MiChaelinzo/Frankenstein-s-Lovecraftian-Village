@@ -141,7 +141,7 @@ export function createHomesteadController(deps) {
       const status = tr('home.status', { name: homesteadName(def, L), mood: tr(`home.mood.${home.mood(def, st.fedTick, t, level())}`), fed: tr('home.fed', { n: home.fedPercent(def, st.fedTick, t) }), shelter: home.sheltered(def) ? tr('home.housed') : tr('home.unhoused', { name: homesteadName(shelter, L) }) });
       return `<li>${esc(status)} ${btn('feed', def.id, tr('home.feed', { name: food }))} ${ready ? btn('collect', def.id, tr('home.collect', { name: itemName(def.produce), n: ready })) : ''}</li>`;
     }).join('');
-    body.innerHTML = `<h3>${esc(tr('home.beds'))}</h3><ul class="inv-list">${beds}</ul><h3>${esc(tr('home.structures'))}</h3><ul class="inv-list">${structures}</ul><h3>${esc(tr('home.animals'))}</h3><ul class="inv-list">${animals}</ul>`;
+    body.innerHTML = `<h3 class="v-subheading">${esc(tr('home.beds'))}</h3><ul class="inv-list">${beds}</ul><h3 class="v-subheading">${esc(tr('home.structures'))}</h3><ul class="inv-list">${structures}</ul><h3 class="v-subheading">${esc(tr('home.animals'))}</h3><ul class="inv-list">${animals}</ul>`;
   }
 
   function open() {

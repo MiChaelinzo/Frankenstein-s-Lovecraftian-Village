@@ -50,12 +50,12 @@ export function createInventoryController(deps) {
         const d = cat.find(s.id), usable = d && (d.effect === 'sanity' || d.effect === 'fuel');
         return row(s, `${usable ? btn('use', s.id, 'inv.use') : ''} ${chest ? btn('store', s.id, 'inv.store') : ''} ${btn('drop', s.id, 'inv.drop')}<span class="inv-text">${d ? esc(itemText(d, lang())) : ''}</span>`);
       }).join('')
-      : `<li class="inv-empty">${esc(tr('inv.empty'))}</li>`;
+      : `<li class="inv-empty v-empty">${esc(tr('inv.empty'))}</li>`;
     const ct = $('invChestTitle'), cl = $('invChestList'), sl = $('invSleep');
     if (ct) { ct.hidden = !chest; ct.textContent = chest ? chestLabel(chest) : ''; }
     if (cl) {
       cl.hidden = !chest;
-      cl.innerHTML = chest ? (chest.contents.slots.length ? chest.contents.slots.map((s) => row(s, btn('take', s.id, 'inv.take'))).join('') : `<li class="inv-empty">${esc(tr('inv.chestempty'))}</li>`) : '';
+      cl.innerHTML = chest ? (chest.contents.slots.length ? chest.contents.slots.map((s) => row(s, btn('take', s.id, 'inv.take'))).join('') : `<li class="inv-empty v-empty">${esc(tr('inv.chestempty'))}</li>`) : '';
     }
     if (sl) sl.hidden = !(chest && chest.lodging);
     const in3d = deps.in3d ? deps.in3d() : false;
