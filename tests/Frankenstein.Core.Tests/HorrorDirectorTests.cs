@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Frankenstein.Core;
@@ -111,6 +112,31 @@ namespace Frankenstein.Core.Tests
             var beats = new HashSet<string>();
             for (int seed = 1; seed < 30; seed++) beats.Add(string.Join("", Run(seed, Scenario(7, ScenarioSteps)).Select(s => (int)s.Beat)));
             Assert.True(beats.Count > 1, "the omen roll depends on the seed");
+        }
+
+        [Fact]
+        public void Round37_dim_step_is_zero_at_gentle_and_under_reduced_motion_and_never_a_jump()
+        {
+            foreach (int brightness in new[] { 0, -20, -30, -90 })
+                for (int ms = -500; ms <= 13000; ms += 100)
+                {
+                    Assert.Equal(0, HorrorDirector.DimStep(brightness, ms, new AmbientSettings { IntensityScale = HorrorDirector.GentleScale }));
+                    Assert.Equal(0, HorrorDirector.DimStep(brightness, ms, new AmbientSettings { IntensityScale = 1500, ReducedMotion = true }));
+                }
+            var standard = new AmbientSettings { IntensityScale = 1000 };
+            Assert.Equal(0, HorrorDirector.DimStep(0, 3000, standard));
+            Assert.Equal(0, HorrorDirector.DimStep(-30, 0, standard));
+            Assert.Equal(30, HorrorDirector.DimStep(-30, 3000, standard));
+            Assert.Equal(HorrorDirector.MaxBrightnessStep, HorrorDirector.DimStep(-900, 3000, standard));
+            Assert.Equal(0, HorrorDirector.DimStep(-30, HorrorDirector.DimRiseMs + HorrorDirector.DimHoldMs + HorrorDirector.DimFallMs, standard));
+            int previous = 0;
+            for (int ms = 0; ms <= 13000; ms += 50)
+            {
+                int now = HorrorDirector.DimStep(-30, ms, standard);
+                Assert.InRange(now, 0, HorrorDirector.MaxBrightnessStep);
+                Assert.True(Math.Abs(now - previous) <= 2, "no jump between 50 ms steps at " + ms);
+                previous = now;
+            }
         }
 
         [Fact]

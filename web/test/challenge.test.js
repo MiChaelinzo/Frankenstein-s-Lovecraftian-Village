@@ -52,6 +52,12 @@ test('the export holds no free text and is capped', () => {
   for (const e of root.entries) assert.deepEqual(Object.keys(e).sort(), ['code', 'endings', 'rank', 'score', 'seed', 'theories']);
 });
 
+test('parse rejects a bad week in an otherwise valid leaderboard', () => {
+  const bad = JSON.parse(golden.leaderboard);
+  bad.week = 'w';
+  assert.throws(() => parseLeaderboard(lib, JSON.stringify(bad)), /leaderboard: week/);
+});
+
 test('parse rejects malformed lists with a readable error', () => {
   const bad = ['not json', '[]', '{"format":"x","week":"w","entries":[]}', '{"format":"flv-challenge-1","week":"w"}',
     '{"format":"flv-challenge-1","week":"w","entries":[{"seed":1,"code":"1-WRONG-WORDS","score":1,"theories":1,"endings":1}]}',

@@ -135,7 +135,19 @@ test('reputation effect records match C# for every golden seed, with nights and 
     const { society } = societyOf(c.seed);
     assert.deepEqual(rows(society.reputationEffectsAfter(log, reputationGolden.nights)), c.effects, `effects ${c.seed}`);
     assert.deepEqual(rows(society.reputationEffectsAfter(crowded, null)), c.crowdedEffects, `crowded ${c.seed}`);
+    const held = society.opinionsAfter(log, null, reputationGolden.nights);
+    assert.deepEqual(held.trust, c.trust, `opinions trust ${c.seed}`);
+    assert.deepEqual(held.suspicion, c.suspicion, `opinions suspicion ${c.seed}`);
   }
+});
+
+test('round 37: hop 1 and 2 effect records change the opinions of linked villagers, others stay put', () => {
+  const { roster, society } = societyOf(42), log = [{ kind: SEEN_AT_RITUAL_SITE, subject: 0 }];
+  const zero = society.opinionsAfter([]), o = society.opinionsAfter(log), fx = society.reputationEffectsAfter(log);
+  const reached = new Set(fx.map((e) => e.target));
+  assert.ok(fx.some((e) => e.hop === 1) && fx.some((e) => e.hop === 2), 'both hops propagate');
+  for (const e of fx.filter((x) => x.hop >= 1)) assert.equal(o.suspicion[e.target], Math.min(1000, zero.suspicion[e.target] + e.strength));
+  for (let i = 0; i < roster.length; i++) if (!reached.has(i)) assert.equal(o.suspicion[i], zero.suspicion[i]);
 });
 
 test('reputation: decay by hop, caps hold on cyclic links, each villager once per origin, replay equals incremental', () => {

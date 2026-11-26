@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   BEAT, CAUSE_IDS, MAX_STEP, MAX_INTENSITY, OMEN_AT, QUIET_AFTER_OMEN, FOG_GAIN_MAX, LIGHT_DIM_MAX, AMBIENCE_GAIN_MAX, RAMP_PER_SECOND,
-  freshRun, nextSafeZoneTicks, nextSafeZoneAbuse, pickAmbientBeat, beatCause, BEAT_IDS, NO_BEAT_YET, CAMPING_TICKS, SAFE_ZONE_ABUSE_CAP, ABUSE_DECAY_PER_STEP, ABUSE_WEIGHT_PERCENT, MAX_CUE_VOLUME, MAX_BRIGHTNESS_STEP, MIN_BEAT_GAP_TICKS, GENTLE_SCALE, causeHolds, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
+  freshRun, dimStep, dimEnvelope, DIM_RISE_MS, DIM_HOLD_MS, DIM_FALL_MS, nextSafeZoneTicks, nextSafeZoneAbuse, pickAmbientBeat, beatCause, BEAT_IDS, NO_BEAT_YET, CAMPING_TICKS, SAFE_ZONE_ABUSE_CAP, ABUSE_DECAY_PER_STEP, ABUSE_WEIGHT_PERCENT, MAX_CUE_VOLUME, MAX_BRIGHTNESS_STEP, MIN_BEAT_GAP_TICKS, GENTLE_SCALE, causeHolds, nearLitLamp, SAFE_ZONE_CAP, startState, step, target, dominantCause, dreadFromIntensity, presentation, ramp,
 } from '../src/director.js';
 
 const golden = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'golden.json'), 'utf8')).director;
@@ -171,4 +171,37 @@ test('reduced motion removes props and dimming; dread scale stays within the vol
     if (calm.emitted) assert.ok(!calm.prop && calm.brightness === 0);
   }
   assert.ok(seen > 20);
+});
+
+// Round 37 (spec 175): the dimming step applied through the scene hook. Core HorrorDirector.DimStep is the source of truth.
+test('dimStep matches the C# golden rows, is skipped at Gentle and under reduced motion, and never jumps', () => {
+  assert.ok(goldenBeats.dim.length >= 16);
+  for (const [scale, reduced, brightness, steps] of goldenBeats.dim) {
+    const got = steps.map((_, k) => dimStep(brightness, -500 + k * 500, { scale, reduced: !!reduced }));
+    assert.deepEqual(got, steps, `scale ${scale} reduced ${reduced} brightness ${brightness}`);
+    if (reduced || scale <= 500 || brightness === 0) assert.ok(steps.every((v) => v === 0));
+  }
+  for (const brightness of [0, -20, -30, -90]) for (let ms = -500; ms <= 13000; ms += 100) {
+    assert.equal(dimStep(brightness, ms, { scale: 500 }), 0);
+    assert.equal(dimStep(brightness, ms, { scale: 1500, reduced: true }), 0);
+  }
+  let previous = 0;
+  for (let ms = 0; ms <= DIM_RISE_MS + DIM_HOLD_MS + DIM_FALL_MS + 500; ms += 50) {
+    const now = dimStep(-30, ms, { scale: 1000 });
+    assert.ok(now >= 0 && now <= MAX_BRIGHTNESS_STEP && Math.abs(now - previous) <= 2);
+    previous = now;
+  }
+  assert.equal(dimEnvelope(NaN), 0);
+  assert.equal(dimStep(-30, 3000), 30);
+});
+
+test('round 37 wiring: the dimming step reaches the 3D light and a 2D canvas wash only through dimStep, with no inline style', () => {
+  const app = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'app.js'), 'utf8');
+  assert.match(app, /dimNow = dimStep\(dimBeat\.brightness, now - dimBeat\.at, \{ scale: INTENSITY_PER_MILLE\[horrorIntensity\], reduced: reduceMotion \}\)/);
+  assert.match(app, /lightGain: look\.lightGain \* \(1 - dimNow \/ 1000\)/);
+  assert.match(app, /if \(dimNow > 0\) paintDimming\(dimNow\)/);
+  assert.match(app, /if \(beat\.brightness < 0\) dimBeat = /);
+  const paint = app.slice(app.indexOf('function paintDimming'), app.indexOf('let running = false;'));
+  assert.doesNotMatch(paint, /\.style\b/);
+  assert.doesNotMatch(app, /dimBeat[^;\n]*(snapshot|serialize)/); // presentation only, never saved
 });

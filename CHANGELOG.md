@@ -4,6 +4,56 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+Historical note: test totals and service worker cache names in older entries are snapshots from the round that recorded them. They do not describe the current build. The latest Round 37 verification entry is the current status.
+
+### Round 37: blocking cohesion fixes
+- Legacy `flv.intensity.v1`, `flv.contrast.v1` and `flv-quality` choices now migrate into `flv.settings.v1` during the first read. The unified record survives after the old keys are removed. `SETTINGS_ONLY` passes 5 of 5 browser checks.
+- Startup and the Load button share one controller restoration path, including lore. Every round 26 through 36 fixture is restored by the live app and saved through current controller snapshots. `SAVE_COMPAT_ONLY` passes 12 of 12 browser checks.
+- The checked-in authored event is now `wrong_stars_night_3`, matching the deterministic `stars_wrong` omen in night 3 of the five-night seed 1818 campaign. `AUTHORED_ONLY` passes 3 of 3 browser checks in English and French.
+- Core and JavaScript now reject unknown event effect keys, fractions and values outside -100 through 100 under the same rule. Service worker cache is `flv-shell-v102`.
+- Verified automated suites after the blocking fixes: repository validation, all Python tool tests, node 930 of 930, Core 544 of 544, UnityCompileCheck 0 warnings and 0 errors. The focused SwiftShader browser sections passed: settings 5 of 5, historical saves 12 of 12, and authored content 3 of 3.
+
+### Round 37 (FEAT-005): closure and verification
+- Spec 178 Unity Runtime wiring remains unbuilt. Runtime has no authoritative owner for the complete memory log, knowledge gains, learned-fact chronicle context or director inputs. A pass-through component would add no real integration, while inferring those values would duplicate gameplay policy. Specs 174 and 177 also remain unbuilt.
+- README, this changelog, `docs/BUILD_LOG.md` and all three `.kiro/specs` files now record the final architecture and verification labels. Service worker cache is `flv-shell-v101`.
+- Verified automated suites: repository validation, 95 Python tool tests, node 928 of 928, Core 540 of 540, UnityCompileCheck 0 warnings and 0 errors. The single full browser run passed 125 of 127 on SwiftShader: one stale six-group help assertion observed the correct seven groups and was updated after the run, while the villager timing check sampled 7 frames instead of its minimum 8 under host load. Browser presentation is Partially Verified. Unity runtime and real GPU remain Unverified.
+
+### Round 37 (FEAT-003 items 4 to 6): one consistent app completed
+- Item 4: the French title, HUD, board, chronicle, journal, settings and villager dialog fit at 100% and 150% browser zoom.
+- Item 5: Horror Intensity, reduced motion, graphics quality, language and contrast persist in one `flv.settings.v1` store and appear in one explained Settings panel. Older keys migrate but are never written.
+- Item 6: `tools/gen_save_fixtures.mjs` checks out the shipped round 26 through 36 commits in temporary worktrees and records one real Chromium session per build. All 11 fixtures load through the current session and settings parsers in `web/test/save-compat.test.js`.
+
+### Round 37 (FEAT-004): small debts
+- `parseLeaderboard` now rejects a week unless it matches `YYYY-Www`; the otherwise-valid bad-week test failed before the parser fix and now passes.
+- `THEORY_ONLY` clicks both challenge export buttons and verifies the downloaded JSON and text. `EVOLUTION_ONLY` has a live villager conversation and verifies the resulting reputation line in the chronicle.
+- Verified: focused node test 12 of 12, `THEORY_ONLY` 11 of 11 and `EVOLUTION_ONLY` 4 of 4 on SwiftShader. The browser result is Partially Verified because no real GPU was available.
+
+### Round 37 (FEAT-003 items 1 to 3): one consistent app
+- Item 1 terminology: `docs/TERMINOLOGY.md`, `web/test/terminology-table.js` and `web/test/terminology.test.js` fix one term per concept (trust, suspicion, fear, faith, loyalty, obsession, corruption, knowledge tier, outcome, creature tier) in en and fr and fail on a synonym in the UI strings, the data files or the English docs. Drift found and fixed: theory option "tainted" now reads "corruption is near" (en and fr, Core `Data/theories.json` copy, golden regenerated), the French chronicle line "soupcon" became "mefiance", and "Knowledge {tier}" became "Knowledge tier {tier}" / "Savoir, niveau {tier}".
+- Item 2 panels: shared classes `v-heading`, `v-subheading`, `v-badge`, `v-empty`, `v-error`, `v-paper` and one `:focus-visible` ring in `web/style.css`, applied to the title, HUD, board, chronicle, journal, inventory, villager and homestead panels (`web/test/panel-consistency.test.js`). The CSP is now self-only for styles: the minimap legend swatches and the two dev pages no longer use inline styles, and `'unsafe-inline'` is removed from `_headers`, `netlify.toml` and `vercel.json`. Service worker cache is now `flv-shell-v99`.
+- Item 3 same fact, same words: `web/test/cross-panel.test.js` drives the chat, the real board controller, the chronicle model, the journal pages and the ending summary for 3 seeds, 2 languages and 4 knowledge tiers and fails if a villager name, a missing person, an outcome, a rumor version, the tier name or the reality distortion text differs. Injected mismatches are proven to fail. Finding: a line told in chat is a snapshot of its night and tier; the panels show the current tier, so the test asks again at the settled tier.
+- Not built: quests and rumors from `Data/content` still have no consumer (a rumor consumer needs a Core rule, C# and JS parity and a golden key, which is more than a cheap change). Event effects stay unused.
+
+### Round 37 (FEAT-002 part 2, items 4 to 6)
+- Phantom path (spec 183): `RealityInstability.PhantomPathCells` / `realityPhantomPathCells` give a path its cells (two seed-chosen cells and one bend); `createRealityView().phantomPaths()` lists tonight's paths at tier 5. Drawn as a dashed line on the minimap and a pale ground strip in 3D (`phantomRects`, `buildWorld({ phantom })`). Presentation only: a test proves no phantom path is in the session JSON. New golden `realityCollapse.shapes`.
+- Spec 180: the ending dialog shows the learned story summary (`#endingStory`, `chronicle.summary()`); the minimap hides an erased villager and draws a blurred one hollow (`alteredMarkers`), the truth switch restores both.
+- Spec 179: `ContentLibrary` (C#) and `web/src/content.js` load `Data/content/*.json` (copies in `web/data/content`, precached, drift checked by `validate_repo.py`); the chronicle lists authored events on their night once the matching omen was heard. New golden key `content`. Event `effects`, quests and rumors are loaded but not yet used in play.
+- Service worker cache is now `flv-shell-v98`. Suites: dotnet 540, node 897, UnityCompileCheck 0/0. Unity runtime and the drawn visuals Unverified.
+
+### Round 37 (FEAT-002 part 1, item 1): reputation records now change opinions
+- `VillageSociety.OpinionsAfter` (C# and `society.js`) applies the round 36 hop 1 and 2 effect records to the other villagers instead of the old fixed family (1/2) and neighbour (1/4) shares: Trusted adds strength to trust (halved while suspicious), Accused adds it to suspicion; 2-hop limit, halving, caps 300 per villager and 600 per night, cycle safe. The villager acted on still takes the full action. New overload `OpinionsAfter(log, nights, extraSuspicion)` and JS `opinionsAfter(log, extraSuspicion, nights)` so the per night cap uses real nights (the session UI passes them; plain calls count one night).
+- Golden changes (documented, regenerated): `society` trust and suspicion for all city seeds, and `reputation` gains per seed `trust` and `suspicion` rows. Removed unused `FamilyShare` and `NeighbourShare`. Service worker cache is now `flv-shell-v97`.
+- Verified: dotnet 529, node 883 pass. Unity runtime Unverified.
+
+### Round 37 (FEAT-002 part 1, item 2): one source of current rumor text
+- New `MythosRules.CurrentText` (C#) and `mythosCurrentText` (JS) with a small `RumorTelling` (library, night, knowledge tier): a rumor with a mutation chain reads as its drifted stage tonight and gains the true account at knowledge tier 3, whoever tells it. Board cards (`InvestigationRules.CardTitle` / `cardTitle` with a telling), the chronicle mythos list and `MythosChat` all call it, so the three show identical text. No saved state and no golden data change.
+- Verified: C# test `Round37_board_card_chat_and_current_text_tell_the_same_rumor...`, JS test in `web/test/rumor-mutation.test.js`. Browser view of the board card Unverified until the final section run.
+
+### Round 37 (FEAT-002 part 1, item 3): Director 2.0 dimming step applied to 2D and 3D
+- Core `HorrorDirector.DimEnvelope` and `DimStep` (JS `dimEnvelope`, `dimStep`): the beat's dimming step eases in over 2 s, holds 4 s and eases out over 6 s, never more than `MaxBrightnessStep` (40 per mille), always 0 at Gentle intensity and under reduced motion. Golden `directorBeats.dim` carries C# rows.
+- `app.js` applies it in `directorUpdate` only: the 3D lamp light (`lightGain`) is multiplied by `1 - dim/1000` and the 2D scene gets a canvas wash (`paintDimming`, no DOM style). Session only, never saved.
+- Verified: dotnet and node tests (parity, gentle and reduced skip, no jump, wiring). Visible effect in a browser Unverified (the step is at most 3 to 4 percent by design); real GPU Unverified.
+
 ### Round 36 (FEAT-010): docs, specs and final browser check
 - Docs only: README round 36 section and status rows, this changelog, `docs/BUILD_LOG.md` and `.kiro/specs/tasks.md` (specs 175 and 176 marked built with their gaps; specs 174, 177, 178, 179 and 180 stay unbuilt with refreshed notes: 174 could contradict an epitaph already shown if leads changed the odds; 180 still owns the ending chronicle, minimap reality, the phantom path draw hook and the director dimming hook; 178 Unity Runtime wiring is compile-only).
 - Final browser check result and test counts are in `docs/BUILD_LOG.md`.

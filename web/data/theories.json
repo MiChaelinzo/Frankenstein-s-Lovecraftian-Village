@@ -62,8 +62,8 @@
     {
      "id": "tainted",
      "group": 1,
-     "en": "{name} is uneasy, and tainted by what is near.",
-     "fr": "{name} est inquiet, et souille par ce qui rode."
+     "en": "{name} is uneasy, and corruption is near.",
+     "fr": "{name} est inquiet, et la corruption rode."
     },
     {
      "id": "corrupted",

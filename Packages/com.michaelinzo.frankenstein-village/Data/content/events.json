@@ -2,10 +2,10 @@
  "version": 1,
  "events": [
   {
-   "id": "black_tide_night_25",
-   "night": 25,
-   "condition": "black_tide",
-   "text": { "en": "On the twenty fifth night the tide returns black again, and the lamps on the quay lean toward it.", "fr": "La vingt cinquieme nuit, la maree revient noire, et les lampes du quai se penchent vers elle." },
+   "id": "wrong_stars_night_3",
+   "night": 3,
+   "condition": "stars_wrong",
+   "text": { "en": "On the third night the constellations turn toward the village, though the clouds do not move.", "fr": "La troisieme nuit, les constellations se tournent vers le village, bien que les nuages ne bougent pas." },
    "effects": { "dread": 5 }
   }
  ]

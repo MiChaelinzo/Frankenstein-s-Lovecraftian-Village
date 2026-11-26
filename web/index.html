@@ -44,7 +44,7 @@
           <div id="view3dPrompt" class="view3d-prompt" role="status" aria-live="polite" hidden></div>
           <div id="narration" class="narration" aria-live="polite"></div>
           <div id="villagerDialog" class="villager-dialog" role="dialog" aria-labelledby="villagerName" aria-describedby="villagerLine" hidden>
-            <h2 id="villagerName"></h2>
+            <h2 class="v-heading" id="villagerName"></h2>
             <p id="villagerRole" class="stats"></p>
             <p id="villagerLine" class="villager-line"></p>
             <p id="villagerEffect" class="stats"></p>
@@ -52,17 +52,17 @@
             <ul id="villagerAxes" class="axis-bars" role="group" hidden></ul>
             <button id="villagerClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
-          <div id="loreDialog" class="lore-dialog" role="dialog" aria-labelledby="loreTitle" aria-describedby="loreText" hidden>
-            <h2 id="loreTitle"></h2>
+          <div id="loreDialog" class="lore-dialog v-paper" role="dialog" aria-labelledby="loreTitle" aria-describedby="loreText" hidden>
+            <h2 class="v-heading" id="loreTitle"></h2>
             <p id="loreText" class="lore-page"></p>
             <p id="loreEffect" class="stats"></p>
             <button id="loreClose" type="button" data-i18n="villagerui.close">Close (Esc)</button>
           </div>
           <div id="boardPanel" class="board-dialog" role="dialog" aria-labelledby="boardTitle" hidden>
-            <h2 id="boardTitle" data-i18n="board.title">Investigation board</h2>
+            <h2 class="v-heading" id="boardTitle" data-i18n="board.title">Investigation board</h2>
             <p id="boardNote" class="stats"></p>
             <p id="boardKnowledge" class="stats board-knowledge" aria-live="off"></p>
-            <p class="stats"><span id="boardReality" class="reality-badge" role="status" hidden></span> <button id="boardRealityTruth" type="button" aria-pressed="false" data-i18n="reality.truth.show" hidden>Show the truth</button></p>
+            <p class="stats"><span id="boardReality" class="reality-badge v-badge" role="status" hidden></span> <button id="boardRealityTruth" type="button" aria-pressed="false" data-i18n="reality.truth.show" hidden>Show the truth</button></p>
             <p id="boardHelp" class="stats" data-i18n="board.help">Arrow keys move between cards, Enter inspects one, Esc closes.</p>
             <p id="boardLive" class="sr-only" role="status" aria-live="polite"></p>
             <div id="boardScroll" class="board-scroll">
@@ -71,25 +71,25 @@
             <p id="boardDetail" class="stats board-detail"></p>
             <ul id="boardBars" class="axis-bars board-bars" aria-label="Trust bars" data-i18n-aria="society.bar.label" hidden></ul>
             <section id="boardTheory" class="board-theory" aria-labelledby="boardTheoryTitle">
-              <h3 id="boardTheoryTitle" data-i18n="theory.title">Theories</h3>
+              <h3 class="v-subheading" id="boardTheoryTitle" data-i18n="theory.title">Theories</h3>
               <p class="stats" data-i18n="theory.help">Pick a question, choose an answer, attach up to three statements you have found as evidence, then conclude. Being wrong costs a little trust and still teaches you something.</p>
               <div id="boardTheoryBody"></div>
             </section>
-            <h3 data-i18n="board.timeline">Timeline</h3>
+            <h3 class="v-subheading" data-i18n="board.timeline">Timeline</h3>
             <ol id="boardTimeline" class="board-timeline" aria-label="Timeline" data-i18n-aria="board.timeline"></ol>
             <button id="boardClose" type="button" data-i18n="board.close">Close (Esc)</button>
           </div>
           <div id="homePanel" class="inv-dialog" role="dialog" aria-labelledby="homeTitle" hidden>
-            <h2 id="homeTitle" data-i18n="home.title">Homestead</h2>
+            <h2 class="v-heading" id="homeTitle" data-i18n="home.title">Homestead</h2>
             <div id="homeBody"></div>
             <p id="homeNote" class="stats" role="status" aria-live="polite"></p>
             <button id="homeClose" type="button" data-i18n="home.close">Close (Esc)</button>
           </div>
           <div id="invPanel" class="inv-dialog" role="dialog" aria-labelledby="invTitle" hidden>
-            <h2 id="invTitle" data-i18n="inv.title">Satchel</h2>
+            <h2 class="v-heading" id="invTitle" data-i18n="inv.title">Satchel</h2>
             <p id="invFuel" class="stats" role="status"></p>
             <ul id="invList" class="inv-list" aria-label="Your items" data-i18n-aria="inv.list"></ul>
-            <h3 id="invChestTitle" hidden></h3>
+            <h3 class="v-subheading" id="invChestTitle" hidden></h3>
             <ul id="invChestList" class="inv-list" aria-label="Chest contents" data-i18n-aria="inv.chestlist" hidden></ul>
             <p id="invNote" class="stats" role="status" aria-live="polite"></p>
             <p id="creatureNote" class="stats creature-note" role="status" aria-live="polite"></p>
@@ -135,7 +135,7 @@
         <p id="viewDesc" class="sr-only"></p>
 
         <section id="story" class="panel story" aria-labelledby="storyTitle" hidden>
-          <h2 id="storyTitle" data-i18n="title.story">Story mode</h2>
+          <h2 class="v-heading" id="storyTitle" data-i18n="title.story">Story mode</h2>
           <p id="storyMeta" class="stats"></p>
           <p id="storyText" class="story-text" aria-live="polite"></p>
           <div class="row">
@@ -147,7 +147,7 @@
         </section>
 
         <section class="panel campaign" aria-labelledby="campaignTitle">
-          <h2 id="campaignTitle"><span data-i18n="title.campaign">Campaign:</span> <span id="villageName">the village</span></h2>
+          <h2 class="v-heading" id="campaignTitle"><span data-i18n="title.campaign">Campaign:</span> <span id="villageName">the village</span></h2>
           <div class="row">
             <label for="night" data-i18n="label.night">Night</label>
             <select id="night"></select>
@@ -161,7 +161,7 @@
         </section>
 
         <section class="panel building" aria-labelledby="buildingTitle">
-          <h2 id="buildingTitle" data-i18n="title.buildings">Buildings</h2>
+          <h2 class="v-heading" id="buildingTitle" data-i18n="title.buildings">Buildings</h2>
           <div class="row">
             <label for="theme" data-i18n="label.theme">Texture theme</label>
             <select id="theme" aria-describedby="themeNote"><option value="auto" data-i18n="opt.themeauto">Default (mixed)</option></select>
@@ -252,25 +252,25 @@
 
       <aside class="side" aria-label="Journal, map and keys">
         <section class="panel journal" aria-labelledby="journalTitle">
-          <h2 id="journalTitle" data-i18n="title.whispers">Whispers</h2>
+          <h2 class="v-heading" id="journalTitle" data-i18n="title.whispers">Whispers</h2>
           <div class="jtabs" role="tablist" aria-labelledby="journalTitle">
             <button type="button" role="tab" id="tab-story" aria-selected="true" aria-controls="pane-story" data-i18n="tab.story">Story</button>
-            <button type="button" role="tab" id="tab-progress" aria-selected="false" aria-controls="pane-progress" tabindex="-1"><span data-i18n="tab.progress">Progress</span> <span id="progressBadge" class="jbadge" hidden></span></button>
+            <button type="button" role="tab" id="tab-progress" aria-selected="false" aria-controls="pane-progress" tabindex="-1"><span data-i18n="tab.progress">Progress</span> <span id="progressBadge" class="jbadge v-badge" hidden></span></button>
           </div>
           <div id="pane-story" role="tabpanel" aria-labelledby="tab-story">
-            <ol id="whispers" class="whispers"><li class="empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
+            <ol id="whispers" class="whispers"><li class="empty v-empty" data-i18n="empty.whispers">Nothing has spoken yet.</li></ol>
           </div>
           <div id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden>
-            <ol id="progressLog" class="whispers"><li class="empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
+            <ol id="progressLog" class="whispers"><li class="empty v-empty" data-i18n="empty.progresslog">No codex or achievement entries yet.</li></ol>
           </div>
         </section>
         <section id="villagerPanel" class="panel villagers" aria-labelledby="villagerPanelTitle" hidden>
-          <h2 id="villagerPanelTitle" data-i18n="villagerui.panel">Who is where</h2>
+          <h2 class="v-heading" id="villagerPanelTitle" data-i18n="villagerui.panel">Who is where</h2>
           <p id="villagerClock" class="stats" role="status"></p>
           <ul id="villagerList" class="villager-list"></ul>
         </section>
-        <section id="chroniclePanel" class="panel chronicle" aria-labelledby="chronicleTitle" hidden>
-          <h2 id="chronicleTitle" data-i18n="chronicle.title">Village chronicle</h2>
+        <section id="chroniclePanel" class="panel chronicle v-paper" aria-labelledby="chronicleTitle" hidden>
+          <h2 class="v-heading" id="chronicleTitle" data-i18n="chronicle.title">Village chronicle</h2>
           <div class="row chronicle-tools">
             <span id="chronicleSeed" class="stats"></span>
             <button id="chronicleSeedCopy" type="button" hidden data-i18n="seed.code.copy">Copy code</button>
@@ -280,23 +280,23 @@
           <div id="chronicleBody" class="chronicle-body"></div>
         </section>
         <section id="mapPanel" class="panel map" aria-labelledby="mapTitle" hidden>
-          <h2 id="mapTitle" data-i18n="title.map">Village map</h2>
+          <h2 class="v-heading" id="mapTitle" data-i18n="title.map">Village map</h2>
           <canvas id="minimap" width="168" height="168" role="img" aria-label="Top-down map of building kinds and city quarters" data-i18n-aria="aria.minimap"></canvas>
           <ul id="legend" class="legend" aria-label="Legend"></ul>
         </section>
         <section id="codexPanel" class="panel codex" aria-labelledby="codexTitle" hidden>
-          <h2 id="codexTitle" data-i18n="title.codex">Necronomicon codex</h2>
+          <h2 class="v-heading" id="codexTitle" data-i18n="title.codex">Necronomicon codex</h2>
           <p id="codexMeta" class="stats" role="status"></p>
           <ul id="codexList" class="codex-list"></ul>
-          <h2 data-i18n="title.lore">Lore books</h2>
+          <h2 class="v-heading" data-i18n="title.lore">Lore books</h2>
           <p id="loreMeta" class="stats" role="status"></p>
           <ul id="loreList" class="codex-list"></ul>
-          <h2 data-i18n="title.ach">Achievements</h2>
+          <h2 class="v-heading" data-i18n="title.ach">Achievements</h2>
           <p id="achMeta" class="stats" role="status"></p>
           <ul id="achList" class="codex-list"></ul>
         </section>
         <section id="stitchPanel" class="panel stitch" aria-labelledby="stitchTitle" hidden>
-          <h2 id="stitchTitle" data-i18n="title.stitch">How it is stitched together</h2>
+          <h2 class="v-heading" id="stitchTitle" data-i18n="title.stitch">How it is stitched together</h2>
           <div id="stitchBody"></div>
         </section>
         <section class="panel keys" aria-label="How to play" data-i18n-aria="btn.helpopen">
@@ -313,7 +313,7 @@
     <div class="title-fog" aria-hidden="true"></div>
     <div class="title-card">
       <p id="titleVillage" class="title-village"></p>
-      <h2 id="titleHeading" data-i18n="page.title">Frankenstein's Lovecraftian Village</h2>
+      <h2 class="v-heading" id="titleHeading" data-i18n="page.title">Frankenstein's Lovecraftian Village</h2>
       <p class="title-pitch" data-i18n="title.pitch">A procedural cosmic-horror village. Change the seed, lose your sanity.</p>
       <p id="titleRumor" class="title-rumor"></p>
       <p class="title-seed"><span data-i18n="seed.code.label">Village seed code</span>: <strong id="titleSeedCode"></strong> <button id="titleSeedCopy" type="button" hidden data-i18n="seed.code.copy">Copy code</button></p>
@@ -343,7 +343,7 @@
     </div>
   </div>
   <dialog id="help" class="about help" aria-labelledby="helpTitle">
-    <h2 id="helpTitle" data-i18n="help.title">How to play</h2>
+    <h2 class="v-heading" id="helpTitle" data-i18n="help.title">How to play</h2>
     <p id="helpDevice" class="stats" role="status"></p>
     <div id="helpDevices" class="help-devices">
       <p data-device="pad" data-i18n="help.pad">Gamepad: stick or d-pad pick a landmark, A listen (pick up in 3D), B door, X whisper, Y candle, Start story, Select cinematic, left trigger chat, left stick press satchel, right stick press gather next item (2D).</p>
@@ -351,7 +351,7 @@
     </div>
     <div class="help-groups">
       <section class="help-group">
-        <h3 data-i18n="help.g.play">Play</h3>
+        <h3 class="v-subheading" data-i18n="help.g.play">Play</h3>
         <ul>
           <li data-i18n-html="keys.whisper"><kbd>W</kbd> whisper</li>
           <li data-i18n-html="keys.church"><kbd>Q</kbd> enter the church</li>
@@ -374,7 +374,7 @@
         </ul>
       </section>
       <section class="help-group">
-        <h3 data-i18n="help.g.view">View</h3>
+        <h3 class="v-subheading" data-i18n="help.g.view">View</h3>
         <ul>
           <li data-i18n-html="keys.camera"><kbd>V</kbd> next camera (first, third, top-down, auto)</li>
           <li data-i18n-html="keys.theme"><kbd>T</kbd> next texture theme</li>
@@ -386,28 +386,41 @@
         </ul>
       </section>
       <section class="help-group">
-        <h3 data-i18n="help.g.audio">Audio</h3>
+        <h3 class="v-subheading" data-i18n="help.g.audio">Audio</h3>
         <ul>
           <li data-i18n-html="keys.music"><kbd>M</kbd> music on/off, <kbd>U</kbd> mute</li>
         </ul>
       </section>
       <section class="help-group">
-        <h3 data-i18n="help.g.access">Accessibility</h3>
+        <h3 class="v-subheading" data-i18n="help.g.access">Accessibility</h3>
         <ul>
           <li data-i18n-html="keys.intensity">Horror intensity: Tools and settings button (also ?intensity=gentle, standard or dread). Presentation only.</li>
           <li data-i18n-html="keys.contrast"><kbd>H</kbd> high-contrast theme (also ?contrast=1)</li>
         </ul>
       </section>
+      <section class="help-group" id="settingsPanel" aria-labelledby="settingsTitle">
+        <h3 class="v-subheading" id="settingsTitle" data-i18n="settings.title">Settings</h3>
+        <p class="settings-note" data-i18n="settings.where">These five settings are saved together in this browser. A web address option (for example ?lang=fr) overrides them for one visit only. None of them changes the village, a seed or a save.</p>
+        <label class="view-setting" for="settingsLang"><span data-i18n="settings.lang">Language</span> <select id="settingsLang"><option value="en" lang="en">English</option><option value="fr" lang="fr">Francais</option></select></label>
+        <p class="settings-note" data-i18n="settings.lang.note">English or French. Changing it reloads the page and keeps your village.</p>
+        <label class="view-setting" for="settingsIntensity"><span data-i18n="settings.intensity">Horror intensity</span> <select id="settingsIntensity"><option value="gentle" data-i18n="intensity.gentle">Gentle</option><option value="standard" data-i18n="intensity.standard">Standard</option><option value="dread" data-i18n="intensity.dread">Dread</option></select></label>
+        <p class="settings-note" data-i18n="settings.intensity.note">How hard the village leans on you with glimpses, fog and light. Gentle eases it, Dread presses harder. Presentation only.</p>
+        <label class="view-setting" for="settingsMotion"><span data-i18n="settings.motion">Motion</span> <select id="settingsMotion"><option value="auto" data-i18n="settings.motion.auto">Follow my system</option><option value="on" data-i18n="settings.motion.on">Always reduce</option></select></label>
+        <p class="settings-note" data-i18n="settings.motion.note">Reduce stops flashes, shake and drifting effects. Follow my system obeys the reduced motion setting of your device. Changing it reloads the page.</p>
+        <label class="view-setting" for="qualitySelect"><span data-i18n="quality.label">Graphics quality</span> <select id="qualitySelect"><option value="auto" data-i18n="quality.auto">Auto</option><option value="low" data-i18n="quality.low">Low</option><option value="medium" data-i18n="quality.medium">Medium</option><option value="high" data-i18n="quality.high">High</option></select></label>
+        <p class="settings-note" data-i18n="settings.quality.note">Auto picks a tier from your graphics hardware. Lower tiers draw less so slow machines stay smooth.</p>
+        <p id="qualityOut" class="quality-out" aria-live="polite"></p>
+        <label class="view-setting check" for="settingsContrast"><input id="settingsContrast" type="checkbox"> <span data-i18n="settings.contrast">High contrast</span></label>
+        <p class="settings-note" data-i18n="settings.contrast.note">A brighter, stronger-edged theme. Also on the H key.</p>
+      </section>
       <section class="help-group">
-        <h3 data-i18n="help.g.firstperson">First-person view</h3>
+        <h3 class="v-subheading" data-i18n="help.g.firstperson">First-person view</h3>
         <label class="view-setting" for="eyeRange"><span data-i18n="view.eye">Eye height</span> <input id="eyeRange" type="range" min="1.5" max="1.8" step="0.05" value="1.6"> <output id="eyeOut">1.60 m</output></label>
         <label class="view-setting" for="fovRange"><span data-i18n="view.fov">Field of view</span> <input id="fovRange" type="range" min="55" max="75" step="1" value="64"> <output id="fovOut">64&deg;</output></label>
-        <label class="view-setting" for="qualitySelect"><span data-i18n="quality.label">Graphics quality</span> <select id="qualitySelect"><option value="auto" data-i18n="quality.auto">Auto</option><option value="low" data-i18n="quality.low">Low</option><option value="medium" data-i18n="quality.medium">Medium</option><option value="high" data-i18n="quality.high">High</option></select></label>
-        <p id="qualityOut" class="quality-out" aria-live="polite"></p>
         <button id="viewReset" type="button" data-i18n="view.reset">Reset view</button>
       </section>
       <section class="help-group">
-        <h3 data-i18n="help.g.tools">Tools</h3>
+        <h3 class="v-subheading" data-i18n="help.g.tools">Tools</h3>
         <ul>
           <li data-i18n-html="keys.codex"><kbd>K</kbd> codex and achievements (also ?codex=1)</li>
           <li data-i18n-html="keys.stitch"><kbd>Y</kbd> how the parts are stitched together (also ?stitch=1)</li>
@@ -422,7 +435,7 @@
     <div class="row"><button id="helpClose" type="button" data-i18n="btn.close">Close</button></div>
   </dialog>
   <dialog id="about" class="about" aria-labelledby="aboutTitle">
-    <h2 id="aboutTitle" data-i18n="about.title">About and credits</h2>
+    <h2 class="v-heading" id="aboutTitle" data-i18n="about.title">About and credits</h2>
     <p id="aboutBody" data-i18n-html="about.html">Browser demo of the Frankenstein's Lovecraftian Village Unity 6 project, built for Kiroween 2026. The Unity build uses the Lovecraftian Village 1.3 HDRP pack by DLNK Artworks. That pack is a commercial asset owned by the author of this project and is not in this repository or on this page; this demo runs on original Blender meshes, procedural textures and an original procedural soundtrack, with no pack needed (the pack only appears with ?pack=1 on your own machine). Code is released under the Apache License 2.0: read <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/NOTICE">NOTICE</a>.</p>
     <p data-i18n-html="about.meshes">Also see the <a href="meshes.html">original Blender meshes</a>: twenty five low-poly models made for this project, drawn by a small software projector.</p>
     <p data-i18n-html="about.thirdparty">The 3D view also loads four CC0 photo textures (stone, slate, cobbles, mud) and two CC0 props (a barrel and a bench) from <a href="https://polyhaven.com">Poly Haven</a>, by Charlotte Baglioni, Rob Tuytel, Serhii Khromov and Kirill Sannikov. Its three timber houses are built from the CC0 <a href="https://quaternius.itch.io/medieval-village-megakit">Medieval Village MegaKit</a> by Quaternius. Sources and licences: <a href="https://github.com/MiChaelinzo/Frankenstein-s-Lovecraftian-Village/blob/main/THIRD_PARTY_ASSETS.md">THIRD_PARTY_ASSETS.md</a>. #thirdparty=0 keeps only the original textures and meshes.</p>
@@ -430,13 +443,14 @@
     <div class="row"><button id="aboutClose" type="button" data-i18n="btn.close">Close</button></div>
   </dialog>
   <dialog id="ending" class="about ending" aria-labelledby="endingTitle" aria-describedby="endingEpitaph">
-    <h2 id="endingTitle"></h2>
+    <h2 class="v-heading" id="endingTitle"></h2>
     <p id="endingEpitaph" class="epitaph"></p>
     <p id="endingScore"></p>
     <p id="endingName"></p>
     <p id="endingStats" class="stats"></p>
     <p id="endingFound" class="stats"></p>
     <p id="endingTheory" class="epitaph"></p>
+    <p id="endingStory" class="stats"></p>
     <p id="endingNote" class="stats" role="status"></p>
     <div class="row">
       <button id="endingCard" type="button" data-i18n="btn.vigilcard">Result card (PNG)</button>
@@ -447,7 +461,7 @@
     </div>
   </dialog>
   <div id="tour" class="tour" role="dialog" aria-modal="false" aria-labelledby="tourTitle" aria-describedby="tourText" hidden>
-    <h2 id="tourTitle"></h2>
+    <h2 class="v-heading" id="tourTitle"></h2>
     <p id="tourText"></p>
     <p class="stats"><span id="tourStep"></span> <span data-i18n="tour.hint">Enter, Space or Right arrow for the next stop, Left arrow to go back, Escape to skip.</span></p>
     <div class="row">

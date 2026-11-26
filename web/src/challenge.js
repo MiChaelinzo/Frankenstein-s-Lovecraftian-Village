@@ -45,6 +45,7 @@ export function accuracyOfState(state) {
 }
 
 export const LEADERBOARD_FORMAT = 'flv-challenge-1', MAX_ENTRIES = 25, MAX_COUNT = 1000000;
+const LEADERBOARD_WEEK_RE = /^\d{4}-W\d{2}$/;
 
 /** Score descending, then seed (unsigned), cut to MAX_ENTRIES. results: [{ seed, score, theories, endings }]. */
 export function rankResults(results) {
@@ -69,6 +70,7 @@ export function parseLeaderboard(library, text) {
   if (!root || typeof root !== 'object' || Array.isArray(root)) throw new Error('leaderboard: root is not an object');
   if (root.format !== LEADERBOARD_FORMAT) throw new Error(`leaderboard: format is not ${LEADERBOARD_FORMAT}`);
   if (typeof root.week !== 'string' || !Array.isArray(root.entries)) throw new Error('leaderboard: week and entries are required');
+  if (!LEADERBOARD_WEEK_RE.test(root.week)) throw new Error('leaderboard: week must match YYYY-Www');
   if (root.entries.length > MAX_ENTRIES) throw new Error(`leaderboard: more than ${MAX_ENTRIES} entries`);
   const results = root.entries.map((e) => {
     if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error('leaderboard: an entry is not an object');

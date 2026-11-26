@@ -27,6 +27,6 @@ test('compactLog rebuilds exactly the same theory state as the long log', () => 
 test('the theory builder is keyboard reachable and wired in the board, the ending and the save (round 30)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8'), app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
   assert.match(html, /id="boardTheoryBody"/); assert.match(html, /id="boardBars"/); assert.match(html, /id="endingTheory"/);
-  assert.match(app, /theory\.snapshot\(\)/); assert.match(app, /theory\.restore\(saved\)/); assert.match(app, /epilogue: \(id\) => \(theory \? theory\.epilogue\(id\)/);
+  assert.match(app, /theory\.snapshot\(\)/); assert.match(app, /theory\.restore\(v\)/); assert.match(app, /restoreSessionControllers\(saved\)/); assert.match(app, /epilogue: \(id\) => \(theory \? theory\.epilogue\(id\)/);
   assert.match(app, /trustLost: \(\) => \(theory \? theory\.trustLost\(\)/); assert.match(app, /knowledgeBonus: \(\) => \(theory \? theory\.knowledgeBonus\(\)/);
 });

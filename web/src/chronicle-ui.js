@@ -7,7 +7,8 @@ import { EFFECT_ACCUSED } from './society.js';
 import { DISTRICT_IDS } from './districts.js';
 import { parseChronicleLibrary, chronicleProse, summaryProse } from './chronicle-prose.js';
 import { chronicleExportText, exportFileName } from './export-text.js';
-import { mythosStatements, mythosText, isDistorted, nightTickAt } from './mythos.js';
+import { mythosStatements, mythosCurrentText, isDistorted, nightTickAt, omenId } from './mythos.js';
+import { contentEventsFor } from './content.js';
 
 /**
  * Pure model of the panel. ctx: { night (1-based), nights, dread (0..1), books (lore library books), readIds (Set of book ids), heard (Map missing id -> highest stage heard), landmarkName(id), mythos? (feed), mythosHeard? (Map statement id -> speaker) }.
@@ -33,9 +34,10 @@ export function chronicleModel(story, lang, ctx) {
     };
   });
   // Round 27: what the village's background simulation has shown the player. Only statements a villager told (ctx.mythosHeard: statement id -> speaker) up to the current night are listed.
+  const mutationLib = ctx.evolution ? ctx.evolution.mutations : null, telling = mutationLib ? { library: mutationLib, night: ctx.night, knowledgeTier: ctx.knowledge ? ctx.knowledge.tier || 0 : 0 } : null; // Round 37 (spec 181)
   const mythos = ctx.mythos ? mythosStatements(ctx.mythos).filter((m) => ctx.mythosHeard && ctx.mythosHeard.has(m.id)).map((m) => {
     const distorted = isDistorted(m.rumor, ctx.mythosHeard.get(m.id));
-    return { id: m.id, kind: m.kind, night: m.night, distorted, text: mythosText(ctx.mythos, story, m, distorted, lang) };
+    return { id: m.id, kind: m.kind, night: m.night, distorted, text: mythosCurrentText(ctx.mythos, story, m, distorted, lang, telling) };
   }) : [];
   // Round 28: the night tick record of the current night, counts only (no secret or omen is named here).
   const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
@@ -45,8 +47,17 @@ export function chronicleModel(story, lang, ctx) {
   const theories = ctx.theories || [];
   // Round 34 (spec 168): the generated prose, night by night up to tonight and as a whole. Only what the player learned (ctx.prose is built from heard statements, leads and people met).
   const prose = ctx.prose ? { nights: chronicleProse(ctx.prose, ctx.night, lang), summary: summaryProse(ctx.prose, ctx.night, lang) } : null;
+  // Round 37 (spec 179): authored events from Data/content/events.json, told on their night when that night's new omen matches and the player has heard of the omen.
+  const authored = [];
+  if (ctx.content && ctx.mythos && ctx.mythosHeard) {
+    for (let night = 1; night <= ctx.night; night++) {
+      const rec = nightTickAt(ctx.mythos.state, ctx.mythos.library, night);
+      if (!rec || rec.night !== night || !ctx.mythosHeard.has(omenId(night))) continue;
+      for (const e of contentEventsFor(ctx.content, night, rec.newOmen)) authored.push({ id: e.id, night, text: e.text[lang] || e.text.en });
+    }
+  }
   return {
-    stage, tier, mythos, tick, knowledge, people, theories, prose,
+    stage, tier, mythos, tick, knowledge, people, theories, prose, authored,
     rumor: story.rumorText(ctx.night, stage, tier, lang),
     families, missing,
     histories: DISTRICT_IDS.map((id) => ({ id, text: districtHistory(lib, id, lang) })),
@@ -64,7 +75,7 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], reputationOf: deps.reputationOf, prose: proseContext() };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, content: deps.content ? deps.content() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], reputationOf: deps.reputationOf, evolution: deps.evolution ? deps.evolution() : null, prose: proseContext() };
   }
 
   let proseLib = null;
@@ -115,30 +126,31 @@ export function createChronicleController(deps) {
     if ($('chronicleSeed')) $('chronicleSeed').textContent = tr('export.seed', { code: seedCode() });
     const story = deps.story();
     renderedKey = '';
-    if (!story) { body.innerHTML = `<p class="stats">${esc(tr('chronicle.empty'))}</p>`; return; }
+    if (!story) { body.innerHTML = `<p class="stats v-empty">${esc(tr('chronicle.empty'))}</p>`; return; }
     const c = ctx(), m = chronicleModel(story, lang(), c);
     renderedKey = redrawKey(c);
-    const parts = [`<h3>${esc(tr('chronicle.rumor'))}</h3><p class="chronicle-rumor">${esc(m.rumor)}</p>`];
-    parts.push(`<h3>${esc(tr('chronicle.missing'))}</h3><ul class="chronicle-list">${m.missing.map((p) => {
+    const parts = [`<h3 class="v-subheading">${esc(tr('chronicle.rumor'))}</h3><p class="chronicle-rumor">${esc(m.rumor)}</p>`];
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.missing'))}</h3><ul class="chronicle-list">${m.missing.map((p) => {
       const got = ['page', 'journal', 'chat'].filter((k) => p.parts[k]).map((k) => tr(`chronicle.told.${k}`)).join(', ');
       return `<li data-missing="${esc(p.id)}"><strong>${esc(tr('chronicle.missing.row', { missing: p.name, home: p.home, n: p.told }))}</strong>`
         + (got ? ` <em>${esc(got)}</em>` : '') + (p.outcome ? `<p class="lore-text" data-outcome="${esc(p.id)}">${esc(tr('chronicle.outcome', { text: p.outcome }))}</p>` : '') + (p.line ? `<p class="lore-text">${esc(p.line)}</p>` : p.told ? '' : `<p class="stats">${esc(tr('chronicle.missing.unknown'))}</p>`) + '</li>';
     }).join('')}</ul>`);
-    parts.push(`<h3>${esc(tr('chronicle.families'))}</h3><ul class="chronicle-list">${m.families.map((f) =>
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.families'))}</h3><ul class="chronicle-list">${m.families.map((f) =>
       `<li data-family="${esc(f.surname)}">${esc(tr('chronicle.family', { surname: f.surname, members: f.members.length ? f.members.join(', ') : tr('chronicle.family.empty'), home: f.home }))}<p class="lore-text">${esc(f.history)}</p></li>`).join('')}</ul>`);
-    if (m.prose) parts.push(`<h3>${esc(tr('chronicle.prose'))}</h3><div id="chronicleProse">${m.prose.nights.map((t, i) => `<p class="lore-text" data-prose-night="${i + 1}"><strong>${esc(tr('chronicle.prose.night', { night: i + 1 }))}</strong> ${esc(t)}</p>`).join('')}<p class="lore-text" id="chronicleSummary"><em>${esc(m.prose.summary)}</em></p></div>`);
-    parts.push(`<h3>${esc(tr('chronicle.mythos'))}</h3>${m.mythos.length ? `<ul class="chronicle-list" id="chronicleMythos">${m.mythos.map((e) =>
+    if (m.prose) parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.prose'))}</h3><div id="chronicleProse">${m.prose.nights.map((t, i) => `<p class="lore-text" data-prose-night="${i + 1}"><strong>${esc(tr('chronicle.prose.night', { night: i + 1 }))}</strong> ${esc(t)}</p>`).join('')}<p class="lore-text" id="chronicleSummary"><em>${esc(m.prose.summary)}</em></p></div>`);
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.mythos'))}</h3>${m.mythos.length ? `<ul class="chronicle-list" id="chronicleMythos">${m.mythos.map((e) =>
       `<li data-mythos="${esc(e.id)}"><strong>${esc(tr('chronicle.mythos.row', { night: e.night, kind: tr(`chronicle.mythos.kind.${e.kind}`), text: e.text }))}</strong>${e.distorted ? ` <em>${esc(tr('chronicle.mythos.distorted'))}</em>` : ''}</li>`).join('')}</ul>`
-      : `<p class="stats" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
+      : `<p class="stats v-empty" id="chronicleMythos">${esc(tr('chronicle.mythos.empty'))}</p>`}`);
     if (m.knowledge) parts.push(`<p class="stats" id="chronicleKnowledge">${esc(tr('chronicle.knowledge', { tier: m.knowledge.tier, name: m.knowledge.name, points: m.knowledge.points }))}${m.knowledge.effects.length ? ` ${esc(m.knowledge.effects.join(' '))}` : ''}</p>`);
     if (m.tick) parts.push(`<p class="stats" id="chronicleTick">${esc(tr('chronicle.tick', { night: m.tick.night, cult: m.tick.cultGrowth, rumors: m.tick.rumorsChanged + m.tick.rumorsAdded, shift: m.tick.realityShift }))}</p>`);
-    parts.push(`<h3>${esc(tr('chronicle.people'))}</h3>${m.people.length ? `<ul class="chronicle-list" id="chroniclePeople">${m.people.map((p) => {
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.people'))}</h3>${m.people.length ? `<ul class="chronicle-list" id="chroniclePeople">${m.people.map((p) => {
       const text = p.rows.map((r) => `${tr(`society.bar.${r.key}`)} ${r.value}`).join(', ');
       return `<li data-person="${p.index}"><strong>${esc(p.name)}</strong>${p.reputation ? `<p class="stats" data-reputation="${esc(p.reputation.effect === EFFECT_ACCUSED ? 'accused' : 'trusted')}">${esc(tr(p.reputation.effect === EFFECT_ACCUSED ? 'society.reputation.accused' : 'society.reputation.trusted'))}</p>` : ''}<ul class="axis-bars chronicle-bars" aria-label="${esc(tr('society.bar.aria', { text }))}">${p.rows.map((r) => `<li><span class="axis-label">${esc(tr(`society.bar.${r.key}`))}</span><meter min="0" max="1000" value="${r.value}" aria-label="${esc(`${tr(`society.bar.${r.key}`)}: ${r.value}`)}"></meter></li>`).join('')}</ul></li>`;
-    }).join('')}</ul>` : `<p class="stats" id="chroniclePeople">${esc(tr('chronicle.people.empty'))}</p>`}`);
-    parts.push(`<h3>${esc(tr('theory.summary.title'))}</h3>${m.theories.length ? `<ul class="chronicle-list" id="chronicleTheories">${m.theories.map((t) => `<li data-theory="${t.instance}" class="theory-${['true', 'partial', 'false'][t.grade]}"><strong>${esc(t.gradeName)}</strong>: ${esc(t.question)} ${esc(t.answer)} <em>${esc(t.verdict)}</em></li>`).join('')}</ul>` : `<p class="stats" id="chronicleTheories">${esc(tr('theory.summary.empty'))}</p>`}`);
-    parts.push(`<h3>${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);
-    parts.push(`<h3>${esc(tr('chronicle.legends'))}</h3><ul class="chronicle-list">${m.legends.map((l) => `<li data-legend="${esc(l.id)}"><strong>${esc(tr('chronicle.legend.at', { title: l.title, place: l.place }))}</strong><p class="lore-text">${esc(l.text)}</p></li>`).join('')}</ul>`);
+    }).join('')}</ul>` : `<p class="stats v-empty" id="chroniclePeople">${esc(tr('chronicle.people.empty'))}</p>`}`);
+    parts.push(`<h3 class="v-subheading">${esc(tr('theory.summary.title'))}</h3>${m.theories.length ? `<ul class="chronicle-list" id="chronicleTheories">${m.theories.map((t) => `<li data-theory="${t.instance}" class="theory-${['true', 'partial', 'false'][t.grade]}"><strong>${esc(t.gradeName)}</strong>: ${esc(t.question)} ${esc(t.answer)} <em>${esc(t.verdict)}</em></li>`).join('')}</ul>` : `<p class="stats" id="chronicleTheories">${esc(tr('theory.summary.empty'))}</p>`}`);
+    if (m.authored.length) parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.authored'))}</h3><ul class="chronicle-list" id="chronicleAuthored">${m.authored.map((a) => `<li data-event="${esc(a.id)}"><strong>${esc(tr('chronicle.authored.night', { night: a.night }))}</strong><p class="lore-text">${esc(a.text)}</p></li>`).join('')}</ul>`);
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.history'))}</h3><ul class="chronicle-list">${m.histories.map((h) => `<li data-district="${esc(h.id)}"><strong>${esc(tr(`district.${h.id}`))}</strong><p class="lore-text">${esc(h.text)}</p></li>`).join('')}</ul>`);
+    parts.push(`<h3 class="v-subheading">${esc(tr('chronicle.legends'))}</h3><ul class="chronicle-list">${m.legends.map((l) => `<li data-legend="${esc(l.id)}"><strong>${esc(tr('chronicle.legend.at', { title: l.title, place: l.place }))}</strong><p class="lore-text">${esc(l.text)}</p></li>`).join('')}</ul>`);
     body.innerHTML = parts.join('');
   }
 
@@ -158,5 +170,5 @@ export function createChronicleController(deps) {
     $('chronicleSeedCopy').addEventListener?.('click', async () => { const text = await deps.copyText(seedCode()); deps.announce?.(text); });
   }
 
-  return { setPanel, render, refresh, hear, setProse, exportChronicle, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
+  return { setPanel, render, refresh, hear, setProse, exportChronicle, summary: () => { const p = proseContext(); return p ? summaryProse(p, deps.night(), lang()) : ''; }, model: () => { const s = deps.story(); return s ? chronicleModel(s, lang(), ctx()) : null; }, get panelOn() { return on; } };
 }

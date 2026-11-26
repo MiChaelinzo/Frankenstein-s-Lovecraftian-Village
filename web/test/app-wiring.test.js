@@ -34,7 +34,8 @@ test('the investigation board is wired to key, pad, touch, evidence sources and 
   assert.match(app, /onMet: \(i\) => board\.noteMet\(i\), onChat:/);
   assert.match(app, /board\.sync\(\)/);
   assert.match(app, /\.\.\.board\.snapshot\(\)/);
-  assert.equal([...app.matchAll(/board\.restore\(/g)].length, 2);
+  assert.equal([...app.matchAll(/board\.restore\(/g)].length, 1);
+  assert.match(app, /restoreSessionControllers\(v\)/);
   assert.match(view, /acts\.includes\('board'\) && onBoard/);
   assert.match(touch, /board: \(\) => actions\.board\(\)/);
   assert.match(input, /16: 'board'/);

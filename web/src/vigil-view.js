@@ -161,3 +161,6 @@ export function epilogueHref(endingId, { seed, nightNumber, gridW, gridD }) {
   const deg = (v) => Math.round(((v * 180) / Math.PI) * 10) / 10, r1 = (v) => Math.round(v * 10) / 10;
   return `?intro=0&view=3d&caption=0&cam3d=${r1(cam.x)},${r1(cam.z)},${deg(cam.yaw)},${Math.min(deg(cam.pitch), look.maxPitchDeg)}#seed=${seed}&sanity=${look.sanity}&night=${nightNumber}`;
 }
+
+/** The ending screen's story paragraph: the chronicle summary trimmed, or '' when the chronicle has nothing learned to tell (no data, no story). Pure. */
+export const endingStoryText = (summary) => (typeof summary === 'string' ? summary.trim() : '');

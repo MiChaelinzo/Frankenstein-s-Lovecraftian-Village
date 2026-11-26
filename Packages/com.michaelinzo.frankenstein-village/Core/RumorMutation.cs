@@ -79,6 +79,17 @@ namespace Frankenstein.Core
     }
 
     /// <summary>
+    /// Round 37 (spec 181): what is needed to tell a rumor as it is now, in one place: the mutation library, the current night (1-based) and the knowledge tier of the player.
+    /// <see cref="MythosRules.CurrentText"/> takes it so the board cards, the chronicle and the chat read the same wording.
+    /// </summary>
+    public sealed class RumorTelling
+    {
+        public RumorMutationLibrary Library;
+        public int Night;
+        public int KnowledgeTier;
+    }
+
+    /// <summary>
     /// How a rumor drifts as it is retold (round 36, spec 181). The stage is a pure function of the seed, the nights since the rumor began and the exposure (per mille) of the cult behind the night:
     /// it never exceeds the chain length and never falls as nights pass. PRESENTATION ONLY: the saved state and the simulation are untouched, and the true account stays recoverable at the knowledge tier gate.
     /// </summary>

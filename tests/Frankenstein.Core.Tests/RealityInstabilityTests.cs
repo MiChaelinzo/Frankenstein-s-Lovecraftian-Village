@@ -51,6 +51,30 @@ namespace Frankenstein.Core.Tests
             return string.Join(",", parts);
         }
 
+        public const int ShapeGrid = 24;
+
+        /// <summary>The phantom path cells of every path id on a ShapeGrid grid, as "x,z;x,z;x,z" per path joined with "|".</summary>
+        public static string ShapeSignature(int seed)
+        {
+            return string.Join("|", RealityInstability.PhantomPathIds.Select(id => string.Join(";", RealityInstability.PhantomPathCells(seed, id, ShapeGrid, ShapeGrid).Select(c => c[0] + "," + c[1]))));
+        }
+
+        [Fact]
+        public void PhantomPathCellsAreDeterministicInsideTheGridAndBendOnce()
+        {
+            foreach (int seed in Seeds)
+                foreach (var id in RealityInstability.PhantomPathIds)
+                {
+                    var cells = RealityInstability.PhantomPathCells(seed, id, ShapeGrid, ShapeGrid);
+                    Assert.Equal(3, cells.Length);
+                    Assert.Equal(ShapeSignature(seed), ShapeSignature(seed));
+                    foreach (var c in cells) { Assert.InRange(c[0], 0, ShapeGrid - 1); Assert.InRange(c[1], 0, ShapeGrid - 1); }
+                    Assert.Equal(cells[0][1], cells[1][1]);
+                    Assert.Equal(cells[1][0], cells[2][0]);
+                }
+            Assert.NotEqual(ShapeSignature(1), ShapeSignature(42));
+        }
+
         [Fact]
         public void CollapseNeedsTierFiveAndIsDeterministic()
         {

@@ -277,3 +277,22 @@ test('night ticks carry the leader events of each night', () => {
   ticks.forEach((t, i) => assert.deepEqual(t.leaderEvents, state.nights[i].leaderEvents));
   assert.ok(ticks.some((t) => t.leaderEvents.length > 0));
 });
+
+// Round 37 (spec 179): authored events from Data/content are listed on their night, for a heard matching omen only.
+import { parseContentLibrary } from '../src/content.js';
+import { nightTickAt as tickAt, omenId as omenKey } from '../src/mythos.js';
+
+test('the checked-in authored event is reachable in the five-night campaign and requires its heard omen', () => {
+  const campaignNights = 5, w = worldOf(1818), feed = buildMythosFeed(mythos, run(w, campaignNights), campaignNights);
+  const night = 3, omen = tickAt(feed.state, feed.library, night).newOmen;
+  assert.equal(omen, 'stars_wrong', 'seed 1818 reaches the authored omen during the campaign');
+  const checkedIn = parseContentLibrary(null, null, text('content/events.json'));
+  const base = { night: campaignNights, nights: campaignNights, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
+  const heard = new Map([[omenKey(night), 0]]);
+  const list = (content, mythosHeard) => chronicleModel(w.story, 'en', { ...base, content, mythosHeard }).authored;
+  assert.deepEqual(list(checkedIn, heard), [{ id: 'wrong_stars_night_3', night, text: 'On the third night the constellations turn toward the village, though the clouds do not move.' }]);
+  assert.deepEqual(list(checkedIn, new Map()), [], 'not heard, not told');
+  const wrong = JSON.stringify({ version: 1, events: [{ id: 'wrong', night, condition: 'black_tide', text: { en: 'Wrong.', fr: 'Faux.' } }] });
+  assert.deepEqual(list(parseContentLibrary(null, null, wrong), heard), [], 'another omen');
+  assert.deepEqual(chronicleModel(w.story, 'en', { ...base, mythosHeard: heard }).authored, [], 'no content, no events');
+});

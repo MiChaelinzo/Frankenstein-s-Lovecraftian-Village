@@ -35,3 +35,15 @@ test('round 21 browser_check covers the quality tiers', async () => {
   const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
   for (const needle of ['MYTHOS_ONLY', 'mythos: the board shows an event card', 'quality: ?quality= picks the tier', 'QUALITY_ONLY', 'districts: the HUD chip names the quarter', 'DISTRICT_ONLY', 'landmarks: the HUD chip names each landmark', 'LANDMARK_ONLY', 'names: the 3D door prompt shows the seeded building name', 'NAMES_ONLY', 'narrative: the chronicle lists families', 'NARRATIVE_ONLY', 'homestead: panel opens with six beds', 'HOMESTEAD_ONLY', 'HOMESTEAD_SHOT', 'PET_SHOT']) assert.ok(src.includes(needle), needle);
 });
+
+test('round 37 browser_check has the French layout pass at 100% and 150% for every key panel', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
+  for (const needle of ['FRLAYOUT_ONLY', 'FRLAYOUT_SHOT_DIR', 'fr layout ${label}: the title card fits', 'the HUD (objective and stats) fits', 'the board fits', 'the chronicle fits', 'the journal (side panel and page) fits', 'the settings (help dialog) fit', 'the villager dialog fits', 'deviceScaleFactor: zoom']) assert.ok(src.includes(needle), needle);
+});
+
+test('round 37 browser_check restores historical saves and shows reachable authored content', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
+  for (const needle of ['SAVE_COMPAT_ONLY', 'restores through live controllers and saves every subsystem', 'AUTHORED_ONLY', 'reachable night 3 event appears in the live chronicle', 'legacy-only choices migrate at startup']) assert.ok(src.includes(needle), needle);
+});

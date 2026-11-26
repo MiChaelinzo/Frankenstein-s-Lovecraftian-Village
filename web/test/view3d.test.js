@@ -607,3 +607,19 @@ test('a read book is dimmed in the world mesh: fewer lit vertices, glow 0, same 
   assert.ok(read[0] < unread[0], 'a read book glows less');
   assert.ok(read[1] < unread[1], 'a read book drops the light shaft');
 });
+
+test('phantomRects: one cell wide strips along each straight run, none for no paths', async () => {
+  const { phantomRects } = await import('../src/view3d.js');
+  assert.deepEqual(phantomRects([], 4), []);
+  assert.deepEqual(phantomRects([[[1, 2], [3, 2], [3, 5]]], 4), [[4, 8, 16, 12], [12, 8, 16, 24]]);
+});
+
+test('buildWorld draws a phantom path as extra ground and leaves the rest unchanged', () => {
+  const l = layout(1818);
+  const base = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24 });
+  const none = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24, phantom: [] });
+  const withPath = buildWorld({ layout: l, meshes: null, seed: 1818, gridW: 24, gridD: 24, phantom: [[[1, 2], [3, 2], [3, 5]]] });
+  assert.deepEqual(none.ground, base.ground);
+  assert.ok(withPath.ground.length > base.ground.length);
+  assert.deepEqual(withPath.building, base.building);
+});

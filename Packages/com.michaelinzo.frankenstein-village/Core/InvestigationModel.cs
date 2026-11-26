@@ -625,6 +625,12 @@ namespace Frankenstein.Core
         /// <summary>As above; a Clue card of a place clue shows the title of its discovery.</summary>
         public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang, MythosFeed mythos, PlaceLibrary places)
         {
+            return CardTitle(card, story, lore, statements, nameLib, lang, mythos, places, null);
+        }
+
+        /// <summary>As above; a rumor card reads as it is told now (round 37, spec 181: <see cref="MythosRules.CurrentText"/>) when <paramref name="telling"/> is given.</summary>
+        public static string CardTitle(BoardCard card, VillageStory story, LoreLibrary lore, StatementLibrary statements, NameLibrary nameLib, string lang, MythosFeed mythos, PlaceLibrary places, RumorTelling telling)
+        {
             switch (card.Kind)
             {
                 case BoardCardKind.Suspect: return story.Roster[int.Parse(card.Key)].Name;
@@ -648,7 +654,7 @@ namespace Frankenstein.Core
                     return book == null ? card.Key : story.BookTitle(book, lang);
                 default:
                     if (mythos != null && card.Key.StartsWith(MythosRules.IdPrefix, StringComparison.Ordinal))
-                        foreach (var ms in MythosRules.Statements(mythos)) if (ms.Id == card.Key) return MythosRules.Text(mythos, story, ms, card.Invalidated, lang);
+                        foreach (var ms in MythosRules.Statements(mythos)) if (ms.Id == card.Key) return MythosRules.CurrentText(mythos, story, ms, card.Invalidated, lang, telling);
                     var s = statements.Find(card.Key);
                     return s == null ? card.Key : s.Text.Get(lang);
             }

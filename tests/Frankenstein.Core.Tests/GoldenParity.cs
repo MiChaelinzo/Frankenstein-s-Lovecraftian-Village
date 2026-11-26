@@ -409,6 +409,9 @@ namespace Frankenstein.Core.Tests
             AppendRealityCollapse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendContent(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendSeedShare(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -454,7 +457,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("],\n    \"leaderboard\": ").Append(Q(LeaderboardExport.ToJson(lib, "2026-W46", StreamerChallengeTests.SampleResults()))).Append("\n  }\n");
         }
 
-        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager.</summary>
+        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager. Round 37: \"dim\" rows [scale, reduced, brightness, DimStep every 500 ms from -500 to 13000].</summary>
         private static void AppendDirectorBeats(StringBuilder sb)
         {
             sb.Append("  \"directorBeats\": {\n    \"runs\": [");
@@ -469,7 +472,16 @@ namespace Frankenstein.Core.Tests
                 sb.Append(string.Join(", ", variants.Select(v => "{ \"scale\": " + v.Item1 + ", \"reduced\": " + (v.Item2 ? 1 : 0) + ", \"beats\": [" + BeatVariant(seed, v.Item1, v.Item2, null) + "] }")));
                 sb.Append("] }");
             }
-            sb.Append("\n    ]\n  }\n");
+            sb.Append("\n    ],\n    \"dim\": [");
+            var dim = new List<string>();
+            foreach (var (scale, reduced) in new[] { (1000, false), (1500, false), (500, false), (1000, true) })
+                foreach (int brightness in new[] { 0, -20, -30, -90 })
+                {
+                    var steps = new List<int>();
+                    for (int ms = -500; ms <= 13000; ms += 500) steps.Add(HorrorDirector.DimStep(brightness, ms, new AmbientSettings { IntensityScale = scale, ReducedMotion = reduced }));
+                    dim.Add("[" + scale + ", " + (reduced ? 1 : 0) + ", " + brightness + ", [" + string.Join(", ", steps) + "]]");
+                }
+            sb.Append(string.Join(", ", dim)).Append("]\n  }\n");
         }
 
         private static string BeatVariant(int seed, int scale, bool reduced, List<int> abuse)
@@ -1598,7 +1610,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
-        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps.</summary>
+        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps, plus the trust and suspicion those records produce in OpinionsAfter(log, nights, null) (round 37).</summary>
         private static void AppendReputation(StringBuilder sb, PrefabCatalog cat)
         {
             string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
@@ -1630,7 +1642,9 @@ namespace Frankenstein.Core.Tests
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
                 first = false;
                 sb.Append(", \"effects\": ").Append(Rows(soc.ReputationEffectsAfter(log, nights)));
-                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null))).Append(" }");
+                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null)));
+                var held = soc.OpinionsAfter(log, nights, null);
+                sb.Append(", \"trust\": [").Append(string.Join(", ", held.Trust)).Append("], \"suspicion\": [").Append(string.Join(", ", held.Suspicion)).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }
@@ -1944,7 +1958,7 @@ namespace Frankenstein.Core.Tests
         private static void AppendRealityCollapse(StringBuilder sb)
         {
             var lib = RealityInstabilityTests.Library();
-            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"cities\": [");
+            sb.Append("  \"realityCollapse\": {\n    \"pathIds\": [").Append(string.Join(", ", RealityInstabilityTests.PathIds.Select(Q))).Append("],\n    \"shapes\": [").Append(string.Join(", ", new[] { 1, 42, 1818 }.Select(sd => Q(RealityInstabilityTests.ShapeSignature(sd))))).Append("],\n    \"cities\": [");
             bool first = true;
             foreach (var seed in new[] { 1, 42, 1818 })
             {
@@ -1953,6 +1967,16 @@ namespace Frankenstein.Core.Tests
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "content" (round 37, spec 179): the parsed Data/content files, one line per item, and the events told for a few night and omen pairs.</summary>
+        private static void AppendContent(StringBuilder sb)
+        {
+            var lib = ContentLibraryTests.Library();
+            var queries = new[] { new[] { "3", "stars_wrong" }, new[] { "3", "tide_wrong" }, new[] { "2", "stars_wrong" }, new[] { "3", "" } };
+            sb.Append("  \"content\": {\n    \"items\": [").Append(string.Join(", ", ContentLibraryTests.Signature(lib).Select(Q))).Append("],\n    \"events\": [");
+            sb.Append(string.Join(", ", queries.Select(q => "[" + q[0] + ", " + Q(q[1]) + ", " + Q(string.Join(",", lib.EventsFor(int.Parse(q[0]), q[1]).Select(e => e.Id))) + "]")));
+            sb.Append("]\n  }\n");
         }
 
         /// <summary>Top level key "chronicleEvolution" (round 36, spec 182): per city seed, the nights of the sixty night leadership run (see ChronicleProseTests.EvolutionContext) whose paragraph changes when the newer event sources are told, as [night, en, fr].</summary>

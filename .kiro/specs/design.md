@@ -154,3 +154,7 @@ Unity side (Unverified in Unity, not compiled here): `RitualDirector` listens to
 **Branching investigations (spec 162, built).** `Core/TheoryModel.cs` and `Data/theories.json` define three theory templates. State is `Replay(log)` over integer entries; illegal entries are counted and skipped. Grading is integer (group or adjacent rule). `theory.js` mirrors it, `theory-ui.js` draws the builder inside the board panel and writes the log to the session `theories` field. The epilogue is an additive line chosen by `VariantOf`; `VigilRules.EndingFor` is untouched. Golden key `theories`. Core and JS Verified; builder UI Verified in headless Chromium (THEORY_ONLY); Unity Unverified.
 
 **Director tick.** `app.js` steps the Horror Director from a 100 ms timer; `view3d.js` only reads the look target.
+
+## Round 37 closure: Runtime boundary
+
+Spec 178 remains unbuilt. The existing Runtime assembly does not own the complete memory log, knowledge gains, learned-fact `ChronicleContext`, or fully derived `DirectorInput`. A generic MonoBehaviour that only forwards arguments would not connect a real Unity consumer. A component that inferred those values would duplicate Core or web orchestration policy and could reveal facts the player never learned. Runtime wiring is deferred until one authoritative Unity session owner can supply the complete Core inputs. `UnityCompileCheck` still checks the existing Runtime against stubs, which is Partially Verified; Unity execution remains Unverified.

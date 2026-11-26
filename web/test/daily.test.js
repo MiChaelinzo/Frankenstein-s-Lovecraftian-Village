@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dailyKey, seedFromKey, dailyVillage, dailyWanted } from '../src/daily.js';
-import { contrastWanted, loadContrast, saveContrast, CONTRAST_KEY } from '../src/access.js';
+import { contrastWanted, loadSettings, updateSettings, SETTINGS_KEY } from '../src/access.js';
 
 test('key uses the UTC date', () => {
   assert.equal(dailyKey(new Date('2026-11-14T23:59:59Z')), '2026-11-14');
@@ -42,13 +42,13 @@ test('contrast preference: explicit param beats stored, default off', () => {
   assert.equal(contrastWanted('?contrast=0', '', '1'), false);
   assert.equal(contrastWanted('?contrast=1', '#contrast=0', null), false);
 });
-test('contrast storage tolerates failure', () => {
+test('contrast storage lives in the one settings store and tolerates failure', () => {
   const m = new Map(), st = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
-  assert.equal(saveContrast(st, true), true);
-  assert.equal(m.get(CONTRAST_KEY), '1');
-  assert.equal(loadContrast(st), '1');
-  assert.equal(saveContrast(null, true), false);
-  assert.equal(saveContrast({ setItem() { throw new Error('q'); } }, true), false);
-  assert.equal(loadContrast({ getItem() { throw new Error('d'); } }), null);
-  assert.equal(loadContrast(null), null);
+  assert.equal(updateSettings(st, { contrast: true }).contrast, true);
+  assert.equal(JSON.parse(m.get(SETTINGS_KEY)).contrast, true);
+  assert.equal(loadSettings(st).contrast, true);
+  assert.equal(updateSettings(null, { contrast: true }).contrast, true);
+  assert.equal(updateSettings({ getItem: () => null, setItem() { throw new Error('q'); } }, { contrast: true }).contrast, true);
+  assert.equal(loadSettings({ getItem() { throw new Error('d'); } }).contrast, false);
+  assert.equal(loadSettings(null).contrast, false);
 });

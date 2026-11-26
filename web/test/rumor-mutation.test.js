@@ -11,7 +11,7 @@ import { generateRoster } from '../src/villagers.js';
 import { parseStoryLibrary, buildStory } from '../src/village-story.js';
 import { buildSociety, TIER_NEUTRAL } from '../src/society.js';
 import { parseMythosLibrary, runMythos, buildMythosFeed, mythosChatLines, buildGraph } from '../src/mythos.js';
-import { parseRumorMutationLibrary, rumorStage, rumorMutationText, EXPOSURE_SCALE } from '../src/rumor-mutation.js';
+import { parseRumorMutationLibrary, rumorChainIndex, rumorStage, rumorMutationText, EXPOSURE_SCALE } from '../src/rumor-mutation.js';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..', '..');
 const golden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).rumorMutation, mythosGolden = JSON.parse(readFileSync(join(here, 'golden.json'), 'utf8')).mythos;
@@ -107,4 +107,38 @@ test('malformed data is rejected and the Data copy is byte identical', () => {
   assert.throws(() => parseRumorMutationLibrary(good.replace('"source": "cosmic"', '"source": "nowhere"')), /unknown source/);
   assert.throws(() => parseRumorMutationLibrary({ trueTier: 3, trueLabel: { en: 'a', fr: 'b' }, chains: [] }), /chains/);
   assert.equal(good, readFileSync(join(root, 'Packages', 'com.michaelinzo.frankenstein-village', 'Data', 'rumor-mutations.json'), 'utf8'));
+});
+
+// Round 37 (spec 181): one source of the current rumor text, identical on board cards, the chronicle and the chat; the true account appears from knowledge tier 3.
+test('board card, chronicle line and chat line tell the same rumor text and the true account starts at tier 3', async () => {
+  const { cardTitle, CARD_EVENT } = await import('../src/investigation.js');
+  const { chronicleModel } = await import('../src/chronicle-ui.js');
+  const { mythosStatements, mythosCurrentText, mythosRumorRef } = await import('../src/mythos.js');
+  const storyLib = parseStoryLibrary(text('story.json')), nameLib = parseNameLibrary(text('names.json')), mythos = parseMythosLibrary(text('mythos.json'));
+  const catalog = new PrefabCatalog(JSON.parse(text('village_catalog.json')).entries);
+  const inputs = { dreadPermille: mythosGolden.dread, ritualStage: mythosGolden.ritual }, about = { available: true, behavior: 0, hintId: 'village', withheld: false };
+  let compared = 0, withTrue = 0;
+  for (const seed of [1, 42, 1818]) {
+    const layout = generateCityLayout(catalog, CITY_GRID, CITY_GRID, CITY_PIECES, seed), roster = generateRoster(seed, layout);
+    const story = buildStory(storyLib, seed, layout, roster, assignNames(nameLib, seed, CITY_GRID, CITY_GRID, layout), generateCampaign(seed, 5).villageName);
+    const society = buildSociety(story, layout), graph = buildGraph(society), n = mythosGolden.nights;
+    const feed = buildMythosFeed(mythos, runMythos(society, story, mythos, inputs, n), n);
+    for (const tier of [0, lib.trueTier - 1, lib.trueTier, 5]) {
+      const telling = { library: lib, night: n, knowledgeTier: tier };
+      const statements = mythosStatements(feed).filter((s) => s.rumor && rumorChainIndex(lib, s.rumor.source, mythosRumorRef(feed, s.rumor)) >= 0);
+      const heard = new Map(statements.map((s) => [s.id, s.rumor.holders.length ? s.rumor.holders[0].villager : 0]));
+      const model = chronicleModel(story, 'en', { night: n, nights: 5, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed, mythosHeard: heard, knowledge: { tier, name: 'x', effects: [] }, evolution: { reputation: [], mutations: lib, beats: [] }, theories: [] });
+      for (const s of statements) {
+        const distorted = false, card = { kind: CARD_EVENT, id: `event:${s.id}`, key: s.id, invalidated: distorted };
+        const board = cardTitle(card, story, null, null, null, 'en', feed, null, null, telling), current = mythosCurrentText(feed, story, s, distorted, 'en', telling);
+        const speaker = heard.get(s.id), chat = society.roster[speaker] ? mythosChatLines(society, feed, story, graph, speaker, TIER_NEUTRAL, n, about, 'en', lib, tier).find((l) => l.id === s.id) : null;
+        assert.equal(board, current);
+        assert.equal(model.mythos.find((m) => m.id === s.id).text, mythosCurrentText(feed, story, s, model.mythos.find((m) => m.id === s.id).distorted, 'en', telling));
+        if (chat && !model.mythos.find((m) => m.id === s.id).distorted) assert.equal(chat.text, board);
+        assert.equal(board.includes(lib.trueLabel.en), tier >= lib.trueTier);
+        compared += 1; if (board.includes(lib.trueLabel.en)) withTrue += 1;
+      }
+    }
+  }
+  assert.ok(compared > 0 && withTrue > 0);
 });

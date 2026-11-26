@@ -177,3 +177,10 @@ Each item below has no code yet. Specs 162 and 163 were built in round 30 and sp
 - Failure conditions: two outcomes for one person, an outcome revealed without leads.
 - Test cases: one outcome each, determinism, constraints, golden key `outcomes`.
 - Status: Core and JS Verified; chronicle and card UI Verified in `NARRATIVE_ONLY` 2 of 2 and `THEORY_ONLY`; Unity runtime Unverified.
+
+## Round 37 closure
+- Saves produced by each shipped browser build from rounds 26 through 36 SHALL load in the current build. The fixtures SHALL come from repeatable browser visits to the historical commits, not hand-authored approximations.
+- Imported challenge leaderboards SHALL reject a week that does not match `^\d{4}-W\d{2}$`.
+- Browser verification SHALL exercise the live reputation line and both local challenge export buttons.
+- Spec 178 remains Unverified and unbuilt until Unity Runtime has authoritative owners for memory, knowledge, learned chronicle facts and director inputs. Runtime SHALL NOT infer those inputs or duplicate their rules merely to make a compile-only adapter appear complete.
+- Specs 174 and 177 remain unbuilt.

@@ -141,11 +141,12 @@ export function createBoardController(deps) {
     const read = deps.lore ? deps.lore.readIds().size : 0, corruption = deps.corruption ? deps.corruption() : null;
     const feed = deps.mythos ? deps.mythos() : null, mythosKey = feed && deps.mythosKey ? deps.mythosKey() : '';
     const memory = deps.memory ? deps.memory() : null, after = deps.aftermath ? deps.aftermath() : null, afterKey = after ? after.statements.map((a) => a.id + (a.sighting ? '!' : '')).join(',') : '';
-    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}|${memory ? memory.join('') : ''}|${afterKey}`;
+    const mutations = deps.rumorMutations ? deps.rumorMutations() : null, telling = mutations ? { library: mutations, night: Math.max(1, deps.night ? deps.night() : 1), knowledgeTier: knowledgeNow().tier } : null; // Round 37 (spec 181): rumor cards read as told now
+    const key = `${state.seed}|${version}|${read}|${lang()}|${corruption ? corruption.join('') : ''}|${story.roster.length}|${story.missing.length}|${mythosKey}|${knowledgeNow().tier}|${memory ? memory.join('') : ''}|${afterKey}|${telling ? telling.night : 0}`;
     if (key !== modelKey || !model) {
       modelKey = key;
       model = buildBoard(story, lib, statements, clone(), corruption, feed, knowledgeNow().tier, placeLib, memory, after ? after.statements : null);
-      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib, deps.witnessTitle || null) : UNKNOWN_TITLE]));
+      titles = new Map(model.cards.map((c) => [c.id, c.revealed || !SHELL_KINDS.includes(c.kind) ? cardTitle(c, story, lib, statements, deps.state.nameLib || null, lang(), feed, placeLib, deps.witnessTitle || null, telling) : UNKNOWN_TITLE]));
       for (const a of model.aftermath) titles.set(eventId(a.id), a.text[lang()] || a.text.en);
     }
     return model;
@@ -333,7 +334,7 @@ export function createBoardController(deps) {
     }
     const first = layout.order.includes(selected) ? selected : layout.order[0];
     for (const [id, b] of cardNodes) b.setAttribute('tabindex', id === first ? '0' : '-1');
-    if (!m.timeline.length) timelineEl.append(node('li', { class: 'board-timeline-empty' }, tr('board.timeline.empty')));
+    if (!m.timeline.length) timelineEl.append(node('li', { class: 'board-timeline-empty v-empty' }, tr('board.timeline.empty')));
     for (const ev of m.timeline) {
       const who = ev.villager >= 0 && deps.story().roster[ev.villager] ? deps.story().roster[ev.villager].name : '';
       timelineEl.append(node('li', {}, tr('board.timeline.row', { night: ev.night, time: clockText(ev.minute % MINUTES_PER_DAY), text: titleOf(`event:${ev.statementId}`), who })));

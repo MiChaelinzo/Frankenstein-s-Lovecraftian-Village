@@ -101,6 +101,21 @@ namespace Frankenstein.Core
             }
         }
 
+        /// <summary>
+        /// Round 37 (spec 181): the one source of the current wording of a statement. A rumor that has a mutation chain reads as its drifted stage on night <paramref name="telling"/>.Night, plus the true account
+        /// from the knowledge tier gate, whoever tells it; every other statement, and a null telling, reads as <see cref="Text"/>. Board cards, chronicle and chat all call this.
+        /// </summary>
+        public static string CurrentText(MythosFeed feed, VillageStory story, MythosStatement s, bool distorted, string lang, RumorTelling telling)
+        {
+            if (telling != null && telling.Library != null && s.Rumor != null)
+            {
+                var asOf = feed.State.AtNight(Math.Min(telling.Night, feed.Night));
+                string drifted = RumorMutation.Text(telling.Library, s.Rumor, RumorRef(feed, s.Rumor), story.Seed, Math.Max(0, telling.Night - s.Night), RumorMutation.Exposure(asOf), telling.KnowledgeTier, lang);
+                if (drifted.Length > 0) return drifted;
+            }
+            return Text(feed, story, s, distorted, lang);
+        }
+
         private static int CultDataIndexOf(MythosFeed feed, int villager)
         {
             var current = feed.Current;
@@ -162,6 +177,7 @@ namespace Frankenstein.Core
         public static List<MythosChatLine> Lines(VillageSociety society, MythosFeed feed, VillageStory story, int index, TrustTier tier, int night1, VillagerChatResult result, string lang, RumorMutationLibrary mutations = null, int knowledgeTier = 0)
         {
             var lines = new List<MythosChatLine>();
+            var telling = mutations == null ? null : new RumorTelling { Library = mutations, Night = night1, KnowledgeTier = knowledgeTier };
             if (society == null || feed == null || story == null || feed.Current == null) return lines;
             if (index < 0 || index >= society.Roster.Count) return lines;
             if (!result.Available || result.Behavior != VillagerBehavior.Normal || result.Withheld || tier == TrustTier.Suspicious) return lines;
@@ -192,13 +208,7 @@ namespace Frankenstein.Core
             {
                 var m = all.Find(x => x.Id == id);
                 if (m == null) continue;
-                string text = "";
-                if (mutations != null && m.Rumor != null && id == m.Id)
-                {
-                    var asOf = feed.State.AtNight(Math.Min(night1, feed.Night));
-                    text = RumorMutation.Text(mutations, m.Rumor, MythosRules.RumorRef(feed, m.Rumor), story.Seed, Math.Max(0, night1 - m.Night), RumorMutation.Exposure(asOf), knowledgeTier, lang);
-                }
-                if (text.Length == 0) text = MythosRules.Text(feed, story, m, MythosRules.IsDistorted(m.Rumor, index), lang);
+                string text = MythosRules.CurrentText(feed, story, m, MythosRules.IsDistorted(m.Rumor, index), lang, telling);
                 lines.Add(new MythosChatLine { Id = id, Text = text });
             }
             return lines;

@@ -4,7 +4,7 @@ import { VigilState, InteractionRules, allowsSandboxAction, nightCreep, sanityPo
 import { CELL, lanternLights } from './view3d-math.js';
 import {
   objectiveModel, objectiveText, endingModel, endingStatsText, resultText, resultCardFilename, loadEndingsFound, recordEnding,
-  drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker, epilogueHref,
+  endingStoryText, drawResultCard, CARD_WIDTH, CARD_HEIGHT, spokenName, endingCueKind, lampMarkerStates, flameFlicker, epilogueHref,
 } from './vigil-view.js';
 
 const ENDING_FADE_MS = 1600;
@@ -201,6 +201,7 @@ export function createVigilController(deps) {
     $('endingFound').textContent = tr('vigil.end.found', { n: model.found, total: model.foundTotal });
     $('endingNote').textContent = '';
     const th = $('endingTheory'); if (th) { th.textContent = deps.epilogue ? deps.epilogue(model.id) : ''; th.hidden = !th.textContent; } // Round 30: the theory epilogue line; it never changes which ending was reached
+    const story = $('endingStory'); if (story) { story.textContent = deps.summary ? endingStoryText(deps.summary()) : ''; story.hidden = !story.textContent; } // Round 37 (spec 180): the whole story as far as the player learned it (ChronicleProse summary); never changes the ending reached
     const shore = $('endingEpilogue');
     if (shore) shore.href = epilogueHref(model.id, { seed: state.seed, nightNumber: vigil.night, gridW: deps.gridW, gridD: deps.gridD }) || '#';
     const d = $('ending'); endingIsOpen = true;

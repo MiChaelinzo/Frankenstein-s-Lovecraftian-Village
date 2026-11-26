@@ -56,11 +56,16 @@ class ContentSchemas(unittest.TestCase):
         e = copy.deepcopy(EVENT); e["text"]["en"] = "a \u2014 b"
         self.expect(run(events=[e]), "field 'text.en'", "em dash")
 
+    def test_event_effects_follow_the_runtime_rule(self):
+        for key, value in (("dread", 1.5), ("dread", 101), ("sanity", -101)):
+            e = copy.deepcopy(EVENT); e["effects"] = {key: value}
+            self.expect(run(events=[e]), f"field 'effects.{key}'", "must be an integer within +-100")
+        e = copy.deepcopy(EVENT); e["effects"] = {"gold": 1}
+        self.expect(run(events=[e]), "field 'effects.gold'", "unknown effect")
+
     def test_other_bad_shapes(self):
         r = copy.deepcopy(RUMOR); r["truth"] = "yes"
         self.expect(run(rumors=[r]), "field 'truth'")
-        e = copy.deepcopy(EVENT); e["effects"] = {"gold": 1}
-        self.expect(run(events=[e]), "field 'effects.gold'")
         q = copy.deepcopy(QUEST); q["conclusions"][0]["theory"] = "other"
         self.expect(run(quests=[q]), "field 'conclusions[0].theory'")
 

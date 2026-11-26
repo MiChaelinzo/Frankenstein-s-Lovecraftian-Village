@@ -101,6 +101,8 @@ namespace Frankenstein.Core
         /// <summary>At or below this Horror Intensity (gentle) ambient beats are skipped entirely.</summary>
         public const int GentleScale = 500;
         public const int StandardScale = 1000;
+        /// <summary>Round 37 (spec 175): a dimming step eases in over <see cref="DimRiseMs"/>, holds for <see cref="DimHoldMs"/> and eases out over <see cref="DimFallMs"/>, so the light never jumps.</summary>
+        public const int DimRiseMs = 2000, DimHoldMs = 4000, DimFallMs = 6000;
         public const int NoBeatYet = int.MinValue;
         private const int BeatStream = 0x1750;
 
@@ -246,6 +248,27 @@ namespace Frankenstein.Core
                 Prop = pick.Prop && !settings.ReducedMotion,
                 Villager = pick.NeedsVillager ? x.RememberedVillager - 1 : -1,
             };
+        }
+
+        /// <summary>The 0..1000 shape of a dimming step <paramref name="elapsedMs"/> after its beat: linear rise, hold, linear fall, 0 before and after. Integer math.</summary>
+        public static int DimEnvelope(int elapsedMs)
+        {
+            if (elapsedMs <= 0) return 0;
+            if (elapsedMs < DimRiseMs) return elapsedMs * 1000 / DimRiseMs;
+            if (elapsedMs < DimRiseMs + DimHoldMs) return 1000;
+            int fall = elapsedMs - DimRiseMs - DimHoldMs;
+            return fall >= DimFallMs ? 0 : (DimFallMs - fall) * 1000 / DimFallMs;
+        }
+
+        /// <summary>
+        /// Round 37 (spec 175): how much light to take off right now, per mille, 0..<see cref="MaxBrightnessStep"/>, for an ambient beat whose <see cref="AmbientBeat.Brightness"/> is
+        /// <paramref name="brightness"/> and that began <paramref name="elapsedMs"/> ago. Always 0 at gentle intensity (<see cref="GentleScale"/> or less) and under reduced motion, whatever the beat says.
+        /// Presentation only: the scene multiplies its light by 1 - DimStep / 1000.
+        /// </summary>
+        public static int DimStep(int brightness, int elapsedMs, AmbientSettings settings)
+        {
+            if (settings.ReducedMotion || settings.IntensityScale <= GentleScale || brightness >= 0) return 0;
+            return Math.Min(MaxBrightnessStep, -brightness) * DimEnvelope(elapsedMs) / 1000;
         }
     }
 }

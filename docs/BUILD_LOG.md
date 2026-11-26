@@ -480,3 +480,38 @@ Finding: no hotspot. The slowest system (chronicle) is run once per night change
 - Full browser check (`node tools/browser_check.mjs`, local headless Chromium on SwiftShader, one run, about 20 minutes): 126 of 127 passed. The one failure is the indicative villager frame time budget (median 450 ms, 2.4 fps in software GL), which says nothing about real GPUs. Raw log kept outside the repo. Partially Verified (one Chromium build, software GL).
 - Specs: 175 and 176 built; 174, 177, 178, 179, 180 stay unbuilt (174 risks contradicting a shown epitaph; 180 also owns the phantom path draw hook and director dimming hook; 178 is compile-only).
 - Unverified: Unity runtime, real GPU frame rates, audio by ear, the phantom path and dimming step (no hook), export button clicks.
+
+## Round 37 (branch feat/round37): FEAT-002 part 1, items 1 to 3
+- Item 1: `OpinionsAfter` now applies the round 36 hop 1 and 2 effect records (replacing the fixed family and neighbour shares); golden `society` trust and suspicion changed and `reputation` gained opinion rows. Verified by dotnet and node parity tests.
+- Item 2: `MythosRules.CurrentText` / `mythosCurrentText` is the one source of the current rumor wording for board cards, chronicle and chat; true account at tier 3. Verified by C# and JS tests.
+- Item 3: `HorrorDirector.DimStep` applied to the 3D lamp light and a 2D canvas wash; skipped at Gentle and reduced motion. Verified by tests; visible effect Unverified.
+- Suites after item 3: dotnet 531, node 886. Browser sections SOCIETY, MYTHOS, EVOLUTION (board, trust, corruption 2D/3D): 11 of 11 passed. Dimming visibility itself not browser-checked (Unverified).
+
+## Round 37 (branch feat/round37): FEAT-002 part 2, items 4 to 6
+- Item 4: tier 5 phantom path geometry in Core and JS (golden `realityCollapse.shapes`), drawn on the minimap and the 3D ground, never saved. Verified by dotnet and node tests; the picture itself is Unverified (not seen in a browser or Unity).
+- Item 5: ending dialog story summary and minimap reality alterations (erased villager hidden, blurred villager hollow, truth switch restores). Verified by node tests; the ending dialog and minimap were not driven in a browser (Partially Verified).
+- Item 6: `ContentLibrary` / `content.js` load quests, rumors and events from `Data/content` with golden key `content` and drift checks. Events appear in the chronicle (model level Verified); quests, rumors and event effects are not consumed in play (not built).
+- Suites: dotnet 540, node 897, UnityCompileCheck 0/0, `tools/test_*.py` OK, `validate_repo.py` OK. Browser sections REALITY (3/3) and SOCIETY, MYTHOS, EVOLUTION (11/11) passed, with no console errors. Service worker cache `flv-shell-v98`.
+
+## Round 37 (branch feat/round37): FEAT-003 items 1 to 3
+- Item 1: one terminology table and a drift test (en, fr, data, docs). Verified by node tests; drift found and fixed is listed in the changelog.
+- Item 2: shared Victorian panel classes, one focus ring, self-only style policy. Verified by node tests; browser section VICTORIAN_ONLY 14/14 (SwiftShader, served by `http.server`, so the real `_headers` CSP was not exercised: removal of `'unsafe-inline'` is Partially Verified until a host serves it).
+- Item 3: cross-panel same-fact test with injected-mismatch proof. Verified at model and controller level (board controller with a fake DOM). Not driven through the live DOM of the chat dialog (Partially Verified).
+- Quests and rumors content still unconsumed (documented, not built). Items 4 to 6 of FEAT-003 are not done in this batch. Suites: node 920 and `tools/test_*.py` OK, `validate_repo.py` OK, dotnet 540 (golden regenerated for item 1). Unity runtime Unverified.
+
+
+## Round 37: cohesion and closure
+- `781b245` preserves 11 real Chromium saves generated from the shipped round 26 through 36 commits and proves each loads through the current session and legacy-settings parsers. The deterministic scripted visit uses seed 1818, sanity 40 and night 3. The required failing test first reported rounds 29 through 36 missing.
+- `6e4445f` requires challenge weeks to match `^\d{4}-W\d{2}$`, marks old changelog counts and cache names as historical, and adds browser checks for the live reputation line and both challenge exports. Focused SwiftShader results: `THEORY_ONLY` 11 of 11 and `EVOLUTION_ONLY` 4 of 4.
+- Spec 178 Runtime wiring remains unbuilt. Unity does not yet have one authoritative owner for the memory log, knowledge gains, learned-fact chronicle context and director inputs. A pass-through facade would not wire a consumer, and inferring those inputs would duplicate gameplay policy. Specs 174 and 177 also remain unbuilt.
+- Final automated verification: `tools/validate_repo.py` passed; 95 Python tool tests passed; node 928 of 928 passed; Core 540 of 540 passed; UnityCompileCheck built with 0 warnings and 0 errors. Service worker cache is `flv-shell-v101`.
+- The single final unfiltered browser run produced 125 of 127 passes on headless Chromium with SwiftShader. One failure was a stale help assertion expecting six groups after the Settings work had correctly added a seventh; the recorded evidence was `[open, 7 groups, no old key list, device text]`, and the assertion was corrected after the run without repeating the full run. The other failure was the indicative villager frame budget under host load: 7 frames, mean 220.9 ms, median 16.7 ms, p95 and max 1200 ms, below the check's minimum sample count of 8. All functional villager checks passed, and the run reported no uncaught exception or console error.
+- Verification labels: Core, JS, save compatibility, repository validation and Python tools are Verified. SwiftShader browser presentation and UnityCompileCheck are Partially Verified. Unity runtime, real GPU performance, audio by ear and other browsers remain Unverified.
+
+## Round 37: blocking cohesion fixes
+- Legacy settings migrate into `flv.settings.v1` at first read. Removing the old keys after migration preserves intensity, contrast and quality. `SETTINGS_ONLY` passed 5 of 5.
+- Session startup and the Load button now share one controller restore path, including lore. `SAVE_COMPAT_ONLY` restored all 11 historical fixtures and saved every field present in each fixture through current controller snapshots, passing 12 of 12.
+- `wrong_stars_night_3` matches the `stars_wrong` omen reached on night 3 of the five-night seed 1818 campaign. `AUTHORED_ONLY` displayed it in English and French and passed 3 of 3.
+- Core, JavaScript and the schema validator now share one event effect rule: only `dread` and `sanity`, integer values from -100 through 100. Fractions, unknown keys and out-of-range values fail with field-specific errors.
+- Service worker cache `flv-shell-v102`.
+- Full verification after these fixes: node 930 of 930, Core 544 of 544, all Python tool tests, repository validation, and UnityCompileCheck with 0 warnings and 0 errors.

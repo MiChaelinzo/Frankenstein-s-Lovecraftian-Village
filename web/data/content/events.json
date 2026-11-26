@@ -1,0 +1,12 @@
+{
+ "version": 1,
+ "events": [
+  {
+   "id": "wrong_stars_night_3",
+   "night": 3,
+   "condition": "stars_wrong",
+   "text": { "en": "On the third night the constellations turn toward the village, though the clouds do not move.", "fr": "La troisieme nuit, les constellations se tournent vers le village, bien que les nuages ne bougent pas." },
+   "effects": { "dread": 5 }
+  }
+ ]
+}

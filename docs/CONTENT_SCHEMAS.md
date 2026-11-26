@@ -2,7 +2,7 @@
 
 Quests, rumors and events can be authored as JSON, so people and AI agents can add many of them without touching code. Files live in `Packages/com.michaelinzo.frankenstein-village/Data/content/`. `python3 tools/validate_repo.py` (module `tools/content_schemas.py`) checks every `*.json` there. Errors name the file, the item and the field, for example `events.json: event 'x': field 'night': must be an integer 1..99`.
 
-**Status: Verified** for the validator (`tools/test_content_schemas.py`). **Unverified** in play: no game code loads these files yet, so they cannot change any golden or seed.
+**Status: Verified** for the validator (`tools/test_content_schemas.py`) and for the loaders (Core `ContentLibrary`, `web/src/content.js`, golden key `content`). Both loaders enforce one effect rule: only `dread` and `sanity` keys, with integer values from -100 through 100. In play only events are used: the chronicle lists an authored event on its night when that night's new omen equals its `condition` and the player heard the omen. The checked-in `wrong_stars_night_3` event is reachable in the five-night seed 1818 campaign and has live browser coverage in English and French. Quests and rumors load but nothing consumes them yet, and event `effects` are parsed, never applied (not built). Copies of the files live in `web/data/content/` and `validate_repo.py` checks they match.
 
 ## File shape
 
@@ -41,11 +41,11 @@ Every player facing text is `en` and `fr`, both required and non empty. No em da
 
 ## Examples
 
-See `Data/content/quests.json` (`missing_fisher_01`), `rumors.json` (`black_water_harbour`) and `events.json` (`black_tide_night_25`).
+See `Data/content/quests.json` (`missing_fisher_01`), `rumors.json` (`black_water_harbour`) and `events.json` (`wrong_stars_night_3`).
 
 ```json
 { "version": 1, "events": [ {
-  "id": "black_tide_night_25", "night": 25, "condition": "black_tide",
+  "id": "wrong_stars_night_3", "night": 3, "condition": "stars_wrong",
   "text": { "en": "...", "fr": "..." }, "effects": { "dread": 5 } } ] }
 ```
 
