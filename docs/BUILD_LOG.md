@@ -492,3 +492,10 @@ Finding: no hotspot. The slowest system (chronicle) is run once per night change
 - Item 5: ending dialog story summary and minimap reality alterations (erased villager hidden, blurred villager hollow, truth switch restores). Verified by node tests; the ending dialog and minimap were not driven in a browser (Partially Verified).
 - Item 6: `ContentLibrary` / `content.js` load quests, rumors and events from `Data/content` with golden key `content` and drift checks. Events appear in the chronicle (model level Verified); quests, rumors and event effects are not consumed in play (not built).
 - Suites: dotnet 540, node 897, UnityCompileCheck 0/0, `tools/test_*.py` OK, `validate_repo.py` OK. Browser sections REALITY (3/3) and SOCIETY, MYTHOS, EVOLUTION (11/11) passed, with no console errors. Service worker cache `flv-shell-v98`.
+
+## Round 37 (branch feat/round37): FEAT-003 items 1 to 3
+- Item 1: one terminology table and a drift test (en, fr, data, docs). Verified by node tests; drift found and fixed is listed in the changelog.
+- Item 2: shared Victorian panel classes, one focus ring, self-only style policy. Verified by node tests; browser section VICTORIAN_ONLY 14/14 (SwiftShader, served by `http.server`, so the real `_headers` CSP was not exercised: removal of `'unsafe-inline'` is Partially Verified until a host serves it).
+- Item 3: cross-panel same-fact test with injected-mismatch proof. Verified at model and controller level (board controller with a fake DOM). Not driven through the live DOM of the chat dialog (Partially Verified).
+- Quests and rumors content still unconsumed (documented, not built). Items 4 to 6 of FEAT-003 are not done in this batch. Suites: node 920 and `tools/test_*.py` OK, `validate_repo.py` OK, dotnet 540 (golden regenerated for item 1). Unity runtime Unverified.
+
