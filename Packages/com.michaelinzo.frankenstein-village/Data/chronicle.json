@@ -331,7 +331,7 @@
       {"en": "By dusk, word of {who} had spread through the harbor, and {other} was already repeating the worst of it.", "fr": "Au crepuscule, ce que l'on disait de {who} avait gagne le port, et {other} en repetait deja le pire."},
       {"en": "Accusations followed you from {who} to {other}, each telling a little harder than the last.", "fr": "Les accusations vous suivirent de {who} a {other}, chaque recit un peu plus dur que le precedent."},
       {"en": "{other} had heard about {who} before you reached the door, and the door stayed shut.", "fr": "{other} avait entendu parler de {who} avant que vous n'atteigniez la porte, et la porte resta close."},
-      {"en": "The suspicion that began with {who} reached {other}. Nobody could say who spoke first.", "fr": "Le soupcon ne avec {who} atteignit {other}. Personne ne put dire qui avait parle le premier."}
+      {"en": "The suspicion that began with {who} reached {other}. Nobody could say who spoke first.", "fr": "La mefiance qui commenca avec {who} atteignit {other}. Personne ne put dire qui avait parle le premier."}
     ] },
   { "id": "reputation_trusted",
     "variants": [

@@ -261,7 +261,7 @@ namespace Frankenstein.Core
             return list;
         }
 
-        /// <summary>Option index of the villager template: 0 untouched, 1 tainted (Uneasy), 2 corrupted, 3 sworn (in a cult on the last night, or fated Cultist stage).</summary>
+        /// <summary>Option index of the villager template: 0 untouched, 1 uneasy (Uneasy), 2 corrupted, 3 sworn (in a cult on the last night, or fated Cultist stage).</summary>
         public static int VillagerTruth(VillageSociety society, MythosState state, int villager)
         {
             int night = Math.Max(1, state == null ? 0 : state.Nights.Count);

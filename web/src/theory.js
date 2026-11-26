@@ -97,7 +97,7 @@ export function parseTheoryLibrary(input) {
 
 export const templateOf = (library, kind) => library.templates.find((t) => t.kind === kind) || null;
 
-/** Option index of the villager template: 0 untouched, 1 tainted, 2 corrupted, 3 sworn (in a cult on the last night, or fated Cultist stage). */
+/** Option index of the villager template: 0 untouched, 1 uneasy, 2 corrupted, 3 sworn (in a cult on the last night, or fated Cultist stage). */
 export function villagerTruth(society, state, villager) {
   const night = Math.max(1, state ? state.nights.length : 0), schedule = mythosSchedule(night);
   const dread = inputAt(schedule.dreadPermille, night) / SCALE, ritual = inputAt(schedule.ritualStage, night);
