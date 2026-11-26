@@ -40,6 +40,7 @@ import { createChronicleController } from './chronicle-ui.js';
 import { parseTickParam, sessionTick, sessionTickExact, clockChipModel, villagerScene, villagerMarkers, alteredMarkers } from './villager-view.js';
 import { parseSession, saveSession, loadSession, safeStorage, buildShareLink, sessionHash } from './session.js';
 import { minimapModel } from './minimap.js';
+import { parseContentLibrary } from './content.js';
 import { createRealityView, parseRealityLibrary } from './reality.js';
 import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } from './names.js';
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
@@ -276,6 +277,7 @@ async function loadCatalog() {
   try { places.setData(await (await fetch('data/places.json')).json(), await (await fetch('data/knowledge.json')).json()); } catch (err) { console.warn(`[places] could not load data/places.json, no places this session: ${err.message}`); }
   try { realityLib = parseRealityLibrary(await (await fetch('data/reality.json')).json()); board.sync(); } catch (err) { console.warn(`[reality] could not load data/reality.json, reality stays reliable this session: ${err.message}`); }
   try { seedShareLib = parseSeedShareLibrary(await (await fetch('data/seedshare.json')).json()); } catch (err) { console.warn(`[seedshare] could not load data/seedshare.json, the seed code shows the bare number this session: ${err.message}`); }
+  try { const get = async (n) => (await fetch(`data/content/${n}.json`)).json(); contentLib = parseContentLibrary(await get('quests'), await get('rumors'), await get('events')); chronicle.refresh(); } catch (err) { console.warn(`[content] could not load data/content, no authored events this session: ${err.message}`); }
   try { chronicle.setProse(await (await fetch('data/chronicle.json')).json()); } catch (err) { console.warn(`[chronicle] could not load data/chronicle.json, the chronicle shows no generated prose this session: ${err.message}`); }
   try { society.setMemory(await (await fetch('data/memory.json')).json()); } catch (err) { console.warn(`[memory] could not load data/memory.json, villagers remember but say no memory line this session: ${err.message}`); }
   try { society.setMythos(await (await fetch('data/mythos.json')).json()); board.sync(); } catch (err) { console.warn(`[mythos] could not load data/mythos.json, no cults, secrets or rumors this session: ${err.message}`); }
@@ -780,7 +782,7 @@ const lore = createLoreController({
 let theory = null; // the theory builder (created after the board); society and board read it lazily
 const society = createSocietyController({ knowledgeTier: () => board.knowledge().tier, recruitedByNight: (n) => (theory ? theory.recruited(n) : null), trustLost: () => (theory ? theory.trustLost() : 0), state, story: () => currentStory(), gridW: GRID_W, gridD: GRID_D, cell: CELL, onChange: () => { mark(); } });
 // Reality instability (Core RealityInstability mirror, spec 169): truth changes reality. Presentation only; the view answers for the board, the villager list and the place labels and alters no saved state.
-let realityLib = null;
+let realityLib = null, contentLib = null;
 const reality = createRealityView({ intensity: () => INTENSITY_PER_MILLE[horrorIntensity], lib: () => realityLib, seed: () => state.seed, night: () => state.night + 1, tier: () => board.knowledge().tier, lang });
 // Investigation board (Core InvestigationModel mirror): an aid over the evidence the player already holds. It reads lore reads, vigil clues, people met and chat statements and changes no clue, sanity or ending.
 const board = createBoardController({
@@ -842,6 +844,7 @@ const villagers = createVillagerController({
 storyRoster = () => villagers.roster.slice(0, ROLE_COUNT); // the story and journals belong to the seven principals, not the townsfolk
 // Village chronicle panel: families and houses, the missing persons and what was learned of them, tonight's rumor, histories and legends.
 const chronicle = createChronicleController({
+  content: () => contentLib,
   seedCode: () => seedCode(), copyText, download: (n, t, m) => download(n, t, m), endings: () => ({ found: loadEndingsFound(storage).length, total: VIGIL_ENDING_IDS.length }), announce: (text) => announce(text),
   bars: (i) => society.bars(i), met: () => board.evidence().met, outcomeLine: (k) => theory.outcomeLine(k), outcomeState: (k) => theory.outcomeState(k), evolution: () => ({ reputation: society.reputationEffects(), mutations: society.rumorMutationLibrary(), beats: experiencedBeats }), evolutionKey: () => `${society.log().length}|${experiencedBeats.length}`, reputationOf: (i) => society.reputationOf(i), memoryEvents: () => society.memoryEvents(), memoryVersion: () => society.memoryVersion(), theories: () => theory.summary(),
   $, tr, lang, state, story: () => currentStory(), lore, night: () => state.night + 1, nights: () => (state.campaign ? state.campaign.nights.length : 5), dread: () => state.sanity.dread,

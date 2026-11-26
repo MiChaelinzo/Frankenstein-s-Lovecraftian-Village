@@ -409,6 +409,9 @@ namespace Frankenstein.Core.Tests
             AppendRealityCollapse(sb);
             sb.Length -= 1;
             sb.Append(",\n");
+            AppendContent(sb);
+            sb.Length -= 1;
+            sb.Append(",\n");
             AppendSeedShare(sb);
             sb.Length -= 1;
             sb.Append(",\n");
@@ -1964,6 +1967,16 @@ namespace Frankenstein.Core.Tests
                 first = false;
             }
             sb.Append("\n    ]\n  }\n");
+        }
+
+        /// <summary>Top level key "content" (round 37, spec 179): the parsed Data/content files, one line per item, and the events told for a few night and omen pairs.</summary>
+        private static void AppendContent(StringBuilder sb)
+        {
+            var lib = ContentLibraryTests.Library();
+            var queries = new[] { new[] { "25", "black_tide" }, new[] { "25", "tide_wrong" }, new[] { "24", "black_tide" }, new[] { "25", "" } };
+            sb.Append("  \"content\": {\n    \"items\": [").Append(string.Join(", ", ContentLibraryTests.Signature(lib).Select(Q))).Append("],\n    \"events\": [");
+            sb.Append(string.Join(", ", queries.Select(q => "[" + q[0] + ", " + Q(q[1]) + ", " + Q(string.Join(",", lib.EventsFor(int.Parse(q[0]), q[1]).Select(e => e.Id))) + "]")));
+            sb.Append("]\n  }\n");
         }
 
         /// <summary>Top level key "chronicleEvolution" (round 36, spec 182): per city seed, the nights of the sixty night leadership run (see ChronicleProseTests.EvolutionContext) whose paragraph changes when the newer event sources are told, as [night, en, fr].</summary>

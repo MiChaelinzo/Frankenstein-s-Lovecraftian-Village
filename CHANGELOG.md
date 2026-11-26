@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 37 (FEAT-002 part 2, items 4 to 6)
+- Phantom path (spec 183): `RealityInstability.PhantomPathCells` / `realityPhantomPathCells` give a path its cells (two seed-chosen cells and one bend); `createRealityView().phantomPaths()` lists tonight's paths at tier 5. Drawn as a dashed line on the minimap and a pale ground strip in 3D (`phantomRects`, `buildWorld({ phantom })`). Presentation only: a test proves no phantom path is in the session JSON. New golden `realityCollapse.shapes`.
+- Spec 180: the ending dialog shows the learned story summary (`#endingStory`, `chronicle.summary()`); the minimap hides an erased villager and draws a blurred one hollow (`alteredMarkers`), the truth switch restores both.
+- Spec 179: `ContentLibrary` (C#) and `web/src/content.js` load `Data/content/*.json` (copies in `web/data/content`, precached, drift checked by `validate_repo.py`); the chronicle lists authored events on their night once the matching omen was heard. New golden key `content`. Event `effects`, quests and rumors are loaded but not yet used in play.
+- Service worker cache is now `flv-shell-v98`. Suites: dotnet 540, node 897, UnityCompileCheck 0/0. Unity runtime and the drawn visuals Unverified.
+
 ### Round 37 (FEAT-002 part 1, item 1): reputation records now change opinions
 - `VillageSociety.OpinionsAfter` (C# and `society.js`) applies the round 36 hop 1 and 2 effect records to the other villagers instead of the old fixed family (1/2) and neighbour (1/4) shares: Trusted adds strength to trust (halved while suspicious), Accused adds it to suspicion; 2-hop limit, halving, caps 300 per villager and 600 per night, cycle safe. The villager acted on still takes the full action. New overload `OpinionsAfter(log, nights, extraSuspicion)` and JS `opinionsAfter(log, extraSuspicion, nights)` so the per night cap uses real nights (the session UI passes them; plain calls count one night).
 - Golden changes (documented, regenerated): `society` trust and suspicion for all city seeds, and `reputation` gains per seed `trust` and `suspicion` rows. Removed unused `FamilyShare` and `NeighbourShare`. Service worker cache is now `flv-shell-v97`.

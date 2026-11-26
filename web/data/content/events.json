@@ -1,0 +1,12 @@
+{
+ "version": 1,
+ "events": [
+  {
+   "id": "black_tide_night_25",
+   "night": 25,
+   "condition": "black_tide",
+   "text": { "en": "On the twenty fifth night the tide returns black again, and the lamps on the quay lean toward it.", "fr": "La vingt cinquieme nuit, la maree revient noire, et les lampes du quai se penchent vers elle." },
+   "effects": { "dread": 5 }
+  }
+ ]
+}

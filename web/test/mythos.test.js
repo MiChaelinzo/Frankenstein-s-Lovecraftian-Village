@@ -277,3 +277,23 @@ test('night ticks carry the leader events of each night', () => {
   ticks.forEach((t, i) => assert.deepEqual(t.leaderEvents, state.nights[i].leaderEvents));
   assert.ok(ticks.some((t) => t.leaderEvents.length > 0));
 });
+
+// Round 37 (spec 179): authored events from Data/content are listed on their night, for a heard matching omen only.
+import { parseContentLibrary } from '../src/content.js';
+import { nightTickAt as tickAt, omenId as omenKey } from '../src/mythos.js';
+
+test('the chronicle lists an authored event only on its night, for its omen, once the omen was heard', () => {
+  const w = worldOf(1818), feed = buildMythosFeed(mythos, run(w), golden.nights);
+  const night = [...Array(golden.nights).keys()].map((i) => i + 1).find((n) => tickAt(feed.state, feed.library, n).newOmen);
+  assert.ok(night, 'the golden run has an omen night');
+  const omen = tickAt(feed.state, feed.library, night).newOmen;
+  const ev = (n, condition) => JSON.stringify({ version: 1, events: [{ id: 'e1', night: n, condition, text: { en: 'It was told.', fr: 'On le raconta.' } }] });
+  const base = { night: golden.nights, nights: golden.nights, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
+  const heard = new Map([[omenKey(night), 0]]);
+  const list = (content, mythosHeard) => chronicleModel(w.story, 'en', { ...base, content: parseContentLibrary(null, null, content), mythosHeard }).authored;
+  assert.deepEqual(list(ev(night, omen), heard), [{ id: 'e1', night, text: 'It was told.' }]);
+  assert.deepEqual(list(ev(night, omen), new Map()), [], 'not heard, not told');
+  assert.deepEqual(list(ev(night, 'no_such_omen'), heard), [], 'another omen');
+  assert.deepEqual(list(ev(night + 1 > golden.nights ? 99 : night + 1, omen), heard), [], 'another night');
+  assert.deepEqual(chronicleModel(w.story, 'en', { ...base, mythosHeard: heard }).authored, [], 'no content, no events');
+});

@@ -2,7 +2,7 @@
 
 Quests, rumors and events can be authored as JSON, so people and AI agents can add many of them without touching code. Files live in `Packages/com.michaelinzo.frankenstein-village/Data/content/`. `python3 tools/validate_repo.py` (module `tools/content_schemas.py`) checks every `*.json` there. Errors name the file, the item and the field, for example `events.json: event 'x': field 'night': must be an integer 1..99`.
 
-**Status: Verified** for the validator (`tools/test_content_schemas.py`). **Unverified** in play: no game code loads these files yet, so they cannot change any golden or seed.
+**Status: Verified** for the validator (`tools/test_content_schemas.py`) and for the loaders (Core `ContentLibrary`, `web/src/content.js`, golden key `content`). In play only events are used: the chronicle lists an authored event on its night when that night's new omen equals its `condition` and the player heard the omen. Quests and rumors load but nothing consumes them yet, and event `effects` are parsed, never applied (not built). Copies of the files live in `web/data/content/` and `validate_repo.py` checks they match.
 
 ## File shape
 

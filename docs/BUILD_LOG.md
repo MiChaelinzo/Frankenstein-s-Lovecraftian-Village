@@ -486,3 +486,9 @@ Finding: no hotspot. The slowest system (chronicle) is run once per night change
 - Item 2: `MythosRules.CurrentText` / `mythosCurrentText` is the one source of the current rumor wording for board cards, chronicle and chat; true account at tier 3. Verified by C# and JS tests.
 - Item 3: `HorrorDirector.DimStep` applied to the 3D lamp light and a 2D canvas wash; skipped at Gentle and reduced motion. Verified by tests; visible effect Unverified.
 - Suites after item 3: dotnet 531, node 886. Browser sections SOCIETY, MYTHOS, EVOLUTION (board, trust, corruption 2D/3D): 11 of 11 passed. Dimming visibility itself not browser-checked (Unverified).
+
+## Round 37 (branch feat/round37): FEAT-002 part 2, items 4 to 6
+- Item 4: tier 5 phantom path geometry in Core and JS (golden `realityCollapse.shapes`), drawn on the minimap and the 3D ground, never saved. Verified by dotnet and node tests; the picture itself is Unverified (not seen in a browser or Unity).
+- Item 5: ending dialog story summary and minimap reality alterations (erased villager hidden, blurred villager hollow, truth switch restores). Verified by node tests; the ending dialog and minimap were not driven in a browser (Partially Verified).
+- Item 6: `ContentLibrary` / `content.js` load quests, rumors and events from `Data/content` with golden key `content` and drift checks. Events appear in the chronicle (model level Verified); quests, rumors and event effects are not consumed in play (not built).
+- Suites: dotnet 540, node 897, UnityCompileCheck 0/0, `tools/test_*.py` OK, `validate_repo.py` OK. Browser sections REALITY (3/3) and SOCIETY, MYTHOS, EVOLUTION (11/11) passed, with no console errors. Service worker cache `flv-shell-v98`.

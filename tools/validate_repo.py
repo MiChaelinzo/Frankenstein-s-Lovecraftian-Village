@@ -119,6 +119,10 @@ if os.path.isfile("web/data/knowledge.json") and not filecmp.cmp("web/data/knowl
     errors.append("web/data/knowledge.json differs from Packages/com.michaelinzo.frankenstein-village/Data/knowledge.json")
 if os.path.isfile("web/data/rumor-mutations.json") and not filecmp.cmp("web/data/rumor-mutations.json", "Packages/com.michaelinzo.frankenstein-village/Data/rumor-mutations.json", shallow=False):
     errors.append("web/data/rumor-mutations.json differs from Packages/com.michaelinzo.frankenstein-village/Data/rumor-mutations.json")
+for _content in ("quests", "rumors", "events"):
+    _web, _pkg = f"web/data/content/{_content}.json", f"Packages/com.michaelinzo.frankenstein-village/Data/content/{_content}.json"
+    if os.path.isfile(_web) and not filecmp.cmp(_web, _pkg, shallow=False):
+        errors.append(f"{_web} differs from {_pkg}")
 if os.path.isfile("web/data/story.json") and not filecmp.cmp("web/data/story.json", "Packages/com.michaelinzo.frankenstein-village/Data/story.json", shallow=False):
     errors.append("web/data/story.json differs from Packages/com.michaelinzo.frankenstein-village/Data/story.json")
 if os.path.isfile("web/data/village_shapes.json") and not filecmp.cmp("web/data/village_shapes.json", "Packages/com.michaelinzo.frankenstein-village/Data/village_shapes.json", shallow=False):
