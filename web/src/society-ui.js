@@ -132,7 +132,7 @@ export function createSocietyController(deps) {
     const feed = mythosFeed(), key = feed ? mythosKey : '';
     const lost = Math.max(0, deps.trustLost ? deps.trustLost() | 0 : 0) * TRUST_UNIT;
     if (!opinions || opinionsLen !== log.length || opinionsKey !== key || lostApplied !== lost) {
-      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null); opinionsLen = log.length; opinionsKey = key; lostApplied = lost; opinionsVersion += 1;
+      opinions = s.opinionsAfter(log, feed ? suspicionPressure(feed.current, s.roster.length) : null, logNights); opinionsLen = log.length; opinionsKey = key; lostApplied = lost; opinionsVersion += 1;
       if (lost > 0) opinions = { ...opinions, trust: opinions.trust.map((t) => Math.max(0, t - lost)) }; // wrong theories about villagers cost trust (Core TheoryRules.TrustLost, whole points of 0..100)
     }
     return opinions;

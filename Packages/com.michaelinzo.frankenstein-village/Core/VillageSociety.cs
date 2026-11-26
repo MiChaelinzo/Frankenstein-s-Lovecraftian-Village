@@ -99,8 +99,6 @@ namespace Frankenstein.Core
         public static readonly int[] ActionSuspicion = { -10, -30, -50, 250, 300, 200, -50, 100 };
         /// <summary>The Nth repeat of the same action on the same villager has its effect divided by (1 + N).</summary>
         public const int RepeatDecayStep = 1;
-        /// <summary>Family members of the subject feel 1/FamilyShare of the effect; the nearest neighbour 1/NeighbourShare.</summary>
-        public const int FamilyShare = 2, NeighbourShare = 4;
         /// <summary>While a villager is already suspicious (order matters), a trust gain is divided by this.</summary>
         public const int SuspectGainDivisor = 2;
         public const int SuspiciousAt = 500, TrustingAt = 700;
@@ -227,6 +225,17 @@ namespace Frankenstein.Core
         /// </summary>
         public SocietyOpinions OpinionsAfter(IList<SocietyAction> log)
         {
+            return OpinionsAfter(log, (IList<int>)null, null);
+        }
+
+        /// <summary>
+        /// Round 37 (spec 176): <see cref="OpinionsAfter(IList{SocietyAction})"/> with the night of each log entry, so the per night propagation cap of
+        /// <see cref="ReputationEffectsAfter"/> applies per real night. The villager acted on takes the full action as before. Every other villager (family, nearest neighbour and
+        /// their links, at most <see cref="MaxReputationHops"/> hops, halving per hop, capped per villager and per night) now holds exactly the hop 1 and 2 effect records:
+        /// a Trusted record adds its strength to trust (halved while already suspicious), an Accused record adds it to suspicion. Replaces the round 26 fixed family and neighbour shares.
+        /// </summary>
+        public SocietyOpinions OpinionsAfter(IList<SocietyAction> log, IList<int> nights, IList<int> extraSuspicion)
+        {
             int n = Roster.Count;
             var o = new SocietyOpinions { Trust = new int[n], Suspicion = new int[n] };
             for (int i = 0; i < n; i++)
@@ -234,23 +243,32 @@ namespace Frankenstein.Core
                 int jitter = new SeededRandom(Seed ^ JitterStream ^ (i * IndexStep)).Next(2 * JitterRange + 1) - JitterRange;
                 o.Trust[i] = Clamp(StartTrust[(int)Roster[i].Disposition] + jitter);
             }
-            var repeats = new Dictionary<int, int>();
             if (log == null) return o;
-            foreach (var a in log)
+            var actionOf = new List<int>();
+            var records = Propagate(log, nights, actionOf);
+            var repeats = new Dictionary<int, int>();
+            int p = 0;
+            for (int k = 0; k < log.Count; k++)
             {
+                var a = log[k];
                 int kind = (int)a.Kind;
                 if (kind < 0 || kind >= ActionTrust.Length) continue;
                 int key = kind * 1000 + (a.Subject + 1), seen;
                 repeats.TryGetValue(key, out seen);
                 repeats[key] = seen + 1;
                 int divisor = 1 + seen * RepeatDecayStep;
-                if (a.Subject == AllVillagers) { for (int i = 0; i < n; i++) Apply(o, i, kind, divisor, 1); continue; }
-                if (a.Subject < 0 || a.Subject >= n) continue;
-                Apply(o, a.Subject, kind, divisor, 1);
-                foreach (int j in FamilyLinks[a.Subject]) Apply(o, j, kind, divisor, FamilyShare);
-                int nb = Neighbour[a.Subject];
-                if (nb >= 0 && !FamilyLinks[a.Subject].Contains(nb)) Apply(o, nb, kind, divisor, NeighbourShare);
+                if (a.Subject == AllVillagers) { for (int i = 0; i < n; i++) Apply(o, i, kind, divisor, 1); }
+                else if (a.Subject >= 0 && a.Subject < n) Apply(o, a.Subject, kind, divisor, 1);
+                for (; p < records.Count && actionOf[p] == k; p++)
+                {
+                    var r = records[p];
+                    if (r.Hop < 1) continue;
+                    if (r.Effect == ReputationEffectKind.Accused) o.Suspicion[r.Target] = Clamp(o.Suspicion[r.Target] + r.Strength);
+                    else o.Trust[r.Target] = Clamp(o.Trust[r.Target] + (o.Suspicion[r.Target] >= SuspiciousAt ? r.Strength / SuspectGainDivisor : r.Strength));
+                }
             }
+            if (extraSuspicion != null)
+                for (int i = 0; i < n && i < extraSuspicion.Count; i++) o.Suspicion[i] = Clamp(o.Suspicion[i] + extraSuspicion[i]);
             return o;
         }
 
@@ -260,10 +278,7 @@ namespace Frankenstein.Core
         /// </summary>
         public SocietyOpinions OpinionsAfter(IList<SocietyAction> log, IList<int> extraSuspicion)
         {
-            var o = OpinionsAfter(log);
-            if (extraSuspicion == null) return o;
-            for (int i = 0; i < o.Suspicion.Length && i < extraSuspicion.Count; i++) o.Suspicion[i] = Clamp(o.Suspicion[i] + extraSuspicion[i]);
-            return o;
+            return OpinionsAfter(log, null, extraSuspicion);
         }
 
         private static void Apply(SocietyOpinions o, int who, int kind, int divisor, int share)
@@ -289,10 +304,16 @@ namespace Frankenstein.Core
         /// <see cref="LinkedTo"/> to at most <see cref="MaxReputationHops"/> hops, halving per hop. A villager is visited once per origin event, propagated records never start new events,
         /// a villager receives at most <see cref="PropagatedCapPerVillager"/> propagated strength in total and the village at most <see cref="PropagatedCapPerNight"/> per night.
         /// An action on <see cref="AllVillagers"/> yields only origin records (everyone already saw it). Repeats decay as in <see cref="OpinionsAfter(IList{SocietyAction})"/>.
-        /// <paramref name="nights"/> gives the night of each log entry (null or short means night 0). Pure integer arithmetic and the log order only: replay equals incremental. This does not
-        /// change <see cref="OpinionsAfter(IList{SocietyAction})"/> or any existing value.
+        /// <paramref name="nights"/> gives the night of each log entry (null or short means night 0). Pure integer arithmetic and the log order only: replay equals incremental. Since round 37 the
+        /// hop 1 and 2 records are what <see cref="OpinionsAfter(IList{SocietyAction}, IList{int}, IList{int})"/> applies to the other villagers.
         /// </summary>
         public List<ReputationEffect> ReputationEffectsAfter(IList<SocietyAction> log, IList<int> nights)
+        {
+            return Propagate(log, nights, null);
+        }
+
+        /// <summary>The records of <see cref="ReputationEffectsAfter"/>; when <paramref name="actionOf"/> is given it receives the log index each record came from.</summary>
+        private List<ReputationEffect> Propagate(IList<SocietyAction> log, IList<int> nights, List<int> actionOf)
         {
             int n = Roster.Count;
             var result = new List<ReputationEffect>();
@@ -314,11 +335,11 @@ namespace Frankenstein.Core
                 int origin = Math.Min(MaxEffectStrength, Math.Abs(net) / (1 + seen * RepeatDecayStep));
                 if (a.Subject == AllVillagers)
                 {
-                    if (origin > 0) for (int i = 0; i < n; i++) result.Add(Effect(i, i, a.Kind, effect, 0, origin, night));
+                    if (origin > 0) for (int i = 0; i < n; i++) { result.Add(Effect(i, i, a.Kind, effect, 0, origin, night)); if (actionOf != null) actionOf.Add(k); }
                     continue;
                 }
                 if (a.Subject < 0 || a.Subject >= n) continue;
-                if (origin > 0) result.Add(Effect(a.Subject, a.Subject, a.Kind, effect, 0, origin, night));
+                if (origin > 0) { result.Add(Effect(a.Subject, a.Subject, a.Kind, effect, 0, origin, night)); if (actionOf != null) actionOf.Add(k); }
                 var visited = new HashSet<int> { a.Subject };
                 var frontier = new List<int> { a.Subject };
                 for (int hop = 1; hop <= MaxReputationHops && frontier.Count > 0; hop++)
@@ -338,6 +359,7 @@ namespace Frankenstein.Core
                             received[to] += give;
                             perNight[night] = nightUsed + give;
                             result.Add(Effect(a.Subject, to, a.Kind, effect, hop, give, night));
+                            if (actionOf != null) actionOf.Add(k);
                         }
                     frontier = next;
                 }

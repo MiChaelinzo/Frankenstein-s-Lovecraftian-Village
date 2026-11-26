@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Round 37 (FEAT-002 part 1, item 1): reputation records now change opinions
+- `VillageSociety.OpinionsAfter` (C# and `society.js`) applies the round 36 hop 1 and 2 effect records to the other villagers instead of the old fixed family (1/2) and neighbour (1/4) shares: Trusted adds strength to trust (halved while suspicious), Accused adds it to suspicion; 2-hop limit, halving, caps 300 per villager and 600 per night, cycle safe. The villager acted on still takes the full action. New overload `OpinionsAfter(log, nights, extraSuspicion)` and JS `opinionsAfter(log, extraSuspicion, nights)` so the per night cap uses real nights (the session UI passes them; plain calls count one night).
+- Golden changes (documented, regenerated): `society` trust and suspicion for all city seeds, and `reputation` gains per seed `trust` and `suspicion` rows. Removed unused `FamilyShare` and `NeighbourShare`. Service worker cache is now `flv-shell-v97`.
+- Verified: dotnet 529, node 883 pass. Unity runtime Unverified.
+
 ### Round 36 (FEAT-010): docs, specs and final browser check
 - Docs only: README round 36 section and status rows, this changelog, `docs/BUILD_LOG.md` and `.kiro/specs/tasks.md` (specs 175 and 176 marked built with their gaps; specs 174, 177, 178, 179 and 180 stay unbuilt with refreshed notes: 174 could contradict an epitaph already shown if leads changed the odds; 180 still owns the ending chronicle, minimap reality, the phantom path draw hook and the director dimming hook; 178 Unity Runtime wiring is compile-only).
 - Final browser check result and test counts are in `docs/BUILD_LOG.md`.

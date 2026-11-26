@@ -1598,7 +1598,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("\n    ]\n  }\n");
         }
 
-        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps.</summary>
+        /// <summary>Top level key "reputation" (round 36, spec 176): per city seed the effect records [source, target, kind, effect, hop, strength, night] of a fixed log with nights, and of a crowded single night log that hits the caps, plus the trust and suspicion those records produce in OpinionsAfter(log, nights, null) (round 37).</summary>
         private static void AppendReputation(StringBuilder sb, PrefabCatalog cat)
         {
             string data = Path.Combine(RepoRoot(), "Packages", "com.michaelinzo.frankenstein-village", "Data");
@@ -1630,7 +1630,9 @@ namespace Frankenstein.Core.Tests
                 sb.Append(first ? "\n      " : ",\n      ").Append("{ \"seed\": ").Append(seed);
                 first = false;
                 sb.Append(", \"effects\": ").Append(Rows(soc.ReputationEffectsAfter(log, nights)));
-                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null))).Append(" }");
+                sb.Append(", \"crowdedEffects\": ").Append(Rows(soc.ReputationEffectsAfter(crowded, null)));
+                var held = soc.OpinionsAfter(log, nights, null);
+                sb.Append(", \"trust\": [").Append(string.Join(", ", held.Trust)).Append("], \"suspicion\": [").Append(string.Join(", ", held.Suspicion)).Append("] }");
             }
             sb.Append("\n    ]\n  }\n");
         }

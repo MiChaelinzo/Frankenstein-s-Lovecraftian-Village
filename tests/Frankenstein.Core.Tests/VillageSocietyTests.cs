@@ -105,19 +105,50 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
-        public void Opinion_ripples_reach_only_linked_villagers()
+        public void Opinion_ripples_reach_only_villagers_within_two_hops()
         {
             foreach (var seed in Seeds)
             {
                 var soc = SocietyOf(seed, out _, out var roster);
                 var zero = soc.OpinionsAfter(new List<SocietyAction>());
                 var o = soc.OpinionsAfter(new[] { A(SocietyActionKind.SeenNearBody, 0) });
+                var reached = new HashSet<int> { 0 };
+                foreach (var e in soc.ReputationEffectsAfter(new[] { A(SocietyActionKind.SeenNearBody, 0) }, null)) reached.Add(e.Target);
                 for (int i = 1; i < roster.Count; i++)
-                {
-                    bool linked = soc.FamilyLinks[0].Contains(i) || soc.Neighbour[0] == i;
-                    if (!linked) Assert.Equal(zero.Suspicion[i], o.Suspicion[i]);
-                }
+                    if (!reached.Contains(i)) { Assert.Equal(zero.Suspicion[i], o.Suspicion[i]); Assert.Equal(zero.Trust[i], o.Trust[i]); }
             }
+        }
+
+        [Fact]
+        public void Round37_effect_records_change_opinions_of_linked_villagers_exactly()
+        {
+            foreach (var seed in Seeds)
+            {
+                var soc = SocietyOf(seed, out _, out _);
+                var log = new[] { A(SocietyActionKind.SeenAtRitualSite, 0) };
+                var zero = soc.OpinionsAfter(new List<SocietyAction>());
+                var o = soc.OpinionsAfter(log);
+                var hop2 = soc.ReputationEffectsAfter(log, null).Where(e => e.Hop == 2).ToList();
+                var hop1 = soc.ReputationEffectsAfter(log, null).Where(e => e.Hop == 1).ToList();
+                Assert.NotEmpty(hop1);
+                foreach (var e in hop1.Concat(hop2))
+                    Assert.Equal(Math.Min(VillageSociety.Scale, zero.Suspicion[e.Target] + e.Strength), o.Suspicion[e.Target]);
+                foreach (var e in hop2) Assert.True(o.Suspicion[e.Target] > zero.Suspicion[e.Target]);
+            }
+        }
+
+        [Fact]
+        public void Round37_per_night_cap_uses_the_given_nights_and_stays_deterministic()
+        {
+            var soc = SocietyOf(Seeds[0], out _, out var roster);
+            var log = new List<SocietyAction>();
+            for (int i = 0; i < roster.Count; i++) log.Add(A(SocietyActionKind.SeenAtRitualSite, i));
+            var sameNight = soc.OpinionsAfter(log, null, null);
+            var nights = log.Select((_, i) => i).ToList();
+            var spread = soc.OpinionsAfter(log, nights, null);
+            Assert.Equal(sameNight.Suspicion, soc.OpinionsAfter(log).Suspicion);
+            Assert.Equal(spread.Suspicion, soc.OpinionsAfter(log, nights, null).Suspicion);
+            Assert.True(spread.Suspicion.Sum() >= sameNight.Suspicion.Sum());
         }
 
         [Fact]

@@ -13,7 +13,7 @@ export const JITTER_STREAM = 0x4a4954, ZERO_STREAM = 0x5a4552, FATE_STREAM = 0x4
 export const START_TRUST = [500, 300, 250, 150], JITTER_RANGE = 50;
 export const ACTION_TRUST = [50, 150, 200, -50, -100, -150, 100, -50];
 export const ACTION_SUSPICION = [-10, -30, -50, 250, 300, 200, -50, 100];
-export const REPEAT_DECAY_STEP = 1, FAMILY_SHARE = 2, NEIGHBOUR_SHARE = 4, SUSPECT_GAIN_DIVISOR = 2;
+export const REPEAT_DECAY_STEP = 1, SUSPECT_GAIN_DIVISOR = 2;
 export const SUSPICIOUS_AT = 500, TRUSTING_AT = 700;
 export const DREAD_PRESSURE_DIVISOR = 2, NIGHT_PRESSURE = 60, RITUAL_PRESSURE = 100, MAX_RITUAL_STAGE = 5;
 export const FAMILY_DELAY = 1, NEIGHBOUR_DELAY = 2, SPREAD_PENALTY = 80;
@@ -118,75 +118,89 @@ export function buildSociety(story, layout) {
     o.suspicion[who] = clamp(o.suspicion[who] + ds);
   };
 
+  function linkedTo(index) {
+    const set = new Set(familyLinks[index]);
+    if (neighbour[index] >= 0) set.add(neighbour[index]);
+    for (let j = 0; j < n; j++) if (neighbour[j] === index) set.add(j);
+    set.delete(index);
+    return [...set].sort((x, y) => x - y);
+  }
+
+  /** Round 36 records; actionOf (optional) receives the log index of each record. */
+  function propagate(log, nights, actionOf) {
+    const result = [];
+    if (!log) return result;
+    const repeats = new Map(), received = new Array(n).fill(0), perNight = new Map();
+    for (let k = 0; k < log.length; k++) {
+      const a = log[k], kind = a.kind;
+      if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_TRUST.length) continue;
+      const key = `${kind}:${a.subject}`, seen = repeats.get(key) || 0;
+      repeats.set(key, seen + 1);
+      const night = nights && k < nights.length ? nights[k] : 0, net = ACTION_TRUST[kind] - ACTION_SUSPICION[kind];
+      const effect = net < 0 ? EFFECT_ACCUSED : EFFECT_TRUSTED, origin = Math.min(MAX_EFFECT_STRENGTH, div(Math.abs(net), 1 + seen * REPEAT_DECAY_STEP));
+      if (a.subject === ALL_VILLAGERS) { if (origin > 0) for (let i = 0; i < n; i++) { result.push({ source: i, target: i, kind, effect, hop: 0, strength: origin, night }); if (actionOf) actionOf.push(k); } continue; }
+      if (!Number.isInteger(a.subject) || a.subject < 0 || a.subject >= n) continue;
+      if (origin > 0) { result.push({ source: a.subject, target: a.subject, kind, effect, hop: 0, strength: origin, night }); if (actionOf) actionOf.push(k); }
+      const visited = new Set([a.subject]);
+      let frontier = [a.subject];
+      for (let hop = 1; hop <= MAX_REPUTATION_HOPS && frontier.length > 0; hop++) {
+        let strength = origin;
+        for (let h = 0; h < hop; h++) strength = div(strength, HOP_DECAY_DIVISOR);
+        const next = [];
+        for (const from of frontier) for (const to of linkedTo(from)) {
+          if (visited.has(to)) continue;
+          visited.add(to); next.push(to);
+          const used = perNight.get(night) || 0, give = Math.min(strength, PROPAGATED_CAP_PER_VILLAGER - received[to], PROPAGATED_CAP_PER_NIGHT - used);
+          if (give <= 0) continue;
+          received[to] += give; perNight.set(night, used + give);
+          result.push({ source: a.subject, target: to, kind, effect, hop, strength: give, night });
+          if (actionOf) actionOf.push(k);
+        }
+        frontier = next;
+      }
+    }
+    return result;
+  }
+
   const society = {
     seed, roster, familyLinks, neighbour, patientZero, spreadDelay, fate,
-    /** Trust and suspicion after an ordered log of { kind, subject }. Repeats count less; a trust gain is halved while already suspicious. */
-    opinionsAfter(log, extraSuspicion = null) {
+    /**
+     * Trust and suspicion after an ordered log of { kind, subject }; nights[i] is the night of log[i] (round 37, null or short means 0). Repeats count less; a trust gain is halved while
+     * already suspicious. The villager acted on takes the full action; every other villager holds the hop 1 and 2 reputationEffectsAfter records (Trusted adds trust, Accused adds suspicion).
+     * Mirror of VillageSociety.OpinionsAfter.
+     */
+    opinionsAfter(log, extraSuspicion = null, nights = null) {
       const o = { trust: roster.map((v, i) => clamp(START_TRUST[v.disposition] + new SeededRandom(seed ^ JITTER_STREAM ^ Math.imul(i, INDEX_STEP)).next(2 * JITTER_RANGE + 1) - JITTER_RANGE)), suspicion: new Array(n).fill(0) };
-      const repeats = new Map();
-      for (const a of log || []) {
-        const kind = a.kind;
+      const repeats = new Map(), actionOf = [], records = propagate(log, nights, actionOf);
+      let p = 0;
+      const list = log || [];
+      for (let k = 0; k < list.length; k++) {
+        const a = list[k], kind = a.kind;
         if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_TRUST.length) continue;
         const key = `${kind}:${a.subject}`, seen = repeats.get(key) || 0;
         repeats.set(key, seen + 1);
         const divisor = 1 + seen * REPEAT_DECAY_STEP;
-        if (a.subject === ALL_VILLAGERS) { for (let i = 0; i < n; i++) apply(o, i, kind, divisor, 1); continue; }
-        if (!Number.isInteger(a.subject) || a.subject < 0 || a.subject >= n) continue;
-        apply(o, a.subject, kind, divisor, 1);
-        for (const j of familyLinks[a.subject]) apply(o, j, kind, divisor, FAMILY_SHARE);
-        const nb = neighbour[a.subject];
-        if (nb >= 0 && !familyLinks[a.subject].includes(nb)) apply(o, nb, kind, divisor, NEIGHBOUR_SHARE);
+        if (a.subject === ALL_VILLAGERS) { for (let i = 0; i < n; i++) apply(o, i, kind, divisor, 1); }
+        else if (Number.isInteger(a.subject) && a.subject >= 0 && a.subject < n) apply(o, a.subject, kind, divisor, 1);
+        for (; p < records.length && actionOf[p] === k; p++) {
+          const r = records[p];
+          if (r.hop < 1) continue;
+          if (r.effect === EFFECT_ACCUSED) o.suspicion[r.target] = clamp(o.suspicion[r.target] + r.strength);
+          else o.trust[r.target] = clamp(o.trust[r.target] + (o.suspicion[r.target] >= SUSPICIOUS_AT ? div(r.strength, SUSPECT_GAIN_DIVISOR) : r.strength));
+        }
       }
       // Round 27: extra suspicion per villager on top (mythos.js suspicionPressure). Null or short adds nothing, so the result equals the plain call.
       if (extraSuspicion) for (let i = 0; i < n && i < extraSuspicion.length; i++) o.suspicion[i] = clamp(o.suspicion[i] + extraSuspicion[i]);
       return o;
     },
     /** Villagers one link away (family and nearest neighbour, both ways), ascending, no duplicates. */
-    linkedTo(index) {
-      const set = new Set(familyLinks[index]);
-      if (neighbour[index] >= 0) set.add(neighbour[index]);
-      for (let j = 0; j < n; j++) if (neighbour[j] === index) set.add(j);
-      set.delete(index);
-      return [...set].sort((x, y) => x - y);
-    },
+    linkedTo,
     /**
      * Round 36: explicit effect records { source, target, kind, effect, hop, strength, night } of an ordered log; nights[i] is the night of log[i] (null or short means 0).
      * Mirror of VillageSociety.ReputationEffectsAfter: origin record at hop 0, breadth first along linkedTo to MAX_REPUTATION_HOPS, halved per hop, each villager once per origin event,
      * per villager and per night caps on propagated strength. Does not change opinionsAfter.
      */
-    reputationEffectsAfter(log, nights = null) {
-      const result = [];
-      if (!log) return result;
-      const repeats = new Map(), received = new Array(n).fill(0), perNight = new Map();
-      for (let k = 0; k < log.length; k++) {
-        const a = log[k], kind = a.kind;
-        if (!Number.isInteger(kind) || kind < 0 || kind >= ACTION_TRUST.length) continue;
-        const key = `${kind}:${a.subject}`, seen = repeats.get(key) || 0;
-        repeats.set(key, seen + 1);
-        const night = nights && k < nights.length ? nights[k] : 0, net = ACTION_TRUST[kind] - ACTION_SUSPICION[kind];
-        const effect = net < 0 ? EFFECT_ACCUSED : EFFECT_TRUSTED, origin = Math.min(MAX_EFFECT_STRENGTH, div(Math.abs(net), 1 + seen * REPEAT_DECAY_STEP));
-        if (a.subject === ALL_VILLAGERS) { if (origin > 0) for (let i = 0; i < n; i++) result.push({ source: i, target: i, kind, effect, hop: 0, strength: origin, night }); continue; }
-        if (!Number.isInteger(a.subject) || a.subject < 0 || a.subject >= n) continue;
-        if (origin > 0) result.push({ source: a.subject, target: a.subject, kind, effect, hop: 0, strength: origin, night });
-        const visited = new Set([a.subject]);
-        let frontier = [a.subject];
-        for (let hop = 1; hop <= MAX_REPUTATION_HOPS && frontier.length > 0; hop++) {
-          let strength = origin;
-          for (let h = 0; h < hop; h++) strength = div(strength, HOP_DECAY_DIVISOR);
-          const next = [];
-          for (const from of frontier) for (const to of society.linkedTo(from)) {
-            if (visited.has(to)) continue;
-            visited.add(to); next.push(to);
-            const used = perNight.get(night) || 0, give = Math.min(strength, PROPAGATED_CAP_PER_VILLAGER - received[to], PROPAGATED_CAP_PER_NIGHT - used);
-            if (give <= 0) continue;
-            received[to] += give; perNight.set(night, used + give);
-            result.push({ source: a.subject, target: to, kind, effect, hop, strength: give, night });
-          }
-          frontier = next;
-        }
-      }
-      return result;
-    },
+    reputationEffectsAfter(log, nights = null) { return propagate(log, nights, null); },
     corruptionLevel(index, night, dread, ritualStage) {
       if (index < 0 || index >= n || spreadDelay[index] === UNREACHABLE) return 0;
       const nt = Math.max(1, night);
