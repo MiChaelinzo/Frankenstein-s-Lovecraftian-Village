@@ -1283,7 +1283,7 @@ async function main() {
     rec('title: ?intro=0 skips it', await hidden('title'), {});
     await key('?', 'Slash', 191, '?'); await sleep(300);
     const hp = await ev(`[document.getElementById('help').open, document.querySelectorAll('#help .help-group').length, !!document.getElementById('keys'), document.getElementById('helpDevice').textContent]`);
-    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 6 && hp[2] === false && /Last used/.test(hp[3]), { hp });
+    rec('help: ? opens the grouped help dialog and the long keyboard list is gone', hp[0] === true && hp[1] === 7 && hp[2] === false && /Last used/.test(hp[3]), { hp });
     await special('Escape', 27); await sleep(300);
     rec('help: Escape closes the dialog', (await ev(`document.getElementById('help').open`)) === false, {});
 

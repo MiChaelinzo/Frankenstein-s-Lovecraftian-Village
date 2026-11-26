@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 Historical note: test totals and service worker cache names in older entries are snapshots from the round that recorded them. They do not describe the current build. The latest Round 37 verification entry is the current status.
 
+### Round 37 (FEAT-005): closure and verification
+- Spec 178 Unity Runtime wiring remains unbuilt. Runtime has no authoritative owner for the complete memory log, knowledge gains, learned-fact chronicle context or director inputs. A pass-through component would add no real integration, while inferring those values would duplicate gameplay policy. Specs 174 and 177 also remain unbuilt.
+- README, this changelog, `docs/BUILD_LOG.md` and all three `.kiro/specs` files now record the final architecture and verification labels. Service worker cache is `flv-shell-v101`.
+- Verified automated suites: repository validation, 95 Python tool tests, node 928 of 928, Core 540 of 540, UnityCompileCheck 0 warnings and 0 errors. The single full browser run passed 125 of 127 on SwiftShader: one stale six-group help assertion observed the correct seven groups and was updated after the run, while the villager timing check sampled 7 frames instead of its minimum 8 under host load. Browser presentation is Partially Verified. Unity runtime and real GPU remain Unverified.
+
+### Round 37 (FEAT-003 items 4 to 6): one consistent app completed
+- Item 4: the French title, HUD, board, chronicle, journal, settings and villager dialog fit at 100% and 150% browser zoom.
+- Item 5: Horror Intensity, reduced motion, graphics quality, language and contrast persist in one `flv.settings.v1` store and appear in one explained Settings panel. Older keys migrate but are never written.
+- Item 6: `tools/gen_save_fixtures.mjs` checks out the shipped round 26 through 36 commits in temporary worktrees and records one real Chromium session per build. All 11 fixtures load through the current session and settings parsers in `web/test/save-compat.test.js`.
+
 ### Round 37 (FEAT-004): small debts
 - `parseLeaderboard` now rejects a week unless it matches `YYYY-Www`; the otherwise-valid bad-week test failed before the parser fix and now passes.
 - `THEORY_ONLY` clicks both challenge export buttons and verifies the downloaded JSON and text. `EVOLUTION_ONLY` has a live villager conversation and verifies the resulting reputation line in the chronicle.
