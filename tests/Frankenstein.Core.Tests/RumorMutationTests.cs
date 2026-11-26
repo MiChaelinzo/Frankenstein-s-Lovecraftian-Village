@@ -163,6 +163,50 @@ namespace Frankenstein.Core.Tests
         }
 
         [Fact]
+        public void Round37_board_card_chat_and_current_text_tell_the_same_rumor_and_the_true_account_starts_at_tier_3()
+        {
+            var lib = Library();
+            var lore = LoreLibrary.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(DataFile())), "Data", "lore_books.json")));
+            var statements = StatementLibrary.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(DataFile())), "Data", "statements.json")));
+            int compared = 0, withTrue = 0;
+            foreach (int seed in new[] { 1, 42, 1818 })
+            {
+                var state = MythosSimulationTests.Run(seed, MythosSimulationTests.GridInputs(), MythosSimulationTests.Nights, out var soc, out var story);
+                var feed = new MythosFeed { Library = MythosSimulationTests.Library(), State = state, Night = MythosSimulationTests.Nights };
+                var chat = new VillagerChatResult { Available = true, Behavior = VillagerBehavior.Normal, HintId = "village" };
+                foreach (int tier in new[] { 0, lib.TrueTier - 1, lib.TrueTier, KnowledgeLibrary.MaxTier })
+                {
+                    var telling = new RumorTelling { Library = lib, Night = MythosSimulationTests.Nights, KnowledgeTier = tier };
+                    for (int i = 0; i < soc.Roster.Count; i++)
+                        foreach (var line in MythosChat.Lines(soc, feed, story, i, TrustTier.Neutral, MythosSimulationTests.Nights, chat, "en", lib, tier))
+                        {
+                            var ms = MythosRules.Statements(feed).Find(m => m.Id == line.Id);
+                            if (ms == null || ms.Rumor == null || lib.ChainIndex(ms.Rumor.Source, MythosRules.RumorRef(feed, ms.Rumor)) < 0) continue;
+                            var card = new BoardCard { Kind = BoardCardKind.Event, Id = "event:" + ms.Id, Key = ms.Id, Revealed = true };
+                            string title = InvestigationRules.CardTitle(card, story, lore, statements, null, "en", feed, null, telling);
+                            Assert.Equal(line.Text, title);
+                            Assert.Equal(title, MythosRules.CurrentText(feed, story, ms, false, "en", telling));
+                            bool hasTrue = title.Contains(lib.TrueLabel.Get("en"));
+                            Assert.Equal(tier >= lib.TrueTier, hasTrue);
+                            compared++;
+                            if (hasTrue) withTrue++;
+                        }
+                }
+                var first = MythosRules.Statements(feed).Find(m => m.Rumor != null);
+                if (first != null) Assert.Equal(MythosRules.Text(feed, story, first, false, "en"), MythosRules.CurrentText(feed, story, first, false, "en", null));
+            }
+            Assert.True(compared > 0);
+            Assert.True(withTrue > 0);
+        }
+
+        private static string DataFile()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "tools", "validate_repo.py"))) dir = dir.Parent;
+            return Path.Combine(dir.FullName, "Packages", "com.michaelinzo.frankenstein-village", "Data", "rumor-mutations.json");
+        }
+
+        [Fact]
         public void Parse_rejects_malformed_data()
         {
             var good = DataText();

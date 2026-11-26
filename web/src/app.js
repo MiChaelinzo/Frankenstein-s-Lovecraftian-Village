@@ -771,7 +771,7 @@ const board = createBoardController({
   afterRender: (isOpen) => { if (theory) { if (typeof isOpen === 'boolean') theory.setOpen(isOpen); else theory.refresh(); } }, bars: (i) => society.bars(i), knowledgeBonus: () => (theory ? theory.knowledgeBonus() : 0), outcomeLine: (k) => (theory ? theory.outcomeLine(k) : ''), aftermath: () => (theory ? theory.aftermath() : null), memory: () => { const s = currentStory(); return s ? s.roster.map((v) => society.memoryOutcome(v.index)) : null; }, focusables: () => (theory ? theory.focusables() : []), owns: (el) => !!theory && theory.owns(el),
   $, doc: document, tr, lang, state, story: () => currentStory(), lore, keyTarget: window, announce: (text) => announce(text), exitPointerLock: () => document.exitPointerLock?.(), activeElement: () => document.activeElement,
   reduceMotion: () => reduceMotion || document.documentElement.classList.contains('reduced'), corruption: () => { const stages = society.stages(); return stages.length ? stages : null; }, trust: (i) => { const st = society.standing(i); return st ? st.tier : null; }, mythos: () => society.mythosFeed(), mythosKey: () => society.mythosKey(),
-  night: () => state.night + 1, journal: (text) => log('lore', text), witnessTitle: (id, l) => creatures.witnessTitle(id, l),
+  night: () => state.night + 1, rumorMutations: () => society.rumorMutationLibrary(), journal: (text) => log('lore', text), witnessTitle: (id, l) => creatures.witnessTitle(id, l),
   onChange: () => autosave(),
 });
 theory = createTheoryController({

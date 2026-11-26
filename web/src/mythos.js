@@ -436,6 +436,20 @@ export function mythosText(feed, story, s, distorted, lang) {
   }
 }
 
+/**
+ * Round 37 (spec 181): the one source of the current wording of a statement (Core MythosRules.CurrentText). telling is { library, night (1-based), knowledgeTier } or null. A rumor that has a
+ * mutation chain reads as its drifted stage tonight, plus the true account from the knowledge tier gate, whoever tells it; every other statement, and a null telling, reads as mythosText.
+ * Board cards, the chronicle and the chat all call this.
+ */
+export function mythosCurrentText(feed, story, s, distorted, lang, telling = null) {
+  if (telling && telling.library && s.rumor) {
+    const asOf = feed.state.atNight(Math.min(telling.night, feed.night));
+    const drifted = rumorMutationText(telling.library, s.rumor, mythosRumorRef(feed, s.rumor), story.seed, Math.max(0, telling.night - s.night), rumorExposure(asOf), telling.knowledgeTier, lang);
+    if (drifted) return drifted;
+  }
+  return mythosText(feed, story, s, distorted, lang);
+}
+
 /** Extra suspicion (per mille) of each villager after a night: an exposed secret and a cult tie each add. */
 export function suspicionPressure(night, villagers) {
   const pressure = new Array(villagers).fill(0);
@@ -504,6 +518,7 @@ export function mythosChatLines(society, feed, story, graph, index, tier, night1
   if (!society || !feed || !story || !result || !feed.current || index < 0 || index >= society.roster.length) return [];
   if (!result.available || result.behavior !== 0 || result.withheld || tier === TIER_SUSPICIOUS) return [];
   if (!(result.hintId === 'village' || (tier === TIER_TRUSTING && result.hintId))) return [];
+  const telling = mutations ? { library: mutations, night: night1, knowledgeTier } : null;
   const all = mythosStatements(feed), ids = [];
   let rumor = null;
   for (const m of all) if (m.rumor && m.night <= night1 && m.rumor.holders.some((h) => h.villager === index)) rumor = m;
@@ -515,9 +530,7 @@ export function mythosChatLines(society, feed, story, graph, index, tier, night1
   for (const id of ids) {
     const m = all.find((x) => x.id === id);
     if (!m) continue;
-    let text = '';
-    if (mutations && m.rumor && id === m.id) text = rumorMutationText(mutations, m.rumor, mythosRumorRef(feed, m.rumor), story.seed, Math.max(0, night1 - m.night), rumorExposure(feed.state.atNight(Math.min(night1, feed.night))), knowledgeTier, lang);
-    lines.push({ id, text: text || mythosText(feed, story, m, isDistorted(m.rumor, index), lang) });
+    lines.push({ id, text: mythosCurrentText(feed, story, m, isDistorted(m.rumor, index), lang, telling) });
   }
   return lines;
 }

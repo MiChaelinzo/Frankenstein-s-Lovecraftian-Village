@@ -7,7 +7,7 @@ import { EFFECT_ACCUSED } from './society.js';
 import { DISTRICT_IDS } from './districts.js';
 import { parseChronicleLibrary, chronicleProse, summaryProse } from './chronicle-prose.js';
 import { chronicleExportText, exportFileName } from './export-text.js';
-import { mythosStatements, mythosText, isDistorted, nightTickAt } from './mythos.js';
+import { mythosStatements, mythosCurrentText, isDistorted, nightTickAt } from './mythos.js';
 
 /**
  * Pure model of the panel. ctx: { night (1-based), nights, dread (0..1), books (lore library books), readIds (Set of book ids), heard (Map missing id -> highest stage heard), landmarkName(id), mythos? (feed), mythosHeard? (Map statement id -> speaker) }.
@@ -33,9 +33,10 @@ export function chronicleModel(story, lang, ctx) {
     };
   });
   // Round 27: what the village's background simulation has shown the player. Only statements a villager told (ctx.mythosHeard: statement id -> speaker) up to the current night are listed.
+  const mutationLib = ctx.evolution ? ctx.evolution.mutations : null, telling = mutationLib ? { library: mutationLib, night: ctx.night, knowledgeTier: ctx.knowledge ? ctx.knowledge.tier || 0 : 0 } : null; // Round 37 (spec 181)
   const mythos = ctx.mythos ? mythosStatements(ctx.mythos).filter((m) => ctx.mythosHeard && ctx.mythosHeard.has(m.id)).map((m) => {
     const distorted = isDistorted(m.rumor, ctx.mythosHeard.get(m.id));
-    return { id: m.id, kind: m.kind, night: m.night, distorted, text: mythosText(ctx.mythos, story, m, distorted, lang) };
+    return { id: m.id, kind: m.kind, night: m.night, distorted, text: mythosCurrentText(ctx.mythos, story, m, distorted, lang, telling) };
   }) : [];
   // Round 28: the night tick record of the current night, counts only (no secret or omen is named here).
   const tick = ctx.mythos ? nightTickAt(ctx.mythos.state, ctx.mythos.library, ctx.night) : null;
@@ -64,7 +65,7 @@ export function createChronicleController(deps) {
   function ctx() {
     if (heardSeed !== state.seed) { heard.clear(); heardSeed = state.seed; } // a chronicle belongs to one village
     const lib = deps.lore.library();
-    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], reputationOf: deps.reputationOf, prose: proseContext() };
+    return { night: deps.night(), nights: deps.nights(), dread: deps.dread(), books: lib ? lib.books : [], readIds: deps.lore.readIds(), heard, landmarkName: deps.landmarkName, mythos: deps.mythos ? deps.mythos() : null, mythosHeard: deps.mythosHeard ? deps.mythosHeard() : null, knowledge: deps.knowledge ? deps.knowledge() : null, met: deps.met ? deps.met() : null, bars: deps.bars, outcomeLine: deps.outcomeLine, theories: deps.theories ? deps.theories() : [], reputationOf: deps.reputationOf, evolution: deps.evolution ? deps.evolution() : null, prose: proseContext() };
   }
 
   let proseLib = null;

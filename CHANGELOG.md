@@ -9,6 +9,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Golden changes (documented, regenerated): `society` trust and suspicion for all city seeds, and `reputation` gains per seed `trust` and `suspicion` rows. Removed unused `FamilyShare` and `NeighbourShare`. Service worker cache is now `flv-shell-v97`.
 - Verified: dotnet 529, node 883 pass. Unity runtime Unverified.
 
+### Round 37 (FEAT-002 part 1, item 2): one source of current rumor text
+- New `MythosRules.CurrentText` (C#) and `mythosCurrentText` (JS) with a small `RumorTelling` (library, night, knowledge tier): a rumor with a mutation chain reads as its drifted stage tonight and gains the true account at knowledge tier 3, whoever tells it. Board cards (`InvestigationRules.CardTitle` / `cardTitle` with a telling), the chronicle mythos list and `MythosChat` all call it, so the three show identical text. No saved state and no golden data change.
+- Verified: C# test `Round37_board_card_chat_and_current_text_tell_the_same_rumor...`, JS test in `web/test/rumor-mutation.test.js`. Browser view of the board card Unverified until the final section run.
+
 ### Round 36 (FEAT-010): docs, specs and final browser check
 - Docs only: README round 36 section and status rows, this changelog, `docs/BUILD_LOG.md` and `.kiro/specs/tasks.md` (specs 175 and 176 marked built with their gaps; specs 174, 177, 178, 179 and 180 stay unbuilt with refreshed notes: 174 could contradict an epitaph already shown if leads changed the odds; 180 still owns the ending chronicle, minimap reality, the phantom path draw hook and the director dimming hook; 178 Unity Runtime wiring is compile-only).
 - Final browser check result and test counts are in `docs/BUILD_LOG.md`.

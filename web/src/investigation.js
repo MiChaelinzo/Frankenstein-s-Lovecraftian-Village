@@ -7,7 +7,7 @@ import { MINUTES_PER_DAY } from './clock.js';
 import { CLUE_ID_PREFIX } from './lore.js';
 import { findByClue, sourceOfClue } from './places.js';
 import { CORRUPTION_CORRUPTED } from './society.js';
-import { ID_PREFIX as MYTHOS_ID_PREFIX, mythosStatements, mythosText, isDistorted, truthStatementId } from './mythos.js';
+import { ID_PREFIX as MYTHOS_ID_PREFIX, mythosStatements, mythosCurrentText, isDistorted, truthStatementId } from './mythos.js';
 
 export const SOURCE_IDS = ['chat', 'journal', 'lore', 'clue'];
 export const NEEDS_IDS = ['none', 'corrupted_speaker'];
@@ -267,7 +267,7 @@ function addMythos(contradictions, mythos, evidence, corruption, memory, reliabi
 }
 
 /** The text a card shows in a language, from the story's own names (round 24 seeded landmark names through nameLib when given). */
-export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null, places = null, witness = null) {
+export function cardTitle(card, story, lore, statements, nameLib, lang, mythos = null, places = null, witness = null, telling = null) {
   const pick = (t) => (t ? t[lang] || t.en : '');
   switch (card.kind) {
     case CARD_SUSPECT: return story.roster[Number(card.key)].name;
@@ -287,7 +287,7 @@ export function cardTitle(card, story, lore, statements, nameLib, lang, mythos =
       return book ? story.bookTitle(book, lang) : card.key;
     }
     default: {
-      if (mythos && card.key.startsWith(MYTHOS_ID_PREFIX)) { const ms = mythosStatements(mythos).find((x) => x.id === card.key); if (ms) return mythosText(mythos, story, ms, card.invalidated, lang); }
+      if (mythos && card.key.startsWith(MYTHOS_ID_PREFIX)) { const ms = mythosStatements(mythos).find((x) => x.id === card.key); if (ms) return mythosCurrentText(mythos, story, ms, card.invalidated, lang, telling); }
       const s = statements.find(card.key); return s ? pick(s.text) : card.key; }
   }
 }
