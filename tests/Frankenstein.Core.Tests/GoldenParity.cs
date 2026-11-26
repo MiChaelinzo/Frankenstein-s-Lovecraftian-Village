@@ -454,7 +454,7 @@ namespace Frankenstein.Core.Tests
             sb.Append("],\n    \"leaderboard\": ").Append(Q(LeaderboardExport.ToJson(lib, "2026-W46", StreamerChallengeTests.SampleResults()))).Append("\n  }\n");
         }
 
-        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager.</summary>
+        /// <summary>Top level key "directorBeats" (round 36, spec 175): per seed the tracked safe-zone abuse at every step of the director scenario, and per presentation variant (scale, reduced motion) the ambient beats: step, id, cause, volume, brightness, prop, villager. Round 37: \"dim\" rows [scale, reduced, brightness, DimStep every 500 ms from -500 to 13000].</summary>
         private static void AppendDirectorBeats(StringBuilder sb)
         {
             sb.Append("  \"directorBeats\": {\n    \"runs\": [");
@@ -469,7 +469,16 @@ namespace Frankenstein.Core.Tests
                 sb.Append(string.Join(", ", variants.Select(v => "{ \"scale\": " + v.Item1 + ", \"reduced\": " + (v.Item2 ? 1 : 0) + ", \"beats\": [" + BeatVariant(seed, v.Item1, v.Item2, null) + "] }")));
                 sb.Append("] }");
             }
-            sb.Append("\n    ]\n  }\n");
+            sb.Append("\n    ],\n    \"dim\": [");
+            var dim = new List<string>();
+            foreach (var (scale, reduced) in new[] { (1000, false), (1500, false), (500, false), (1000, true) })
+                foreach (int brightness in new[] { 0, -20, -30, -90 })
+                {
+                    var steps = new List<int>();
+                    for (int ms = -500; ms <= 13000; ms += 500) steps.Add(HorrorDirector.DimStep(brightness, ms, new AmbientSettings { IntensityScale = scale, ReducedMotion = reduced }));
+                    dim.Add("[" + scale + ", " + (reduced ? 1 : 0) + ", " + brightness + ", [" + string.Join(", ", steps) + "]]");
+                }
+            sb.Append(string.Join(", ", dim)).Append("]\n  }\n");
         }
 
         private static string BeatVariant(int seed, int scale, bool reduced, List<int> abuse)

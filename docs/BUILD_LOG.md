@@ -480,3 +480,9 @@ Finding: no hotspot. The slowest system (chronicle) is run once per night change
 - Full browser check (`node tools/browser_check.mjs`, local headless Chromium on SwiftShader, one run, about 20 minutes): 126 of 127 passed. The one failure is the indicative villager frame time budget (median 450 ms, 2.4 fps in software GL), which says nothing about real GPUs. Raw log kept outside the repo. Partially Verified (one Chromium build, software GL).
 - Specs: 175 and 176 built; 174, 177, 178, 179, 180 stay unbuilt (174 risks contradicting a shown epitaph; 180 also owns the phantom path draw hook and director dimming hook; 178 is compile-only).
 - Unverified: Unity runtime, real GPU frame rates, audio by ear, the phantom path and dimming step (no hook), export button clicks.
+
+## Round 37 (branch feat/round37): FEAT-002 part 1, items 1 to 3
+- Item 1: `OpinionsAfter` now applies the round 36 hop 1 and 2 effect records (replacing the fixed family and neighbour shares); golden `society` trust and suspicion changed and `reputation` gained opinion rows. Verified by dotnet and node parity tests.
+- Item 2: `MythosRules.CurrentText` / `mythosCurrentText` is the one source of the current rumor wording for board cards, chronicle and chat; true account at tier 3. Verified by C# and JS tests.
+- Item 3: `HorrorDirector.DimStep` applied to the 3D lamp light and a 2D canvas wash; skipped at Gentle and reduced motion. Verified by tests; visible effect Unverified.
+- Suites after item 3: dotnet 531, node 886. Browser sections SOCIETY, MYTHOS, EVOLUTION (board, trust, corruption 2D/3D): 11 of 11 passed. Dimming visibility itself not browser-checked (Unverified).

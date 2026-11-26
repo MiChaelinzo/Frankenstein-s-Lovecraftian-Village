@@ -45,7 +45,7 @@ import { parseNameLibrary, assignNames, landmarkTitle, placeName, nameText } fro
 import { buildCaseFile, caseFileHtml, caseFileName } from './casefile.js';
 import { t, parseLang } from './i18n.js';
 import { createPerf, perfWanted, perfText } from './perf.js';
-import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp, nextSafeZoneAbuse, pickAmbientBeat } from './director.js';
+import { startState as directorStart, freshRun as directorFreshRun, step as directorStep, dreadFromIntensity, presentation as directorLook, ramp as directorRamp, nextSafeZoneTicks, nearLitLamp, nextSafeZoneAbuse, pickAmbientBeat, dimStep } from './director.js';
 import { QUALITY_KEY, resolveQuality, parseQuality, tierFeatures, tierLines, tierSettings } from './quality.js';
 import { createTextures } from './textures.js';
 import { createRenderer } from './draw.js';
@@ -152,6 +152,7 @@ function resetDirector() { experiencedBeats.length = 0; ({ state: directorState,
 // Horror Intensity (spec 165): presentation only, never read by Core ports, saves or goldens.
 let horrorIntensity = 'standard'; // resolved from ?intensity= or storage at startup (initial setIntensity call), once storage exists
 let directorLookNow = directorLook(0, { reduced: reduceMotion, tier: 'medium' });
+let dimBeat = { brightness: 0, at: 0 }, dimNow = 0; // round 37 (spec 175): the latest beat's dimming step and the per mille of light taken off now; presentation only, never saved
 // Stepped from a timer (directorTimer below), never from the 3D getScene callback: rendering only reads directorLookNow.
 /** Director 2.0 (spec 175): the first villager the village remembers (memory outcome other than none), or -1. Deterministic, lowest index first. */
 function rememberedVillagerIndex() { const n = (state.villagers || []).length; for (let i = 0; i < n; i++) if (society.memoryOutcome(i) !== 0) return i; return -1; }
@@ -159,6 +160,7 @@ function rememberedVillagerIndex() { const n = (state.villagers || []).length; f
 function presentAmbientBeat(beat, tick) {
   if (!beat.emitted) return;
   directorBeatTick = tick;
+  if (beat.brightness < 0) dimBeat = { brightness: beat.brightness, at: performance.now() };
   if (!experiencedBeats.some((b) => b.night === state.night + 1 && b.id === beat.id)) experiencedBeats.push({ night: state.night + 1, id: beat.id });
   const line = tr(`director.beat.${beat.id}`);
   state.narrationLine = line; state.narrationAt = performance.now();
@@ -179,7 +181,9 @@ function directorUpdate() {
   directorLevel = directorRamp(directorLevel, dreadFromIntensity(directorState.intensity), directorAt === null ? 0 : (now - directorAt) / 1000); directorAt = now;
   const look = directorLook(directorLevel, { reduced: reduceMotion, tier: quality ? quality.tier : 'medium', scale: INTENSITY_PER_MILLE[horrorIntensity] });
   if (ambient) ambient.setDirectorGain(look.ambienceGain);
-  directorLookNow = look;
+  dimNow = dimStep(dimBeat.brightness, now - dimBeat.at, { scale: INTENSITY_PER_MILLE[horrorIntensity], reduced: reduceMotion }); // 0 at Gentle and under reduced motion
+  directorLookNow = dimNow > 0 ? { ...look, lightGain: look.lightGain * (1 - dimNow / 1000) } : look; // 3D: the lamps carry the dimming
+  if (dimNow > 0 && !view3d.active) dirty = true;
 }
 const DIRECTOR_STEP_MS = 100;
 setInterval(() => { if (!document.hidden) directorUpdate(); }, DIRECTOR_STEP_MS);
@@ -424,6 +428,13 @@ function updateDesc() {
   }, lang) + describeVillageL(state.layout, lang) + describeInvestigatorL(state.investigator, lang) + (currentNight() ? ` ${state.campaign.villageName}, night ${state.night + 1} of ${state.campaign.nights.length}, ${weatherNameL(currentNight().weather, 'en')}.` : '');
 }
 
+/** 2D scene: a flat dark wash of dimNow per mille (at most Core MaxBrightnessStep, 4 percent), eased by the director; never a flash. Drawn in canvas pixels, no DOM style. */
+function paintDimming(permille) {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = `rgba(0,0,0,${(permille / 1000).toFixed(3)})`; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+}
+
 let running = false;
 function frame(now) {
   if (document.hidden || view3d.active) { running = false; perf.reset(); return; }
@@ -438,6 +449,7 @@ function frame(now) {
   dirty = false;
   renderer.drawScene(now, real, dread, tier);
   if (!state.dlnk) vigil.drawLamps(ctx, iso, now);
+  if (dimNow > 0) paintDimming(dimNow);
   tickPerf(now);
   requestAnimationFrame(frame);
 }

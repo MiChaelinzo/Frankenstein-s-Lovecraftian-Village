@@ -10,6 +10,8 @@ export const QUIET_AFTER_OMEN = 10, QUIET_CEILING = 200, SAFE_ZONE_CAP = 120, EN
 export const SANITY_WEIGHT_PERCENT = 30, STRESS_WEIGHT_PERCENT = 20, CULT_WEIGHT_PERCENT = 20, KNOWLEDGE_WEIGHT_PERCENT = 10;
 export const ABUSE_WEIGHT_PERCENT = 20, CAMPING_TICKS = 60, SAFE_ZONE_ABUSE_CAP = 1000, ABUSE_GAIN_PER_STEP = 20, ABUSE_DECAY_PER_STEP = 10;
 export const MIN_BEAT_GAP_TICKS = 45, BEAT_CHANCE_PERCENT = 15, MAX_CUE_VOLUME = 150, MAX_BRIGHTNESS_STEP = 40, GENTLE_SCALE = 500, STANDARD_SCALE = 1000, BEAT_STREAM = 0x1750;
+/** Round 37 (spec 175): a dimming step eases in over DIM_RISE_MS, holds for DIM_HOLD_MS and eases out over DIM_FALL_MS (Core HorrorDirector.DimEnvelope). */
+export const DIM_RISE_MS = 2000, DIM_HOLD_MS = 4000, DIM_FALL_MS = 6000;
 export const NO_BEAT_YET = -2147483648; // C# int.MinValue
 export const ENCOUNTER_WEIGHT = 60, SAFE_ZONE_WEIGHT_PER_TICK = 2, CLUE_RELIEF_PERCENT = 10;
 export const CAUSE_IDS = Object.freeze(['waning_sanity', 'mounting_stress', 'cult_exposure', 'creature_sighting', 'nightfall', 'forbidden_knowledge', 'safe_zone_abuse', 'omen_passed']);
@@ -133,6 +135,25 @@ export function pickAmbientBeat(seed, state, x, lastBeatTick, { scale = STANDARD
     prop: pick.prop && !reduced,
     villager: pick.needsVillager ? num(x.rememberedVillager) - 1 : -1,
   };
+}
+
+/** The 0..1000 shape of a dimming step elapsedMs after its beat: linear rise, hold, linear fall, 0 before and after. Mirror of Core HorrorDirector.DimEnvelope (integer math). */
+export function dimEnvelope(elapsedMs) {
+  const ms = Math.trunc(Number.isFinite(elapsedMs) ? elapsedMs : 0);
+  if (ms <= 0) return 0;
+  if (ms < DIM_RISE_MS) return Math.trunc(ms * 1000 / DIM_RISE_MS);
+  if (ms < DIM_RISE_MS + DIM_HOLD_MS) return 1000;
+  const fall = ms - DIM_RISE_MS - DIM_HOLD_MS;
+  return fall >= DIM_FALL_MS ? 0 : Math.trunc((DIM_FALL_MS - fall) * 1000 / DIM_FALL_MS);
+}
+
+/**
+ * Round 37 (spec 175): how much light to take off right now, per mille, 0..MAX_BRIGHTNESS_STEP, for a beat with the given brightness (0 or negative) that began elapsedMs ago.
+ * Always 0 at gentle intensity (scale 500 or less) and under reduced motion, whatever the beat says. Mirror of Core HorrorDirector.DimStep. The scene multiplies its light by 1 - dimStep / 1000.
+ */
+export function dimStep(brightness, elapsedMs, { scale = STANDARD_SCALE, reduced = false } = {}) {
+  if (reduced || num(scale) <= GENTLE_SCALE || num(brightness) >= 0) return 0;
+  return Math.trunc(Math.min(MAX_BRIGHTNESS_STEP, -num(brightness)) * dimEnvelope(elapsedMs) / 1000);
 }
 
 /** Moves the smoothed level toward the wanted one by at most RAMP_PER_SECOND * dtSec. Reduced motion still ramps (nothing flashes); a huge dt cannot jump further than the cap allows. */
