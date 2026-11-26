@@ -1973,7 +1973,7 @@ namespace Frankenstein.Core.Tests
         private static void AppendContent(StringBuilder sb)
         {
             var lib = ContentLibraryTests.Library();
-            var queries = new[] { new[] { "25", "black_tide" }, new[] { "25", "tide_wrong" }, new[] { "24", "black_tide" }, new[] { "25", "" } };
+            var queries = new[] { new[] { "3", "stars_wrong" }, new[] { "3", "tide_wrong" }, new[] { "2", "stars_wrong" }, new[] { "3", "" } };
             sb.Append("  \"content\": {\n    \"items\": [").Append(string.Join(", ", ContentLibraryTests.Signature(lib).Select(Q))).Append("],\n    \"events\": [");
             sb.Append(string.Join(", ", queries.Select(q => "[" + q[0] + ", " + Q(q[1]) + ", " + Q(string.Join(",", lib.EventsFor(int.Parse(q[0]), q[1]).Select(e => e.Id))) + "]")));
             sb.Append("]\n  }\n");

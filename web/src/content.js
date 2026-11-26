@@ -3,6 +3,8 @@
 // References to real theory, statement and omen ids are checked by tools/content_schemas.py; this loader checks the shape the game relies on and throws naming the file, the item and the field.
 export const CONTENT_LANGUAGES = ['en', 'fr'];
 export const MIN_NIGHT = 1, MAX_NIGHT = 99;
+const EVENT_EFFECT_KEYS = ['dread', 'sanity'];
+const EVENT_EFFECT_LIMIT = 100;
 
 const root = (input, key) => {
   if (input === null || input === undefined || (typeof input === 'string' && !input.trim())) return [];
@@ -55,7 +57,11 @@ export function parseContentLibrary(questsInput, rumorsInput, eventsInput) {
     if (!Number.isInteger(o.night) || o.night < MIN_NIGHT || o.night > MAX_NIGHT) throw new Error(`${p}: field 'night': must be an integer ${MIN_NIGHT}..${MAX_NIGHT}`);
     if (typeof o.condition !== 'string' || !o.condition) throw new Error(`${p}: field 'condition': missing`);
     const effects = {};
-    for (const [k, v] of Object.entries(o.effects || {})) { if (!Number.isInteger(v)) throw new Error(`${p}: field 'effects.${k}': must be an integer`); effects[k] = v; }
+    for (const [k, v] of Object.entries(o.effects || {})) {
+      if (!EVENT_EFFECT_KEYS.includes(k)) throw new Error(`${p}: field 'effects.${k}': unknown effect (allowed: ${EVENT_EFFECT_KEYS.join(', ')})`);
+      if (!Number.isInteger(v) || Math.abs(v) > EVENT_EFFECT_LIMIT) throw new Error(`${p}: field 'effects.${k}': must be an integer within +-${EVENT_EFFECT_LIMIT}`);
+      effects[k] = v;
+    }
     return { id, night: o.night, condition: o.condition, text: text(o.text, `${p}: field 'text`), effects };
   });
   return { quests, rumors, events };

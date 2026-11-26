@@ -37,8 +37,8 @@ namespace Frankenstein.Core.Tests
             Assert.True(lib.Rumors.Single().Truth);
             Assert.Equal(3, lib.Rumors[0].Mutations.Count);
             var e = lib.Events.Single();
-            Assert.Equal(25, e.Night);
-            Assert.Equal("black_tide", e.Condition);
+            Assert.Equal(3, e.Night);
+            Assert.Equal("stars_wrong", e.Condition);
             Assert.Equal(5, e.Effects["dread"]);
             Assert.Equal(Signature(lib), Signature(Library()));
         }
@@ -47,10 +47,10 @@ namespace Frankenstein.Core.Tests
         public void EventsAreToldOnTheirNightAndOmenOnly()
         {
             var lib = Library();
-            Assert.Single(lib.EventsFor(25, "black_tide"));
-            Assert.Empty(lib.EventsFor(24, "black_tide"));
-            Assert.Empty(lib.EventsFor(25, "tide_wrong"));
-            Assert.Empty(lib.EventsFor(25, ""));
+            Assert.Single(lib.EventsFor(3, "stars_wrong"));
+            Assert.Empty(lib.EventsFor(2, "stars_wrong"));
+            Assert.Empty(lib.EventsFor(3, "tide_wrong"));
+            Assert.Empty(lib.EventsFor(3, ""));
         }
 
         [Fact]
@@ -67,6 +67,10 @@ namespace Frankenstein.Core.Tests
         [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 0, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" } } ] }", "event 'a': field 'night'")]
         [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\" } } ] }", "event 'a': field 'text.fr': missing or empty")]
         [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" } }, { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" } } ] }", "duplicate id")]
+        [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" }, \"effects\": { \"dread\": 1.5 } } ] }", "field 'effects.dread': must be an integer within +-100")]
+        [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" }, \"effects\": { \"dread\": 101 } } ] }", "field 'effects.dread': must be an integer within +-100")]
+        [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" }, \"effects\": { \"sanity\": -101 } } ] }", "field 'effects.sanity': must be an integer within +-100")]
+        [InlineData("{ \"version\": 1, \"events\": [ { \"id\": \"a\", \"night\": 3, \"condition\": \"x\", \"text\": { \"en\": \"a\", \"fr\": \"b\" }, \"effects\": { \"gold\": 1 } } ] }", "field 'effects.gold': unknown effect")]
         public void MalformedEventsNameTheFileItemAndField(string json, string expected)
         {
             var ex = Assert.Throws<FormatException>(() => ContentLibrary.Parse(null, null, json));

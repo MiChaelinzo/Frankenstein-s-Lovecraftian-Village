@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 Historical note: test totals and service worker cache names in older entries are snapshots from the round that recorded them. They do not describe the current build. The latest Round 37 verification entry is the current status.
 
+### Round 37: blocking cohesion fixes
+- Legacy `flv.intensity.v1`, `flv.contrast.v1` and `flv-quality` choices now migrate into `flv.settings.v1` during the first read. The unified record survives after the old keys are removed. `SETTINGS_ONLY` passes 5 of 5 browser checks.
+- Startup and the Load button share one controller restoration path, including lore. Every round 26 through 36 fixture is restored by the live app and saved through current controller snapshots. `SAVE_COMPAT_ONLY` passes 12 of 12 browser checks.
+- The checked-in authored event is now `wrong_stars_night_3`, matching the deterministic `stars_wrong` omen in night 3 of the five-night seed 1818 campaign. `AUTHORED_ONLY` passes 3 of 3 browser checks in English and French.
+- Core and JavaScript now reject unknown event effect keys, fractions and values outside -100 through 100 under the same rule. Service worker cache is `flv-shell-v102`.
+- Verified automated suites after the blocking fixes: repository validation, all Python tool tests, node 930 of 930, Core 544 of 544, UnityCompileCheck 0 warnings and 0 errors. The focused SwiftShader browser sections passed: settings 5 of 5, historical saves 12 of 12, and authored content 3 of 3.
+
 ### Round 37 (FEAT-005): closure and verification
 - Spec 178 Unity Runtime wiring remains unbuilt. Runtime has no authoritative owner for the complete memory log, knowledge gains, learned-fact chronicle context or director inputs. A pass-through component would add no real integration, while inferring those values would duplicate gameplay policy. Specs 174 and 177 also remain unbuilt.
 - README, this changelog, `docs/BUILD_LOG.md` and all three `.kiro/specs` files now record the final architecture and verification labels. Service worker cache is `flv-shell-v101`.

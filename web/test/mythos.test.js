@@ -282,18 +282,17 @@ test('night ticks carry the leader events of each night', () => {
 import { parseContentLibrary } from '../src/content.js';
 import { nightTickAt as tickAt, omenId as omenKey } from '../src/mythos.js';
 
-test('the chronicle lists an authored event only on its night, for its omen, once the omen was heard', () => {
-  const w = worldOf(1818), feed = buildMythosFeed(mythos, run(w), golden.nights);
-  const night = [...Array(golden.nights).keys()].map((i) => i + 1).find((n) => tickAt(feed.state, feed.library, n).newOmen);
-  assert.ok(night, 'the golden run has an omen night');
-  const omen = tickAt(feed.state, feed.library, night).newOmen;
-  const ev = (n, condition) => JSON.stringify({ version: 1, events: [{ id: 'e1', night: n, condition, text: { en: 'It was told.', fr: 'On le raconta.' } }] });
-  const base = { night: golden.nights, nights: golden.nights, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
+test('the checked-in authored event is reachable in the five-night campaign and requires its heard omen', () => {
+  const campaignNights = 5, w = worldOf(1818), feed = buildMythosFeed(mythos, run(w, campaignNights), campaignNights);
+  const night = 3, omen = tickAt(feed.state, feed.library, night).newOmen;
+  assert.equal(omen, 'stars_wrong', 'seed 1818 reaches the authored omen during the campaign');
+  const checkedIn = parseContentLibrary(null, null, text('content/events.json'));
+  const base = { night: campaignNights, nights: campaignNights, dread: 0.5, books: [], readIds: new Set(), heard: new Map(), landmarkName: () => '', mythos: feed };
   const heard = new Map([[omenKey(night), 0]]);
-  const list = (content, mythosHeard) => chronicleModel(w.story, 'en', { ...base, content: parseContentLibrary(null, null, content), mythosHeard }).authored;
-  assert.deepEqual(list(ev(night, omen), heard), [{ id: 'e1', night, text: 'It was told.' }]);
-  assert.deepEqual(list(ev(night, omen), new Map()), [], 'not heard, not told');
-  assert.deepEqual(list(ev(night, 'no_such_omen'), heard), [], 'another omen');
-  assert.deepEqual(list(ev(night + 1 > golden.nights ? 99 : night + 1, omen), heard), [], 'another night');
+  const list = (content, mythosHeard) => chronicleModel(w.story, 'en', { ...base, content, mythosHeard }).authored;
+  assert.deepEqual(list(checkedIn, heard), [{ id: 'wrong_stars_night_3', night, text: 'On the third night the constellations turn toward the village, though the clouds do not move.' }]);
+  assert.deepEqual(list(checkedIn, new Map()), [], 'not heard, not told');
+  const wrong = JSON.stringify({ version: 1, events: [{ id: 'wrong', night, condition: 'black_tide', text: { en: 'Wrong.', fr: 'Faux.' } }] });
+  assert.deepEqual(list(parseContentLibrary(null, null, wrong), heard), [], 'another omen');
   assert.deepEqual(chronicleModel(w.story, 'en', { ...base, mythosHeard: heard }).authored, [], 'no content, no events');
 });

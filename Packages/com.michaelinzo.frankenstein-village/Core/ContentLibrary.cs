@@ -37,6 +37,9 @@ namespace Frankenstein.Core
     /// </summary>
     public sealed class ContentLibrary
     {
+        private const int EffectLimit = 100;
+        private static readonly HashSet<string> EffectKeys = new HashSet<string> { "dread", "sanity" };
+
         public List<ContentQuest> Quests = new List<ContentQuest>();
         public List<ContentRumor> Rumors = new List<ContentRumor>();
         public List<ContentEvent> Events = new List<ContentEvent>();
@@ -86,7 +89,9 @@ namespace Frankenstein.Core
                 if (fx != null)
                     foreach (var kv in fx)
                     {
-                        if (!(kv.Value is double)) throw new FormatException(p + ": field 'effects." + kv.Key + "': must be an integer");
+                        string field = p + ": field 'effects." + kv.Key + "'";
+                        if (!EffectKeys.Contains(kv.Key)) throw new FormatException(field + ": unknown effect (allowed: dread, sanity)");
+                        if (!(kv.Value is double) || (double)kv.Value != Math.Floor((double)kv.Value) || Math.Abs((double)kv.Value) > EffectLimit) throw new FormatException(field + ": must be an integer within +-" + EffectLimit);
                         e.Effects[kv.Key] = (int)(double)kv.Value;
                     }
                 lib.Events.Add(e);

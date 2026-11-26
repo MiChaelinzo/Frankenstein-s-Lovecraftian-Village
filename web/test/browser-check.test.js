@@ -41,3 +41,9 @@ test('round 37 browser_check has the French layout pass at 100% and 150% for eve
   const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
   for (const needle of ['FRLAYOUT_ONLY', 'FRLAYOUT_SHOT_DIR', 'fr layout ${label}: the title card fits', 'the HUD (objective and stats) fits', 'the board fits', 'the chronicle fits', 'the journal (side panel and page) fits', 'the settings (help dialog) fit', 'the villager dialog fits', 'deviceScaleFactor: zoom']) assert.ok(src.includes(needle), needle);
 });
+
+test('round 37 browser_check restores historical saves and shows reachable authored content', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../tools/browser_check.mjs', import.meta.url), 'utf8');
+  for (const needle of ['SAVE_COMPAT_ONLY', 'restores through live controllers and saves every subsystem', 'AUTHORED_ONLY', 'reachable night 3 event appears in the live chronicle', 'legacy-only choices migrate at startup']) assert.ok(src.includes(needle), needle);
+});

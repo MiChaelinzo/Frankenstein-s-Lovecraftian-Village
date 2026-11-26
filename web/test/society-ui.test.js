@@ -245,7 +245,7 @@ test('index.html declares the trust line and the board card shows trust with ari
 
 test('app.js wires the society into the board, villagers, session, doors, wards and the watcher', () => {
   const app = readFileSync(join(root, 'web', 'src', 'app.js'), 'utf8');
-  for (const needle of ['createSocietyController(', 'society.stages()', 'trust: (i)', 'stageOf: (i) => society.stageOf(i)', 'standing: (i) => society.standing(i)', '...society.snapshot()', 'society.restore(v)', 'society.restore(saved)', 'society.noteDoor(', 'onWard:', 'society.watch(', "data/statements.json", 'society.setStatements(']) assert.ok(app.includes(needle), needle);
+  for (const needle of ['createSocietyController(', 'society.stages()', 'trust: (i)', 'stageOf: (i) => society.stageOf(i)', 'standing: (i) => society.standing(i)', '...society.snapshot()', 'society.restore(v)', 'restoreSessionControllers(saved)', 'society.noteDoor(', 'onWard:', 'society.watch(', "data/statements.json", 'society.setStatements(']) assert.ok(app.includes(needle), needle);
   assert.ok(!app.includes('corruption: () => null'), 'the placeholder is gone');
 });
 

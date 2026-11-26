@@ -507,3 +507,11 @@ Finding: no hotspot. The slowest system (chronicle) is run once per night change
 - Final automated verification: `tools/validate_repo.py` passed; 95 Python tool tests passed; node 928 of 928 passed; Core 540 of 540 passed; UnityCompileCheck built with 0 warnings and 0 errors. Service worker cache is `flv-shell-v101`.
 - The single final unfiltered browser run produced 125 of 127 passes on headless Chromium with SwiftShader. One failure was a stale help assertion expecting six groups after the Settings work had correctly added a seventh; the recorded evidence was `[open, 7 groups, no old key list, device text]`, and the assertion was corrected after the run without repeating the full run. The other failure was the indicative villager frame budget under host load: 7 frames, mean 220.9 ms, median 16.7 ms, p95 and max 1200 ms, below the check's minimum sample count of 8. All functional villager checks passed, and the run reported no uncaught exception or console error.
 - Verification labels: Core, JS, save compatibility, repository validation and Python tools are Verified. SwiftShader browser presentation and UnityCompileCheck are Partially Verified. Unity runtime, real GPU performance, audio by ear and other browsers remain Unverified.
+
+## Round 37: blocking cohesion fixes
+- Legacy settings migrate into `flv.settings.v1` at first read. Removing the old keys after migration preserves intensity, contrast and quality. `SETTINGS_ONLY` passed 5 of 5.
+- Session startup and the Load button now share one controller restore path, including lore. `SAVE_COMPAT_ONLY` restored all 11 historical fixtures and saved every field present in each fixture through current controller snapshots, passing 12 of 12.
+- `wrong_stars_night_3` matches the `stars_wrong` omen reached on night 3 of the five-night seed 1818 campaign. `AUTHORED_ONLY` displayed it in English and French and passed 3 of 3.
+- Core, JavaScript and the schema validator now share one event effect rule: only `dread` and `sanity`, integer values from -100 through 100. Fractions, unknown keys and out-of-range values fail with field-specific errors.
+- Service worker cache `flv-shell-v102`.
+- Full verification after these fixes: node 930 of 930, Core 544 of 544, all Python tool tests, repository validation, and UnityCompileCheck with 0 warnings and 0 errors.

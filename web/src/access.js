@@ -39,11 +39,13 @@ export function sanitizeSettings(raw) {
   return { intensity: intensityOf(o.intensity), motion: pick(SETTINGS_MOTION, o.motion, 'auto'), quality: pick(SETTINGS_QUALITY, o.quality, 'auto'), lang: pick(SETTINGS_LANGS, o.lang, 'en'), contrast: o.contrast === true };
 }
 const readKey = (storage, key) => { try { return storage ? storage.getItem(key) : null; } catch { return null; } };
-/** The stored settings. A missing store migrates the three older keys; unparseable JSON gives the defaults. */
+/** The stored settings. A missing store migrates the three older keys into the unified store; unparseable JSON gives the defaults. */
 export function loadSettings(storage) {
   const text = readKey(storage, SETTINGS_KEY);
   if (text !== null) { try { return sanitizeSettings(JSON.parse(text)); } catch { return sanitizeSettings(null); } }
-  return sanitizeSettings({ intensity: readKey(storage, LEGACY_INTENSITY_KEY), quality: readKey(storage, LEGACY_QUALITY_KEY), contrast: readKey(storage, LEGACY_CONTRAST_KEY) === '1' });
+  const migrated = sanitizeSettings({ intensity: readKey(storage, LEGACY_INTENSITY_KEY), quality: readKey(storage, LEGACY_QUALITY_KEY), contrast: readKey(storage, LEGACY_CONTRAST_KEY) === '1' });
+  saveSettings(storage, migrated);
+  return migrated;
 }
 export function saveSettings(storage, settings) { try { storage?.setItem(SETTINGS_KEY, JSON.stringify(sanitizeSettings(settings))); return !!storage; } catch { return false; } }
 /** Changes some settings and keeps the rest. Returns the settings now in force (saved when the storage allows). */

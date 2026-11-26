@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, SETTINGS_ONLY, FRLAYOUT_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, SETTINGS_ONLY, SAVE_COMPAT_ONLY, AUTHORED_ONLY, FRLAYOUT_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -638,7 +638,17 @@ async function main() {
   /** Settings coherence (round 37, FEAT-003 item 5; SETTINGS_ONLY=1 runs only this): the one Settings section of the Help dialog edits intensity, motion, quality, language and contrast, they persist together in flv.settings.v1, a reload applies them with no URL parameters, and the old per-setting keys are not written. Partially Verified (SwiftShader). */
   const settingsRun = async () => {
     await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`location.protocol==='http:'`), 20000);
+    await ev(`localStorage.clear();localStorage.setItem('flv.intensity.v1','dread');localStorage.setItem('flv.contrast.v1','1');localStorage.setItem('flv-quality','medium')`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`!!localStorage.getItem('flv.settings.v1')`), 20000);
+    const migrated = await ev(`({stored:JSON.parse(localStorage.getItem('flv.settings.v1')),intensity:document.getElementById('settingsIntensity').value,quality:document.getElementById('qualitySelect').value,contrast:document.getElementById('settingsContrast').checked})`);
+    await ev(`localStorage.removeItem('flv.intensity.v1');localStorage.removeItem('flv.contrast.v1');localStorage.removeItem('flv-quality')`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`document.getElementById('settingsIntensity')?.value==='dread'`), 20000);
+    const reloaded = await ev(`({stored:JSON.parse(localStorage.getItem('flv.settings.v1')),intensity:document.getElementById('settingsIntensity').value,quality:document.getElementById('qualitySelect').value,contrast:document.getElementById('settingsContrast').checked})`);
+    rec('settings: legacy-only choices migrate at startup and survive after the old keys are removed', migrated.stored.intensity === 'dread' && migrated.stored.quality === 'medium' && migrated.stored.contrast === true && migrated.intensity === 'dread' && migrated.quality === 'medium' && migrated.contrast && JSON.stringify(reloaded) === JSON.stringify(migrated), { migrated, reloaded });
     await ev(`localStorage.clear()`);
+    await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
     await nav('?intro=0&capture=0#seed=1818&sanity=80'); await until(() => ev(`!!document.getElementById('settingsPanel')`), 20000);
     await ev(`document.getElementById('helpBtn').click()`); await sleep(400);
     const set = (id, v) => ev(`(()=>{const e=document.getElementById('${id}');if(e.type==='checkbox')e.checked=${v === true};else e.value=${JSON.stringify(v)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);
@@ -656,6 +666,38 @@ async function main() {
     const over = await ev(`({lang:document.documentElement.lang,intensity:document.getElementById('settingsIntensity').value,stored:JSON.parse(localStorage.getItem('flv.settings.v1')).lang})`);
     rec('settings: a URL parameter wins for one visit and does not rewrite the stored choice', over.lang === 'en' && over.intensity === 'gentle' && over.stored === 'fr', over);
     await ev(`localStorage.removeItem('flv.settings.v1')`);
+  };
+
+  /** Historical save compatibility (round 37; SAVE_COMPAT_ONLY=1): each real fixture is restored by the live app controllers and saved back through currentSession. */
+  const saveCompatRun = async () => {
+    const fields = ['codex', 'ach', 'lore', 'inv', 'hs', 'board', 'society', 'memory', 'theories', 'glimpse', 'vigil'];
+    for (let round = 26; round <= 36; round++) {
+      const fixture = JSON.parse(readFileSync(new URL(`../web/test/fixtures/saves/round-${round}.json`, import.meta.url), 'utf8'));
+      await nav('?intro=0&capture=1#seed=1'); await until(() => ev(`location.protocol==='http:'`), 20000);
+      await ev(`(()=>{localStorage.clear();const values=${JSON.stringify(fixture.storage)};for(const [key,value] of Object.entries(values))localStorage.setItem(key,value)})()`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`document.getElementById('seed')?.value==='1818'&&document.getElementById('loading')?.hidden===true&&!!localStorage.getItem('flv.settings.v1')`), 60000); await sleep(900);
+      await ev(`document.getElementById('saveSession').click()`);
+      const restored = await ev(`(async()=>{const m=await import('./src/session.js');const recorded=JSON.parse(${JSON.stringify(fixture.storage['flv.session.v1'])});const expected=m.parseSession(recorded);const actual=m.loadSession(localStorage);const fields=${JSON.stringify(fields)}.filter((field)=>Object.hasOwn(recorded,field));return {lost:fields.filter((field)=>JSON.stringify(actual[field])!==JSON.stringify(expected[field])).map((field)=>({field,expected:expected[field],actual:actual[field]})),settings:JSON.parse(localStorage.getItem('flv.settings.v1')||'null'),seed:actual.seed,night:actual.night,sanity:actual.sanity}})()`);
+      rec(`save compatibility: round ${round} restores through live controllers and saves every subsystem`, restored.seed === 1818 && restored.night === 2 && restored.lost.length === 0 && !!restored.settings, restored);
+    }
+  };
+
+  /** Authored event integration (round 37; AUTHORED_ONLY=1): the shipped night 3 event appears in the live chronicle after its omen is heard. */
+  const authoredRun = async () => {
+    const session = { seed: 1818, sanity: 40, night: 2, board: 'bd1;;;0:mythos.omen.3:3' };
+    const expected = {
+      en: 'On the third night the constellations turn toward the village, though the clouds do not move.',
+      fr: 'La troisieme nuit, les constellations se tournent vers le village, bien que les nuages ne bougent pas.',
+    };
+    for (const lang of ['en', 'fr']) {
+      await nav('?intro=0&capture=1#seed=1'); await until(() => ev(`location.protocol==='http:'`), 20000);
+      await ev(`localStorage.clear();localStorage.setItem('flv.session.v1',${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(`?intro=0&capture=1&chronicle=1&lang=${lang}`);
+      const event = await until(() => ev(`(()=>{const e=document.querySelector('#chronicleAuthored [data-event="wrong_stars_night_3"]');return e?{text:e.querySelector('p')?.textContent||'',night:e.querySelector('strong')?.textContent||'',hash:location.hash}:null})()`), 30000);
+      rec(`authored content: reachable night 3 event appears in the live chronicle (${lang})`, !!event && event.text === expected[lang] && /night=3/.test(event.hash), event || {});
+    }
   };
 
   /** Seed sharing (round 34, spec 172): the title shows the village seed code and today's challenge code, a wrong code gives a readable error and keeps the seed, a right code (any case) opens that village, the chronicle shows the same code and its export buttons exist. Presentation only, SwiftShader, Partially Verified. SEED_ONLY=1 runs only this. */
@@ -921,6 +963,8 @@ async function main() {
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
     if (process.env.SETTINGS_ONLY) { await settingsRun(); break suite; }
+    if (process.env.SAVE_COMPAT_ONLY) { await saveCompatRun(); break suite; }
+    if (process.env.AUTHORED_ONLY) { await authoredRun(); break suite; }
     if (process.env.FRLAYOUT_ONLY) { await frLayoutRun(); break suite; }
     if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }

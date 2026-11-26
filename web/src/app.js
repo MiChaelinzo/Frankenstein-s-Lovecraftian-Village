@@ -498,6 +498,11 @@ function currentSession() {
   return { seed: state.seed, sanity: Math.round(state.sanity.value), night: state.night, beat, theme: state.theme, cam: state.camChoice, floor: state.floor, stage: state.ritualStage, vigil: vigil.serialize(), ...progress.snapshot(), ...lore.snapshot(), ...inventory.snapshot(), ...homestead.snapshot(), ...board.snapshot(), ...society.snapshot(), ...theory.snapshot(), ...creatures.snapshot() };
 }
 function autosave() { if (!pack.want && state.live) saveSession(storage, currentSession()); }
+function restoreSessionControllers(v) {
+  progress.restore(v.seed === state.seed ? v : { ach: v.ach });
+  if (v.seed !== state.seed) return;
+  vigil.restore(v.vigil); lore.restore(v); inventory.restore(v); homestead.restore(v); board.restore(v); society.restore(v); theory.restore(v); creatures.restore(v);
+}
 function sessionNote(key) { $('sessionNote').textContent = tr(key); announce(tr(key)); }
 function applySession(s) {
   const v = parseSession(s); if (!v) return;
@@ -505,8 +510,7 @@ function applySession(s) {
   history.replaceState(null, '', sessionHash(v));
   applyHash();
   state.ritualStage = Math.max(state.ritualStage, Math.min(v.stage, state.ritual.stages.length - 1));
-  progress.restore(v); progress.update();
-  if (v.seed === state.seed) { vigil.restore(v.vigil); inventory.restore(v); homestead.restore(v); board.restore(v); society.restore(v); theory.restore(v); creatures.restore(v); }
+  restoreSessionControllers(v); progress.update();
   if (story.on && v.beat > 0) showBeat(nightStartIndex(storyBeats(), state.night + 1) + Math.min(v.beat, storyBeats().length - 1));
 }
 function drawMinimap() {
@@ -1249,7 +1253,7 @@ function foldGroupsOnNarrow() {
   const saved = pack.want ? null : loadSession(storage);
   const resumed = resumeIfBare();
   applyHash();
-  if (saved) { progress.restore(saved.seed === state.seed ? saved : { ach: saved.ach }); if (saved.seed === state.seed) { vigil.restore(saved.vigil); lore.restore(saved); inventory.restore(saved); homestead.restore(saved); board.restore(saved); society.restore(saved); theory.restore(saved); creatures.restore(saved); } } // before pushHash, whose autosave would overwrite the stored codex/ach
+  if (saved) restoreSessionControllers(saved); // before pushHash, whose autosave would overwrite the stored controller snapshots
   pushHash(); start();
   if (daily) noteDaily(daily);
   if (resumed) $('sessionNote').textContent = `${tr('msg.loaded')} ${tr('msg.resumed')}`;

@@ -27,12 +27,20 @@ test('settings: all five persist together in one key and round trip', () => {
   assert.equal(saveSettings({ setItem() { throw new Error('full'); } }, all), false);
 });
 
-test('settings: the older separate keys migrate once and are never written again', () => {
+test('settings: the older separate keys migrate once and preserve choices without the old keys', () => {
   const s = memory({ 'flv.intensity.v1': 'dread', 'flv.contrast.v1': '1', 'flv-quality': 'medium' });
-  assert.deepEqual(loadSettings(s), { ...DEFAULT_SETTINGS, intensity: 'dread', contrast: true, quality: 'medium' });
-  updateSettings(s, { lang: 'fr' });
-  assert.equal(s.getItem('flv.intensity.v1'), 'dread');
-  assert.deepEqual(loadSettings(s), { ...DEFAULT_SETTINGS, intensity: 'dread', contrast: true, quality: 'medium', lang: 'fr' });
+  const migrated = { ...DEFAULT_SETTINGS, intensity: 'dread', contrast: true, quality: 'medium' };
+  assert.deepEqual(loadSettings(s), migrated);
+  assert.deepEqual(JSON.parse(s.getItem(SETTINGS_KEY)), migrated, 'the first legacy read creates the unified record');
+  for (const key of ['flv.intensity.v1', 'flv.contrast.v1', 'flv-quality']) s.m.delete(key);
+  assert.deepEqual(loadSettings(s), migrated, 'the unified record survives after legacy keys are removed');
+  assert.deepEqual([...s.m.keys()], [SETTINGS_KEY]);
+});
+
+test('settings: invalid legacy choices become defaults in the migrated record', () => {
+  const s = memory({ 'flv.intensity.v1': 'panic', 'flv.contrast.v1': 'yes', 'flv-quality': 'ultra' });
+  assert.deepEqual(loadSettings(s), DEFAULT_SETTINGS);
+  assert.deepEqual(JSON.parse(s.getItem(SETTINGS_KEY)), DEFAULT_SETTINGS);
 });
 
 test('settings apply: URL beats stored beats default for every setting, reduced motion follows the OS, the store or the URL', () => {
