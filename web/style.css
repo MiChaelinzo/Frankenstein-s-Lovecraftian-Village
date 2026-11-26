@@ -383,7 +383,7 @@ html.hc .villager-dialog { background: #000; border: 2px solid #ffffff; }
 .view-setting { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .88rem; }
 .view-setting input { flex: 1; min-width: 80px; }
 .view-setting output { min-width: 4.5em; text-align: right; color: var(--dim); }
-.quality-out { margin: 2px 0 6px; font-size: .8rem; color: var(--dim); }
+.quality-out, .about p.quality-out { margin: 2px 0 6px; font-size: .8rem; color: var(--dim); }
 
 /* ---------- round 33 Victorian reskin (spec 165): extends the round 29 layer above. Aged paper, maritime brass, dark wood and ink annotations.
    CSS gradients only (no images, no fonts, no inline styles, CSP unchanged). Every colour pair used for text is checked in web/test/victorian-theme.test.js (4.5:1 minimum). ---------- */

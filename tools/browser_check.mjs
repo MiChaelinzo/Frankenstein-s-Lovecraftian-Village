@@ -3,7 +3,7 @@
 // (Node 22 global WebSocket, no dependencies) and prints PASS/FAIL lines with evidence.
 // Usage: python3 -m http.server 8123 -d web &   node tools/browser_check.mjs
 // Env: CHROME (browser binary), BASE (default http://127.0.0.1:8123/), CDP_PORT (default 9333).
-// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
+// Section filters: TIMING_ONLY, TIER_ONLY, LIGHTHOUSE_ONLY, LOOK_ONLY, QUALITY_ONLY, SKY_ONLY, CINEMA_ONLY, DISTRICT_ONLY, LANDMARK_ONLY, NAMES_ONLY, NARRATIVE_ONLY, MEMORY_ONLY, VILLAGER_ONLY, COLLISION_ONLY, INVENTORY_ONLY, CREATURES_ONLY, HOMESTEAD_ONLY, SOCIETY_ONLY, MYTHOS_ONLY, THEORY_ONLY, PLACES_ONLY, TIERS_ONLY, FRLAYOUT_ONLY, VICTORIAN_ONLY, REALITY_ONLY, INTENSITY_ONLY, SEED_ONLY, EVOLUTION_ONLY; PROBE_URLS="q1|q2" (with PROBE_DIR) only saves screenshots.
 // Frame timing uses requestAnimationFrame timestamps in real time (no virtual-time budget) on SwiftShader
 // software GL, so it is indicative only and says nothing about real GPUs.
 import { spawn } from 'node:child_process';
@@ -719,6 +719,66 @@ async function main() {
     rec('victorian: nothing in the chronicle animates under reduced motion', still === 0, { animated: still });
   };
 
+  /** French layout pass (round 37, FEAT-003 item 4; FRLAYOUT_ONLY=1 runs only this). The browser's own page zoom is emulated with a device scale factor (1280 px wide at 100%, a 853 px CSS viewport at 150%), the page is French, and each key panel is opened in turn: title card, HUD (objective and stats), board, chronicle, journal page, settings (the help dialog) and the villager dialog. A panel passes when it has no horizontal overflow, nothing inside it pokes out past its right edge, its box stays inside the viewport and its own text is not clipped (scrollHeight within clientHeight for non-scrolling text blocks). FRLAYOUT_SHOT_DIR=<dir> saves a JPEG of each panel. */
+  const frLayoutRun = async () => {
+    const { writeFileSync } = await import('node:fs');
+    const shotDir = process.env.FRLAYOUT_SHOT_DIR || '';
+    const H = '#seed=1818&sanity=40&night=3';
+    const SESSION = { seed: 1818, sanity: 40, night: 2, lore: ['j01', 'j02', 'p01'], board: 'bd1;0,1,2,3;;2:c_innkeeper_bell:2' };
+    const fresh = async (query, hash, session) => {
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?intro=0&capture=1'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      if (session) await ev(`localStorage.setItem('flv.session.v1', ${JSON.stringify(JSON.stringify(session))})`);
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav(query + hash); await sleep(1200);
+    };
+    /** Layout facts for one element: horizontal overflow, descendants past its right edge, viewport containment, clipped own text. */
+    const probe = (id) => ev(`(()=>{const e=document.getElementById(${JSON.stringify(id)})||document.querySelector(${JSON.stringify(id)});if(!e||e.hidden)return {id:${JSON.stringify(id)},shown:false};
+      const r=e.getBoundingClientRect(),vw=document.documentElement.clientWidth,vh=window.innerHeight;
+      const pokes=[...e.querySelectorAll('*')].filter((c)=>{const cr=c.getBoundingClientRect();return cr.width>0&&cr.height>0&&getComputedStyle(c).position!=='fixed'&&cr.right>r.right+1&&getComputedStyle(e).overflowX==='visible'}).slice(0,3).map((c)=>(c.id||c.className||c.tagName)+':'+Math.round(c.getBoundingClientRect().right-r.right));
+      const clipped=[...e.querySelectorAll('button,h1,h2,h3,label,summary,.stats,p')].filter((c)=>{const cs=getComputedStyle(c);return c.clientWidth>0&&cs.overflowX!=='auto'&&cs.overflowX!=='scroll'&&c.scrollWidth>c.clientWidth+1}).slice(0,3).map((c)=>(c.id||c.className||c.tagName)+':'+(c.scrollWidth-c.clientWidth));
+      return {id:${JSON.stringify(id)},shown:true,over:e.scrollWidth-e.clientWidth,left:Math.round(r.left),right:Math.round(r.right),vw,inside:r.left>=-1&&r.right<=vw+1,pokes,clipped,docOver:document.documentElement.scrollWidth-vw}})()`);
+    const verdict = (p) => p.shown && p.over <= 1 && p.inside && p.pokes.length === 0 && p.clipped.length === 0 && p.docOver <= 1;
+    for (const [zoom, width, height] of [[1, 1280, 900], [1.5, 853, 600]]) {
+      const label = `${zoom * 100}%`;
+      const shot = async (name) => { if (shotDir) writeFileSync(join(shotDir, `fr-${Math.round(zoom * 100)}-${name}.jpg`), Buffer.from(await capture({ format: 'jpeg', quality: 60 }), 'base64')); };
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: zoom, mobile: false });
+      // title card
+      await send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await nav('?capture=0'); await until(() => ev(`location.protocol==='http:'`), 20000); await ev(`localStorage.clear()`);
+      await nav('?lang=fr'); await until(() => ev(`document.getElementById('title')?.hidden===false`), 15000); await sleep(500);
+      const title = await probe('.title-card'); await shot('title');
+      rec(`fr layout ${label}: the title card fits`, verdict(title), title);
+      // HUD, board, chronicle, journal, settings, villager dialog
+      await fresh('?intro=0&capture=1&tick=900&lang=fr', H, SESSION);
+      const hud = [await probe('objective'), await probe('stats')]; await shot('hud');
+      rec(`fr layout ${label}: the HUD (objective and stats) fits`, hud.every((p) => !p.shown || verdict(p)) && hud.some((p) => p.shown), hud);
+      await key(';', 'Semicolon', 186, ';'); await sleep(700);
+      const board = await probe('boardPanel'); await shot('board');
+      rec(`fr layout ${label}: the board fits`, verdict(board), board);
+      await special('Escape', 27); await sleep(300);
+      await ev(`document.getElementById('chronicleToggle').click()`); await sleep(900);
+      const chron = await probe('chroniclePanel'); await shot('chronicle');
+      rec(`fr layout ${label}: the chronicle fits`, verdict(chron), chron);
+      await ev(`document.getElementById('chronicleToggle').click()`); await sleep(200);
+      await ev(`document.getElementById('codexToggle').click()`); await sleep(400);
+      const journalPane = await probe('.journal');
+      await ev(`(()=>{const d=document.getElementById('loreDialog');const li=document.querySelector('#loreList li:not(.locked)');document.getElementById('loreTitle').textContent=li?li.querySelector('strong').textContent:'';document.getElementById('loreText').textContent=li?li.querySelector('.lore-text').textContent:'';document.getElementById('loreEffect').textContent='';d.hidden=false})()`); await sleep(400);
+      const lore = await probe('loreDialog'); await shot('journal');
+      rec(`fr layout ${label}: the journal (side panel and page) fits`, verdict(lore) && journalPane.shown && journalPane.over <= 1 && journalPane.pokes.length === 0, { lore, journalPane });
+      await ev(`document.getElementById('loreDialog').hidden=true`);
+      await ev(`document.getElementById('helpBtn').click()`); await sleep(500);
+      const settings = await probe('help'); await shot('settings');
+      rec(`fr layout ${label}: the settings (help dialog) fit`, verdict(settings), settings);
+      await ev(`document.getElementById('help').close()`);
+      await ev(`document.getElementById('villagerToggle').click()`); await sleep(300);
+      await ev(`document.querySelector('#villagerList button[data-villager]:not([disabled])')?.click()`); await sleep(500);
+      const vil = await probe('villagerDialog'); await shot('villager');
+      rec(`fr layout ${label}: the villager dialog fits`, verdict(vil), vil);
+    }
+    await send('Emulation.clearDeviceMetricsOverride');
+  };
+
   /** Mythos (round 27: the background simulation feeding the board and the chronicle; MYTHOS_ONLY=1 runs only this). Seed 1818 at night 5 (found with web/src/mythos.js, see CHANGELOG): two cults (the Lamp Wardens and the Salt Congregation), the secrets of villagers 1 and 4 out on night 5 (villager 4 saw a body carried to the water), and a missing person rumor from villager 4. The saved board holds what four villagers told the player. */
   const mythosRun = async () => {
     const Q = '?intro=0&capture=1&tick=900', H = '#seed=1818&sanity=40&night=5';
@@ -820,6 +880,7 @@ async function main() {
     if (process.env.SOCIETY_ONLY) { await societyRun(); break suite; }
     if (process.env.MYTHOS_ONLY) { await mythosRun(); break suite; }
     if (process.env.THEORY_ONLY) { await theoryRun(); break suite; }
+    if (process.env.FRLAYOUT_ONLY) { await frLayoutRun(); break suite; }
     if (process.env.VICTORIAN_ONLY) { await victorianRun(); break suite; }
     if (process.env.PLACES_ONLY) { await placesRun(); break suite; }
     if (process.env.TIERS_ONLY) { await tiersRun(); break suite; }
